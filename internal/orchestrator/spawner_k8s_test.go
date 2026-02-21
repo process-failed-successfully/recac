@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
@@ -28,7 +29,7 @@ func TestNewK8sSpawner_Config(t *testing.T) {
 		t.Setenv("KUBERNETES_SERVICE_HOST", "") // Ensure not in-cluster
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways)
+		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways, nil)
 		assert.Error(t, err)
 		assert.Nil(t, spawner)
 	})
@@ -64,7 +65,7 @@ users:
 		t.Setenv("KUBERNETES_SERVICE_HOST", "")
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways)
+		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways, nil)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, spawner)
@@ -98,14 +99,26 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 		EnvVars: map[string]string{"CUSTOM_VAR": "value"},
 	}
 
-	// Execute
-	err := spawner.Spawn(context.Background(), item)
-	assert.NoError(t, err)
+	// Execute in goroutine
+	done := make(chan error)
+	go func() {
+		done <- spawner.Spawn(context.Background(), item)
+	}()
 
-	// Verify
+	// Verify Job Created
 	jobName := "recac-agent-ticket-1"
-	job, err := fakeClient.BatchV1().Jobs("default").Get(context.Background(), jobName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	var job *batchv1.Job
+	var err error
+
+	// Wait for job creation
+	for i := 0; i < 10; i++ {
+		job, err = fakeClient.BatchV1().Jobs("default").Get(context.Background(), jobName, metav1.GetOptions{})
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	assert.NoError(t, err, "Job should be created")
 
 	// Check Env Vars
 	envVars := job.Spec.Template.Spec.Containers[0].Env
@@ -120,6 +133,17 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Equal(t, "test-openai-key", envMap["OPENAI_API_KEY"], "OPENAI_API_KEY should be propagated")
 	assert.Equal(t, "0", envMap["GIT_TERMINAL_PROMPT"], "GIT_TERMINAL_PROMPT should be 0")
 	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS should be 20")
+
+	// Complete the job so Spawn returns
+	job.Status.Succeeded = 1
+	_, _ = fakeClient.BatchV1().Jobs("default").Update(context.Background(), job, metav1.UpdateOptions{})
+
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Log("Spawn timed out waiting for completion")
+	}
 }
 
 func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
@@ -145,11 +169,21 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	}
 
 	t.Run("Create Success", func(t *testing.T) {
-		err := spawner.Spawn(context.Background(), item)
-		assert.NoError(t, err)
+		done := make(chan error)
+		go func() {
+			done <- spawner.Spawn(context.Background(), item)
+		}()
 
-		// Verify Job exists
-		job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+		// Wait for job creation
+		var job *batchv1.Job
+		var err error
+		for i := 0; i < 10; i++ {
+			job, err = clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+			if err == nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
 		assert.NoError(t, err)
 		assert.Equal(t, "recac-agent-task-123", job.Name)
 		
@@ -164,6 +198,17 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		assert.Equal(t, "value", envMap["CUSTOM_VAR"])
 		assert.Equal(t, "gemini", envMap["RECAC_PROVIDER"])
 		assert.Equal(t, "gemini-pro", envMap["RECAC_MODEL"])
+
+		// Finish job
+		job.Status.Succeeded = 1
+		_, _ = clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+
+		select {
+		case err := <-done:
+			assert.NoError(t, err)
+		case <-time.After(5 * time.Second):
+			t.Log("Spawn timed out")
+		}
 	})
 
 	t.Run("Retry Existing Failed Job", func(t *testing.T) {
@@ -232,4 +277,110 @@ func TestK8sSpawner_Cancel(t *testing.T) {
 	assert.Error(t, err)
 	// Usually returns "jobs.batch "recac-agent-job-1" not found"
 	// But let's just check it's an error.
+}
+
+type K8sMockPoller struct {
+	UpdateStatusFunc func(ctx context.Context, item WorkItem, status string, comment string) error
+}
+
+func (m *K8sMockPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
+	return nil, nil
+}
+func (m *K8sMockPoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {
+	if m.UpdateStatusFunc != nil {
+		return m.UpdateStatusFunc(ctx, item, status, comment)
+	}
+	return nil
+}
+func (m *K8sMockPoller) Ping(ctx context.Context) error { return nil }
+
+func TestK8sSpawner_Spawn_WaitsForCompletion(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockPoller := &K8sMockPoller{}
+
+	spawner := &K8sSpawner{
+		Client:        clientset,
+		Namespace:     "test-ns",
+		Image:         "recac-agent:latest",
+		AgentProvider: "gemini",
+		AgentModel:    "gemini-pro",
+		PullPolicy:    corev1.PullAlways,
+		Logger:        logger,
+		Poller:        mockPoller,
+	}
+
+	item := WorkItem{
+		ID:      "TASK-WAIT",
+		RepoURL: "https://github.com/example/repo",
+	}
+
+	jobName := "recac-agent-task-wait"
+
+	// 1. Success Case
+	t.Run("Waits for Success", func(t *testing.T) {
+		done := make(chan error)
+		go func() {
+			done <- spawner.Spawn(context.Background(), item)
+		}()
+
+		// Wait a bit to ensure Spawn is running and loop started
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify Job created
+		job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), jobName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(job.Status.Succeeded))
+
+		// Update to Succeeded
+		job.Status.Succeeded = 1
+		_, err = clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+
+		// Wait for Spawn to return
+		select {
+		case err := <-done:
+			assert.NoError(t, err)
+		case <-time.After(5 * time.Second): // Adjusted ticker to 2s in implementation
+			t.Fatal("Spawn did not return in time")
+		}
+	})
+
+	// 2. Failure Case
+	t.Run("Waits for Failure and Updates Poller", func(t *testing.T) {
+		item.ID = "TASK-FAIL"
+		jobName = "recac-agent-task-fail"
+
+		pollerCalled := false
+		mockPoller.UpdateStatusFunc = func(ctx context.Context, item WorkItem, status string, comment string) error {
+			pollerCalled = true
+			assert.Equal(t, "Failed", status)
+			assert.Contains(t, comment, "Agent job failed")
+			return nil
+		}
+
+		done := make(chan error)
+		go func() {
+			done <- spawner.Spawn(context.Background(), item)
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Update to Failed
+		job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), jobName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		job.Status.Failed = 1
+		_, err = clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+
+		// Wait for Spawn to return
+		select {
+		case err := <-done:
+			assert.NoError(t, err) // Should return nil even on failure (as per Docker parity)
+		case <-time.After(5 * time.Second):
+			t.Fatal("Spawn did not return in time")
+		}
+
+		assert.True(t, pollerCalled, "Poller should have been updated")
+	})
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,9 +28,10 @@ type K8sSpawner struct {
 	AgentModel    string
 	PullPolicy    corev1.PullPolicy
 	Logger        *slog.Logger
+	Poller        Poller
 }
 
-func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy) (*K8sSpawner, error) {
+func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy, poller Poller) (*K8sSpawner, error) {
 	// 1. Try In-Cluster Config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -68,6 +70,7 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 		AgentModel:    model,
 		PullPolicy:    pullPolicy,
 		Logger:        logger,
+		Poller:        poller,
 	}, nil
 }
 
@@ -219,8 +222,55 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		return fmt.Errorf("failed to create job: %w", err)
 	}
 
-	s.Logger.Info("Job created", "name", jobName)
-	return nil
+	s.Logger.Info("Job created, waiting for completion", "name", jobName)
+
+	// Wait for completion
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			currentJob, err := s.Client.BatchV1().Jobs(s.Namespace).Get(ctx, jobName, metav1.GetOptions{})
+			if err != nil {
+				s.Logger.Error("Failed to get job status", "name", jobName, "error", err)
+				continue
+			}
+
+			if currentJob.Status.Succeeded > 0 {
+				s.Logger.Info("Job succeeded", "name", jobName)
+				return nil
+			}
+
+			if currentJob.Status.Failed > 0 {
+				s.Logger.Warn("Job failed", "name", jobName)
+
+				// Fetch logs for context
+				var output string
+				logs, err := s.GetLogs(ctx, item.ID)
+				if err == nil {
+					// Read up to 4KB
+					buf := make([]byte, 4096)
+					n, _ := logs.Read(buf)
+					output = string(buf[:n])
+					logs.Close()
+				} else {
+					output = fmt.Sprintf("Failed to retrieve logs: %v", err)
+				}
+
+				// Update Poller
+				if s.Poller != nil {
+					if err := s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent job failed:\n%s", output)); err != nil {
+						s.Logger.Error("Failed to update status", "item", item.ID, "error", err)
+					}
+				}
+
+				return nil // Return nil to indicate spawning/orchestration finished (even if job failed)
+			}
+		}
+	}
 }
 
 func (s *K8sSpawner) Cancel(ctx context.Context, jobID string) error {
