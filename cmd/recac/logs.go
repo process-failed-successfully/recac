@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -45,133 +46,175 @@ var logsCmd = &cobra.Command{
 			exit(1)
 		}
 
+		k8sClient, _ := k8sClientFactory()
+
 		if all {
-			streamAllRunningSessions(cmd, sm, follow, filter)
+			streamAllRunningSessions(cmd, sm, k8sClient, follow, filter)
 			return
 		}
 
 		sessionName := args[0]
 
+		// Try local logs first
 		logFile, err := sm.GetSessionLogs(sessionName)
-		if err != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
-			exit(1)
-		}
-
-		file, err := os.Open(logFile)
-		if err != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: failed to open log file: %v\n", err)
-			exit(1)
-		}
-		defer file.Close()
-
-		reader := bufio.NewReader(file)
-
-		// Helper to process line
-		processLine := func(line string) {
-			if filter == "" || strings.Contains(line, filter) {
-				fmt.Fprint(cmd.OutOrStdout(), line)
+		if err == nil {
+			file, err := os.Open(logFile)
+			if err == nil {
+				defer file.Close()
+				streamReader(cmd.OutOrStdout(), bufio.NewReader(file), follow, filter)
+				return
 			}
 		}
 
-		// Initial read
+		// Try K8s logs if not found locally
+		if k8sClient != nil {
+			// Find pod by label
+			pods, err := k8sClient.ListPods(context.Background(), fmt.Sprintf("ticket=%s", sessionName))
+			if err == nil && len(pods) > 0 {
+				podName := pods[0].Name
+				streamK8sLogs(cmd, k8sClient, podName, follow, filter)
+				return
+			}
+		}
+
+		fmt.Fprintf(cmd.ErrOrStderr(), "Error: session '%s' not found locally or in Kubernetes\n", sessionName)
+		exit(1)
+	},
+}
+
+func streamReader(out io.Writer, reader *bufio.Reader, follow bool, filter string) {
+	processLine := func(line string) {
+		if filter == "" || strings.Contains(line, filter) {
+			fmt.Fprint(out, line)
+		}
+	}
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				if line != "" {
+					processLine(line)
+				}
+				break
+			}
+			break
+		}
+		processLine(line)
+	}
+
+	if follow {
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
 				if err == io.EOF {
-					if line != "" {
-						processLine(line)
-					}
-					break
+					time.Sleep(500 * time.Millisecond)
+					continue
 				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "Error reading log file: %v\n", err)
-				exit(1)
+				break
 			}
 			processLine(line)
 		}
-
-		if follow {
-			// Follow mode
-			for {
-				line, err := reader.ReadString('\n')
-				if err != nil {
-					if err == io.EOF {
-						time.Sleep(500 * time.Millisecond)
-						continue
-					}
-					fmt.Fprintf(cmd.ErrOrStderr(), "Error streaming logs: %v\n", err)
-					break
-				}
-				processLine(line)
-			}
-		}
-	},
+	}
 }
 
-func streamAllRunningSessions(cmd *cobra.Command, sm ISessionManager, follow bool, filter string) {
-	sessions, err := sm.ListSessions()
+func streamK8sLogs(cmd *cobra.Command, client IK8sClient, podName string, follow bool, filter string) {
+	stream, err := client.GetPodLogs(context.Background(), podName, follow)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Error: failed to list sessions: %v\n", err)
-		exit(1)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Error getting K8s logs: %v\n", err)
+		return
 	}
+	defer stream.Close()
 
-	var runningSessions []*runner.SessionState
-	for _, s := range sessions {
-		if s.Status == "running" {
-			runningSessions = append(runningSessions, s)
+	reader := bufio.NewReader(stream)
+	processLine := func(line string) {
+		if filter == "" || strings.Contains(line, filter) {
+			fmt.Fprint(cmd.OutOrStdout(), line)
 		}
 	}
 
-	if len(runningSessions) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No running sessions found.")
-		return
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				if line != "" {
+					processLine(line)
+				}
+				break
+			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error reading K8s logs: %v\n", err)
+			break
+		}
+		processLine(line)
 	}
+}
 
+func streamAllRunningSessions(cmd *cobra.Command, sm ISessionManager, k8sClient IK8sClient, follow bool, filter string) {
 	logChan := make(chan string)
 	var wg sync.WaitGroup
 
-	for _, session := range runningSessions {
-		wg.Add(1)
-		go func(s *runner.SessionState) {
-			defer wg.Done()
-			logFile, err := sm.GetSessionLogs(s.Name)
-			if err != nil {
-				logChan <- fmt.Sprintf("[%s] Error: %v\n", s.Name, err)
-				return
-			}
-
-			file, err := os.Open(logFile)
-			if err != nil {
-				logChan <- fmt.Sprintf("[%s] Error: failed to open log file: %v\n", s.Name, err)
-				return
-			}
-			defer file.Close()
-
-			reader := bufio.NewReader(file)
-
-			// Initial read
-			for {
-				line, err := reader.ReadString('\n')
-				if err != nil {
-					break
-				}
-				logChan <- fmt.Sprintf("[%s] %s", s.Name, line)
-			}
-
-			if follow {
-				for {
-					line, err := reader.ReadString('\n')
+	// Local sessions
+	sessions, err := sm.ListSessions()
+	if err == nil {
+		for _, s := range sessions {
+			if s.Status == "running" {
+				wg.Add(1)
+				go func(s *runner.SessionState) {
+					defer wg.Done()
+					logFile, err := sm.GetSessionLogs(s.Name)
 					if err != nil {
-						if err == io.EOF {
-							time.Sleep(500 * time.Millisecond)
-							continue
-						}
-						break
+						return
 					}
-					logChan <- fmt.Sprintf("[%s] %s", s.Name, line)
+					file, err := os.Open(logFile)
+					if err != nil {
+						return
+					}
+					defer file.Close()
+
+					reader := bufio.NewReader(file)
+					streamToChan(reader, logChan, fmt.Sprintf("[%s] ", s.Name), follow)
+				}(s)
+			}
+		}
+	}
+
+	// K8s pods
+	if k8sClient != nil {
+		// List pods with 'ticket' label
+		pods, err := k8sClient.ListPods(context.Background(), "ticket")
+		if err == nil {
+			for _, pod := range pods {
+				if pod.Status.Phase == "Running" {
+					wg.Add(1)
+					go func(podName, ticket string) {
+						defer wg.Done()
+						stream, err := k8sClient.GetPodLogs(context.Background(), podName, follow)
+						if err != nil {
+							return
+						}
+						defer stream.Close()
+
+						reader := bufio.NewReader(stream)
+						prefix := fmt.Sprintf("[%s] ", ticket)
+						if ticket == "" {
+							prefix = fmt.Sprintf("[%s] ", podName)
+						}
+
+						// For K8s stream, simple reading is enough as it blocks if follow=true
+						for {
+							line, err := reader.ReadString('\n')
+							if err != nil {
+								if line != "" {
+									logChan <- prefix + line
+								}
+								break
+							}
+							logChan <- prefix + line
+						}
+					}(pod.Name, pod.Labels["ticket"])
 				}
 			}
-		}(session)
+		}
 	}
 
 	go func() {
@@ -179,9 +222,45 @@ func streamAllRunningSessions(cmd *cobra.Command, sm ISessionManager, follow boo
 		close(logChan)
 	}()
 
+	foundAny := false
 	for line := range logChan {
+		foundAny = true
 		if filter == "" || strings.Contains(line, filter) {
 			fmt.Fprint(cmd.OutOrStdout(), line)
+		}
+	}
+
+	if !foundAny {
+		fmt.Fprintln(cmd.OutOrStdout(), "No running sessions found.")
+	}
+}
+
+func streamToChan(reader *bufio.Reader, ch chan<- string, prefix string, follow bool) {
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				if line != "" {
+					ch <- prefix + line
+				}
+				break
+			}
+			break
+		}
+		ch <- prefix + line
+	}
+
+	if follow {
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					time.Sleep(500 * time.Millisecond)
+					continue
+				}
+				break
+			}
+			ch <- prefix + line
 		}
 	}
 }
