@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -61,6 +62,7 @@ func main() {
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 	pflag.String("db-file", "", "Path to SQLite database for job history persistence")
+	pflag.String("api-key", "", "API Key for orchestrator authentication")
 
 	// Janitor Flags
 	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
@@ -149,6 +151,8 @@ func main() {
 	viper.BindEnv("orchestrator.metrics_port", "RECAC_METRICS_PORT")
 	viper.BindPFlag("orchestrator.db_file", pflag.Lookup("db-file"))
 	viper.BindEnv("orchestrator.db_file", "RECAC_DB_FILE")
+	viper.BindPFlag("orchestrator.api_key", pflag.Lookup("api-key"))
+	viper.BindEnv("orchestrator.api_key", "RECAC_ORCHESTRATOR_API_KEY")
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -373,16 +377,42 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	// Start Metrics Server
 	metricsPort := viper.GetInt("orchestrator.metrics_port")
+
+	authMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			apiKey := viper.GetString("orchestrator.api_key")
+			if apiKey == "" {
+				next(w, r)
+				return
+			}
+
+			token := r.Header.Get("X-Recac-Token")
+			if token == "" {
+				authHeader := r.Header.Get("Authorization")
+				if strings.HasPrefix(authHeader, "Bearer ") {
+					token = strings.TrimPrefix(authHeader, "Bearer ")
+				}
+			}
+
+			if subtle.ConstantTimeCompare([]byte(token), []byte(apiKey)) != 1 {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			next(w, r)
+		}
+	}
+
 	statusHandler := func(mux *http.ServeMux) {
-		mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/status", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			status := orch.GetStatus()
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(status); err != nil {
 				logger.Error("Failed to encode status", "error", err)
 			}
-		})
+		}))
 
-		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/jobs", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			state := r.URL.Query().Get("state")
 			var jobs []orchestrator.JobInfo
 
@@ -399,9 +429,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			if err := json.NewEncoder(w).Encode(jobs); err != nil {
 				logger.Error("Failed to encode jobs", "error", err)
 			}
-		})
+		}))
 
-		mux.HandleFunc("GET /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /jobs/{id}", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			job, err := orch.GetJob(id)
 			if err != nil {
@@ -413,9 +443,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			if err := json.NewEncoder(w).Encode(job); err != nil {
 				logger.Error("Failed to encode job", "error", err)
 			}
-		})
+		}))
 
-		mux.HandleFunc("GET /jobs/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /jobs/{id}/logs", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			logStream, err := orch.GetLogs(r.Context(), id)
 			if err != nil {
@@ -424,9 +454,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 			defer logStream.Close()
 			io.Copy(w, logStream)
-		})
+		}))
 
-		mux.HandleFunc("POST /jobs/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /jobs/{id}/retry", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			// Use r.Context() but ensure logger is available (captured from main)
 			if err := orch.RetryJob(r.Context(), id, logger); err != nil {
@@ -441,9 +471,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 			w.WriteHeader(http.StatusAccepted)
 			fmt.Fprintf(w, "Job %s retry submitted", id)
-		})
+		}))
 
-		mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /jobs/retry-failed", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			count, err := orch.RetryFailedJobs(r.Context(), logger)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -452,9 +482,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprintf(w, `{"retried": %d}`, count)
-		})
+		}))
 
-		mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("DELETE /jobs/{id}", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			if err := orch.CancelJob(r.Context(), id); err != nil {
 				// We don't know if it's 404 or 500, but let's assume if it returns error, it failed.
@@ -465,9 +495,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Job %s cancellation requested", id)
-		})
+		}))
 
-		mux.HandleFunc("POST /jobs", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /jobs", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			var item orchestrator.WorkItem
 			if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 				http.Error(w, "Invalid JSON body", http.StatusBadRequest)
@@ -493,19 +523,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 			w.WriteHeader(http.StatusAccepted)
 			fmt.Fprintf(w, "Job %s submitted successfully", item.ID)
-		})
+		}))
 
-		mux.HandleFunc("POST /pause", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /pause", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			orch.Pause()
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "Orchestrator paused")
-		})
+		}))
 
-		mux.HandleFunc("POST /resume", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /resume", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			orch.Resume()
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "Orchestrator resumed")
-		})
+		}))
 	}
 
 	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort, statusHandler)
