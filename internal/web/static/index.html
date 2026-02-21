@@ -17,26 +17,45 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; }
-        #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: hidden; }
+        .graph-wrapper { width: 100%; height: 500px; border: 1px solid #ddd; background: white; position: relative; }
+        #graph { width: 100%; height: 100%; overflow: hidden; }
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .refresh-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; }
+        .refresh-btn:hover { background: #0056b3; }
+        .refresh-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .spinner { width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 10; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+        .error-message { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-bottom: 20px; display: none; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Recac Project Dashboard</h1>
+        <div class="header-actions">
+            <h1>Recac Project Dashboard</h1>
+            <button id="refresh-btn" class="refresh-btn" aria-label="Refresh data">
+                <span class="btn-text">Refresh</span>
+            </button>
+        </div>
+
+        <div id="error-message" class="error-message" role="alert" aria-live="polite"></div>
 
         <div class="section">
             <h2>Task Dependency Graph</h2>
-            <div id="graph" class="mermaid">
-                <!-- Graph will be loaded here -->
-                graph TD;
-                  A[Loading...]
+            <div class="graph-wrapper">
+                <div id="graph" class="mermaid"></div>
+                <div class="loading-overlay" aria-label="Loading graph...">
+                     <div class="spinner"></div>
+                </div>
             </div>
         </div>
 
         <div class="section">
             <h2>Features & Tasks</h2>
             <table id="features-table">
+                <caption>List of project features and their current status</caption>
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -46,7 +65,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Features will be loaded here -->
+                    <tr class="loading-row">
+                        <td colspan="4" style="text-align: center; padding: 20px;">
+                            <div class="spinner" style="margin: 0 auto;"></div>
+                            <span class="sr-only">Loading features...</span>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -55,27 +79,76 @@
     <script>
         mermaid.initialize({ startOnLoad: false });
 
+        function setLoading(isLoading) {
+            const btn = document.getElementById('refresh-btn');
+            const graphOverlay = document.querySelector('.graph-wrapper .loading-overlay');
+            const tableBody = document.querySelector('#features-table tbody');
+            const errorDiv = document.getElementById('error-message');
+
+            if (btn) btn.disabled = isLoading;
+            if (isLoading) {
+                if (errorDiv) errorDiv.style.display = 'none';
+                if (graphOverlay) graphOverlay.style.display = 'flex';
+                if (tableBody) {
+                    tableBody.innerHTML = `
+                        <tr class="loading-row">
+                            <td colspan="4" style="text-align: center; padding: 20px;">
+                                <div class="spinner" style="margin: 0 auto;"></div>
+                                <span class="sr-only">Loading features...</span>
+                            </td>
+                        </tr>`;
+                }
+            } else {
+                if (graphOverlay) graphOverlay.style.display = 'none';
+            }
+        }
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+
+            // Also update graph to show error if it's empty
+            const graphEl = document.getElementById('graph');
+            if (!graphEl.querySelector('svg')) {
+                 graphEl.innerHTML = `<div style="padding: 20px; color: red;">${msg}</div>`;
+            }
+        }
+
         async function loadData() {
+            setLoading(true);
             try {
                 // Fetch Features
                 const featuresResp = await fetch('/api/features');
+                if (!featuresResp.ok) throw new Error(`HTTP error! status: ${featuresResp.status}`);
                 const features = await featuresResp.json();
                 renderFeatures(features);
 
                 // Fetch Graph
                 const graphResp = await fetch('/api/graph');
+                if (!graphResp.ok) throw new Error(`HTTP error! status: ${graphResp.status}`);
                 const graphData = await graphResp.text();
-                renderGraph(graphData);
+                await renderGraph(graphData);
 
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('graph').innerHTML = "Error loading data. Is the server running?";
+                showError("Error loading data. Is the server running?");
+                const tbody = document.querySelector('#features-table tbody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #721c24;">Error loading data</td></tr>';
+            } finally {
+                setLoading(false);
             }
         }
 
         function renderFeatures(features) {
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
+
+            if (!features || features.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No features found.</td></tr>';
+                return;
+            }
+
             features.forEach(f => {
                 const tr = document.createElement('tr');
                 let statusClass = 'status-pending';
@@ -116,10 +189,13 @@
                  element.appendChild(pre);
                  return;
             }
+
             element.textContent = graphDef;
+            element.removeAttribute('data-processed'); // Ensure mermaid re-processes it
             await mermaid.run({ nodes: [element] });
         }
 
+        document.getElementById('refresh-btn').addEventListener('click', loadData);
         document.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
