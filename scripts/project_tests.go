@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "google/gemini-2.5-flash-preview-09-2025"
+		model = "openai/gpt-4o-mini"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")
