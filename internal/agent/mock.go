@@ -47,6 +47,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Execution Phase: Detect the implementation task and return code
+	// Check if we've already done it by looking at the prompt history (git status output)
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "Everything up-to-date") {
+		return "Task completed successfully. The code is committed. I am done.", nil
+	}
+
 	// The prompt usually contains the task description we just returned
 	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
 		return `I will create the primes.py script and run it.
