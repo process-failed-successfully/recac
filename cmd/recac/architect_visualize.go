@@ -14,7 +14,7 @@ import (
 var architectVisualizeCmd = &cobra.Command{
 	Use:   "visualize",
 	Short: "Visualize the architecture as a Mermaid diagram",
-	Run:   runArchitectVisualizeCmd,
+	RunE:  runArchitectVisualizeCmd,
 }
 
 var htmlFlag bool
@@ -25,20 +25,18 @@ func init() {
 	architectVisualizeCmd.Flags().BoolVar(&htmlFlag, "html", false, "Generate an HTML file with the diagram")
 }
 
-func runArchitectVisualizeCmd(cmd *cobra.Command, args []string) {
+func runArchitectVisualizeCmd(cmd *cobra.Command, args []string) error {
 	dir, _ := cmd.Flags().GetString("dir")
 	archPath := filepath.Join(dir, "architecture.yaml")
 
 	data, err := os.ReadFile(archPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", archPath, err)
-		os.Exit(1)
+		return fmt.Errorf("error reading %s: %w", archPath, err)
 	}
 
 	var arch architecture.SystemArchitecture
 	if err := yaml.Unmarshal(data, &arch); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing architecture.yaml: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing architecture.yaml: %w", err)
 	}
 
 	mermaid := generateMermaidSystemArchitecture(&arch)
@@ -47,13 +45,14 @@ func runArchitectVisualizeCmd(cmd *cobra.Command, args []string) {
 		html := generateHTML(mermaid)
 		outPath := filepath.Join(dir, "architecture.html")
 		if err := os.WriteFile(outPath, []byte(html), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing HTML: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error writing HTML: %w", err)
 		}
 		fmt.Printf("Generated HTML: %s\n", outPath)
 	} else {
 		fmt.Println(mermaid)
 	}
+
+	return nil
 }
 
 func generateMermaidSystemArchitecture(arch *architecture.SystemArchitecture) string {
