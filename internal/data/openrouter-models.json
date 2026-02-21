@@ -81,8 +81,8 @@
       "displayName": "OpenAI GPT-4.1 Mini"
     },
     {
-      "name": "google/gemini-2.5-flash-preview-09-2025",
-      "displayName": "Google Gemini 2.5 Flash Preview 09-2025"
+      "name": "google/gemini-2.0-flash-001",
+      "displayName": "Google Gemini 2.0 Flash 001"
     }
   ]
 }
