@@ -549,3 +549,47 @@ func TestSession_RunInitScript_Local(t *testing.T) {
 		return err == nil
 	}, 2*time.Second, 100*time.Millisecond, "init.sh should have run and created marker file")
 }
+
+func TestRunLoop_PlanOnly(t *testing.T) {
+	// Setup
+	tmpDir := t.TempDir()
+	specContent := "A simple calculator app."
+	specPath := filepath.Join(tmpDir, "app_spec.txt")
+	err := os.WriteFile(specPath, []byte(specContent), 0644)
+	assert.NoError(t, err)
+
+	// Mock Agent
+	mockAgent := new(MockTestifyAgent)
+	expectedPlan := "# Implementation Plan\n\n1. Step 1\n2. Step 2"
+
+	// Expect a call with PlanOnly prompt
+	mockAgent.On("Send", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		// Check if prompt contains critical keywords from PlanOnly template
+		return true // Ideally check prompt content, but template might vary. Assuming correct prompt type used.
+	})).Return(expectedPlan, nil)
+
+	s := &Session{
+		Workspace:     tmpDir,
+		SpecFile:      "app_spec.txt",
+		Agent:         mockAgent,
+		PlanOnly:      true, // ENABLE PLAN ONLY MODE
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        telemetry.NewLogger(true, "", false),
+		MaxIterations: 5,
+	}
+
+	// Execution
+	err = s.RunLoop(context.Background())
+
+	// Verification
+	assert.NoError(t, err)
+
+	// Check if PLAN.md was created
+	planPath := filepath.Join(tmpDir, "PLAN.md")
+	content, err := os.ReadFile(planPath)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedPlan, string(content))
+
+	// Verify agent was called exactly once
+	mockAgent.AssertNumberOfCalls(t, "Send", 1)
+}

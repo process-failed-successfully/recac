@@ -40,6 +40,7 @@ type SessionConfig struct {
 	SkipQA            bool
 	ManagerFirst      bool
 	Debug             bool
+	PlanOnly          bool
 	JiraClient        *jira.Client
 	JiraTicketID      string
 	RepoURL           string
@@ -393,6 +394,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
 		session.ManagerFirst = cfg.ManagerFirst
+		session.PlanOnly = cfg.PlanOnly
 
 		if cfg.JiraEpicKey != "" {
 			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
@@ -471,6 +473,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.JiraClient = cfg.JiraClient
 	session.JiraTicketID = cfg.JiraTicketID
 	session.RepoURL = cfg.RepoURL
+	session.PlanOnly = cfg.PlanOnly
 
 	if cfg.JiraEpicKey != "" {
 		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)

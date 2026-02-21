@@ -41,6 +41,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// So we ONLY send if s.SlackThreadTS is empty.
 	}
 
+	// PLAN ONLY MODE
+	if s.PlanOnly {
+		return s.GeneratePlanOnly(ctx)
+	}
+
 	// Guardrail: Ensure app_spec.txt exists (Source of Truth)
 	// We skip this check for Mock mode users who might not have set it up, but for real usage it's mandatory.
 	// Actually, user said "Immediately fail if there is no app_spec.txt", so we enforce it strict.
