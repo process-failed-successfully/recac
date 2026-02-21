@@ -135,3 +135,46 @@ func TestSessionManager_ListSessions_UpdatesStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "completed", loaded.Status)
 }
+
+func TestSessionManager_StopSession_ProcessNotFound(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// 1. Create a session with a non-existent PID (by creating a process and waiting for it to exit)
+	cmd := exec.Command("echo", "done")
+	err := cmd.Start()
+	require.NoError(t, err)
+	pid := cmd.Process.Pid
+	cmd.Wait() // Wait for it to exit
+
+	sessionName := "phantom-process-stop"
+	session := &SessionState{
+		Name:    sessionName,
+		PID:     pid,
+		Status:  "running",
+		LogFile: filepath.Join(sm.SessionsDir(), sessionName+".log"),
+	}
+	// Create dummy log file
+	os.WriteFile(session.LogFile, []byte(""), 0600)
+
+	// Save session manually
+	data, err := json.Marshal(session)
+	require.NoError(t, err)
+	err = os.WriteFile(sm.GetSessionPath(sessionName), data, 0600)
+	require.NoError(t, err)
+
+	// 2. Call StopSession
+	err = sm.StopSession(sessionName)
+
+	// 3. Assert error
+	if err == nil {
+		t.Error("Expected error for process not found")
+	} else {
+		assert.Contains(t, err.Error(), "process not found")
+	}
+
+	// 4. Assert status updated to completed
+	updatedSession, err := sm.LoadSession(sessionName)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", updatedSession.Status)
+}
