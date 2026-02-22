@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "openrouter/aurora-alpha" // Default
+		model = "openai/gpt-4o-mini" // Default
 	}
 	runs := 5 // Number of iterations
 
