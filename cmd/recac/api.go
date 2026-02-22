@@ -32,9 +32,19 @@ var apiScanCmd = &cobra.Command{
 	RunE:  runApiScan,
 }
 
+var apiExploreCmd = &cobra.Command{
+	Use:   "explore",
+	Short: "Interactively explore API endpoints",
+	Long:  `Launches a TUI to discover and test API endpoints.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return StartApiExplorer()
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(apiCmd)
 	apiCmd.AddCommand(apiScanCmd)
+	apiCmd.AddCommand(apiExploreCmd)
 	apiScanCmd.Flags().BoolVarP(&apiDescribe, "describe", "d", false, "Use AI to describe the endpoints")
 }
 
