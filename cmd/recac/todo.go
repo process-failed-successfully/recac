@@ -1,9 +1,10 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"fmt"
 	"os"
+	"recac/internal/utils"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,15 @@ import (
 )
 
 const todoFile = "TODO.md"
+
+// TodoTask represents a task in TODO.md
+type TodoTask struct {
+	Index int
+	Done  bool
+	Text  string
+	File  string
+	Line  int
+}
 
 var todoCmd = &cobra.Command{
 	Use:   "todo",
@@ -91,6 +101,56 @@ func ensureTodoFile() error {
 	return nil
 }
 
+func getTodoItems() ([]TodoTask, error) {
+	if err := ensureTodoFile(); err != nil {
+		return nil, err
+	}
+
+	lines, err := utils.ReadLines(todoFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var tasks []TodoTask
+	index := 1
+	re := regexp.MustCompile(`\[([^]]+):(\d+)\]`)
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		var done bool
+		var text string
+
+		if strings.HasPrefix(trimmed, "- [ ]") {
+			done = false
+			text = strings.TrimPrefix(trimmed, "- [ ] ")
+		} else if strings.HasPrefix(trimmed, "- [x]") {
+			done = true
+			text = strings.TrimPrefix(trimmed, "- [x] ")
+		} else {
+			continue
+		}
+
+		task := TodoTask{
+			Index: index,
+			Done:  done,
+			Text:  text,
+		}
+
+		// Try to extract File:Line
+		matches := re.FindStringSubmatch(text)
+		if len(matches) >= 3 {
+			task.File = matches[1]
+			if l, err := strconv.Atoi(matches[2]); err == nil {
+				task.Line = l
+			}
+		}
+
+		tasks = append(tasks, task)
+		index++
+	}
+	return tasks, nil
+}
+
 func appendTask(task string) error {
 	if err := ensureTodoFile(); err != nil {
 		return err
@@ -110,28 +170,22 @@ func appendTask(task string) error {
 }
 
 func listTasks(cmd *cobra.Command) error {
-	if err := ensureTodoFile(); err != nil {
-		return err
-	}
-
-	lines, err := utils.ReadLines(todoFile)
+	tasks, err := getTodoItems()
 	if err != nil {
 		return err
 	}
 
-	index := 1
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- [ ]") {
-			fmt.Fprintf(cmd.OutOrStdout(), "%d. [ ] %s\n", index, strings.TrimPrefix(trimmed, "- [ ] "))
-			index++
-		} else if strings.HasPrefix(trimmed, "- [x]") {
-			fmt.Fprintf(cmd.OutOrStdout(), "%d. [x] %s\n", index, strings.TrimPrefix(trimmed, "- [x] "))
-			index++
-		}
-	}
-	if index == 1 {
+	if len(tasks) == 0 {
 		fmt.Fprintln(cmd.OutOrStdout(), "No tasks found.")
+		return nil
+	}
+
+	for _, task := range tasks {
+		mark := "[ ]"
+		if task.Done {
+			mark = "[x]"
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "%d. %s %s\n", task.Index, mark, task.Text)
 	}
 	return nil
 }
