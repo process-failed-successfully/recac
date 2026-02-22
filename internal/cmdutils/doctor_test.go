@@ -47,41 +47,13 @@ func TestGetDoctor(t *testing.T) {
 		}
 
 		// Mock Docker Connectivity
-		// We mock the variable checkDockerConnectivity to simplify,
-		// OR we mock clientNewClientWithOpts to return a mocked client.
-		// Since checkDockerConnectivity takes a DockerClient, we can test it separately.
-		// But GetDoctor calls clientNewClientWithOpts.
-		// We cannot easily return a MockDoctorDockerClient from clientNewClientWithOpts because it expects *client.Client.
-		// Wait, checkDockerConnectivity takes `DockerClient` interface.
-		// But `GetDoctor` calls `clientNewClientWithOpts` which returns `*client.Client`.
-		// `*client.Client` implements `DockerClient` interface.
-		// We can't mock `clientNewClientWithOpts` to return our mock struct unless our mock struct is *client.Client (which is not possible).
-
-		// So we should mock `checkDockerConnectivity` instead, which is what GetDoctor calls.
-		checkDockerConnectivity = func(cli DockerClient, err error) string {
-			return "[✔] Docker: Daemon is responsive\n"
+		checkDockerConnectivity = func(cli DockerClient, err error) (string, bool) {
+			return "[✔] Docker: Daemon is responsive\n", true
 		}
 
-		// Mock clientNewClientWithOpts to just return nil (error doesn't matter since we mocked checkDockerConnectivity)
-		// But clientNewClientWithOpts return type is (*client.Client, error).
-		// We can't return nil, nil if we want to be safe, but GetDoctor passes the result to checkDockerConnectivity.
-		// We just need to ensure clientNewClientWithOpts doesn't panic.
-		// We can't mock clientNewClientWithOpts easily because of strict return types in Go if we want to return our mock.
-		// BUT, we mocked `checkDockerConnectivity`, so `GetDoctor` will use OUR function.
-		// We just need `clientNewClientWithOpts` to return something that matches the signature.
-		// We can leave `clientNewClientWithOpts` as is, it will return a real client or error.
-		// But we want to avoid side effects (like connecting to real docker).
-		// Wait, `client.NewClientWithOpts` creates a client struct but doesn't necessarily connect immediately until Ping is called.
-		// So it might be fine.
-		// Or we can set `clientNewClientWithOpts` to return (nil, nil) and handle nil in our mocked `checkDockerConnectivity`.
+		output, passed := GetDoctor()
 
-		// Actually, let's mock `clientNewClientWithOpts` to return error to ensure we control it.
-		// clientNewClientWithOpts = func(...) ...
-		// But defining the function signature with external types `client.Client` might be verbose.
-		// Let's rely on `checkDockerConnectivity` mock.
-
-		output := GetDoctor()
-
+		assert.True(t, passed)
 		assert.Contains(t, output, "[✔] Configuration: /home/user/.recac.yaml found")
 		assert.Contains(t, output, "[✔] Dependency: git found")
 		assert.Contains(t, output, "[✔] Dependency: docker found")
@@ -100,12 +72,13 @@ func TestGetDoctor(t *testing.T) {
 		}
 
 		// Mock Docker
-		checkDockerConnectivity = func(cli DockerClient, err error) string {
-			return "[✖] Docker: Failed to create client\n"
+		checkDockerConnectivity = func(cli DockerClient, err error) (string, bool) {
+			return "[✖] Docker: Failed to create client\n", false
 		}
 
-		output := GetDoctor()
+		output, passed := GetDoctor()
 
+		assert.False(t, passed)
 		assert.Contains(t, output, "[✖] Configuration: Missing config file")
 		assert.Contains(t, output, "[✖] Dependency: git not found")
 		assert.Contains(t, output, "[✖] Dependency: docker not found")
@@ -115,7 +88,8 @@ func TestGetDoctor(t *testing.T) {
 
 func TestCheckDockerConnectivity(t *testing.T) {
 	t.Run("Client Creation Error", func(t *testing.T) {
-		msg := checkDockerConnectivityFunc(nil, errors.New("creation failed"))
+		msg, passed := checkDockerConnectivityFunc(nil, errors.New("creation failed"))
+		assert.False(t, passed)
 		assert.Contains(t, msg, "Failed to create client")
 	})
 
@@ -125,7 +99,8 @@ func TestCheckDockerConnectivity(t *testing.T) {
 				return types.Ping{}, nil
 			},
 		}
-		msg := checkDockerConnectivityFunc(mockCli, nil)
+		msg, passed := checkDockerConnectivityFunc(mockCli, nil)
+		assert.True(t, passed)
 		assert.Contains(t, msg, "Daemon is responsive")
 	})
 
@@ -135,7 +110,8 @@ func TestCheckDockerConnectivity(t *testing.T) {
 				return types.Ping{}, errors.New("Is the docker daemon running?")
 			},
 		}
-		msg := checkDockerConnectivityFunc(mockCli, nil)
+		msg, passed := checkDockerConnectivityFunc(mockCli, nil)
+		assert.False(t, passed)
 		assert.Contains(t, msg, "Daemon not running or socket permission error")
 	})
 
@@ -145,7 +121,8 @@ func TestCheckDockerConnectivity(t *testing.T) {
 				return types.Ping{}, errors.New("some other error")
 			},
 		}
-		msg := checkDockerConnectivityFunc(mockCli, nil)
+		msg, passed := checkDockerConnectivityFunc(mockCli, nil)
+		assert.False(t, passed)
 		assert.Contains(t, msg, "Failed to ping daemon")
 	})
 }
