@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "google/gemini-2.5-flash-preview-09-2025"
+--provider openrouter --model "openai/gpt-4o-mini"
 This is a free token so use large iteration counts.
 
 Github:
