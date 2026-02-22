@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "openrouter/aurora-alpha"
+		model = "google/gemini-2.0-flash-001"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")
