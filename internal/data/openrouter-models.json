@@ -25,8 +25,8 @@
       "displayName": "Anthropic Claude Haiku 4.5"
     },
     {
-      "name": "openai/gpt-4o-mini",
-      "displayName": "OpenAI GPT-4o Mini"
+      "name": "nex-agi/deepseek-v3.1-nex-n1:free",
+      "displayName": "NexAGI DeepSeek V3.1 Nex N1 (Free)"
     },
     {
       "name": "tngtech/deepseek-r1t2-chimera:free",
