@@ -27,11 +27,6 @@ func TestTodoCmd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test 1: Add a task
-	// We need to execute the command. Since we can't easily execute the main binary,
-	// we'll call the RunE functions directly or use the command structure.
-	// Since the commands rely on global flags or just args, we can call them.
-
 	// Helper to capture output
 	execute := func(cmdArgs []string) (string, error) {
 		rootCmd.SetArgs(cmdArgs)
@@ -140,6 +135,27 @@ func TestTodoCmd(t *testing.T) {
 		}
 		if _, err := os.Stat("TODO.md"); os.IsNotExist(err) {
 			t.Error("TODO.md was not recreated")
+		}
+	})
+
+	// 7. Test getTodoItems parsing
+	t.Run("Parse Items", func(t *testing.T) {
+		os.WriteFile("TODO.md", []byte("- [ ] [main.go:10] Fix bug\n- [x] Simple task\n"), 0644)
+		tasks, err := getTodoItems()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(tasks) != 2 {
+			t.Fatalf("Expected 2 tasks, got %d", len(tasks))
+		}
+		if tasks[0].File != "main.go" || tasks[0].Line != 10 {
+			t.Errorf("Failed to parse file/line: %+v", tasks[0])
+		}
+		if tasks[0].Text != "[main.go:10] Fix bug" {
+			t.Errorf("Unexpected text: %s", tasks[0].Text)
+		}
+		if !tasks[1].Done {
+			t.Error("Task 2 should be done")
 		}
 	})
 }
