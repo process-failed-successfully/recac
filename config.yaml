@@ -1,13 +1,11 @@
 agent_timeout: 300
 allow_dirty: false
 auto_merge: false
-bash_timeout: 120
+bash_timeout: 600
 cleanup: true
 description: ""
 detached: false
 docker_timeout: 600
-git:
-    unique_branch_names: false
 git_user_email: recac-agent@example.com
 git_user_name: RECAC Agent
 image: ghcr.io/process-failed-successfully/recac-agent:latest
@@ -21,14 +19,12 @@ max_parallel_tickets: 1
 metrics_port: 2112
 mock: false
 mock-agent: false
-model: gemini-pro-latest
+model: gemini-pro
 name: ""
 notifications:
-    discord:
-        enabled: true
     slack:
         channel: '#general'
-        enabled: true
+        enabled: false
         events:
             on_failure: true
             on_project_complete: true
@@ -36,7 +32,7 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: openrouter/aurora-alpha
+    agent_model: tngtech/deepseek-r1t2-chimera:free
     agent_provider: openrouter
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always
@@ -46,6 +42,7 @@ orchestrator:
     mode: local
     namespace: default
     poller: jira
+    watch_dir: ""
     work_file: work_items.json
 path: ""
 project: ""
@@ -56,4 +53,4 @@ stream: false
 summary: ""
 task_max_iterations: 10
 timeout: 300
-verbose: true
+verbose: false
