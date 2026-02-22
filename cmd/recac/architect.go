@@ -40,7 +40,7 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	// 1. Read Spec
 	specContent, err := os.ReadFile(specPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading spec: %v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Error reading spec: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -49,60 +49,60 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	model := viper.GetString("model")
 	ag, err := cmdutils.GetAgentClient(ctx, provider, model, ".", "recac-architect")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing agent: %v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Error initializing agent: %v\n", err)
 		os.Exit(1)
 	}
 
 	// 3. Generate
-	fmt.Println("Architecting system...")
+	fmt.Fprintln(cmd.OutOrStdout(), "Architecting system...")
 	files, err := generateArchitecture(ctx, ag, string(specContent))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Generation failed: %v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Generation failed: %v\n", err)
 		os.Exit(1)
 	}
 
 	// 4. Write Files
 	if err := os.MkdirAll(outDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create output dir: %v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to create output dir: %v\n", err)
 		os.Exit(1)
 	}
 
 	for path, content := range files {
 		fullPath := filepath.Join(outDir, path)
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create dir for %s: %v\n", path, err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to create dir for %s: %v\n", path, err)
 			os.Exit(1)
 		}
 		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to write %s: %v\n", path, err)
 			os.Exit(1)
 		}
-		fmt.Printf("Wrote %s\n", path)
+		fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s\n", path)
 	}
 
 	// 5. Validate
-	fmt.Println("Validating architecture...")
+	fmt.Fprintln(cmd.OutOrStdout(), "Validating architecture...")
 	archPath := filepath.Join(outDir, "architecture.yaml")
 	archData, err := os.ReadFile(archPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Missing architecture.yaml: %v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Missing architecture.yaml: %v\n", err)
 		os.Exit(1)
 	}
 
 	var arch architecture.SystemArchitecture
 	if err := yaml.Unmarshal(archData, &arch); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse architecture.yaml: %v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to parse architecture.yaml: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Use a validator that knows about the output directory base path
 	validator := architecture.NewValidator(&BasePathFS{Base: outDir})
 	if err := validator.Validate(&arch); err != nil {
-		fmt.Fprintf(os.Stderr, "VALIDATION FAILED:\n%v\n", err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "VALIDATION FAILED:\n%v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println("SUCCESS: Architecture is valid.")
+	fmt.Fprintln(cmd.OutOrStdout(), "SUCCESS: Architecture is valid.")
 }
 
 // generateArchitecture calls the agent and parses the JSON response
