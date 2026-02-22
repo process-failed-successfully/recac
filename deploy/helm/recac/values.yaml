@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: openrouter/aurora-alpha
+  model: google/gemini-2.5-pro
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090
