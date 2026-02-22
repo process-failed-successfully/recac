@@ -110,7 +110,7 @@ func runInit(input io.Reader, output io.Writer) error {
 			currentModel = "gpt-4"
 		case "openrouter":
 			// Default from memory or common usage
-			currentModel = "google/gemini-2.0-flash-lite-preview-02-05:free"
+			currentModel = "google/gemini-2.5-flash-preview-09-2025"
 		default:
 			currentModel = "gemini-pro"
 		}
