@@ -85,19 +85,7 @@ func main() {
 	cmd.SetErr(new(bytes.Buffer))
 
 	// Run todo solve 1
-	// Note: We need to pass args via SetArgs if we were executing root, but since we exec subcmd directly:
-	// But cobra subcommands expect args passed to RunE. However, using ExecuteC or similar is better if attached to root.
-	// Here we can just call RunE manually or set args.
-	// But `todoSolveCmd` is attached to `todoCmd` which is attached to `rootCmd`.
-	// For unit test of just this command, we can just invoke RunE logic via a wrapper or assume SetArgs works if we Exec the command itself?
-	// cobra.Command.Execute() executes the command. If we set args, it parses.
-	// BUT `todoSolveCmd` is not the root.
-	// Let's try calling runTodoSolve directly or use a fresh command structure if needed.
-	// Actually, `cmd.Execute` works if it's the root of execution for the test.
-	// But `todoSolveCmd` expects 1 arg.
-
-	// Let's use `todoSolveCmd.RunE` directly for simplicity, mocking the context/args.
-	err = runTodoSolve(cmd, 1)
+	err = solveTodoTask(context.Background(), 1, cmd.OutOrStdout())
 	assert.NoError(t, err)
 
 	// Verify file updated
@@ -127,7 +115,7 @@ func TestTodoSolveCmd_InvalidIndex(t *testing.T) {
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 
-	err = runTodoSolve(cmd, 99)
+	err = solveTodoTask(context.Background(), 99, cmd.OutOrStdout())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "index 99 not found")
 }
@@ -149,7 +137,7 @@ func TestTodoSolveCmd_NoFileLocation(t *testing.T) {
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 
-	err = runTodoSolve(cmd, 1)
+	err = solveTodoTask(context.Background(), 1, cmd.OutOrStdout())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "could not identify file")
 }
