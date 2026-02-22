@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"bufio"
+	"bytes"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -122,12 +125,14 @@ type MarkdownBlock struct {
 	Lang    string // Language for code blocks, empty for text
 }
 
-// ParseMarkdownBlocks parses lines of markdown and separates them into text and code blocks.
-func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
+// ParseMarkdown parses markdown content from a reader and separates it into text and code blocks.
+func ParseMarkdown(r io.Reader) ([]MarkdownBlock, error) {
 	var blocks []MarkdownBlock
 	var currentBuilder strings.Builder
 	inCodeBlock := false
 	codeLang := ""
+
+	scanner := bufio.NewScanner(r)
 
 	flushBuffer := func(t, l string) {
 		if currentBuilder.Len() > 0 {
@@ -140,25 +145,30 @@ func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
 		}
 	}
 
-	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+	for scanner.Scan() {
+		lineBytes := scanner.Bytes()
+		trimmed := bytes.TrimSpace(lineBytes)
+
+		if bytes.HasPrefix(trimmed, []byte("```")) {
 			if inCodeBlock {
 				// End of code block
-				// Do not include the closing fence in the content
 				flushBuffer("code", codeLang)
 				inCodeBlock = false
 				codeLang = ""
 			} else {
 				// Start of code block
-				// Flush previous text
 				flushBuffer("text", "")
 				inCodeBlock = true
-				codeLang = strings.TrimPrefix(strings.TrimSpace(line), "```")
+				codeLang = string(bytes.TrimPrefix(trimmed, []byte("```")))
 			}
 		} else {
-			currentBuilder.WriteString(line)
-			currentBuilder.WriteString("\n")
+			currentBuilder.Write(lineBytes)
+			currentBuilder.WriteByte('\n')
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	// Flush remaining
@@ -171,5 +181,5 @@ func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
 		}
 	}
 
-	return blocks
+	return blocks, nil
 }

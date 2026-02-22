@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -128,7 +129,7 @@ func TestCleanJSONBlock(t *testing.T) {
 	}
 }
 
-func TestParseMarkdownBlocks(t *testing.T) {
+func TestParseMarkdown(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []string
@@ -170,8 +171,14 @@ func TestParseMarkdownBlocks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseMarkdownBlocks(tt.input)
-			// DeepEqual or manual check? Go slice comparison requires cmp or manual
+			inputStr := strings.Join(tt.input, "\n")
+			r := strings.NewReader(inputStr)
+
+			got, err := ParseMarkdown(r)
+			if err != nil {
+				t.Fatalf("ParseMarkdown() error = %v", err)
+			}
+
 			if len(got) != len(tt.expected) {
 				t.Errorf("len(got) = %d, want %d", len(got), len(tt.expected))
 				return

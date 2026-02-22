@@ -132,12 +132,13 @@ func runRunbook(cmd *cobra.Command, args []string) error {
 }
 
 func parseRunbook(path string) ([]utils.MarkdownBlock, error) {
-	lines, err := utils.ReadLines(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
+	defer file.Close()
 
-	return utils.ParseMarkdownBlocks(lines), nil
+	return utils.ParseMarkdown(file)
 }
 
 func promptUser(cmd *cobra.Command, reader *bufio.Reader) (string, error) {
