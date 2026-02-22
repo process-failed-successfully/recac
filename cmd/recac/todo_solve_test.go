@@ -96,8 +96,8 @@ func main() {
 	// Actually, `cmd.Execute` works if it's the root of execution for the test.
 	// But `todoSolveCmd` expects 1 arg.
 
-	// Let's use `todoSolveCmd.RunE` directly for simplicity, mocking the context/args.
-	err = runTodoSolve(cmd, 1)
+	// Let's use `solveTodoTask` directly for simplicity, mocking the context/args.
+	err = solveTodoTask(context.Background(), 1, buf)
 	assert.NoError(t, err)
 
 	// Verify file updated
@@ -123,11 +123,9 @@ func TestTodoSolveCmd_InvalidIndex(t *testing.T) {
 	err = os.WriteFile("TODO.md", []byte("# TODO\n\n- [ ] Task 1\n"), 0644)
 	assert.NoError(t, err)
 
-	cmd := todoSolveCmd
 	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
 
-	err = runTodoSolve(cmd, 99)
+	err = solveTodoTask(context.Background(), 99, buf)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "index 99 not found")
 }
@@ -145,11 +143,9 @@ func TestTodoSolveCmd_NoFileLocation(t *testing.T) {
 	err = os.WriteFile("TODO.md", []byte("# TODO\n\n- [ ] Simple task\n"), 0644)
 	assert.NoError(t, err)
 
-	cmd := todoSolveCmd
 	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
 
-	err = runTodoSolve(cmd, 1)
+	err = solveTodoTask(context.Background(), 1, buf)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "could not identify file")
 }
