@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/runner"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,4 +90,52 @@ func TestCalculateStats(t *testing.T) {
 	require.Equal(t, 2, stats.StatusCounts["completed"], "Should have 2 completed sessions")
 	require.Equal(t, 1, stats.StatusCounts["running"], "Should have 1 running session")
 	require.Equal(t, 1, stats.StatusCounts["failed"], "Should have 1 failed session")
+}
+
+func TestRunStats(t *testing.T) {
+	// Setup mock session manager
+	sm := &MockSessionManager{
+		Sessions: map[string]*runner.SessionState{
+			"s1": {Name: "s1", Status: "completed", AgentStateFile: "s1.json"},
+		},
+	}
+
+	// Mock sessionManagerFactory
+	origFactory := sessionManagerFactory
+	defer func() { sessionManagerFactory = origFactory }()
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return sm, nil
+	}
+
+	// Mock loadAgentState
+	origLoad := loadAgentState
+	defer func() { loadAgentState = origLoad }()
+	loadAgentState = func(path string) (*agent.State, error) {
+		return &agent.State{
+			TokenUsage: agent.TokenUsage{TotalTokens: 100},
+		}, nil
+	}
+
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	defer func() {
+		os.Stdout = oldStdout
+	}()
+
+	err = statsCmd.RunE(statsCmd, []string{})
+	require.NoError(t, err)
+	w.Close()
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err)
+	output := buf.String()
+
+	assert.Contains(t, output, "Total Sessions")
+	assert.Contains(t, output, "1")
+	assert.Contains(t, output, "Total Tokens")
+	assert.Contains(t, output, "100")
 }
