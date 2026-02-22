@@ -34,6 +34,11 @@ var (
 
 	detailsStyle = lipgloss.NewStyle().
 		Padding(1, 2)
+
+	statusRunning = lipgloss.NewStyle().Foreground(lipgloss.Color("220"))
+	statusSuccess = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+	statusFailed  = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	statusDefault = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 )
 
 type viewState int
@@ -231,10 +236,23 @@ func (m *DashboardModel) updateTableContent() {
 		if !job.EndTime.IsZero() {
 			duration = job.EndTime.Sub(job.StartTime).Round(time.Second).String()
 		}
+
+		var statusStr string
+		switch job.Status {
+		case "Completed", "Success":
+			statusStr = statusSuccess.Render(job.Status)
+		case "Failed", "Error":
+			statusStr = statusFailed.Render(job.Status)
+		case "Spawning", "Running":
+			statusStr = statusRunning.Render(job.Status)
+		default:
+			statusStr = statusDefault.Render(job.Status)
+		}
+
 		rows = append(rows, table.Row{
 			job.ID,
 			limitString(job.Summary, 40),
-			job.Status,
+			statusStr,
 			duration,
 		})
 	}
