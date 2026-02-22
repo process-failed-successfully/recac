@@ -45,7 +45,7 @@ The following table lists the configurable parameters of the RECAC chart and the
 | `dockerSocket.enabled`     | Mount host Docker socket                    | `true`                                |
 | `dockerSocket.hostPath`    | Path to host Docker socket                  | `/var/run/docker.sock`                |
 | `config.provider`          | AI Agent provider                           | `gemini`                              |
-| `config.metricsPort`       | Port for metrics                            | `9090`                                |
+| `config.metricsPort`       | Port for metrics                            | `2112`                                |
 | `config.maxIterations`     | Max agent iterations                        | `20`                                  |
 | `config.managerFrequency`  | Frequency of manager reviews                | `5`                                   |
 | `config.maxTokens`         | Max tokens per request                      | `32000`                               |
