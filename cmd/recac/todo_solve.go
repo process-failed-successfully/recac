@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -33,6 +34,10 @@ func init() {
 }
 
 func runTodoSolve(cmd *cobra.Command, index int) error {
+	return solveTodoTask(cmd.Context(), index, cmd.OutOrStdout())
+}
+
+func solveTodoTask(ctx context.Context, index int, w io.Writer) error {
 	// 1. Read TODO.md and get the task
 	if err := ensureTodoFile(); err != nil {
 		return err
@@ -73,7 +78,7 @@ func runTodoSolve(cmd *cobra.Command, index int) error {
 	filePath := matches[1]
 	lineNum, _ := strconv.Atoi(matches[2])
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Solving TODO in %s at line %d...\n", filePath, lineNum)
+	fmt.Fprintf(w, "Solving TODO in %s at line %d...\n", filePath, lineNum)
 
 	// 3. Read target file
 	contentBytes, err := os.ReadFile(filePath)
@@ -83,12 +88,16 @@ func runTodoSolve(cmd *cobra.Command, index int) error {
 	content := string(contentBytes)
 
 	// 4. Construct Prompt
-	ctx := context.Background()
 	provider := viper.GetString("provider")
 	model := viper.GetString("model")
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get cwd: %w", err)
+	}
+
+	// Use the provided context or background if nil (though it shouldn't be nil here)
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-todo-solve")
@@ -115,7 +124,7 @@ INSTRUCTIONS:
 4. Return the COMPLETE updated file content. Do not output diffs. Do not output markdown code fences (like '''go). Just the raw code.
 `, filePath, lineNum, taskLine, content)
 
-	fmt.Fprintln(cmd.OutOrStdout(), "Waiting for agent implementation...")
+	fmt.Fprintln(w, "Waiting for agent implementation...")
 
 	// 5. Call Agent
 	resp, err := ag.Send(ctx, prompt)
@@ -133,13 +142,14 @@ INSTRUCTIONS:
 		return fmt.Errorf("failed to write updated file: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Updated %s\n", filePath)
+	fmt.Fprintf(w, "Updated %s\n", filePath)
 
 	// 7. Mark as Done
 	if err := toggleTaskStatus(index, true); err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to mark task as done: %v\n", err)
+		// Just write to the single writer provided
+		fmt.Fprintf(w, "Warning: failed to mark task as done: %v\n", err)
 	} else {
-		fmt.Fprintln(cmd.OutOrStdout(), "Task marked as done in TODO.md")
+		fmt.Fprintln(w, "Task marked as done in TODO.md")
 	}
 
 	return nil
