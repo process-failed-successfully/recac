@@ -129,3 +129,57 @@ func TestShowAliasCmd(t *testing.T) {
 		require.Equal(t, "the 'show' alias requires exactly one session name", err.Error())
 	})
 }
+
+func TestWorkdiffTwoSessions(t *testing.T) {
+	sm, sessionAName, repoDir := setupWorkdiffTest(t)
+	defer os.RemoveAll(repoDir)
+
+	runCmd := func(args ...string) {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = repoDir
+		err := cmd.Run()
+		require.NoError(t, err, "failed to run git command: %v", args)
+	}
+
+	// Create third commit
+	err := os.WriteFile(filepath.Join(repoDir, "test.txt"), []byte("hello world v2"), 0644)
+	require.NoError(t, err)
+	runCmd("git", "add", ".")
+	runCmd("git", "commit", "-m", "third commit")
+
+	endCommitCmd := exec.Command("git", "rev-parse", "HEAD")
+	endCommitCmd.Dir = repoDir
+	endCommitBytes, err := endCommitCmd.Output()
+	require.NoError(t, err)
+	endCommit := strings.TrimSpace(string(endCommitBytes))
+
+	sessionBName := "session-b"
+	sessionB := &runner.SessionState{
+		Name:           sessionBName,
+		Status:         "completed",
+		StartTime:      time.Now(),
+		EndTime:        time.Now(),
+		Workspace:      repoDir,
+		StartCommitSHA: "", // Not used
+		EndCommitSHA:   endCommit,
+	}
+	err = sm.SaveSession(sessionB)
+	require.NoError(t, err)
+
+	rootCmd, _, _ := newRootCmd()
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return sm, nil
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	output, err := executeCommand(rootCmd, "workdiff", sessionAName, sessionBName)
+	require.NoError(t, err)
+
+	// Expect diff between sessionA end (second commit) and sessionB end (third commit)
+	// sessionA end: "hello world"
+	// sessionB end: "hello world v2"
+	require.Contains(t, output, "diff --git a/test.txt b/test.txt")
+	require.Contains(t, output, "-hello world")
+	require.Contains(t, output, "+hello world v2")
+}

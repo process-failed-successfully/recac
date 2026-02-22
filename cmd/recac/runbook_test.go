@@ -155,3 +155,51 @@ func TestRunbookHelperProcess(t *testing.T) {
 
 	os.Exit(0)
 }
+
+func TestRunRunbook(t *testing.T) {
+	// 1. Create runbook file
+	content := `
+# Title
+
+` + "```bash" + `
+echo "running"
+` + "```" + `
+`
+	tmpFile := filepath.Join(t.TempDir(), "run.md")
+	err := os.WriteFile(tmpFile, []byte(content), 0644)
+	assert.NoError(t, err)
+
+	// 2. Mock exec
+	runbookExecCommand = func(name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestRunbookHelperProcess", "--", "--", name}
+		cs = append(cs, arg...)
+		exe, _ := os.Executable()
+		return exec.Command(exe, cs...)
+	}
+	defer func() { runbookExecCommand = exec.Command }()
+
+	// Set env for helper process
+	os.Setenv("GO_WANT_HELPER_PROCESS", "1")
+	defer os.Unsetenv("GO_WANT_HELPER_PROCESS")
+
+	// 3. Prepare command
+	cmd := &cobra.Command{}
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+	cmd.SetErr(errBuf)
+
+	// Mock Stdin for user prompt "y"
+	inBuf := bytes.NewBufferString("y\n")
+	cmd.SetIn(inBuf)
+
+	// 4. Run
+	err = runRunbook(cmd, []string{tmpFile})
+	assert.NoError(t, err)
+
+	// 5. Verify output
+	output := outBuf.String()
+	assert.Contains(t, output, "Running runbook")
+	assert.Contains(t, output, "Step 2 found")
+	assert.Contains(t, output, "Step completed")
+}

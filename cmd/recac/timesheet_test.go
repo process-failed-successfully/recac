@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseGitLogOutput(t *testing.T) {
@@ -89,4 +92,64 @@ func TestAggregateTimesheet(t *testing.T) {
 
 	assert.Equal(t, 1.5, report.DailyStats["2023-10-27"])
 	assert.Equal(t, 2.0, report.DailyStats["2023-10-28"])
+}
+
+func TestRunTimesheet(t *testing.T) {
+	// Save original values
+	origAuthor := timesheetAuthor
+	origSince := timesheetSince
+	origThreshold := timesheetThreshold
+	origPadding := timesheetPadding
+	origJSON := timesheetJSON
+
+	defer func() {
+		timesheetAuthor = origAuthor
+		timesheetSince = origSince
+		timesheetThreshold = origThreshold
+		timesheetPadding = origPadding
+		timesheetJSON = origJSON
+	}()
+
+	// Mock git client
+	originalFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return &MockGitClient{
+			LogFunc: func(repoPath string, args ...string) ([]string, error) {
+				return []string{
+					"a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit",
+					"e5f6g7h|jules|2023-10-27T10:15:00Z|Second commit",
+					"i9j0k1l|jules|2023-10-27T10:30:00Z|Third commit",
+				}, nil
+			},
+			RunFunc: func(repoPath string, args ...string) (string, error) {
+				if len(args) > 1 && args[0] == "config" && args[1] == "user.name" {
+					return "jules", nil
+				}
+				return "", nil
+			},
+		}
+	}
+	defer func() { gitClientFactory = originalFactory }()
+
+	// Prepare command
+	cmd := &cobra.Command{}
+	outBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+
+	// Set flags (global vars in timesheet.go)
+	timesheetAuthor = "jules"
+	timesheetSince = "24h"
+	timesheetThreshold = "60m"
+	timesheetPadding = "30m"
+	timesheetJSON = false
+
+	// Run
+	err := runTimesheet(cmd, []string{})
+	require.NoError(t, err)
+
+	// Verify output
+	output := outBuf.String()
+	assert.Contains(t, output, "Timesheet Report")
+	assert.Contains(t, output, "Author: jules")
+	assert.Contains(t, output, "Total Hours:")
 }

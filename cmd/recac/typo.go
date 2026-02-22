@@ -115,6 +115,11 @@ func scanFilesForTypo(root string, limit int) ([]string, error) {
 			return nil
 		}
 
+		// Skip hidden files
+		if strings.HasPrefix(info.Name(), ".") {
+			return nil
+		}
+
 		// Only check text files
 		ext := filepath.Ext(path)
 		if utils.IsBinaryExt(ext) {

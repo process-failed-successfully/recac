@@ -69,7 +69,7 @@ Determine default model based on provider if not explicitly set
 {{- .Values.config.model }}
 {{- else }}
 {{- if eq .Values.config.provider "openrouter" }}
-{{- "openrouter/aurora-alpha" }}
+{{- "google/gemini-2.0-flash-001" }}
 {{- else if eq .Values.config.provider "gemini" }}
 {{- "gemini-pro" }}
 {{- else if eq .Values.config.provider "openai" }}

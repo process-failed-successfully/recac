@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -115,12 +116,12 @@ func runTimesheet(cmd *cobra.Command, args []string) error {
 	if timesheetJSON {
 		// Include sessions in JSON output
 		report.Sessions = sessions
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	}
 
-	printTimesheetTable(report, timesheetAuthor, timesheetSince, timesheetRate)
+	printTimesheetTable(cmd.OutOrStdout(), report, timesheetAuthor, timesheetSince, timesheetRate)
 	return nil
 }
 
@@ -245,8 +246,8 @@ func aggregateTimesheet(sessions []Session, rate float64) TimesheetReport {
 	return report
 }
 
-func printTimesheetTable(report TimesheetReport, author, since string, rate float64) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+func printTimesheetTable(out io.Writer, report TimesheetReport, author, since string, rate float64) {
+	w := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
 	fmt.Fprintf(w, "Timesheet Report\n")
 	fmt.Fprintf(w, "Author: %s\n", author)
 	fmt.Fprintf(w, "Period: Since %s\n", since)
