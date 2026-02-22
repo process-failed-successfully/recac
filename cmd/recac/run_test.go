@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 
@@ -60,8 +61,21 @@ func TestRunCmdHelperProcess(t *testing.T) {
 		fmt.Fprint(os.Stdout, "Command succeeded")
 		os.Exit(0)
 	case "fail_cmd":
+		// We use fmt.Fprint to ensure we are writing to the fd 1/2 directly if possible,
+		// but since this is a go test binary, os.Stdout is captured by the test runner.
+		// However, when running as a subprocess via exec.Command, it should go to the pipe.
+		// Adding a small delay to ensure streams are flushed in the parent.
 		fmt.Fprint(os.Stdout, "Partial output before failure")
 		fmt.Fprint(os.Stderr, "Command failed with error")
+		// No explicit sync needed usually, but the delay helps with race conditions in tests
+		// where the process exits before the parent reads the pipe fully (though Run() should handle it).
+		// Wait... runCmd uses Run(), which waits.
+		// The issue might be that we are writing to os.Stdout/Stderr, but they might be buffered.
+		os.Stdout.Sync()
+		os.Stderr.Sync()
+		// Sleep to ensure the OS flushes the buffer to the pipe
+		// (This is a hack, but common in process testing)
+		time.Sleep(10 * time.Millisecond)
 		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown mock command: %s\n", cmd)
@@ -71,10 +85,10 @@ func TestRunCmdHelperProcess(t *testing.T) {
 
 func TestRunCmd_Success(t *testing.T) {
 	// Restore original execCommand after test
-	defer func() { runExecCommand = exec.Command }()
+	defer func() { execCommand = exec.Command }()
 
 	// Mock execCommand to call TestRunCmdHelperProcess
-	runExecCommand = func(command string, args ...string) *exec.Cmd {
+	execCommand = func(command string, args ...string) *exec.Cmd {
 		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
@@ -103,10 +117,10 @@ func TestRunCmd_Success(t *testing.T) {
 
 func TestRunCmd_Failure_CallsAI(t *testing.T) {
 	// Restore original execCommand after test
-	defer func() { runExecCommand = exec.Command }()
+	defer func() { execCommand = exec.Command }()
 
 	// Mock execCommand to call TestRunCmdHelperProcess
-	runExecCommand = func(command string, args ...string) *exec.Cmd {
+	execCommand = func(command string, args ...string) *exec.Cmd {
 		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
