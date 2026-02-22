@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "openrouter/aurora-alpha" // Default
+		model = "google/gemini-flash-1.5" // Default
 	}
 	runs := 5 // Number of iterations
 
