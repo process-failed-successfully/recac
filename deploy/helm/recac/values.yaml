@@ -25,15 +25,15 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 9090
+  port: 2112
 
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: openrouter/aurora-alpha
+  model: google/gemini-2.0-flash-lite-preview-02-05:free
   ollamaBaseUrl: ""
   verbose: true
-  metricsPort: 9090
+  metricsPort: 2112
   maxIterations: 20
   managerFrequency: 5
   maxTokens: 32000
