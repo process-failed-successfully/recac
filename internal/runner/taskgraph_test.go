@@ -277,3 +277,20 @@ func TestTaskGraph_LoadFromFeatures_StatusUpdate(t *testing.T) {
 		t.Errorf("Expected status Pending, got %s", task.Status)
 	}
 }
+
+func TestTaskGraph_AddNode_LazyInit(t *testing.T) {
+	g := &TaskGraph{} // No NewTaskGraph
+	g.AddNode("1", "Task 1", nil)
+
+	if len(g.Nodes) != 1 {
+		t.Errorf("Expected 1 node, got %d", len(g.Nodes))
+	}
+}
+
+func TestTaskGraph_GetTask_NotFound(t *testing.T) {
+	g := NewTaskGraph()
+	_, err := g.GetTask("missing")
+	if err == nil {
+		t.Error("Expected error for missing task")
+	}
+}

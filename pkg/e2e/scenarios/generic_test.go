@@ -168,3 +168,59 @@ func TestGenericScenario_AppSpec(t *testing.T) {
 		t.Errorf("Unexpected spec content: %s", spec)
 	}
 }
+
+func TestGenericScenario_Verify(t *testing.T) {
+	// Create a temporary directory for the repository
+	tmpDir := t.TempDir()
+
+	// Create a file to verify
+	filePath := filepath.Join(tmpDir, "verified.txt")
+	err := os.WriteFile(filePath, []byte("Verification Content"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a scenario config with validation steps
+	config := GenericScenarioConfig{
+		Name: "Verify Test Scenario",
+		Tickets: []TicketTemplate{
+			{ID: "TEST-VERIFY", Type: "Task"},
+		},
+		Validations: []ValidationStep{
+			{
+				Name: "Check File Exists",
+				Type: ValidateFileExists,
+				Path: "verified.txt",
+			},
+			{
+				Name:             "Check Content",
+				Type:             ValidateFileContent,
+				Path:             "verified.txt",
+				ContentMustMatch: "Verification",
+			},
+		},
+	}
+
+	s := NewGenericScenario(config)
+
+	// Call Verify with empty ticket keys to skip git checkout
+	err = s.Verify(tmpDir, map[string]string{})
+	if err != nil {
+		t.Errorf("Verify failed: %v", err)
+	}
+
+	// Test failure case
+	configFail := config
+	configFail.Validations = []ValidationStep{
+		{
+			Name: "Check Missing File",
+			Type: ValidateFileExists,
+			Path: "missing.txt",
+		},
+	}
+	sFail := NewGenericScenario(configFail)
+	err = sFail.Verify(tmpDir, map[string]string{})
+	if err == nil {
+		t.Error("Expected Verify to fail for missing file")
+	}
+}
