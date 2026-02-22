@@ -53,7 +53,7 @@ func checkConfig() string {
 
 func checkDependencies() string {
 	var builder strings.Builder
-	dependencies := []string{"git", "docker"}
+	dependencies := []string{"git", "docker", "go"}
 	for _, dep := range dependencies {
 		_, err := execLookPath(dep)
 		if err != nil {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/analysis"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -85,7 +86,7 @@ func runHotspotAnalysis(root string, days int) ([]Hotspot, error) {
 	// 2. Get Complexity
 	// We use the existing runComplexityAnalysis from complexity.go
 	// It returns function-level complexity. We need to aggregate it to file-level.
-	funcComplexities, err := runComplexityAnalysis(root)
+	funcComplexities, err := analysis.RunComplexityAnalysis(root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze complexity: %w", err)
 	}

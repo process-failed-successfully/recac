@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"recac/internal/analysis"
 	"recac/internal/security"
 
 	"github.com/spf13/cobra"
@@ -117,7 +118,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		// Complexity Scan (only Go files)
 		if strings.HasSuffix(file, ".go") {
 			// runComplexityAnalysis takes a directory or file.
-			compResults, err := runComplexityAnalysis(file)
+			compResults, err := analysis.RunComplexityAnalysis(file)
 			if err == nil {
 				for _, res := range compResults {
 					// Default threshold from complexity.go is 10 (hardcoded default in flag, but we can access variable `complexityThreshold`?)

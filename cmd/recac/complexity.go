@@ -3,24 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
-	"path/filepath"
+	"recac/internal/analysis"
 	"sort"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
-
-type FunctionComplexity struct {
-	File       string `json:"file"`
-	Function   string `json:"function"`
-	Complexity int    `json:"complexity"`
-	Line       int    `json:"line"`
-}
 
 var (
 	complexityThreshold int
@@ -37,13 +25,13 @@ var complexityCmd = &cobra.Command{
 			path = args[0]
 		}
 
-		results, err := runComplexityAnalysis(path)
+		results, err := analysis.RunComplexityAnalysis(path)
 		if err != nil {
 			return err
 		}
 
 		// Filter by threshold
-		var highComplexity []FunctionComplexity
+		var highComplexity []analysis.ComplexityResult
 		for _, res := range results {
 			if res.Complexity >= complexityThreshold {
 				highComplexity = append(highComplexity, res)
@@ -81,65 +69,4 @@ func init() {
 	rootCmd.AddCommand(complexityCmd)
 	complexityCmd.Flags().IntVar(&complexityThreshold, "threshold", 10, "Minimum complexity to report")
 	complexityCmd.Flags().BoolVar(&complexityJSON, "json", false, "Output results as JSON")
-}
-
-func runComplexityAnalysis(root string) ([]FunctionComplexity, error) {
-	var results []FunctionComplexity
-	fset := token.NewFileSet()
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			// Don't skip the root directory itself if it's "."
-			if (strings.HasPrefix(info.Name(), ".") && info.Name() != ".") || info.Name() == "vendor" || info.Name() == "node_modules" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-
-		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if err != nil {
-			// Skip files that can't be parsed
-			return nil
-		}
-
-		for _, decl := range node.Decls {
-			if fn, ok := decl.(*ast.FuncDecl); ok {
-				comp := calculateComplexity(fn)
-				results = append(results, FunctionComplexity{
-					File:       path,
-					Function:   fn.Name.Name,
-					Complexity: comp,
-					Line:       fset.Position(fn.Pos()).Line,
-				})
-			}
-		}
-
-		return nil
-	})
-
-	return results, err
-}
-
-func calculateComplexity(fn *ast.FuncDecl) int {
-	complexity := 1
-	ast.Inspect(fn, func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.CaseClause, *ast.CommClause:
-			complexity++
-		case *ast.BinaryExpr:
-			if n.Op == token.LAND || n.Op == token.LOR {
-				complexity++
-			}
-		}
-		return true
-	})
-	return complexity
 }

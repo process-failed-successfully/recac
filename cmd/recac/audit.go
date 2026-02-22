@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"recac/internal/analysis"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -26,9 +27,9 @@ type AuditResult struct {
 }
 
 type ComplexityStats struct {
-	Average       float64              `json:"average"`
-	Max           int                  `json:"max"`
-	HighRiskFuncs []FunctionComplexity `json:"high_risk_funcs"`
+	Average       float64                     `json:"average"`
+	Max           int                         `json:"max"`
+	HighRiskFuncs []analysis.ComplexityResult `json:"high_risk_funcs"`
 }
 
 type DuplicationStats struct {
@@ -95,20 +96,15 @@ func runAudit(root string) (*AuditResult, error) {
 	}
 
 	// 1. Complexity
-	// Reuse runComplexityAnalysis from complexity.go
-	// We temporarily override the package-level flag if needed, but it takes path as arg.
-	// Wait, runComplexityAnalysis uses global `complexityThreshold` inside it?
-	// Checking complexity.go: No, `runComplexityAnalysis` calculates all complexities.
-	// The filtering happens in `RunE`.
-	// Correct: `runComplexityAnalysis` returns ALL results.
-	compResults, err := runComplexityAnalysis(root)
+	// Reuse runComplexityAnalysis from analysis package
+	compResults, err := analysis.RunComplexityAnalysis(root)
 	if err != nil {
 		return nil, fmt.Errorf("complexity analysis failed: %w", err)
 	}
 
 	var totalComp int
 	var maxComp int
-	var highRisk []FunctionComplexity
+	var highRisk []analysis.ComplexityResult
 
 	for _, c := range compResults {
 		totalComp += c.Complexity
