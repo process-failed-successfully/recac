@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "google/gemini-2.0-flash-thinking-exp:free"
+		model = "google/gemini-2.5-flash-preview-09-2025"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")
