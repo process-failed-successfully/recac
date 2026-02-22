@@ -176,13 +176,24 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	if s.UseLocalAgent {
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
-		// Propagate Environment + Inject Project ID
-		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+		// Propagate Environment (Whitelisted) + Inject Project ID
+		allowedEnv := []string{
+			"PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "SHELL", "TERM",
+			"GOPATH", "GOROOT", "GO111MODULE", "GOCACHE", // Go specific
+			"npm_config_cache",                           // NPM specific
+		}
+
+		var env []string
+		for _, key := range allowedEnv {
+			if val := os.Getenv(key); val != "" {
+				env = append(env, fmt.Sprintf("%s=%s", key, val))
+			}
+		}
+		cmd.Env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+
 		// Debug: Log key env vars for troubleshooting
-		s.Logger.Info("[DEBUG] Local exec env vars",
-			"RECAC_PROJECT_ID", s.Project,
-			"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
-			"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
+		s.Logger.Info("[DEBUG] Local exec env vars (Sanitized)",
+			"RECAC_PROJECT_ID", s.Project)
 		cmd.Dir = s.Workspace // Run in workspace
 		// Capture Combined Output
 		var outBuf bytes.Buffer
