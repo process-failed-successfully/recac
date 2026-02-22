@@ -1,6 +1,10 @@
 {
   "models": [
     {
+      "name": "google/gemini-2.0-flash-exp:free",
+      "displayName": "Google Gemini 2.0 Flash Experimental (Free)"
+    },
+    {
       "name": "google/gemini-3-pro-preview",
       "displayName": "Google Gemini 3 Pro Preview"
     },

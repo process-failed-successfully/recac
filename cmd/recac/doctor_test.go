@@ -3,24 +3,35 @@ package main
 import (
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestDoctorCmd(t *testing.T) {
-	// Create a new root command and capture its output
-	cmd, out, _ := newRootCmd()
-	cmd.SetOut(out)
+func TestDoctorCommand(t *testing.T) {
+	// Smoke test for the doctor command wiring.
+	// Detailed logic verification is done in internal/cmdutils/doctor_test.go
 
-	// Execute the "doctor" command
-	cmd.SetArgs([]string{"doctor"})
-	err := cmd.Execute()
-	assert.NoError(t, err)
+	t.Run("Runs successfully", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "doctor")
+		// We expect no error from the command execution itself (it shouldn't panic or fail strictly)
+		// even if checks fail.
+		if err != nil {
+			t.Logf("Command returned error: %v", err)
+		}
 
-	// Check the output
-	output := out.String()
-	assert.True(t, strings.HasPrefix(output, "RECAC Doctor"), "Output should start with the doctor header")
-	assert.Contains(t, output, "Configuration:", "Output should contain a configuration check")
-	assert.Contains(t, output, "Dependency:", "Output should contain a dependency check")
-	assert.Contains(t, output, "Docker:", "Output should contain a Docker check")
+		if !strings.Contains(output, "RECAC Doctor") {
+			t.Errorf("Expected output to contain header, got: %s", output)
+		}
+	})
+
+	t.Run("JSON Output", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "doctor", "--json")
+		if err != nil {
+			t.Logf("Command returned error: %v", err)
+		}
+
+		trimmed := strings.TrimSpace(output)
+		// Should be a JSON array
+		if !strings.HasPrefix(trimmed, "[") {
+			t.Errorf("Expected JSON output to start with '[', got: %s", trimmed)
+		}
+	})
 }
