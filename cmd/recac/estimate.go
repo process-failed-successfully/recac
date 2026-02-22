@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -71,12 +72,40 @@ func runEstimate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	fmt.Fprintln(cmd.OutOrStdout(), "🤖 Crunching numbers (this may take a moment)...")
+
+	result, rawResp, err := GetEstimation(ctx, cwd, taskDescription, codebaseContext)
+	if err != nil {
+		return err
+	}
+
+	if result == nil {
+		// Fallback: Just print raw output if parsing fails
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to parse JSON response\n")
+		fmt.Fprintln(cmd.OutOrStdout(), "\nRaw Response:")
+		fmt.Fprintln(cmd.OutOrStdout(), rawResp)
+		return nil
+	}
+
+	// 6. Output
+	if estimateJson {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc.SetIndent("", "  ")
+		return enc.Encode(*result)
+	}
+
+	PrintEstimateReport(cmd, *result)
+	return nil
+}
+
+// GetEstimation performs the core estimation logic using the agent
+func GetEstimation(ctx context.Context, cwd, taskDescription, codebaseContext string) (*EstimateResult, string, error) {
 	// 2. Prepare Agent
 	provider := viper.GetString("provider")
 	model := viper.GetString("model")
 	ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-estimate")
 	if err != nil {
-		return fmt.Errorf("failed to initialize agent: %w", err)
+		return nil, "", fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
 	// 3. Construct Prompt
@@ -108,37 +137,23 @@ Do not wrap the JSON in markdown code blocks. Just return the raw JSON string.`,
 			return "No specific code context provided. Base estimate on general best practices."
 		}())
 
-	fmt.Fprintln(cmd.OutOrStdout(), "🤖 Crunching numbers (this may take a moment)...")
-
 	// 4. Send to Agent
 	resp, err := ag.Send(ctx, prompt)
 	if err != nil {
-		return fmt.Errorf("agent failed to generate estimate: %w", err)
+		return nil, "", fmt.Errorf("agent failed to generate estimate: %w", err)
 	}
 
 	// 5. Parse Response
 	jsonStr := utils.CleanJSONBlock(resp)
 	var result EstimateResult
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		// Fallback: Just print raw output if parsing fails
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to parse JSON response: %v\n", err)
-		fmt.Fprintln(cmd.OutOrStdout(), "\nRaw Response:")
-		fmt.Fprintln(cmd.OutOrStdout(), resp)
-		return nil
+		return nil, resp, nil
 	}
 
-	// 6. Output
-	if estimateJson {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
-	}
-
-	printEstimateReport(cmd, result)
-	return nil
+	return &result, resp, nil
 }
 
-func printEstimateReport(cmd *cobra.Command, res EstimateResult) {
+func PrintEstimateReport(cmd *cobra.Command, res EstimateResult) {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "\nESTIMATION REPORT")
 	fmt.Fprintln(w, "-----------------")
