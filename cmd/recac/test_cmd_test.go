@@ -42,7 +42,7 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/a"}
 			assert.Equal(t, expected, arg)
-			return exec.Command("echo", "PASS")
+			return exec.Command("sh", "-c", "echo PASS")
 		}
 		return exec.Command("echo", "unexpected")
 	}
@@ -85,7 +85,7 @@ func TestRunTest_Impacted(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/affected"}
 			assert.Equal(t, expected, arg)
-			return exec.Command("echo", "PASS")
+			return exec.Command("sh", "-c", "echo PASS")
 		}
 		return exec.Command("echo", "unexpected")
 	}
