@@ -85,8 +85,8 @@
       "displayName": "Google Gemini 2.5 Flash Preview 09-2025"
     },
     {
-      "name": "google/gemini-2.0-flash-exp:free",
-      "displayName": "Google Gemini 2.0 Flash Exp (Free)"
+      "name": "google/gemini-2.0-flash-thinking-exp:free",
+      "displayName": "Google Gemini 2.0 Flash Thinking Exp (Free)"
     }
   ]
 }
