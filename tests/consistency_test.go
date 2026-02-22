@@ -10,7 +10,9 @@ import (
 )
 
 type Config struct {
-	MetricsPort int `yaml:"metrics_port"`
+	Orchestrator struct {
+		MetricsPort int `yaml:"metrics_port"`
+	} `yaml:"orchestrator"`
 }
 
 type HelmValues struct {
@@ -27,7 +29,7 @@ func TestMetricsPortConsistency(t *testing.T) {
 	// Assuming tests/consistency_test.go is 1 level deep from root
 	root := ".."
 
-	configPath := filepath.Join(root, "config.yaml")
+	configPath := filepath.Join(root, "cmd/orchestrator/config.yaml")
 	valuesPath := filepath.Join(root, "deploy/helm/recac/values.yaml")
 
 	configData, err := os.ReadFile(configPath)
@@ -50,11 +52,11 @@ func TestMetricsPortConsistency(t *testing.T) {
 		t.Fatalf("Failed to unmarshal values.yaml: %v", err)
 	}
 
-	t.Logf("config.yaml metrics_port: %d", config.MetricsPort)
+	t.Logf("config.yaml orchestrator.metrics_port: %d", config.Orchestrator.MetricsPort)
 	t.Logf("values.yaml config.metricsPort: %d", values.Config.MetricsPort)
 	t.Logf("values.yaml service.port: %d", values.Service.Port)
 
-	assert.Equal(t, 2112, config.MetricsPort, "config.yaml metrics_port should be 2112")
-	assert.Equal(t, config.MetricsPort, values.Config.MetricsPort, "Helm values.yaml metricsPort should match config.yaml metrics_port")
-	assert.Equal(t, config.MetricsPort, values.Service.Port, "Helm values.yaml service.port should match config.yaml metrics_port")
+	assert.Equal(t, 2112, config.Orchestrator.MetricsPort, "config.yaml orchestrator.metrics_port should be 2112")
+	assert.Equal(t, config.Orchestrator.MetricsPort, values.Config.MetricsPort, "Helm values.yaml metricsPort should match config.yaml orchestrator.metrics_port")
+	assert.Equal(t, config.Orchestrator.MetricsPort, values.Service.Port, "Helm values.yaml service.port should match config.yaml orchestrator.metrics_port")
 }
