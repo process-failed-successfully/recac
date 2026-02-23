@@ -90,3 +90,36 @@ func TestAggregateTimesheet(t *testing.T) {
 	assert.Equal(t, 1.5, report.DailyStats["2023-10-27"])
 	assert.Equal(t, 2.0, report.DailyStats["2023-10-28"])
 }
+
+func TestRunTimesheet(t *testing.T) {
+	// Setup Mock Git
+	mockGit := &MockGitClient{
+		RunFunc: func(repoPath string, args ...string) (string, error) {
+			if len(args) >= 2 && args[0] == "config" && args[1] == "user.name" {
+				return "test-user", nil
+			}
+			return "", nil
+		},
+		LogFunc: func(repoPath string, args ...string) ([]string, error) {
+			return []string{
+				"hash1|test-user|2023-10-27T10:00:00Z|Msg1",
+				"hash2|test-user|2023-10-27T10:30:00Z|Msg2",
+			}, nil
+		},
+	}
+	originalFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalFactory }()
+
+	output, err := executeCommand(rootCmd, "timesheet", "--author", "test-user", "--since", "24h")
+	assert.NoError(t, err)
+	assert.Contains(t, output, "Timesheet Report")
+	assert.Contains(t, output, "Author: test-user")
+	assert.Contains(t, output, "Total Sessions:")
+	assert.Contains(t, output, "1")
+	// Duration: 10:00 to 10:30 = 30m. Single session. Duration = 30m + padding (30m default) = 1h.
+	assert.Contains(t, output, "Total Hours:")
+	assert.Contains(t, output, "1.00 hrs")
+}

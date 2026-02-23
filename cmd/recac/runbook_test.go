@@ -51,6 +51,31 @@ export VAR=1
 	assert.Contains(t, blocks[3].Content, "export VAR=1")
 }
 
+func TestParseRunbook_Empty(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "empty.md")
+	os.WriteFile(tmpFile, []byte(""), 0644)
+
+	blocks, err := parseRunbook(tmpFile)
+	assert.NoError(t, err)
+	assert.Empty(t, blocks)
+}
+
+func TestParseRunbook_NoCode(t *testing.T) {
+	content := "# Title\n\nJust text.\n"
+	tmpFile := filepath.Join(t.TempDir(), "text.md")
+	os.WriteFile(tmpFile, []byte(content), 0644)
+
+	blocks, err := parseRunbook(tmpFile)
+	assert.NoError(t, err)
+	assert.Len(t, blocks, 1)
+	assert.Equal(t, "text", blocks[0].Type)
+}
+
+func TestParseRunbook_MissingFile(t *testing.T) {
+	_, err := parseRunbook("/non/existent/file.md")
+	assert.Error(t, err)
+}
+
 func TestExecuteBlock(t *testing.T) {
 	tmpDir := t.TempDir()
 	code := "echo test"
