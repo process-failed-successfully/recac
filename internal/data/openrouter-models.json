@@ -1,6 +1,10 @@
 {
   "models": [
     {
+      "name": "google/gemini-2.0-flash-lite-preview-02-05:free",
+      "displayName": "Google Gemini 2.0 Flash Lite Preview (Free)"
+    },
+    {
       "name": "google/gemini-3-pro-preview",
       "displayName": "Google Gemini 3 Pro Preview"
     },
@@ -29,10 +33,6 @@
       "displayName": "OpenAI GPT-4o Mini"
     },
     {
-      "name": "nex-agi/deepseek-v3.1-nex-n1:free",
-      "displayName": "TNGTech DeepSeek R1T2 Chimera (Free)"
-    },
-    {
       "name": "mistralai/mistral-nemo",
       "displayName": "MistralAI Mistral Nemo"
     },
@@ -55,10 +55,6 @@
     {
       "name": "deepseek/deepseek-chat-v3.1",
       "displayName": "DeepSeek Chat V3.1"
-    },
-    {
-      "name": "nex-agi/deepseek-v3.1-nex-n1:free",
-      "displayName": "NexAGI DeepSeek V3.1 Nex N1 (Free)"
     },
     {
       "name": "anthropic/claude-sonnet-4",

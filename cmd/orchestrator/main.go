@@ -57,7 +57,7 @@ func main() {
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	pflag.Duration("interval", 1*time.Minute, "Polling interval")
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
-	pflag.String("agent-model", "nex-agi/deepseek-v3.1-nex-n1:free", "Model for spawned agents")
+	pflag.String("agent-model", "google/gemini-2.0-flash-lite-preview-02-05:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 	pflag.String("db-file", "", "Path to SQLite database for job history persistence")
