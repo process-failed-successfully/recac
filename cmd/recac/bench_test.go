@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestBenchHelperProcess mocks 'go test -bench' output
@@ -17,14 +18,37 @@ func TestBenchHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_BENCH_HELPER_PROCESS") != "1" {
 		return
 	}
-	// Print mock benchmark output
-	fmt.Println("goos: linux")
-	fmt.Println("goarch: amd64")
-	fmt.Println("pkg: recac/cmd/recac")
-	fmt.Println("BenchmarkMyFunc-8   	10000000	       123.45 ns/op	      10 B/op	       1 allocs/op")
-	fmt.Println("BenchmarkOther-8    	 5000000	       200.00 ns/op")
-	fmt.Println("PASS")
-	fmt.Println("ok  	recac/cmd/recac	1.234s")
+
+	// Parse args to decide what to output
+	args := os.Args
+	for i, arg := range args {
+		if arg == "--" {
+			args = args[i+1:]
+			break
+		}
+	}
+
+	if len(args) > 0 {
+		if args[0] == "go" {
+			// Print mock benchmark output
+			fmt.Println("goos: linux")
+			fmt.Println("goarch: amd64")
+			fmt.Println("pkg: recac/cmd/recac")
+			fmt.Println("BenchmarkMyFunc-8   	10000000	       123.45 ns/op	      10 B/op	       1 allocs/op")
+			fmt.Println("BenchmarkOther-8    	 5000000	       200.00 ns/op")
+			fmt.Println("PASS")
+			fmt.Println("ok  	recac/cmd/recac	1.234s")
+			os.Exit(0)
+		}
+		if args[0] == "git" {
+			fmt.Println("abcdef1")
+			os.Exit(0)
+		}
+		if args[0] == "fail" {
+			fmt.Fprintln(os.Stderr, "Command failed")
+			os.Exit(1)
+		}
+	}
 	os.Exit(0)
 }
 
@@ -59,8 +83,22 @@ func TestBenchCommand(t *testing.T) {
 	// Setup mocks
 	originalExec := benchExecCommand
 	benchExecCommand = func(name string, args ...string) *exec.Cmd {
+		if name == "fail" {
+			// Special case for error testing
+			cs := []string{"-test.run=TestBenchHelperProcess", "--", "fail"}
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = []string{"GO_WANT_BENCH_HELPER_PROCESS=1"}
+			return cmd
+		}
+
 		cs := []string{"-test.run=TestBenchHelperProcess", "--"}
+		if name == "go" {
+			cs = append(cs, "go") // Pass "go" as first arg to helper
+		} else {
+			cs = append(cs, name)
+		}
 		cs = append(cs, args...)
+
 		cmd := exec.Command(os.Args[0], cs...)
 		cmd.Env = []string{"GO_WANT_BENCH_HELPER_PROCESS=1"}
 		return cmd
@@ -77,7 +115,7 @@ func TestBenchCommand(t *testing.T) {
 	benchThreshold = 10.0
 
 	// 1. First Run (Save)
-	cmd := benchCmd
+	cmd := &cobra.Command{} // Create fresh command to avoid flag issues
 	var outBuf bytes.Buffer
 	cmd.SetOut(&outBuf)
 	cmd.SetErr(&outBuf)
@@ -104,11 +142,6 @@ func TestBenchCommand(t *testing.T) {
 	benchCompare = true
 	outBuf.Reset()
 
-	// Mock a slightly slower run by changing the helper?
-	// The helper is static in this simple setup.
-	// So we should see 0% diff or similar.
-	// Actually, let's just run it again and verify it compares.
-
 	err = runBench(cmd, []string{"."})
 	if err != nil {
 		t.Fatalf("Second run failed: %v", err)
@@ -121,6 +154,27 @@ func TestBenchCommand(t *testing.T) {
 	if !strings.Contains(output, "+0.00%") { // Expect exact match
 		t.Errorf("Expected 0%% diff, got output: %s", output)
 	}
+}
+
+func TestBenchCommand_RunError(t *testing.T) {
+	// Setup mocks to fail
+	originalExec := benchExecCommand
+	benchExecCommand = func(name string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestBenchHelperProcess", "--", "fail"}
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{"GO_WANT_BENCH_HELPER_PROCESS=1"}
+		return cmd
+	}
+	defer func() { benchExecCommand = originalExec }()
+
+	cmd := &cobra.Command{}
+	var outBuf bytes.Buffer
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&outBuf)
+
+	err := runBench(cmd, []string{"."})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "benchmark command failed")
 }
 
 func TestBenchComparisonLogic(t *testing.T) {

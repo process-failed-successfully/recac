@@ -40,7 +40,7 @@ func runTestGenLoop(cmd *cobra.Command, args []string) error {
 
 	if len(args) > 0 {
 		fileName = args[0]
-		content, err = os.ReadFile(fileName)
+		content, err = readFileFunc(fileName)
 		if err != nil {
 			return fmt.Errorf("failed to read file: %w", err)
 		}
@@ -110,7 +110,7 @@ func runTestGenLoop(cmd *cobra.Command, args []string) error {
 
 		// Output
 		if outputFile != "" {
-			if err := os.WriteFile(outputFile, []byte(code), 0644); err != nil {
+			if err := writeFileFunc(outputFile, []byte(code), 0644); err != nil {
 				return fmt.Errorf("failed to write output file: %w", err)
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "Tests written to %s\n", outputFile)

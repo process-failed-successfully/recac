@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -329,6 +330,19 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 }
 
 // MockGitClient is a mock implementation of the IGitClient interface.
+// MockErrorAgent always returns an error
+type MockErrorAgent struct {
+	Err error
+}
+
+func (m *MockErrorAgent) Send(ctx context.Context, prompt string) (string, error) {
+	return "", m.Err
+}
+
+func (m *MockErrorAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	return "", m.Err
+}
+
 type MockGitClient struct {
 	CheckoutFunc          func(repoPath, commitOrBranch string) error
 	DiffFunc              func(repoPath, commitA, commitB string) (string, error)
