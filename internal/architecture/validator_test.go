@@ -1,8 +1,9 @@
 package architecture
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -202,9 +203,14 @@ func TestValidator_Validate(t *testing.T) {
 						ID:   "c1",
 						Type: "s",
 						Consumes: []Input{
-							{Schema: "missing.json"},
+							{Source: "comp1", Schema: "missing.json"}, // comp1 exists in arch logic? No, validate just checks if source exists in passed arch.
+							// But here components are processed in order? No, collected first.
+							// Wait, for this test case, we need comp1 to exist if we reference it, or test specifically for schema not found.
+							// If source doesn't exist, it fails on source check first.
+							// So we need valid source.
 						},
 					},
+					{ID: "comp1", Type: "s"},
 				},
 			},
 			wantErr: true,
@@ -251,16 +257,17 @@ func TestValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validator.Validate(&tt.arch)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.wantErr && err != nil {
-				if err.Error() != fmt.Sprintf("component %s error: %s", "c1", tt.errMsg) && 
-				   err.Error() != tt.errMsg && 
-				   len(tt.arch.Components) > 0 && err.Error() != fmt.Sprintf("component %s error: %s", tt.arch.Components[0].ID, tt.errMsg) {
-					// Flexible error matching for root vs component errors
-					// The strict match might be hard, let's just check containment or simpler logic
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Validate() expected error, got nil")
+				} else if tt.errMsg != "" {
+					if !strings.Contains(err.Error(), tt.errMsg) {
+						t.Errorf("Validate() error = %v, want error containing %v", err, tt.errMsg)
+					}
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Validate() unexpected error: %v", err)
 				}
 			}
 		})
@@ -274,5 +281,36 @@ func TestNewValidator(t *testing.T) {
 	}
 	if _, ok := v.FS.(RealFileSystem); !ok {
 		t.Error("NewValidator(nil) did not default to RealFileSystem")
+	}
+}
+
+func TestRealFileSystem_Stat(t *testing.T) {
+	fs := RealFileSystem{}
+
+	// Create temp file
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.txt")
+	err := os.WriteFile(tmpFile, []byte("content"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := fs.Stat(tmpFile)
+	if err != nil {
+		t.Errorf("Stat failed: %v", err)
+	}
+	if info != nil {
+		if info.Name() != "test.txt" {
+			t.Errorf("Expected name test.txt, got %s", info.Name())
+		}
+		if info.Size() != 7 {
+			t.Errorf("Expected size 7, got %d", info.Size())
+		}
+	}
+
+	// Test non-existent
+	_, err = fs.Stat(filepath.Join(tmpDir, "missing"))
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected NotExist error, got %v", err)
 	}
 }
