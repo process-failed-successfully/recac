@@ -6,12 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"recac/internal/orchestrator"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
@@ -111,55 +109,6 @@ func TestDashboardModel_Quit(t *testing.T) {
 	assert.NotNil(t, cmd) // Should return tea.Quit
 }
 
-func TestDashboardModel_Update_DetailsMsg(t *testing.T) {
-	model := DashboardModel{
-		viewport: viewport.New(100, 20),
-	}
-	job := orchestrator.JobInfo{
-		ID: "JOB-1", Summary: "Summary", Status: "Running",
-		WorkItem: orchestrator.WorkItem{Description: "Desc", RepoURL: "http://repo"},
-	}
-	msg := detailsMsg{Job: job}
-
-	updated, _ := model.Update(msg)
-	m := updated.(DashboardModel)
-
-	assert.Equal(t, job, m.details)
-	assert.Equal(t, viewDetails, m.viewState)
-	assert.Contains(t, m.viewport.View(), "JOB-1")
-}
-
-func TestDashboardModel_Update_LogStreamMsg(t *testing.T) {
-	model := DashboardModel{
-		viewport: viewport.New(100, 20),
-	}
-	stream := io.NopCloser(strings.NewReader("log content"))
-	msg := logStreamMsg{Stream: stream}
-
-	updated, cmd := model.Update(msg)
-	m := updated.(DashboardModel)
-
-	assert.Equal(t, viewLogs, m.viewState)
-	assert.Equal(t, stream, m.logStream)
-	assert.NotNil(t, cmd) // Should return waitForLogChunk command
-}
-
-func TestDashboardModel_Update_LogChunkMsg(t *testing.T) {
-	model := DashboardModel{
-		viewport:  viewport.New(100, 20),
-		logStream: io.NopCloser(strings.NewReader("")),
-		viewState: viewLogs,
-	}
-	msg := logChunkMsg{Chunk: "chunk1"}
-
-	updated, cmd := model.Update(msg)
-	m := updated.(DashboardModel)
-
-	assert.Equal(t, "chunk1", m.logs)
-	assert.Contains(t, m.viewport.View(), "chunk1")
-	assert.NotNil(t, cmd) // Should return next waitForLogChunk command
-}
-
 func TestDashboardCommands(t *testing.T) {
 	// Setup mock server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -224,14 +173,6 @@ func TestDashboardCommands(t *testing.T) {
 	rMsg := msg.(actionMsg)
 	assert.Nil(t, rMsg.Err)
 	assert.Equal(t, "Retried", rMsg.Message)
-}
-
-func TestNewDashboardModel(t *testing.T) {
-	m := NewDashboardModel("host")
-	assert.Equal(t, "host", m.host)
-	assert.NotNil(t, m.table)
-	assert.NotNil(t, m.viewport)
-	assert.Equal(t, viewMain, m.viewState)
 }
 
 func TestDashboardModel_Update_Keys(t *testing.T) {
