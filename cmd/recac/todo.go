@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const todoFile = "TODO.md"
+var todoFilename = "TODO.md"
 
 var todoCmd = &cobra.Command{
 	Use:   "todo",
@@ -85,8 +85,8 @@ func init() {
 }
 
 func ensureTodoFile() error {
-	if _, err := os.Stat(todoFile); os.IsNotExist(err) {
-		return os.WriteFile(todoFile, []byte("# TODO\n\n"), 0644)
+	if _, err := os.Stat(todoFilename); os.IsNotExist(err) {
+		return os.WriteFile(todoFilename, []byte("# TODO\n\n"), 0644)
 	}
 	return nil
 }
@@ -96,7 +96,7 @@ func appendTask(task string) error {
 		return err
 	}
 
-	f, err := os.OpenFile(todoFile, os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(todoFilename, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func listTasks(cmd *cobra.Command) error {
 		return err
 	}
 
-	lines, err := utils.ReadLines(todoFile)
+	lines, err := utils.ReadLines(todoFilename)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func modifyTask(targetIndex int, action func(line string) (string, bool)) error 
 		return err
 	}
 
-	lines, err := utils.ReadLines(todoFile)
+	lines, err := utils.ReadLines(todoFilename)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func modifyTask(targetIndex int, action func(line string) (string, bool)) error 
 		return fmt.Errorf("task index %d not found", targetIndex)
 	}
 
-	return utils.WriteLines(todoFile, newLines)
+	return utils.WriteLines(todoFilename, newLines)
 }
 
 func toggleTaskStatus(targetIndex int, done bool) error {
