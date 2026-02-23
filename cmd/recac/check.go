@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -89,14 +88,15 @@ func fixConfig() error {
 }
 
 func checkGo() error {
-	_, err := exec.LookPath("go")
-	if err != nil {
-		return fmt.Errorf("go binary not found in PATH")
+	// Check if go is runnable
+	cmd := execCommand("go", "version")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go binary not found or failed: %w", err)
 	}
 	return nil
 }
 
 func checkDocker() error {
-	cmd := exec.Command("docker", "info")
+	cmd := execCommand("docker", "info")
 	return cmd.Run()
 }

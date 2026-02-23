@@ -33,8 +33,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+
+	// 1. Planning Phase (Ticket Generation)
+	// The prompt asks to generate tickets based on the spec
+	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") && strings.Contains(prompt, "Ticket Type") {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
@@ -43,6 +45,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
+	}
+
+	// 2. Execution Phase (Running the Agent)
+	// The prompt asks to implement the logic. We check for the specific task instructions.
+	// We want to avoid returning this if we are just "checking" or "summarizing", but the prompt usually contains the full context.
+	// We check for "Create a python script named 'primes.py'" which is in the description.
+	// We also check NOT to be in planning mode (Plan vs Act).
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") && !strings.Contains(prompt, "Ticket Type") {
+		return `I will implement the prime number script as requested.
+
+<bash>
+# Create the python script
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+# Run the script to generate the json
+python3 primes.py
+
+# Verify output exists
+ls -l primes.json
+
+# Commit changes
+git add primes.py primes.json
+git commit -m "Add primes.py and generated output"
+git push
+</bash>
+
+I have created the script, generated the output, and pushed the changes.
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

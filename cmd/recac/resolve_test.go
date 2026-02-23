@@ -2,14 +2,47 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// Helper process for mocking execCommand
+func TestResolveHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+
+	args := os.Args
+	for len(args) > 0 {
+		if args[0] == "--" {
+			args = args[1:]
+			break
+		}
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "No command\n")
+		os.Exit(2)
+	}
+
+	cmd, args := args[0], args[1:]
+	switch cmd {
+	case "git":
+		if len(args) > 0 && args[0] == "grep" {
+			// Output simulated file list
+			fmt.Println("file1.txt")
+			fmt.Println("file2.txt")
+		}
+	}
+}
 
 type ResolveSpyAgent struct {
 	Response string
@@ -97,4 +130,22 @@ Theirs
 		assert.Equal(t, "Ours", ours)
 		assert.Equal(t, "Theirs", theirs)
 	})
+}
+
+func TestFindConflictedFiles(t *testing.T) {
+	// Mock execCommand
+	originalExecCommand := execCommand
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestResolveHelperProcess", "--", name}
+		cs = append(cs, arg...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
+	}
+	defer func() { execCommand = originalExecCommand }()
+
+	files, err := findConflictedFiles()
+	assert.NoError(t, err)
+	assert.Contains(t, files, "file1.txt")
+	assert.Contains(t, files, "file2.txt")
 }
