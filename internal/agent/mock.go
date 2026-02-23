@@ -45,6 +45,38 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Implementation step for Prime Python Scenario
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+		return `I will implement the prime number script as requested.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        for i in range(2, int(num**0.5) + 1):
+            if num % i == 0:
+                break
+        else:
+            primes.append(num)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json"
+` + "```" + `
+
+I have created the 'primes.py' script, ran it to generate 'primes.json', and committed both files. The task is complete.
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

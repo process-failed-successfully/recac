@@ -20,7 +20,10 @@ import (
 var startDashboardFunc = tui.StartDashboard
 
 func init() {
-	rootCmd.AddCommand(NewJobCmd())
+	jobCmd := NewJobCmd()
+	rootCmd.AddCommand(jobCmd)
+	// Bind flags for the global instance to Viper
+	viper.BindPFlag("orchestrator.host", jobCmd.PersistentFlags().Lookup("host"))
 }
 
 func NewJobCmd() *cobra.Command {
@@ -31,7 +34,8 @@ func NewJobCmd() *cobra.Command {
 	}
 
 	jobCmd.PersistentFlags().String("host", "http://localhost:2112", "Orchestrator host URL")
-	viper.BindPFlag("orchestrator.host", jobCmd.PersistentFlags().Lookup("host"))
+	// Note: We do NOT bind to viper here to avoid global state side effects when creating
+	// multiple instances (e.g. in tests). Global binding is done in init().
 
 	jobCmd.AddCommand(newJobListCmd())
 	jobCmd.AddCommand(newJobMonitorCmd())
@@ -49,7 +53,7 @@ func newJobListCmd() *cobra.Command {
 		Short: "List active jobs",
 		Long:  `List active jobs running on the orchestrator. Use --all to include completed jobs.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host := getOrchestratorHost()
+			host := getOrchestratorHost(cmd)
 			all, _ := cmd.Flags().GetBool("all")
 
 			url := fmt.Sprintf("%s/jobs", host)
@@ -105,7 +109,7 @@ func newJobMonitorCmd() *cobra.Command {
 		Short: "Launch the TUI dashboard",
 		Long:  `Launch the interactive TUI dashboard to monitor the orchestrator.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host := getOrchestratorHost()
+			host := getOrchestratorHost(cmd)
 			if err := startDashboardFunc(host); err != nil {
 				return fmt.Errorf("dashboard failed: %w", err)
 			}
@@ -120,7 +124,7 @@ func newJobLogsCmd() *cobra.Command {
 		Short: "Stream logs for a job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host := getOrchestratorHost()
+			host := getOrchestratorHost(cmd)
 			jobID := args[0]
 
 			resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
@@ -147,7 +151,7 @@ func newJobInfoCmd() *cobra.Command {
 		Short: "Show job details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host := getOrchestratorHost()
+			host := getOrchestratorHost(cmd)
 			jobID := args[0]
 
 			resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
@@ -182,7 +186,7 @@ func newJobCancelCmd() *cobra.Command {
 		Short: "Cancel a running job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host := getOrchestratorHost()
+			host := getOrchestratorHost(cmd)
 			jobID := args[0]
 
 			req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
@@ -212,7 +216,7 @@ func newJobSubmitCmd() *cobra.Command {
 		Short: "Submit a new job",
 		Long:  `Submit a new job to the orchestrator. Requires --id, --summary, --repo-url.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host := getOrchestratorHost()
+			host := getOrchestratorHost(cmd)
 
 			// Parse flags
 			id, _ := cmd.Flags().GetString("id")
@@ -261,8 +265,15 @@ func newJobSubmitCmd() *cobra.Command {
 	return cmd
 }
 
-func getOrchestratorHost() string {
-	// Check flag first (via viper binding), then config, then env
+func getOrchestratorHost(cmd *cobra.Command) string {
+	// 1. Check flag explicitly from the command context
+	if cmd != nil {
+		if h, err := cmd.Flags().GetString("host"); err == nil && cmd.Flags().Changed("host") {
+			return strings.TrimRight(h, "/")
+		}
+	}
+
+	// 2. Fallback to Viper (Config/Env) which is bound to the global root command instance
 	host := viper.GetString("orchestrator.host")
 	if host == "" {
 		host = "http://localhost:2112"
