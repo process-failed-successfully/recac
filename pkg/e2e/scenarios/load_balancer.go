@@ -1,10 +1,12 @@
 package scenarios
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -118,6 +120,9 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 		return fmt.Errorf("could not determine how to run the LB")
 	}
 
+	var outputBuf bytes.Buffer
+	runCmd.Stdout = io.MultiWriter(os.Stdout, &outputBuf)
+	runCmd.Stderr = io.MultiWriter(os.Stderr, &outputBuf)
 	runCmd.Env = append(runCmd.Environ(), "BACKENDS="+backends)
 	if err := runCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start LB: %v", err)
@@ -129,7 +134,7 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	}()
 
 	// Wait for LB to be ready
-	lbURL := "http://localhost:8080"
+	lbURL := "http://localhost:18080"
 	ready := false
 	for i := 0; i < 20; i++ {
 		resp, err := http.Get(lbURL)
@@ -160,7 +165,7 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	mu.Unlock()
 
 	if be1Hits == 0 || be2Hits == 0 {
-		return fmt.Errorf("Round-Robin failed: be1 hits=%d, be2 hits=%d", be1Hits, be2Hits)
+		return fmt.Errorf("Round-Robin failed: be1 hits=%d, be2 hits=%d\nOutput:\n%s", be1Hits, be2Hits, outputBuf.String())
 	}
 	fmt.Printf("Round-Robin check passed: be1=%d, be2=%d\n", be1Hits, be2Hits)
 
