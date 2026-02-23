@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func setupGitRepo(t *testing.T, dir string) {
@@ -129,4 +134,104 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
 	}
+}
+
+func TestRunHotspotsCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	// No git setup needed if we mock getGitChurn
+
+	// Mock getGitChurn
+	originalChurnFunc := getGitChurn
+	defer func() { getGitChurn = originalChurnFunc }()
+
+	getGitChurn = func(root string, days int) (map[string]int, error) {
+		return map[string]int{
+			"complex.go": 5,
+			"simple.go":  1,
+		}, nil
+	}
+
+	// Create files (needed for complexity analysis)
+	complexCode := `package main
+	func complex() {
+		for i := 0; i < 10; i++ {
+			if i % 2 == 0 {
+				print(i)
+			}
+		}
+	}` // Complexity 3
+	if err := os.WriteFile(filepath.Join(tmpDir, "complex.go"), []byte(complexCode), 0644); err != nil {
+		t.Fatalf("Failed to write complex.go: %v", err)
+	}
+
+	simpleCode := `package main
+	func simple() {
+		print("hello")
+	}` // Complexity 1
+	if err := os.WriteFile(filepath.Join(tmpDir, "simple.go"), []byte(simpleCode), 0644); err != nil {
+		t.Fatalf("Failed to write simple.go: %v", err)
+	}
+
+	// Save/Restore global flags
+	origLimit := hotspotsLimit
+	origJSON := hotspotsJSON
+	defer func() {
+		hotspotsLimit = origLimit
+		hotspotsJSON = origJSON
+	}()
+
+	t.Run("Text Output", func(t *testing.T) {
+		hotspotsLimit = 10
+		hotspotsJSON = false
+
+		// We need to execute the command logic.
+		// Since RunE is a function literal assigned to hotspotsCmd.RunE, we can't easily call it directly
+		// unless we execute the command or extract it.
+		// But Execute() parses flags which might conflict with other tests if we are not careful.
+		// However, we can call the function literal directly if we access it via hotspotsCmd.RunE
+
+		cmd := &cobra.Command{}
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		// Call the RunE function of hotspotsCmd
+		err := hotspotsCmd.RunE(cmd, []string{tmpDir})
+		if err != nil {
+			t.Fatalf("hotspotsCmd.RunE failed: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "HOTSPOTS REPORT") {
+			t.Error("Output should contain report header")
+		}
+		if !strings.Contains(output, "complex.go") {
+			t.Error("Output should contain complex.go")
+		}
+		// Score = 5 (churn) * 3 (complexity) = 15
+		// We can check for "15" but float formatting might vary.
+	})
+
+	t.Run("JSON Output", func(t *testing.T) {
+		hotspotsLimit = 10
+		hotspotsJSON = true
+
+		cmd := &cobra.Command{}
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		err := hotspotsCmd.RunE(cmd, []string{tmpDir})
+		if err != nil {
+			t.Fatalf("hotspotsCmd.RunE failed: %v", err)
+		}
+
+		output := buf.String()
+		var results []Hotspot
+		if err := json.Unmarshal(buf.Bytes(), &results); err != nil {
+			t.Fatalf("Failed to unmarshal JSON: %v\nOutput: %s", err, output)
+		}
+
+		if len(results) == 0 {
+			t.Error("Expected results in JSON")
+		}
+	})
 }
