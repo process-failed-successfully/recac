@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "openai/gpt-4o-mini" // Default
+		model = "nex-agi/deepseek-v3.1-nex-n1:free" // Default
 	}
 	runs := 5 // Number of iterations
 

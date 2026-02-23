@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "openai/gpt-4o-mini"
+		model = "nex-agi/deepseek-v3.1-nex-n1:free"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")
