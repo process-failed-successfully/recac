@@ -40,7 +40,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// The planning prompt usually asks to "Analyze the spec" or doesn't have the specific implementation instructions yet.
 		// However, a simple heuristic is: if it asks to "Create a python script named 'primes.py'", it's likely the implementation step.
 		if strings.Contains(prompt, "Create a python script named 'primes.py'") {
-			return "Here is the implementation:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef sieve(n):\n    primes = []\n    is_prime = [True] * n\n    is_prime[0] = is_prime[1] = False\n    for i in range(2, n):\n        if is_prime[i]:\n            primes.append(i)\n            for j in range(i * i, n, i):\n                is_prime[j] = False\n    return primes\n\nprimes = sieve(10000)\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes.py\"\ngit push\n```", nil
+			// CRITICAL: We must stop the agent from looping. If the prompt contains the instruction to create the script,
+			// and we return the bash block, the agent will execute it.
+			// BUT if the agent keeps getting re-prompted because of an error or retry loop, we need to ensure we don't just loop forever.
+			// In the logs, we see "maximum iterations reached". This suggests the agent isn't detecting completion.
+			// The agent considers a task done if it reports success or if the manager says so.
+			// For the mock, we can just return the bash block. The issue might be that the agent is not marking the ticket as done.
+			// The bash script does `git push`. After this, the agent should ideally stop.
+			// Let's ensure the response includes a clear "Task Complete" signal or similar if needed,
+			// but usually the execution of the block is enough.
+			// The log shows "reached max iterations", which means the agent loop didn't break.
+			// This happens if the agent doesn't determine that the work is finished.
+			// We can append a message to help the agent realize it's done, but the mock agent output IS the agent's thought process.
+			// So we should add some "thought" text that implies completion.
+			return "I will implement the prime number script as requested.\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef sieve(n):\n    primes = []\n    is_prime = [True] * n\n    is_prime[0] = is_prime[1] = False\n    for i in range(2, n):\n        if is_prime[i]:\n            primes.append(i)\n            for j in range(i * i, n, i):\n                is_prime[j] = False\n    return primes\n\nprimes = sieve(10000)\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes.py\"\ngit push\n```\n\nI have implemented the script, ran it to generate the JSON, and pushed the changes. The task is complete.", nil
 		}
 
 		// Otherwise, it's the planning step
