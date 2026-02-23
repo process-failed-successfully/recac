@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: google/gemini-2.5-flash-preview-09-2025
+  model: openai/gpt-4o-mini
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090
