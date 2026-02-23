@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func setupGitRepo(t *testing.T, dir string) {
@@ -128,5 +133,77 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	}
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
+	}
+}
+
+func TestPrintHotspotsReport(t *testing.T) {
+	results := []Hotspot{
+		{File: "a.go", Churn: 10, Complexity: 5, Score: 50},
+		{File: "b.go", Churn: 2, Complexity: 1, Score: 2},
+	}
+
+	cmd := &cobra.Command{}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	printHotspotsReport(cmd, results)
+
+	out := buf.String()
+	if !strings.Contains(out, "HOTSPOTS REPORT") {
+		t.Error("expected title")
+	}
+	if !strings.Contains(out, "a.go") || !strings.Contains(out, "50") {
+		t.Error("expected a.go row")
+	}
+}
+
+func TestHotspotsCmdRun(t *testing.T) {
+	// Integration test for the cobra command RunE
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	commitFile(t, tmpDir, "main.go", "package main\nfunc main(){}")
+
+	cmd := hotspotsCmd // Use the global command
+
+	// Save/Restore globals
+	oldJSON := hotspotsJSON
+	oldLimit := hotspotsLimit
+	oldDays := hotspotsDays
+	defer func() {
+		hotspotsJSON = oldJSON
+		hotspotsLimit = oldLimit
+		hotspotsDays = oldDays
+	}()
+
+	hotspotsJSON = false
+	hotspotsLimit = 10
+	hotspotsDays = 30
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	// Run command
+	if err := cmd.RunE(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("hotspotsCmd.RunE failed: %v", err)
+	}
+
+	if !strings.Contains(buf.String(), "HOTSPOTS REPORT") {
+		t.Error("expected text report")
+	}
+
+	// Test JSON
+	buf.Reset()
+	hotspotsJSON = true
+
+	if err := cmd.RunE(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("hotspotsCmd.RunE JSON failed: %v", err)
+	}
+
+	var res []Hotspot
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+	if len(res) == 0 {
+		t.Error("expected results")
 	}
 }

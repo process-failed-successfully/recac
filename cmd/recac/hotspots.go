@@ -21,6 +21,9 @@ var (
 	hotspotsJSON  bool
 )
 
+// complexityAnalysisFunc is a variable to allow mocking in tests
+var complexityAnalysisFunc = runComplexityAnalysis
+
 type Hotspot struct {
 	File       string  `json:"file"`
 	Churn      int     `json:"churn"`
@@ -85,7 +88,7 @@ func runHotspotAnalysis(root string, days int) ([]Hotspot, error) {
 	// 2. Get Complexity
 	// We use the existing runComplexityAnalysis from complexity.go
 	// It returns function-level complexity. We need to aggregate it to file-level.
-	funcComplexities, err := runComplexityAnalysis(root)
+	funcComplexities, err := complexityAnalysisFunc(root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze complexity: %w", err)
 	}
