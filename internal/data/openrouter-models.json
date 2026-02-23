@@ -29,8 +29,8 @@
       "displayName": "OpenAI GPT-4o Mini"
     },
     {
-      "name": "google/gemini-2.0-flash-thinking-exp:free",
-      "displayName": "Google Gemini 2.0 Flash Thinking Exp (Free)"
+      "name": "nex-agi/deepseek-v3.1-nex-n1:free",
+      "displayName": "NexAGI DeepSeek V3.1 Nex N1 (Free)"
     },
     {
       "name": "mistralai/mistral-nemo",
