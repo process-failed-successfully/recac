@@ -61,9 +61,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return `I will create the prime number script as requested.
 
 ` + "```bash" + `
+echo "Creating primes.py..."
 cat << 'EOF' > primes.py
 import json
+import sys
 
+print("Python script running...")
 def is_prime(n):
     if n < 2: return False
     for i in range(2, int(n**0.5) + 1):
@@ -71,22 +74,38 @@ def is_prime(n):
     return True
 
 primes = [i for i in range(10000) if is_prime(i)]
+print(f"Found {len(primes)} primes")
 
 with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
+print("Wrote primes.json")
 EOF
 
-python3 primes.py
+echo "Running python3 primes.py..."
+python3 primes.py || echo "Python script failed"
+
+echo "Listing files..."
+ls -la
+
+echo "Adding files..."
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+
+echo "Committing..."
+git commit -m "Add primes.py and primes.json" || echo "Commit failed (nothing to commit?)"
+
+echo "Pushing..."
 git push origin HEAD
 ` + "```", nil
 		}
 
-		// If prompt asks for verification/status check (call 3)
+		// If prompt asks for verification/status check (call 3+)
 		if count >= 3 {
-			// Signal completion or just say done
-			return `Task completed. The primes.json file has been generated and committed.`, nil
+			// Signal completion or just say done.
+			// We MUST return a command to avoid "no-op loop" circuit breaker.
+			return `Task completed. Waiting for verification...
+` + "```bash" + `
+echo "Waiting for verification..."
+` + "```", nil
 		}
 	}
 
