@@ -34,7 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mocking for Smoke Tests
 	// If the prompt looks like the Prime Python spec, return a valid JSON plan
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+	// We check for just the ID or key parts to be robust against formatting changes
+	if strings.Contains(prompt, "ID:[PRIMES]") || (strings.Contains(prompt, "Prime Number Script") && strings.Contains(prompt, "10,000")) {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
