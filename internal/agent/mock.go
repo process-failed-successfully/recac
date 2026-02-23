@@ -45,6 +45,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Smart Mocking for Smoke Tests - Step 2: Implementation
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+		return "Here is the implementation:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef sieve(n):\n    primes = []\n    is_prime = [True] * n\n    is_prime[0] = is_prime[1] = False\n    for i in range(2, n):\n        if is_prime[i]:\n            primes.append(i)\n            for j in range(i * i, n, i):\n                is_prime[j] = False\n    return primes\n\nprimes = sieve(10000)\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes.py\"\ngit push\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
