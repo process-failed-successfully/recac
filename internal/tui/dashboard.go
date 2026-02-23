@@ -34,6 +34,12 @@ var (
 
 	detailsStyle = lipgloss.NewStyle().
 		Padding(1, 2)
+
+	// Status styles
+	styleRunning   = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))  // Blue
+	styleCompleted = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))  // Green
+	styleFailed    = lipgloss.NewStyle().Foreground(lipgloss.Color("196")) // Red
+	stylePending   = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Grey
 )
 
 type viewState int
@@ -231,10 +237,23 @@ func (m *DashboardModel) updateTableContent() {
 		if !job.EndTime.IsZero() {
 			duration = job.EndTime.Sub(job.StartTime).Round(time.Second).String()
 		}
+
+		status := job.Status
+		switch status {
+		case "Running", "Spawning":
+			status = styleRunning.Render(status)
+		case "Completed":
+			status = styleCompleted.Render(status)
+		case "Failed":
+			status = styleFailed.Render(status)
+		case "Pending":
+			status = stylePending.Render(status)
+		}
+
 		rows = append(rows, table.Row{
 			job.ID,
 			limitString(job.Summary, 40),
-			job.Status,
+			status,
 			duration,
 		})
 	}
@@ -324,7 +343,16 @@ func (m DashboardModel) View() string {
 
 	switch m.viewState {
 	case viewMain:
-		contentView = baseStyle.Render(m.table.View())
+		if len(m.jobs) == 0 {
+			msg := "\n\nNo active jobs. Waiting for orchestrator...\n(This will auto-refresh)"
+			contentView = baseStyle.Copy().
+				Width(m.table.Width()).
+				Height(m.table.Height()).
+				Align(lipgloss.Center).
+				Render(msg)
+		} else {
+			contentView = baseStyle.Render(m.table.View())
+		}
 		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | r: retry | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
