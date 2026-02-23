@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"recac/internal/analysis"
 	"strings"
 	"testing"
 )
@@ -56,7 +57,7 @@ func (u *UnusedType) UnusedMethodOnUnusedType() {
 	}
 
 	// 3. Run analysis
-	findings, err := analyzeDeadcode(tmpDir)
+	findings, err := analysis.AnalyzeDeadcode(tmpDir, false)
 	if err != nil {
 		t.Fatalf("Analysis failed: %v", err)
 	}
