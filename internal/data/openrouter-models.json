@@ -29,8 +29,8 @@
       "displayName": "OpenAI GPT-4o Mini"
     },
     {
-      "name": "tngtech/deepseek-r1t2-chimera:free",
-      "displayName": "TNGTech DeepSeek R1T2 Chimera (Free)"
+      "name": "mistralai/mistral-7b-instruct:free",
+      "displayName": "Mistral 7B Instruct (Free)"
     },
     {
       "name": "mistralai/mistral-nemo",
