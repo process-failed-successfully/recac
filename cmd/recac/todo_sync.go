@@ -58,7 +58,7 @@ func runTodoSync(cmd *cobra.Command, args []string) error {
 	if err := ensureTodoFile(); err != nil {
 		return err
 	}
-	lines, err := utils.ReadLines(todoFile)
+	lines, err := utils.ReadLines(todoFilename)
 	if err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func makeKey(file, content string) string {
 }
 
 func writeTodoFile(entries []*TodoEntry) error {
-	f, err := os.Create(todoFile)
+	f, err := os.Create(todoFilename)
 	if err != nil {
 		return err
 	}
