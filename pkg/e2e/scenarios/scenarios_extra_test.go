@@ -138,14 +138,17 @@ func main() {
 			if resp != nil { resp.Body.Close() }
 
 			// Proxy
+			fmt.Printf("Proxying to %s\n", target)
 			proxy := httputil.NewSingleHostReverseProxy(target)
 			proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 				// Failed during proxying
-				fmt.Printf("Proxy error: %v\n", err)
+				fmt.Printf("Proxy error for %s: %v\n", target, err)
+				w.WriteHeader(http.StatusBadGateway)
 			}
 			proxy.ServeHTTP(w, r)
 			return
 		}
+		fmt.Printf("All backends failed\n")
 		http.Error(w, "Service Unavailable", 503)
 	}))
 	if err != nil {
