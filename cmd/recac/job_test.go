@@ -13,12 +13,14 @@ import (
 	"time"
 )
 
-func executeRootCommand(args ...string) (string, error) {
+func executeJobCommand(args ...string) (string, error) {
+	// Create a fresh command instance for each execution
+	cmd := NewJobCmd()
 	buf := new(bytes.Buffer)
-	rootCmd.SetOut(buf)
-	rootCmd.SetErr(buf)
-	rootCmd.SetArgs(args)
-	err := rootCmd.Execute()
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
 	return buf.String(), err
 }
 
@@ -68,15 +70,12 @@ func TestJobCmd(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Override host via flag in args, or viper
-	// Since we use rootCmd, we can pass --host flag.
+	// Override host via flag in args
 	hostFlag := fmt.Sprintf("--host=%s", ts.URL)
-	// Remove protocol for check
-	hostURL := ts.URL
 
 	// Test List
 	t.Run("List", func(t *testing.T) {
-		output, err := executeRootCommand("job", "list", hostFlag)
+		output, err := executeJobCommand("list", hostFlag)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -87,7 +86,7 @@ func TestJobCmd(t *testing.T) {
 
 	// Test Info
 	t.Run("Info", func(t *testing.T) {
-		output, err := executeRootCommand("job", "info", "job-1", hostFlag)
+		output, err := executeJobCommand("info", "job-1", hostFlag)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -98,7 +97,7 @@ func TestJobCmd(t *testing.T) {
 
 	// Test Logs
 	t.Run("Logs", func(t *testing.T) {
-		output, err := executeRootCommand("job", "logs", "job-1", hostFlag)
+		output, err := executeJobCommand("logs", "job-1", hostFlag)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -109,7 +108,7 @@ func TestJobCmd(t *testing.T) {
 
 	// Test Cancel
 	t.Run("Cancel", func(t *testing.T) {
-		output, err := executeRootCommand("job", "cancel", "job-1", hostFlag)
+		output, err := executeJobCommand("cancel", "job-1", hostFlag)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -120,7 +119,7 @@ func TestJobCmd(t *testing.T) {
 
 	// Test Submit
 	t.Run("Submit", func(t *testing.T) {
-		output, err := executeRootCommand("job", "submit", "--id", "job-new", "--summary", "New Job", "--repo-url", "http://git.com", hostFlag)
+		output, err := executeJobCommand("submit", "--id", "job-new", "--summary", "New Job", "--repo-url", "http://git.com", hostFlag)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -134,14 +133,14 @@ func TestJobCmd(t *testing.T) {
 		called := false
 		startDashboardFunc = func(host string) error {
 			called = true
-			if host != hostURL {
-				t.Errorf("Expected host %s, got %s", hostURL, host)
+			if host != ts.URL { // hostURL in test body was ts.URL, checking against that
+				t.Errorf("Expected host %s, got %s", ts.URL, host)
 			}
 			return nil
 		}
 		defer func() { startDashboardFunc = tui.StartDashboard }()
 
-		_, err := executeRootCommand("job", "monitor", hostFlag)
+		_, err := executeJobCommand("monitor", hostFlag)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
