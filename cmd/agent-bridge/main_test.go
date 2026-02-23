@@ -143,3 +143,83 @@ func TestRun_Invalid(t *testing.T) {
 		t.Error("Expected error for verify missing file")
 	}
 }
+
+func TestRun_ClearSignal(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	// Create a real SQLite DB because clear-signal expects to open one
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, err := db.NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create sqlite store: %v", err)
+	}
+
+	// Set a signal first
+	projectID := filepath.Base(tmpDir)
+	if err := store.SetSignal(projectID, "TEST_SIGNAL", "value"); err != nil {
+		t.Fatalf("failed to set signal: %v", err)
+	}
+	store.Close()
+
+	// Run clear-signal
+	args := []string{"agent-bridge", "clear-signal", "TEST_SIGNAL"}
+	// Note: 'run' takes config but clear-signal ignores it and uses CWD/.recac.db
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "ignored"); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify signal is gone
+	store, _ = db.NewSQLiteStore(dbPath)
+	defer store.Close()
+	val, err := store.GetSignal(projectID, "TEST_SIGNAL")
+	// GetSignal returns val or error if not found?
+	// Usually empty string if not found or specific error.
+	if val != "" {
+		t.Errorf("Expected signal to be cleared, but got: %s", val)
+	}
+}
+
+func TestRun_FeatureList(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	args := []string{"agent-bridge", "feature", "list"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+}
+
+func TestRun_Import(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	// Mock Stdin
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	r, w, _ := os.Pipe()
+	os.Stdin = r
+
+	go func() {
+		w.Write([]byte(`{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`))
+		w.Close()
+	}()
+
+	args := []string{"agent-bridge", "import"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify it was imported
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	defer store.Close()
+	features, _ := store.GetFeatures(projectID)
+	if !strings.Contains(features, "F1") {
+		t.Errorf("Expected features to be imported")
+	}
+}
