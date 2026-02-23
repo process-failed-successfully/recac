@@ -185,7 +185,7 @@ func addTasksToTodoFile(newTasks []TodoItem) (int, error) {
 		return 0, err
 	}
 
-	lines, err := utils.ReadLines(todoFile)
+	lines, err := utils.ReadLines(todoFilename)
 	if err != nil {
 		return 0, err
 	}
@@ -201,7 +201,7 @@ func addTasksToTodoFile(newTasks []TodoItem) (int, error) {
 	}
 
 	addedCount := 0
-	f, err := os.OpenFile(todoFile, os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(todoFilename, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return 0, err
 	}
