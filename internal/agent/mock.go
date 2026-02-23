@@ -34,7 +34,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mocking for Smoke Tests
 	// If the prompt looks like the Prime Python spec, return a valid JSON plan
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+	// We check for "ID:[PRIMES]" in various formats since prompts can change
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Prime Number Script") {
+		// If we are already being asked to implement the logic (Step 2), don't return the plan again.
+		// The planning prompt usually asks to "Analyze the spec" or doesn't have the specific implementation instructions yet.
+		// However, a simple heuristic is: if it asks to "Create a python script named 'primes.py'", it's likely the implementation step.
+		if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+			return "Here is the implementation:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef sieve(n):\n    primes = []\n    is_prime = [True] * n\n    is_prime[0] = is_prime[1] = False\n    for i in range(2, n):\n        if is_prime[i]:\n            primes.append(i)\n            for j in range(i * i, n, i):\n                is_prime[j] = False\n    return primes\n\nprimes = sieve(10000)\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes.py\"\ngit push\n```", nil
+		}
+
+		// Otherwise, it's the planning step
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
@@ -43,11 +52,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
-	}
-
-	// Smart Mocking for Smoke Tests - Step 2: Implementation
-	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
-		return "Here is the implementation:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef sieve(n):\n    primes = []\n    is_prime = [True] * n\n    is_prime[0] = is_prime[1] = False\n    for i in range(2, n):\n        if is_prime[i]:\n            primes.append(i)\n            for j in range(i * i, n, i):\n                is_prime[j] = False\n    return primes\n\nprimes = sieve(10000)\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes.py\"\ngit push\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

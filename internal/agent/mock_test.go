@@ -39,7 +39,9 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 
 	// Test Step 2: Implementation
-	implPrompt := "Please Create a python script named 'primes.py'. It MUST be python."
+	// The prompt needs to trigger the condition: strings.Contains(prompt, "Create a python script named 'primes.py'")
+	// AND also contain ID:[PRIMES] or Prime Number Script to enter the block.
+	implPrompt := "ID:[PRIMES] Please Create a python script named 'primes.py'. It MUST be python."
 	implResp, err := agent.Send(context.Background(), implPrompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
