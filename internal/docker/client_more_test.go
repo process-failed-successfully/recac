@@ -98,35 +98,35 @@ func TestExec_ExitCodeError(t *testing.T) {
 }
 
 func TestExecInteractive_InspectError(t *testing.T) {
-    client, mock := NewMockClient()
+	client, mock := NewMockClient()
 
-    // Setup NopConn for Attach
-    mock.ContainerExecAttachFunc = func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
+	// Setup NopConn for Attach
+	mock.ContainerExecAttachFunc = func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
 		return types.HijackedResponse{
 			Conn:   NopConn{},
 			Reader: bufio.NewReader(strings.NewReader("")),
 		}, nil
 	}
 
-    mock.ContainerExecInspectFunc = func(ctx context.Context, execID string) (container.ExecInspect, error) {
-        return container.ExecInspect{}, errors.New("inspect failed")
-    }
+	mock.ContainerExecInspectFunc = func(ctx context.Context, execID string) (container.ExecInspect, error) {
+		return container.ExecInspect{}, errors.New("inspect failed")
+	}
 
-    err := client.ExecInteractive(context.Background(), "container", []string{"bash"})
-    if err == nil {
-        t.Error("Expected error from ExecInteractive when inspect fails")
-    }
+	err := client.ExecInteractive(context.Background(), "container", []string{"bash"})
+	if err == nil {
+		t.Error("Expected error from ExecInteractive when inspect fails")
+	}
 }
 
 func TestRemoveContainer_Error(t *testing.T) {
-    client, mock := NewMockClient()
+	client, mock := NewMockClient()
 
-    mock.ContainerRemoveFunc = func(ctx context.Context, containerID string, options container.RemoveOptions) error {
-        return errors.New("remove failed")
-    }
+	mock.ContainerRemoveFunc = func(ctx context.Context, containerID string, options container.RemoveOptions) error {
+		return errors.New("remove failed")
+	}
 
-    err := client.RemoveContainer(context.Background(), "container", true)
-    if err == nil {
-        t.Error("Expected error from RemoveContainer")
-    }
+	err := client.RemoveContainer(context.Background(), "container", true)
+	if err == nil {
+		t.Error("Expected error from RemoveContainer")
+	}
 }

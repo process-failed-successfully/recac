@@ -105,7 +105,7 @@ func runRefactor(cmd *cobra.Command, args []string) error {
 		}
 
 		if showDiff {
-			diff, err := utils.GenerateDiff(path, originalContent, newContent)
+			diff, err := utils.GenerateDiff(path, originalContent, path+" (refactored)", newContent)
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Failed to generate diff for %s: %v\n", path, err)
 			} else {

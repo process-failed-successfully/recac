@@ -61,6 +61,16 @@ func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string)
 	return nil
 }
 
+func (c *Client) runCommand(ctx context.Context, dir string, args ...string) error {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // Clone clones a repository into a destination directory.
 func (c *Client) Clone(ctx context.Context, url, dest string) error {
 	// Clone can take a while
@@ -73,11 +83,7 @@ func (c *Client) Clone(ctx context.Context, url, dest string) error {
 func (c *Client) CheckoutNewBranch(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "checkout", "-B", branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(ctx, dir, "checkout", "-B", branchName)
 }
 
 // Config sets a git configuration value.
@@ -151,43 +157,27 @@ func (c *Client) CreatePR(dir, title, body, base string) (string, error) {
 // Commit stages all changes and commits them with the given message.
 func (c *Client) Commit(dir, message string) error {
 	// git add .
-	addCmd := exec.Command("git", "add", ".")
-	addCmd.Dir = dir
-	addCmd.Stdout = os.Stdout
-	addCmd.Stderr = os.Stderr
-	if err := addCmd.Run(); err != nil {
+	if err := c.runCommand(context.Background(), dir, "add", "."); err != nil {
 		return fmt.Errorf("git add failed: %w", err)
 	}
 
 	// git commit -m "message"
-	commitCmd := exec.Command("git", "commit", "-m", message)
-	commitCmd.Dir = dir
-	commitCmd.Stdout = os.Stdout
-	commitCmd.Stderr = os.Stderr
 	// Ensure we don't fail if there's nothing to commit, although usually we want to know.
 	// But for automation, maybe we just ignore error?
 	// Let's return error so we know.
-	return commitCmd.Run()
+	return c.runCommand(context.Background(), dir, "commit", "-m", message)
 }
 
 // SetRemoteURL updates the remote URL (e.g. to include auth token).
 func (c *Client) SetRemoteURL(dir, name, url string) error {
-	cmd := exec.Command("git", "remote", "set-url", name, url)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "remote", "set-url", name, url)
 }
 
 // Checkout switches to an existing branch.
 func (c *Client) Checkout(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "checkout", branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(ctx, dir, "checkout", branchName)
 }
 
 // Pull pulls changes from the remote repository.
@@ -199,11 +189,7 @@ func (c *Client) Pull(dir, remote, branchName string) error {
 
 // Merge merges the specified branch into the current branch.
 func (c *Client) Merge(dir, branchName string) error {
-	cmd := exec.Command("git", "merge", branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "merge", branchName)
 }
 
 // Fetch fetches changes from the remote repository.
@@ -295,20 +281,12 @@ func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 
 // Stash stashes local changes, including untracked files.
 func (c *Client) Stash(dir string) error {
-	cmd := exec.Command("git", "stash", "--include-untracked")
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "stash", "--include-untracked")
 }
 
 // StashPop pops the latest stash.
 func (c *Client) StashPop(dir string) error {
-	cmd := exec.Command("git", "stash", "pop")
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "stash", "pop")
 }
 
 // Recover attempts to fix common git errors by removing lock files.
@@ -362,29 +340,17 @@ func (c *Client) Clean(dir string) error {
 	// Also try to remove go/pkg/mod manually if it exists, as it's often the culprit
 	os.RemoveAll(filepath.Join(dir, "go/pkg/mod"))
 
-	cmd := exec.Command("git", "clean", "-fdx")
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "clean", "-fdx")
 }
 
 // AbortMerge aborts an in-progress merge.
 func (c *Client) AbortMerge(dir string) error {
-	cmd := exec.Command("git", "merge", "--abort")
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "merge", "--abort")
 }
 
 // DeleteLocalBranch deletes a local branch.
 func (c *Client) DeleteLocalBranch(dir, branch string) error {
-	cmd := exec.Command("git", "branch", "-D", branch)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "branch", "-D", branch)
 }
 
 // DeleteRemoteBranch deletes a remote branch.
@@ -460,11 +426,7 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 
 // BisectStart starts a git bisect session with bad and good commits.
 func (c *Client) BisectStart(dir, bad, good string) error {
-	cmd := exec.Command("git", "bisect", "start", bad, good)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "bisect", "start", bad, good)
 }
 
 // BisectGood marks the current or specified revision as good.
@@ -473,11 +435,7 @@ func (c *Client) BisectGood(dir, rev string) error {
 	if rev != "" {
 		args = append(args, rev)
 	}
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, args...)
 }
 
 // BisectBad marks the current or specified revision as bad.
@@ -486,20 +444,12 @@ func (c *Client) BisectBad(dir, rev string) error {
 	if rev != "" {
 		args = append(args, rev)
 	}
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, args...)
 }
 
 // BisectReset resets the bisect session.
 func (c *Client) BisectReset(dir string) error {
-	cmd := exec.Command("git", "bisect", "reset")
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "bisect", "reset")
 }
 
 // BisectLog returns the log of the current bisect session.
@@ -518,21 +468,13 @@ func (c *Client) BisectLog(dir string) ([]string, error) {
 // Tag creates an annotated tag.
 func (c *Client) Tag(dir, version string) error {
 	// git tag -a v1.0.0 -m "Release v1.0.0"
-	cmd := exec.Command("git", "tag", "-a", version, "-m", fmt.Sprintf("Release %s", version))
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "tag", "-a", version, "-m", fmt.Sprintf("Release %s", version))
 }
 
 // DeleteTag deletes a tag.
 func (c *Client) DeleteTag(dir, version string) error {
 	// git tag -d v1.0.0
-	cmd := exec.Command("git", "tag", "-d", version)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runCommand(context.Background(), dir, "tag", "-d", version)
 }
 
 // PushTags pushes tags to the remote.

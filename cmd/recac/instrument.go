@@ -107,7 +107,7 @@ Code to instrument:
 			instrumentedCode := utils.CleanCodeBlock(resp)
 
 			if instrumentDiff {
-				diff, err := utils.GenerateDiff(filePath, string(content), instrumentedCode)
+				diff, err := utils.GenerateDiff(filePath, string(content), filePath+" (instrumented)", instrumentedCode)
 				if err != nil {
 					return fmt.Errorf("failed to generate diff: %w", err)
 				}

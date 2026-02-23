@@ -89,7 +89,7 @@ Code to document:
 			inPlace, _ := cmd.Flags().GetBool("in-place")
 
 			if showDiff {
-				diff, err := utils.GenerateDiff(filePath, string(content), documentedCode)
+				diff, err := utils.GenerateDiff(filePath, string(content), filePath+" (documented)", documentedCode)
 				if err != nil {
 					return fmt.Errorf("failed to generate diff: %w", err)
 				}

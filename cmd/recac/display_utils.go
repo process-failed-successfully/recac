@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"recac/internal/agent"
 	"recac/internal/runner"
+	"recac/internal/utils"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -255,31 +255,31 @@ func printMetadataDiff(cmd *cobra.Command, sA, sB *runner.SessionState) {
 }
 
 func printLogDiff(cmd *cobra.Command, logA, logB string) error {
-	diffCmd := exec.Command("diff", "-u", logA, logB)
-	output, err := diffCmd.CombinedOutput()
-
-	// diff exits with 1 if files differ, which is not an error for us.
+	contentA, err := os.ReadFile(logA)
 	if err != nil {
-		// If `diff` command is not found, use fallback
-		if _, ok := err.(*exec.Error); ok {
-			cmd.Println("(using fallback diff)")
-			return fallbackDiff(cmd, logA, logB)
-		}
-		// Any other error from `diff` (besides exit code 1) is a problem
-		if exitErr, ok := err.(*exec.ExitError); !ok || exitErr.ExitCode() != 1 {
-			return fmt.Errorf("failed to execute diff command: %w\nOutput:\n%s", err, string(output))
-		}
+		return fmt.Errorf("could not read file %s: %w", logA, err)
+	}
+	contentB, err := os.ReadFile(logB)
+	if err != nil {
+		return fmt.Errorf("could not read file %s: %w", logB, err)
 	}
 
-	if len(output) == 0 {
+	diff, err := utils.GenerateDiff(logA, string(contentA), logB, string(contentB))
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(diff, "No changes") {
 		cmd.Println("No differences in logs.")
 		return nil
 	}
 
-	// Colorize the output for better readability
-	lines := strings.Split(string(output), "\n")
+	// Colorize output
+	lines := strings.Split(diff, "\n")
 	for _, line := range lines {
 		switch {
+		case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
+			cmd.Println(line)
 		case strings.HasPrefix(line, "+"):
 			// Green for additions
 			cmd.Printf("\x1b[32m%s\x1b[0m\n", line)
@@ -293,46 +293,5 @@ func printLogDiff(cmd *cobra.Command, logA, logB string) error {
 			cmd.Println(line)
 		}
 	}
-
-	return nil
-}
-
-func fallbackDiff(cmd *cobra.Command, file1, file2 string) error {
-	content1, err1 := os.ReadFile(file1)
-	if err1 != nil {
-		return fmt.Errorf("could not read file %s: %w", file1, err1)
-	}
-	content2, err2 := os.ReadFile(file2)
-	if err2 != nil {
-		return fmt.Errorf("could not read file %s: %w", file2, err2)
-	}
-
-	lines1 := strings.Split(string(content1), "\n")
-	lines2 := strings.Split(string(content2), "\n")
-
-	if string(content1) == string(content2) {
-		cmd.Println("No differences in logs.")
-		return nil
-	}
-
-	cmd.Println("--- ", file1)
-	cmd.Println("+++ ", file2)
-
-	// This is a very basic line-by-line comparison, not a true diff algorithm.
-	for i := 0; i < len(lines1) || i < len(lines2); i++ {
-		if i < len(lines1) && i < len(lines2) {
-			if lines1[i] != lines2[i] {
-				cmd.Printf("\x1b[31m- %s\x1b[0m\n", lines1[i])
-				cmd.Printf("\x1b[32m+ %s\x1b[0m\n", lines2[i])
-			} else {
-				cmd.Println("  ", lines1[i])
-			}
-		} else if i < len(lines1) {
-			cmd.Printf("\x1b[31m- %s\x1b[0m\n", lines1[i])
-		} else if i < len(lines2) {
-			cmd.Printf("\x1b[32m+ %s\x1b[0m\n", lines2[i])
-		}
-	}
-
 	return nil
 }

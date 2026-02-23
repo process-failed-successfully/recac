@@ -9,7 +9,7 @@ func TestGenerateDiff(t *testing.T) {
 	original := "line1\nline2\nline3"
 	improved := "line1\nline2 changed\nline3"
 
-	diff, err := GenerateDiff("test.txt", original, improved)
+	diff, err := GenerateDiff("test.txt", original, "test.txt (improved)", improved)
 	if err != nil {
 		t.Fatalf("GenerateDiff failed: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestGenerateDiff_NoChanges(t *testing.T) {
 	original := "line1"
 	improved := "line1"
 
-	diff, err := GenerateDiff("test.txt", original, improved)
+	diff, err := GenerateDiff("test.txt", original, "test.txt (improved)", improved)
 	if err != nil {
 		t.Fatalf("GenerateDiff failed: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestGenerateDiff_DefaultFilename(t *testing.T) {
 	original := "line1"
 	improved := "line2"
 
-	diff, err := GenerateDiff("", original, improved)
+	diff, err := GenerateDiff("", original, "", improved)
 	if err != nil {
 		t.Fatalf("GenerateDiff failed: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestGenerateDiff_DefaultFilename(t *testing.T) {
 	if !strings.Contains(diff, "--- original") {
 		t.Errorf("Diff missing default original file header, got: %s", diff)
 	}
-	if !strings.Contains(diff, "+++ original (improved)") {
+	if !strings.Contains(diff, "+++ improved") {
 		t.Errorf("Diff missing default improved file header, got: %s", diff)
 	}
 }

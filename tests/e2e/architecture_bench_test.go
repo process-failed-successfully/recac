@@ -58,7 +58,7 @@ Features:
 `
 
 	passCount := 0
-	
+
 	for i := 0; i < runs; i++ {
 		t.Run(fmt.Sprintf("Run_%d", i+1), func(t *testing.T) {
 			// 1. Generate
@@ -76,12 +76,12 @@ Features:
 			// We duplicate a bit of logic here to keep test self-contained or we could refactor.
 			// For this test, I'll do basic JSON extraction.
 			// ... (JSON extraction logic similar to architect.go) ...
-			
+
 			// For the sake of this test file, I'll rely on the fact that if the JSON is malformed, it's a failure.
 			// But to properly use the Validator, I need to materialize the files to a temp dir.
 			tempDir := t.TempDir()
-			
-			// Mocking the extraction/parsing part for brevity in this thought, 
+
+			// Mocking the extraction/parsing part for brevity in this thought,
 			// but in real code I need to actually parse it.
 			// Let's assume a helper function or copy the logic.
 			files, err := parseResponse(resp)
@@ -126,7 +126,7 @@ Features:
 
 	passRate := float64(passCount) / float64(runs) * 100.0
 	t.Logf("Final Results: %d/%d Passed (%.1f%%)", passCount, runs, passRate)
-	
+
 	if passRate < 80.0 {
 		t.Logf("Warning: Pass rate below 80%%")
 		// t.Fail() // Optional: fail the suite if quality is too low

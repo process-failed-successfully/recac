@@ -64,28 +64,8 @@ Use the --dry-run flag to see which sessions would be pruned without deleting th
 
 		var sessionsToPrune []*runner.SessionState
 		for _, s := range sessions {
-			// Determine if a session is a candidate for pruning based on its status.
-			isCandidate := false
-			if pruneAll {
-				isCandidate = true
-			} else {
-				switch s.Status {
-				case "completed", "stopped", "error":
-					isCandidate = true
-				}
-			}
-
-			// If it's a candidate, check if it meets the time filter (if one is specified).
-			if isCandidate {
-				if !cutoff.IsZero() {
-					// Time filter is active; only prune if the session is old enough.
-					if s.StartTime.Before(cutoff) {
-						sessionsToPrune = append(sessionsToPrune, s)
-					}
-				} else {
-					// No time filter; prune all candidates.
-					sessionsToPrune = append(sessionsToPrune, s)
-				}
+			if shouldPrune(s, pruneAll, cutoff) {
+				sessionsToPrune = append(sessionsToPrune, s)
 			}
 		}
 
@@ -153,4 +133,31 @@ Use the --dry-run flag to see which sessions would be pruned without deleting th
 
 		return nil
 	},
+}
+
+func shouldPrune(s *runner.SessionState, pruneAll bool, cutoff time.Time) bool {
+	// Determine if a session is a candidate for pruning based on its status.
+	isCandidate := false
+	if pruneAll {
+		isCandidate = true
+	} else {
+		switch s.Status {
+		case "completed", "stopped", "error":
+			isCandidate = true
+		}
+	}
+
+	if !isCandidate {
+		return false
+	}
+
+	// If it's a candidate, check if it meets the time filter (if one is specified).
+	if !cutoff.IsZero() {
+		// Time filter is active; only prune if the session is old enough.
+		if !s.StartTime.Before(cutoff) {
+			return false
+		}
+	}
+
+	return true
 }

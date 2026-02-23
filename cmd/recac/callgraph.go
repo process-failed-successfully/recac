@@ -61,7 +61,7 @@ func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
 
 	for id, node := range cg.Nodes {
 		if strings.Contains(strings.ToLower(id), strings.ToLower(focus)) ||
-		   strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
+			strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
 			relevantNodes[id] = true
 		}
 	}

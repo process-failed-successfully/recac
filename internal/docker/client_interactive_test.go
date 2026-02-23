@@ -15,13 +15,13 @@ import (
 
 type NopConn struct{}
 
-func (NopConn) Read(b []byte) (n int, err error) { return 0, io.EOF }
-func (NopConn) Write(b []byte) (n int, err error) { return len(b), nil }
-func (NopConn) Close() error                     { return nil }
-func (NopConn) LocalAddr() net.Addr              { return nil }
-func (NopConn) RemoteAddr() net.Addr             { return nil }
-func (NopConn) SetDeadline(t time.Time) error    { return nil }
-func (NopConn) SetReadDeadline(t time.Time) error { return nil }
+func (NopConn) Read(b []byte) (n int, err error)   { return 0, io.EOF }
+func (NopConn) Write(b []byte) (n int, err error)  { return len(b), nil }
+func (NopConn) Close() error                       { return nil }
+func (NopConn) LocalAddr() net.Addr                { return nil }
+func (NopConn) RemoteAddr() net.Addr               { return nil }
+func (NopConn) SetDeadline(t time.Time) error      { return nil }
+func (NopConn) SetReadDeadline(t time.Time) error  { return nil }
 func (NopConn) SetWriteDeadline(t time.Time) error { return nil }
 
 func TestExecInteractive(t *testing.T) {
