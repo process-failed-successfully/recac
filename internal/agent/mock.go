@@ -47,8 +47,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Execution Phase
-	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
-		return "Here is the implementation:\n\n```bash\n# Create the python script\ncat << 'EOF' > primes.py\nimport json\n\ndef get_primes(n):\n    primes = []\n    for num in range(2, n):\n        is_prime = True\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(num)\n    return primes\n\nprimes = get_primes(10000)\n\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\n# Run the script to generate the json\npython3 primes.py\n\n# Commit the files\ngit add -f primes.py primes.json\n```", nil
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") || strings.Contains(prompt, "ID:[PRIMES]") {
+		// Only trigger if it looks like the execution step (not planning)
+		if !strings.Contains(prompt, "Please create a plan") && !strings.Contains(prompt, "generate ticket plan") {
+			return "Here is the implementation:\n\n```bash\n# Create the python script\ncat << 'EOF' > primes.py\nimport json\n\ndef get_primes(n):\n    primes = []\n    for num in range(2, n):\n        is_prime = True\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(num)\n    return primes\n\nprimes = get_primes(10000)\n\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\n# Run the script to generate the json\npython3 primes.py\n\n# Commit the files\ngit add -f primes.py primes.json\n```", nil
+		}
 	}
 
 	// Return a mock response that shows the agent received the prompt
