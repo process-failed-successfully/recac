@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "nvidia/nemotron-3-nano-30b-a3b:free"
+--provider openrouter --model "google/gemini-2.5-flash-preview-09-2025"
 This is a free token so use large iteration counts.
 
 Github:

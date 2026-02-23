@@ -29,7 +29,7 @@
       "displayName": "OpenAI GPT-4o Mini"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "name": "google/gemini-2.5-flash-preview-09-2025",
       "displayName": "TNGTech DeepSeek R1T2 Chimera (Free)"
     },
     {
@@ -65,7 +65,7 @@
       "displayName": "Anthropic Claude Sonnet 4"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "name": "google/gemini-2.5-flash-preview-09-2025",
       "displayName": "NVIDIA Nemotron 3 Nano 30B (Free)"
     },
     {
