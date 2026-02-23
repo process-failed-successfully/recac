@@ -222,7 +222,7 @@ func attemptFixLoop(cmd *cobra.Command, args []string, initialOutput string) err
 
 func attemptFix(cmd *cobra.Command, output string) (bool, error) {
 	// 1. Extract context
-	fileContexts, err := extractFileContexts(output)
+	fileContexts, err := utils.ExtractFileContexts(output)
 	if err != nil {
 		// Continue anyway?
 		fileContexts = "No local files could be linked to the output."
@@ -295,7 +295,7 @@ func diagnoseFailure(cmd *cobra.Command, output string) error {
 	fmt.Fprintln(cmd.OutOrStdout(), "\n🧠 Diagnosing failure with AI...")
 
 	// 1. Extract context
-	fileContexts, err := extractFileContexts(output)
+	fileContexts, err := utils.ExtractFileContexts(output)
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not extract file contexts: %v\n", err)
 		fileContexts = "No local files could be linked to the output."

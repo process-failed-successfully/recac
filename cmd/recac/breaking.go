@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/breaking"
+	"recac/internal/utils"
 	"strings"
 	"text/tabwriter"
 
@@ -22,7 +23,7 @@ var (
 var breakingCmd = &cobra.Command{
 	Use:   "breaking",
 	Short: "Detect breaking changes in Go API",
-	Long:  `Compares the public Go API of the current directory against a git reference (e.g., main, v1.0.0).
+	Long: `Compares the public Go API of the current directory against a git reference (e.g., main, v1.0.0).
 Reports removed or changed exported identifiers.`,
 	RunE: runBreaking,
 }
@@ -58,7 +59,7 @@ func runBreaking(cmd *cobra.Command, args []string) error {
 			if strings.HasPrefix(info.Name(), ".") && info.Name() != "." {
 				return filepath.SkipDir
 			}
-			ignores := DefaultIgnoreMap()
+			ignores := utils.DefaultIgnoreMap()
 			if ignores[info.Name()] {
 				return filepath.SkipDir
 			}

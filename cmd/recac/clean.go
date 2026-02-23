@@ -1,10 +1,10 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 )

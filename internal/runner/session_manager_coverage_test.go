@@ -61,8 +61,8 @@ func TestSessionManager_StartSession_CleanupDead(t *testing.T) {
 	// Create a "dead" session file manually
 	sessionName := "dead-session"
 	deadSession := &SessionState{
-		Name: sessionName,
-		PID:  999999, // Non-existent PID
+		Name:   sessionName,
+		PID:    999999, // Non-existent PID
 		Status: "running",
 	}
 	err = sm.SaveSession(deadSession)

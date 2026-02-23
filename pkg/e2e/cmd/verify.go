@@ -41,7 +41,7 @@ func RunVerify(args []string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if keepRepo {
 		log.Printf("Repository cloned to: %s", tmpDir)
 	} else {

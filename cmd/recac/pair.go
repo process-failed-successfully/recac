@@ -1,13 +1,13 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"context"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/utils"
 	"strings"
 	"sync"
 	"time"
@@ -76,7 +76,7 @@ func (w *FSNotifyWatcher) Close() error {
 }
 
 func (w *FSNotifyWatcher) AddRecursive(root string) error {
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -167,7 +167,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 				filename := event.Name
 				// Check ignore
 				base := filepath.Base(filename)
-				if DefaultIgnoreMap()[base] {
+				if utils.DefaultIgnoreMap()[base] {
 					continue
 				}
 				if strings.HasPrefix(base, ".") {

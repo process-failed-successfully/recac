@@ -72,3 +72,11 @@ func TestIsBinaryContent(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultIgnoreMap(t *testing.T) {
+	m := DefaultIgnoreMap()
+	assert.True(t, m[".git"])
+	assert.True(t, m["node_modules"])
+	assert.True(t, m["TODO.md"])
+	assert.False(t, m["main.go"])
+}

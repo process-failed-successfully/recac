@@ -150,7 +150,6 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 	return label, ticketMap, nil
 }
 
-
 // Cleanup removes all tickets with the given label.
 func (m *JiraManager) Cleanup(ctx context.Context, label string) error {
 	issues, err := m.Client.LoadLabelIssues(ctx, label)

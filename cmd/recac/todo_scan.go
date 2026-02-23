@@ -1,12 +1,12 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 
@@ -74,7 +74,7 @@ func ScanForTodos(root string) ([]TodoItem, error) {
 	var tasks []TodoItem
 
 	// Default ignores
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

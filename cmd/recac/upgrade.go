@@ -267,7 +267,7 @@ func runAgentFix(cmd *cobra.Command, errorOutput string) error {
 
 	// Also maybe we need to find which files are causing errors.
 	// Similar to 'debug', extract files.
-	fileContext, _ := extractFileContexts(errorOutput)
+	fileContext, _ := utils.ExtractFileContexts(errorOutput)
 
 	prompt := fmt.Sprintf(`I updated dependencies and tests are failing.
 Please fix the code to be compatible with the new dependencies.

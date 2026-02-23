@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	setupProvider string
-	setupModel    string
-	setupAPIKey   string
-	setupJiraURL  string
-	setupJiraUser string
+	setupProvider  string
+	setupModel     string
+	setupAPIKey    string
+	setupJiraURL   string
+	setupJiraUser  string
 	setupJiraToken string
 	setupJiraLabel string
 )
