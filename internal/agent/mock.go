@@ -45,6 +45,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	if strings.Contains(prompt, "Create a guided tour of this codebase") {
+		return `[
+  {
+    "title": "Project Overview",
+    "filepath": "README.md",
+    "description": "# Project Overview\n\nWelcome to **recac**! This is a distributed autonomous coding framework.\n\nKey features:\n- **Orchestrator**: Manages tasks and agents.\n- **Agent**: The core autonomous coding logic.\n- **CLI**: The command-line interface you are using now."
+  },
+  {
+    "title": "Entry Point",
+    "filepath": "cmd/recac/main.go",
+    "description": "This is the main entry point for the CLI. It uses ` + "`cobra`" + ` to handle commands."
+  },
+  {
+    "title": "Core Logic",
+    "filepath": "internal/runner/runner.go",
+    "description": "The ` + "`runner`" + ` package contains the core loop for the autonomous agent. It manages the session, state, and execution of actions."
+  }
+]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
