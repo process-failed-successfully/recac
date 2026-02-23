@@ -70,10 +70,21 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 ` + "```" + `
 
 I have created the 'primes.py' script, ran it to generate 'primes.json', and committed both files. The task is complete.
+`, nil
+	}
+
+	// Manager Review / QA Step
+	if strings.Contains(prompt, "Review the implementation") || strings.Contains(prompt, "QA") || strings.Contains(prompt, "quality assurance") {
+		return `The implementation looks correct. The script 'primes.py' was created and 'primes.json' was generated.
+
+Tests passed. Code quality is good.
+
+NO_ISSUES_FOUND
+TASK_COMPLETED
 `, nil
 	}
 
