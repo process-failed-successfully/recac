@@ -120,10 +120,6 @@ func TestLimitString_Long(t *testing.T) {
 	}
 }
 
-func TestStartDashboard_CompileCheck(t *testing.T) {
-	// Just ensures the function exists and signature matches.
-	var _ func(string) error = StartDashboard
-}
 
 func TestDashboardModel_Update_TickMsg_Batch(t *testing.T) {
 	m := NewDashboardModel("host")

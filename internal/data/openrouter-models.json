@@ -29,8 +29,8 @@
       "displayName": "OpenAI GPT-4o Mini"
     },
     {
-      "name": "meta-llama/llama-3.3-70b-instruct:free",
-      "displayName": "TNGTech DeepSeek R1T2 Chimera (Free)"
+      "name": "google/gemma-2-9b-it:free",
+      "displayName": "Google Gemma 2 9B IT (Free)"
     },
     {
       "name": "mistralai/mistral-nemo",
