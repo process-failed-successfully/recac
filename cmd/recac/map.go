@@ -1,13 +1,13 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"context"
 	"fmt"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"sort"
 	"strings"

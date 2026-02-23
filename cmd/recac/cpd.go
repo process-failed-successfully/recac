@@ -10,6 +10,7 @@ import (
 	"hash/fnv"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -146,7 +147,7 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 func collectFileHashes(root string, minLines int, ignorePatterns []string) (map[string][]Location, error) {
 	hashes := make(map[string][]Location)
 	windowBuf := make([]byte, minLines*8)
-	defaultIgnores := DefaultIgnoreMap()
+	defaultIgnores := utils.DefaultIgnoreMap()
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

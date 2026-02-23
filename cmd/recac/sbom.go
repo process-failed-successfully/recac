@@ -129,8 +129,8 @@ type SPDXPackage struct {
 }
 
 type SPDXRel struct {
-	ElementID      string `json:"spdxElementId"`
-	RelatedID      string `json:"relatedSpdxElement"`
+	ElementID        string `json:"spdxElementId"`
+	RelatedID        string `json:"relatedSpdxElement"`
 	RelationshipType string `json:"relationshipType"`
 }
 
@@ -191,8 +191,8 @@ type CycloneDXDocument struct {
 }
 
 type CycloneDXMetadata struct {
-	Timestamp string            `json:"timestamp"`
-	Tool      CycloneDXTool     `json:"tool"`
+	Timestamp string             `json:"timestamp"`
+	Tool      CycloneDXTool      `json:"tool"`
 	Component CycloneDXComponent `json:"component"`
 }
 

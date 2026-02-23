@@ -1,7 +1,6 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -9,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -213,7 +213,7 @@ func analyzeSnapshot(root string) (EvolutionMetric, error) {
 
 func countLOC(root string) (int, error) {
 	count := 0
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

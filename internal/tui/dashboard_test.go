@@ -84,7 +84,7 @@ func TestDashboardModel_View(t *testing.T) {
 	}
 	tModel := table.New(table.WithColumns(columns))
 	model := DashboardModel{
-		host: "test-host",
+		host:  "test-host",
 		table: tModel,
 		status: orchestrator.Status{
 			Uptime: "10m",

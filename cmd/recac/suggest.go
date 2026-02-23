@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,8 +25,8 @@ var (
 var suggestCmd = &cobra.Command{
 	Use:   "suggest",
 	Short: "Proactively suggest improvements using AI",
-	Long: `Analyzes the codebase and suggests actionable improvements, bugs to fix, or refactoring opportunities.`,
-	RunE: runSuggest,
+	Long:  `Analyzes the codebase and suggests actionable improvements, bugs to fix, or refactoring opportunities.`,
+	RunE:  runSuggest,
 }
 
 func init() {
@@ -52,28 +53,10 @@ func runSuggest(cmd *cobra.Command, args []string) error {
 	}
 
 	// 1. Generate Context
-	roots := []string{suggestFocus}
-	if suggestFocus == "." {
-		roots = []string{"."}
-	} else {
-		// Verify focus path exists
-		if _, err := os.Stat(suggestFocus); err != nil {
-			return fmt.Errorf("focus path does not exist: %w", err)
-		}
-	}
-
-	opts := ContextOptions{
-		Roots:     roots,
-		Ignore:    suggestIgnore,
-		MaxSize:   100 * 1024, // 100KB limit per file to save tokens
-		Tree:      true,
-		NoContent: false,
-	}
-
 	fmt.Fprintln(cmd.OutOrStdout(), "🔍 Analyzing codebase...")
-	codebaseContext, err := GenerateCodebaseContext(opts)
+	codebaseContext, err := generateContext(suggestFocus, suggestIgnore)
 	if err != nil {
-		return fmt.Errorf("failed to generate codebase context: %w", err)
+		return err
 	}
 
 	// 2. Prepare Agent
@@ -85,7 +68,62 @@ func runSuggest(cmd *cobra.Command, args []string) error {
 	}
 
 	// 3. Prompt
-	prompt := fmt.Sprintf(`You are a senior software engineer conducting a code review.
+	prompt := generatePrompt(suggestType, suggestLimit, codebaseContext)
+
+	fmt.Fprintln(cmd.OutOrStdout(), "🤖 Consulting AI agent (this may take a moment)...")
+
+	// 4. Send to Agent
+	resp, err := ag.Send(ctx, prompt)
+	if err != nil {
+		return fmt.Errorf("agent failed to generate suggestions: %w", err)
+	}
+
+	// 5. Parse Response
+	suggestions, err := parseSuggestions(resp)
+	if err != nil {
+		// Fallback: try to print the raw response if parsing fails
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to parse JSON response: %v\n", err)
+		fmt.Fprintln(cmd.OutOrStdout(), "Raw response:")
+		fmt.Fprintln(cmd.OutOrStdout(), resp)
+		return nil
+	}
+
+	if len(suggestions) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No suggestions found. Your code looks great! (or try a different focus)")
+		return nil
+	}
+
+	// 6. Review & Add Tasks
+	return displayAndAddSuggestions(cmd.OutOrStdout(), cmd.ErrOrStderr(), cwd, suggestions, suggestAutoAdd)
+}
+
+func generateContext(focus string, ignore []string) (string, error) {
+	roots := []string{focus}
+	if focus == "." {
+		roots = []string{"."}
+	} else {
+		if _, err := os.Stat(focus); err != nil {
+			return "", fmt.Errorf("focus path does not exist: %w", err)
+		}
+	}
+
+	opts := ContextOptions{
+		Roots:     roots,
+		Ignore:    ignore,
+		MaxSize:   100 * 1024,
+		Tree:      true,
+		NoContent: false,
+	}
+
+	codebaseContext, err := GenerateCodebaseContext(opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate codebase context: %w", err)
+	}
+	return codebaseContext, nil
+}
+
+func generatePrompt(sType string, limit int, context string) string {
+	return fmt.Sprintf(`You are a senior software engineer conducting a code review.
 Your goal is to identify impactful improvements, potential bugs, or technical debt.
 Focus on: %s
 
@@ -105,46 +143,31 @@ Return the result as a raw JSON list of objects with the following structure:
 Do not wrap the JSON in markdown code blocks. Just return the raw JSON string.
 
 CODEBASE CONTEXT:
-%s`, suggestType, suggestLimit, codebaseContext)
+%s`, sType, limit, context)
+}
 
-	fmt.Fprintln(cmd.OutOrStdout(), "🤖 Consulting AI agent (this may take a moment)...")
-
-	// 4. Send to Agent
-	resp, err := ag.Send(ctx, prompt)
-	if err != nil {
-		return fmt.Errorf("agent failed to generate suggestions: %w", err)
-	}
-
-	// 5. Parse Response
+func parseSuggestions(resp string) ([]Suggestion, error) {
 	jsonStr := utils.CleanJSONBlock(resp)
 	var suggestions []Suggestion
 	if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-		// Fallback: try to print the raw response if parsing fails, maybe it's not JSON
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to parse JSON response: %v\n", err)
-		fmt.Fprintln(cmd.OutOrStdout(), "Raw response:")
-		fmt.Fprintln(cmd.OutOrStdout(), resp)
-		return nil
+		return nil, err
 	}
+	return suggestions, nil
+}
 
-	if len(suggestions) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No suggestions found. Your code looks great! (or try a different focus)")
-		return nil
-	}
+func displayAndAddSuggestions(out, errOut io.Writer, cwd string, suggestions []Suggestion, autoAdd bool) error {
+	fmt.Fprintf(out, "\nFound %d suggestions:\n\n", len(suggestions))
 
-	fmt.Fprintf(cmd.OutOrStdout(), "\nFound %d suggestions:\n\n", len(suggestions))
-
-	// 6. Review
 	for i, s := range suggestions {
-		fmt.Fprintf(cmd.OutOrStdout(), "[%d/%d] %s (%s)\n", i+1, len(suggestions), s.Title, strings.ToUpper(s.Type))
+		fmt.Fprintf(out, "[%d/%d] %s (%s)\n", i+1, len(suggestions), s.Title, strings.ToUpper(s.Type))
 		if s.File != "" {
-			fmt.Fprintf(cmd.OutOrStdout(), "      File: %s\n", s.File)
+			fmt.Fprintf(out, "      File: %s\n", s.File)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "      %s\n\n", s.Description)
+		fmt.Fprintf(out, "      %s\n\n", s.Description)
 
-		if suggestAutoAdd {
+		if autoAdd {
 			taskText := fmt.Sprintf("%s (%s)", s.Title, s.Type)
 			if s.File != "" {
-				// Rel path if possible
 				if rel, err := filepath.Rel(cwd, s.File); err == nil {
 					taskText += fmt.Sprintf(" - %s", rel)
 				} else {
@@ -153,13 +176,12 @@ CODEBASE CONTEXT:
 			}
 
 			if err := appendTask(taskText); err != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Failed to add task: %v\n", err)
+				fmt.Fprintf(errOut, "Failed to add task: %v\n", err)
 			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "      ✅ Added to TODO")
+				fmt.Fprintln(out, "      ✅ Added to TODO")
 			}
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), "---------------------------------------------------")
+		fmt.Fprintln(out, "---------------------------------------------------")
 	}
-
 	return nil
 }

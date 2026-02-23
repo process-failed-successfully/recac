@@ -1,23 +1,16 @@
-package main
+package utils
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestDefaultIgnoreMap(t *testing.T) {
-	m := DefaultIgnoreMap()
-	assert.True(t, m[".git"])
-	assert.True(t, m["node_modules"])
-	assert.True(t, m["TODO.md"])
-	assert.False(t, m["main.go"])
-}
 
 func TestExtractFileContexts(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -30,7 +23,9 @@ func TestExtractFileContexts(t *testing.T) {
 	require.NoError(t, err)
 
 	// Change to temp dir so relative paths work
-	t.Chdir(tmpDir)
+	wd, _ := os.Getwd()
+	defer os.Chdir(wd)
+	os.Chdir(tmpDir)
 
 	tests := []struct {
 		name   string
@@ -70,7 +65,7 @@ func TestExtractFileContexts(t *testing.T) {
 				largeContent := strings.Repeat("a", 11*1024)
 				os.WriteFile("large.txt", []byte(largeContent), 0644)
 
-				res, err := extractFileContexts("large.txt:1")
+				res, err := ExtractFileContexts("large.txt:1")
 				assert.NoError(t, err)
 				assert.Contains(t, res, "... (truncated)")
 			},
@@ -79,33 +74,38 @@ func TestExtractFileContexts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := extractFileContexts(tt.output)
+			s, err := ExtractFileContexts(tt.output)
 			tt.check(t, s, err)
 		})
 	}
 }
 
 func TestExtractFileContexts_ReadError(t *testing.T) {
-	// Setup mock
-	originalReadFileFunc := readFileFunc
-	defer func() { readFileFunc = originalReadFileFunc }()
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping chmod test on windows")
+	}
 
 	tmpDir := t.TempDir()
 	fileName := "readable.go"
 	filePath := filepath.Join(tmpDir, fileName)
-	// Create file so os.Stat passes
-	os.WriteFile(filePath, []byte("content"), 0644)
+	// Create file with content
+	err := os.WriteFile(filePath, []byte("content"), 0644)
+	require.NoError(t, err)
 
 	// Change to temp dir so relative paths work
-	t.Chdir(tmpDir)
+	wd, _ := os.Getwd()
+	defer os.Chdir(wd)
+	os.Chdir(tmpDir)
 
-	readFileFunc = func(name string) ([]byte, error) {
-		return nil, os.ErrPermission
-	}
+	// Make file unreadable
+	err = os.Chmod(filePath, 0000)
+	require.NoError(t, err)
+	defer os.Chmod(filePath, 0644) // Restore permission for cleanup
 
 	output := fmt.Sprintf("Error in %s:1", fileName)
-	result, err := extractFileContexts(output)
+	result, err := ExtractFileContexts(output)
 
 	assert.NoError(t, err)
+	// It should return formatted output but with error message inside
 	assert.Contains(t, result, fmt.Sprintf("Could not read file %s", fileName))
 }

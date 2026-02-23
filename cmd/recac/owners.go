@@ -1,10 +1,10 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 
@@ -242,7 +242,7 @@ func matchCodeOwnerPattern(pattern, file string) (bool, error) {
 
 func generateOwners(cmd *cobra.Command, root string) error {
 	client := gitClientFactory()
-	ignoreMap := DefaultIgnoreMap() // from shared_utils.go
+	ignoreMap := utils.DefaultIgnoreMap() // from shared_utils.go
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Analyzing repository history to generate CODEOWNERS...")
 

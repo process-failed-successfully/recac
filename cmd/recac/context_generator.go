@@ -1,11 +1,11 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"strings"
 )
 
@@ -31,7 +31,7 @@ func GenerateCodebaseContext(opts ContextOptions) (string, error) {
 	var outputBuilder strings.Builder
 
 	// Default ignores
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 	for _, ign := range opts.Ignore {
 		ignoreMap[ign] = true
 	}

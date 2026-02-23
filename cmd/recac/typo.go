@@ -102,7 +102,7 @@ func runTypo(cmd *cobra.Command, args []string) error {
 
 func scanFilesForTypo(root string, limit int) ([]string, error) {
 	var files []string
-	ignored := DefaultIgnoreMap()
+	ignored := utils.DefaultIgnoreMap()
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

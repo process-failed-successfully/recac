@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -57,7 +58,7 @@ It automatically extracts referenced files from the local codebase to provide co
 
 			// Extract context
 			fmt.Fprintln(cmd.OutOrStdout(), "🔍 Scanning for referenced files...")
-			fileContexts, err := extractFileContexts(logContent)
+			fileContexts, err := utils.ExtractFileContexts(logContent)
 			if err != nil {
 				// Don't fail hard, just warn. The AI might still be able to help without context.
 				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not extract file contexts: %v\n", err)

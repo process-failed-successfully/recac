@@ -19,17 +19,17 @@ import (
 var devExecCommand = exec.Command
 
 var (
-	devCmdFlag     string
-	devWatchDir    string
-	devExtensions  string
-	devRecursive   bool
-	devDebounce    time.Duration
+	devCmdFlag    string
+	devWatchDir   string
+	devExtensions string
+	devRecursive  bool
+	devDebounce   time.Duration
 )
 
 var devCmd = &cobra.Command{
 	Use:   "dev",
 	Short: "Watch mode for continuous development",
-	Long:  `Watches for file changes and runs a command (test, build, lint).
+	Long: `Watches for file changes and runs a command (test, build, lint).
 Auto-detects the project type (Go, Node, Make) if no command is provided.`,
 	RunE: runDev,
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"recac/internal/utils"
 	"runtime"
 	"strings"
 
@@ -56,7 +57,7 @@ Example:
 		fmt.Fprintln(cmd.OutOrStdout(), "🤖 Analyzing failure with AI...")
 
 		// Scan for file references in the output
-		fileContexts, scanErr := extractFileContexts(output)
+		fileContexts, scanErr := utils.ExtractFileContexts(output)
 		if scanErr != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to scan files: %v\n", scanErr)
 		}
