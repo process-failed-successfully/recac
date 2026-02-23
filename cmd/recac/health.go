@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/analysis"
 	"recac/internal/security"
 	"sort"
 	"text/tabwriter"
@@ -33,11 +34,11 @@ func init() {
 }
 
 type HealthReport struct {
-	Overview    HealthOverview       `json:"overview"`
-	Security    []SecurityResult     `json:"security_issues"`
-	Complexity  []FunctionComplexity `json:"high_complexity_functions"`
-	Duplication []Duplication        `json:"duplications"`
-	Todos       []string             `json:"todos"`
+	Overview    HealthOverview              `json:"overview"`
+	Security    []SecurityResult            `json:"security_issues"`
+	Complexity  []analysis.ComplexityResult `json:"high_complexity_functions"`
+	Duplication []Duplication               `json:"duplications"`
+	Todos       []string                    `json:"todos"`
 }
 
 type HealthOverview struct {
@@ -85,7 +86,7 @@ func runHealth(cmd *cobra.Command, args []string) error {
 
 	// 3. Complexity
 	// We use the flag threshold for identifying "high complexity"
-	compRes, err := runComplexityAnalysis(root)
+	compRes, err := analysis.RunComplexityAnalysis(root)
 	if err == nil {
 		for _, c := range compRes {
 			if c.Complexity >= healthThreshold {

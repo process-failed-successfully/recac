@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/analysis"
 	"strings"
 	"time"
 
@@ -43,15 +44,15 @@ func init() {
 
 // ReportData holds all the data for the report
 type ReportData struct {
-	GeneratedAt  time.Time            `json:"generated_at"`
-	ProjectName  string               `json:"project_name"`
-	Complexity   []FunctionComplexity `json:"complexity"`
-	Smells       []SmellFinding       `json:"smells"`
-	Duplications []Duplication        `json:"duplications"`
-	Todos        []TodoItem           `json:"todos"`
-	Stats        ProjectStats         `json:"stats"`
-	TotalIssues  int                  `json:"total_issues"`
-	HealthScore  int                  `json:"health_score"` // 0-100
+	GeneratedAt  time.Time                   `json:"generated_at"`
+	ProjectName  string                      `json:"project_name"`
+	Complexity   []analysis.ComplexityResult `json:"complexity"`
+	Smells       []SmellFinding              `json:"smells"`
+	Duplications []Duplication               `json:"duplications"`
+	Todos        []TodoItem                  `json:"todos"`
+	Stats        ProjectStats                `json:"stats"`
+	TotalIssues  int                         `json:"total_issues"`
+	HealthScore  int                         `json:"health_score"` // 0-100
 }
 
 type ProjectStats struct {
@@ -79,7 +80,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 
 	// 1. Complexity
 	fmt.Fprintln(cmd.OutOrStdout(), "  - Analyzing complexity...")
-	compResults, err := runComplexityAnalysis(path)
+	compResults, err := analysis.RunComplexityAnalysis(path)
 	if err != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), "Warning: Complexity analysis failed: %v\n", err)
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -9,6 +8,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/analysis"
+	"recac/internal/utils"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -189,7 +190,7 @@ func analyzeSnapshot(root string) (EvolutionMetric, error) {
 
 	// 2. Complexity
 	// runComplexityAnalysis is from complexity.go (package main)
-	complexities, err := runComplexityAnalysis(root)
+	complexities, err := analysis.RunComplexityAnalysis(root)
 	if err != nil {
 		// If parsing fails (e.g. invalid code in history), just return 0
 		// But let's log it? No, just continue.

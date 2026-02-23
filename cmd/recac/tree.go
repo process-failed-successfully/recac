@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/analysis"
 	"sort"
 	"strings"
 	"time"
@@ -69,7 +70,7 @@ func collectMetaData(root string) (map[string]*FileMeta, error) {
 	// runComplexityAnalysis handles walking and parsing Go files.
 	// We run it unconditionally for now as it's fast enough and filters internally.
 	{
-		complexities, err := runComplexityAnalysis(root)
+		complexities, err := analysis.RunComplexityAnalysis(root)
 		if err != nil {
 			// Don't fail the whole tree if complexity fails (e.g. syntax error)
 			// just log or ignore?

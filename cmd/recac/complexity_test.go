@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"recac/internal/analysis"
 	"strings"
 	"testing"
 )
@@ -75,7 +76,7 @@ func SimpleFunc() {
 			t.Errorf("Complexity command failed: %v", err)
 		}
 
-		var results []FunctionComplexity
+		var results []analysis.ComplexityResult
 		if err := json.Unmarshal([]byte(output), &results); err != nil {
 			t.Fatalf("Failed to parse JSON output: %v", err)
 		}
