@@ -3,6 +3,7 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,8 +54,7 @@ func TestPersonaManager_SaveLoad(t *testing.T) {
 	// Setup temp file
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "personas.yaml")
-	os.Setenv("RECAC_PERSONAS_FILE", tmpFile)
-	defer os.Unsetenv("RECAC_PERSONAS_FILE")
+	t.Setenv("RECAC_PERSONAS_FILE", tmpFile)
 
 	// 1. Create manager, add persona, save
 	pm1 := NewPersonaManager()
@@ -81,8 +81,7 @@ func TestPersonaManager_SaveLoad(t *testing.T) {
 func TestPersonaManager_OverrideDefault(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "personas.yaml")
-	os.Setenv("RECAC_PERSONAS_FILE", tmpFile)
-	defer os.Unsetenv("RECAC_PERSONAS_FILE")
+	t.Setenv("RECAC_PERSONAS_FILE", tmpFile)
 
 	pm1 := NewPersonaManager()
 	// Override default
@@ -98,4 +97,39 @@ func TestPersonaManager_OverrideDefault(t *testing.T) {
 	p, ok := pm2.GetPersona("default")
 	assert.True(t, ok)
 	assert.Equal(t, "Overridden Default", p.Name)
+}
+
+func TestPersonaManager_ListPersonas(t *testing.T) {
+	pm := NewPersonaManager()
+
+	// Test ListPersonas (map)
+	personas := pm.ListPersonas()
+	assert.NotEmpty(t, personas)
+	assert.Contains(t, personas, "default")
+	assert.Contains(t, personas, "security")
+
+	// Test ListSorted (slice of keys)
+	sorted := pm.ListSorted()
+	assert.NotEmpty(t, sorted)
+	assert.Equal(t, len(personas), len(sorted))
+	assert.True(t, sort.StringsAreSorted(sorted))
+
+	// Verify contents match keys
+	for _, key := range sorted {
+		_, ok := personas[key]
+		assert.True(t, ok)
+	}
+}
+
+func TestGetPersonasFilePath_Default(t *testing.T) {
+	// Ensure env var is unset for this test
+	t.Setenv("RECAC_PERSONAS_FILE", "")
+
+	path, err := getPersonasFilePath()
+	require.NoError(t, err)
+
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	expected := filepath.Join(home, ".recac", "personas.yaml")
+	assert.Equal(t, expected, path)
 }

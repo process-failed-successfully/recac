@@ -2,6 +2,9 @@ package tui
 
 import (
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"recac/internal/orchestrator"
 	"testing"
 	"time"
@@ -104,4 +107,96 @@ func TestDashboardModel_Quit(t *testing.T) {
 
 	assert.True(t, m.quitting)
 	assert.NotNil(t, cmd) // Should return tea.Quit
+}
+
+func TestDashboardCommands(t *testing.T) {
+	// Setup mock server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/status":
+			w.Write([]byte(`{"uptime":"1h"}`))
+		case "/jobs":
+			w.Write([]byte(`[{"id":"1"}]`))
+		case "/jobs/1":
+			if r.Method == "DELETE" {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				w.Write([]byte(`{"id":"1", "summary":"test"}`))
+			}
+		case "/jobs/1/logs":
+			w.Write([]byte("log data"))
+		case "/jobs/1/retry":
+			w.WriteHeader(http.StatusAccepted)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	// Test fetchStatus
+	cmd := fetchStatus(ts.URL, false)
+	msg := cmd()
+	assert.IsType(t, statusMsg{}, msg)
+	sMsg := msg.(statusMsg)
+	assert.Nil(t, sMsg.Err)
+	assert.Equal(t, "1h", sMsg.Status.Uptime)
+
+	// Test fetchJobDetails
+	cmd = fetchJobDetails(ts.URL, "1")
+	msg = cmd()
+	assert.IsType(t, detailsMsg{}, msg)
+	dMsg := msg.(detailsMsg)
+	assert.Nil(t, dMsg.Err)
+	assert.Equal(t, "1", dMsg.Job.ID)
+
+	// Test streamJobLogs
+	cmd = streamJobLogs(ts.URL, "1")
+	msg = cmd()
+	assert.IsType(t, logStreamMsg{}, msg)
+	lMsg := msg.(logStreamMsg)
+	assert.Nil(t, lMsg.Err)
+	content, _ := io.ReadAll(lMsg.Stream)
+	assert.Equal(t, "log data", string(content))
+
+	// Test cancelJob
+	cmd = cancelJob(ts.URL, "1")
+	msg = cmd()
+	assert.IsType(t, actionMsg{}, msg)
+	aMsg := msg.(actionMsg)
+	assert.Nil(t, aMsg.Err)
+	assert.Equal(t, "Cancelled", aMsg.Message)
+
+	// Test retryJob
+	cmd = retryJob(ts.URL, "1")
+	msg = cmd()
+	assert.IsType(t, actionMsg{}, msg)
+	rMsg := msg.(actionMsg)
+	assert.Nil(t, rMsg.Err)
+	assert.Equal(t, "Retried", rMsg.Message)
+}
+
+func TestDashboardModel_Update_Keys(t *testing.T) {
+	model := NewDashboardModel("host")
+
+	// Test "l" (logs) without selection (should do nothing)
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+	m := updated.(DashboardModel)
+	assert.Equal(t, viewMain, m.viewState)
+
+	// Test "enter" without selection
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(DashboardModel)
+	assert.Equal(t, viewMain, m.viewState)
+
+	// Test "h" (history)
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	m = updated.(DashboardModel)
+	assert.True(t, m.showHistory)
+	assert.NotNil(t, cmd)
+
+	// Test viewport keys (esc)
+	model.viewState = viewLogs
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = updated.(DashboardModel)
+	assert.Equal(t, viewMain, m.viewState)
 }
