@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -128,5 +130,50 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	}
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
+	}
+}
+
+func TestHotspotsCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Create files
+	complexCode := `package main
+func Complex() {
+    if true { if true { } }
+}`
+	commitFile(t, tmpDir, "complex.go", complexCode)
+
+	// Run command
+	// We need to pass the directory as argument.
+	// Also capture output.
+
+	cmd := hotspotsCmd
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// Reset flags?
+	hotspotsDays = 30
+	hotspotsLimit = 10
+
+	// Execute
+	// The command implementation:
+	// RunE: func(cmd *cobra.Command, args []string) error {
+	//    path := "."
+	//    if len(args) > 0 { path = args[0] }
+	//    results, err := runHotspotAnalysis(path, hotspotsDays)
+	//    ...
+	// }
+
+	if err := cmd.RunE(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("cmd.RunE failed: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "complex.go") {
+		t.Errorf("Output should contain complex.go, got:\n%s", output)
+	}
+	if !strings.Contains(output, "HOTSPOTS REPORT") {
+		t.Error("Output should contain report header")
 	}
 }

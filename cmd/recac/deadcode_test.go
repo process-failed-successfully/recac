@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestDeadcodeAnalysis(t *testing.T) {
@@ -107,5 +110,38 @@ func (u *UnusedType) UnusedMethodOnUnusedType() {
 	}
 	if len(b) == 0 {
 		t.Error("JSON output is empty")
+	}
+}
+
+func TestRunDeadcodeCmd(t *testing.T) {
+	// 1. Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-cmd-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// 2. Create files
+	mainGo := `package main
+func UnusedCmdFunc() {}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	// 3. Setup command
+	cmd := &cobra.Command{Use: "deadcode"}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// 4. Run command
+	if err := runDeadcode(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("runDeadcode failed: %v", err)
+	}
+
+	// 5. Verify output
+	output := buf.String()
+	if !strings.Contains(output, "UnusedCmdFunc") {
+		t.Errorf("Output should contain UnusedCmdFunc, got:\n%s", output)
 	}
 }
