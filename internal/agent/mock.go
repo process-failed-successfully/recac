@@ -69,6 +69,9 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes implementation"
 git push
+
+# Mark project as signed off to trigger early exit in smoke tests
+recac signal set PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
