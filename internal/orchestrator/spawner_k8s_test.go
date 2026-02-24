@@ -28,7 +28,7 @@ func TestNewK8sSpawner_Config(t *testing.T) {
 		t.Setenv("KUBERNETES_SERVICE_HOST", "") // Ensure not in-cluster
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways)
+		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways, 30, 5, 10)
 		assert.Error(t, err)
 		assert.Nil(t, spawner)
 	})
@@ -64,7 +64,7 @@ users:
 		t.Setenv("KUBERNETES_SERVICE_HOST", "")
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways)
+		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways, 30, 5, 10)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, spawner)
@@ -77,13 +77,16 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	fakeClient := fake.NewSimpleClientset()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	spawner := &K8sSpawner{
-		Client:        fakeClient,
-		Namespace:     "default",
-		Image:         "test-image",
-		AgentProvider: "openai",
-		AgentModel:    "gpt-4",
-		PullPolicy:    corev1.PullIfNotPresent,
-		Logger:        logger,
+		Client:            fakeClient,
+		Namespace:         "default",
+		Image:             "test-image",
+		AgentProvider:     "openai",
+		AgentModel:        "gpt-4",
+		PullPolicy:        corev1.PullIfNotPresent,
+		Logger:            logger,
+		MaxIterations:     42,
+		ManagerFrequency:  7,
+		TaskMaxIterations: 12,
 	}
 
 	// Set Environment Variables
@@ -119,7 +122,14 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Equal(t, "test-github-key", envMap["RECAC_GITHUB_API_KEY"], "RECAC_GITHUB_API_KEY should be aliased to GITHUB_API_KEY")
 	assert.Equal(t, "test-openai-key", envMap["OPENAI_API_KEY"], "OPENAI_API_KEY should be propagated")
 	assert.Equal(t, "0", envMap["GIT_TERMINAL_PROMPT"], "GIT_TERMINAL_PROMPT should be 0")
-	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS should be 20")
+	// Note: Env Var still defaults to 20 via collectAgentEnvVars because host env is empty
+	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS env var should be default 20")
+
+	// Check Flags
+	cmdArgs := job.Spec.Template.Spec.Containers[0].Args[0]
+	assert.Contains(t, cmdArgs, "--max-iterations 42")
+	assert.Contains(t, cmdArgs, "--manager-frequency 7")
+	assert.Contains(t, cmdArgs, "--task-max-iterations 12")
 }
 
 func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {

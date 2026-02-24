@@ -169,7 +169,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockPoller := new(MockPoller)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM, 30, 5, 10)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{
@@ -230,7 +230,7 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM, 30, 5, 10)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
@@ -252,7 +252,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, 30, 5, 10)
 
 	injectionItem := WorkItem{
 		ID:      "TASK-1\"; echo \"injected",
@@ -303,7 +303,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, 30, 5, 10)
 
 	item := WorkItem{
 		ID:      "TASK-ENV-TEST",
@@ -342,7 +342,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 func TestDockerSpawner_Cleanup(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockDocker := new(MockDockerClient)
-	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil, 30, 5, 10)
 
 	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
 	assert.NoError(t, err)
@@ -351,7 +351,7 @@ func TestDockerSpawner_Cleanup(t *testing.T) {
 func TestDockerSpawner_GetLogs(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockDocker := new(MockDockerClient)
-	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil, 30, 5, 10)
 
 	ctx := context.Background()
 	jobID := "TEST-1"
@@ -396,7 +396,7 @@ func TestDockerSpawner_GetLogs(t *testing.T) {
 func TestDockerSpawner_Cancel(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockDocker := new(MockDockerClient)
-	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil, 30, 5, 10)
 
 	ctx := context.Background()
 	jobID := "TEST-CANCEL"
@@ -421,4 +421,41 @@ func TestDockerSpawner_Cancel(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no active container")
 	})
+}
+
+func TestDockerSpawner_FlagsPropagation(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+
+	// Set explicit config values
+	maxIter := 55
+	freq := 7
+	taskMax := 15
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, maxIter, freq, taskMax)
+
+	item := WorkItem{
+		ID:      "TASK-FLAGS-TEST",
+		RepoURL: "https://github.com/example/repo",
+	}
+
+	// Capture command from RunContainerWithLabels
+	var capturedCmd []string
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd = args.Get(5).([]string) // cmd=5
+	}).Return("container-flags", nil)
+
+	client.On("WaitContainer", mock.Anything, "container-flags").Return(int(0), nil)
+	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.NoError(t, err)
+
+	// Verify command contains flags
+	cmdStr := capturedCmd[2]
+	assert.Contains(t, cmdStr, "--max-iterations=55")
+	assert.Contains(t, cmdStr, "--manager-frequency=7")
+	assert.Contains(t, cmdStr, "--task-max-iterations=15")
 }

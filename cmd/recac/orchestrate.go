@@ -85,6 +85,10 @@ var orchestrateCmd = &cobra.Command{
 		}
 
 		// 3. Spawner
+		maxIterations := viper.GetInt("orchestrator.max_iterations")
+		managerFrequency := viper.GetInt("orchestrator.manager_frequency")
+		taskMaxIterations := viper.GetInt("orchestrator.task_max_iterations")
+
 		var spawner orchestrator.Spawner
 		switch mode {
 		case "k8s", "kubernetes":
@@ -92,7 +96,7 @@ var orchestrateCmd = &cobra.Command{
 			if pullPolicy == "" {
 				pullPolicy = corev1.PullAlways
 			}
-			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
+			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, maxIterations, managerFrequency, taskMaxIterations)
 			if err != nil {
 				logger.Error("Failed to initialize K8s spawner", "error", err)
 				os.Exit(1)
@@ -109,7 +113,7 @@ var orchestrateCmd = &cobra.Command{
 				logger.Error("Failed to initialize Session Manager", "error", err)
 				os.Exit(1)
 			}
-			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm, maxIterations, managerFrequency, taskMaxIterations)
 		default:
 			logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 			os.Exit(1)
@@ -138,6 +142,10 @@ func init() {
 	orchestrateCmd.Flags().String("agent-model", "openrouter/aurora-alpha", "Model for spawned agents")
 	orchestrateCmd.Flags().String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
+	orchestrateCmd.Flags().Int("max-iterations", 30, "Maximum number of iterations")
+	orchestrateCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
+	orchestrateCmd.Flags().Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
+
 	orchestrateCmd.Flags().String("jira-query", "", "Custom JQL query (overrides label)")
 	orchestrateCmd.Flags().String("poller", "jira", "Poller type: 'jira', 'file', or 'file-dir'")
 	orchestrateCmd.Flags().String("work-file", "work_items.json", "Work items file (for 'file' poller)")
@@ -156,6 +164,10 @@ func init() {
 	viper.BindPFlag("orchestrator.agent_provider", orchestrateCmd.Flags().Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", orchestrateCmd.Flags().Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", orchestrateCmd.Flags().Lookup("image-pull-policy"))
+
+	viper.BindPFlag("orchestrator.max_iterations", orchestrateCmd.Flags().Lookup("max-iterations"))
+	viper.BindPFlag("orchestrator.manager_frequency", orchestrateCmd.Flags().Lookup("manager-frequency"))
+	viper.BindPFlag("orchestrator.task_max_iterations", orchestrateCmd.Flags().Lookup("task-max-iterations"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
