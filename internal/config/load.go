@@ -77,22 +77,22 @@ func Load(cfgFile string) {
 					viper.SetConfigType("yaml")
 					viper.AddConfigPath(".")
 
-					// Attempt to write
-					// Note: Existing logic swallowed errors partially or just printed warnings.
-					// We will be slightly safer.
-					if err := viper.SafeWriteConfig(); err != nil {
-						// Ignore if already exists (SafeWriteConfig error)
-						// But if it doesn't exist and failed, we might warn.
-						// Checking existence first is better as per original code
-						if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
-							if err := viper.WriteConfigAs("config.yaml"); err != nil {
-								fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
+					// Attempt to write securely
+					configFile := "config.yaml"
+					if _, err := os.Stat(configFile); os.IsNotExist(err) {
+						// Create file with secure permissions (0600) to protect potential secrets
+						f, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
+						} else {
+							f.Close()
+							// Write config to the file we just created
+							if err := viper.WriteConfigAs(configFile); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: Failed to write default config content: %v\n", err)
 							} else {
-								fmt.Println("Created default configuration file: config.yaml")
+								fmt.Println("Created default configuration file: config.yaml (permissions 0600)")
 							}
 						}
-					} else {
-						fmt.Println("Created default configuration file: config.yaml")
 					}
 				}
 			}
