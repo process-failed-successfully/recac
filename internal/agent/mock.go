@@ -70,6 +70,9 @@ git add primes.py primes.json
 git diff --cached --quiet || git commit -m "Add prime number script and output"
 
 # Signal completion to the orchestrator
+# Ensure the feature exists first (self-healing for smoke tests where DB might be empty)
+echo "{\"features\":[{\"id\":\"$RECAC_PROJECT_ID\",\"status\":\"in_progress\",\"description\":\"Self-healing mock feature\",\"passes\":false}]}" | agent-bridge import
+
 agent-bridge feature set $RECAC_PROJECT_ID --status done --passes true
 ` + "```" + `
 `, nil
