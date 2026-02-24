@@ -33,16 +33,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan
+	// If the prompt looks like the Prime Python spec, return the implementation directly
+	// to avoid "no-op loop" where the agent just keeps planning.
 	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
-		return `[
-  {
-    "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file (e.g., cat << 'EOF' > primes.py). Do not output raw python code.\nCommit 'primes.py' and 'primes.json' IMMEDIATELY. Use 'git add -f primes.json' to ensure it is tracked.\nThe JSON format must have a single key 'primes' containing the list of integers.\nExample: {\"primes\": [2, 3, 5, ...]}.\nIMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).\nDo not truncate it for testing or reporting - the verification script expects the full list.\nKeep the code absolutely minimal. Finish as quickly as possible.\n\nCRITICAL: You MUST name the script 'primes.py'. Do not use 'feature_implementation.py' or any other generic name.\nCRITICAL: Do NOT run 'pytest' or any test framework. Do NOT try to create test files. Just run the script and verify 'primes.json' exists.",
-    "type": "Task",
-    "children": []
-  }
-]`, nil
+		return `
+I will create the 'primes.py' script to calculate prime numbers up to 10,000 and output them to 'primes.json'.
+
+'''bash
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+'''
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
