@@ -33,20 +33,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan AND bash execution
-	// The Orchestrator REQUIRES a bash block to execute commands. JSON-only responses cause a NO-OP loop.
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
-		return `
-I will create the prime number script as requested.
 
-[
+	// 1. Generation Phase: Return JSON Plan Only
+	// Matches the AppSpec from pkg/e2e/scenarios/prime_python.go
+	if strings.Contains(prompt, "### ID:[PRIMES] Prime Number Script") {
+		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
     "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.",
     "type": "Task",
     "children": []
   }
-]
+]`, nil
+	}
+
+	// 2. Execution Phase: Return Bash Implementation
+	// Matches the Ticket Title generated in the previous step
+	if strings.Contains(prompt, "Create Prime Number Script") {
+		return `I will create the prime number script as requested.
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
