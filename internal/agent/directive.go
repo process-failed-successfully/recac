@@ -23,6 +23,11 @@ func NewDirectiveAgent(agent Agent, workDir string) *DirectiveAgent {
 	}
 }
 
+// Inner returns the underlying agent.
+func (d *DirectiveAgent) Inner() Agent {
+	return d.agent
+}
+
 // Send implements the Agent interface.
 func (d *DirectiveAgent) Send(ctx context.Context, prompt string) (string, error) {
 	fullPrompt, err := d.prependDirective(prompt)

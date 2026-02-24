@@ -209,9 +209,11 @@ func TestOllamaProvider_Integration(t *testing.T) {
 		t.Fatalf("failed to create Ollama agent: %v", err)
 	}
 
-	ollamaClient, ok := agentClient.(*OllamaClient)
+	// Unwrap the agent to verify internal state
+	unwrapped := unwrapAgent(agentClient)
+	ollamaClient, ok := unwrapped.(*OllamaClient)
 	if !ok {
-		t.Fatalf("expected *OllamaClient, got %T", agentClient)
+		t.Fatalf("expected *OllamaClient, got %T", unwrapped)
 	}
 
 	if ollamaClient.model != "mistral" {
@@ -219,6 +221,7 @@ func TestOllamaProvider_Integration(t *testing.T) {
 	}
 
 	// Step 3: Run the agent and verify it successfully communicates with the local Ollama instance
+	// We use the original agentClient (which might be wrapped) to ensure the full stack works
 	ctx := context.Background()
 	result, err := agentClient.Send(ctx, "Hello, Ollama!")
 	if err != nil {
