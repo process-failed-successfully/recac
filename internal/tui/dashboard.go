@@ -324,7 +324,34 @@ func (m DashboardModel) View() string {
 
 	switch m.viewState {
 	case viewMain:
-		contentView = baseStyle.Render(m.table.View())
+		if len(m.jobs) == 0 {
+			msg := "No active jobs found.\n\nPress 'h' to view history."
+			if m.showHistory {
+				msg = "No job history found."
+			}
+
+			// Create a style that mimics the table's dimensions to prevent layout shifts
+			// Use viewport width/height as fallback or primary if table dimensions aren't reliable when empty
+			width := m.viewport.Width
+			if width == 0 {
+				width = 85 // Fallback to default column sum
+			}
+			height := m.viewport.Height
+			if height == 0 {
+				height = 10 // Fallback
+			}
+
+			emptyStyle := lipgloss.NewStyle().
+				Align(lipgloss.Center).
+				Width(width).
+				Height(height).
+				PaddingTop(height / 3).
+				Foreground(lipgloss.Color("241"))
+
+			contentView = baseStyle.Render(emptyStyle.Render(msg))
+		} else {
+			contentView = baseStyle.Render(m.table.View())
+		}
 		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | r: retry | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())

@@ -91,6 +91,9 @@ func TestDashboardModel_View(t *testing.T) {
 		},
 	}
 
+	// Add a job so it's not empty state
+	model.jobs = []orchestrator.JobInfo{{ID: "JOB-1"}}
+
 	view := model.View()
 	assert.Contains(t, view, "Orchestrator Dashboard")
 	assert.Contains(t, view, "Host: test-host")
@@ -104,4 +107,31 @@ func TestDashboardModel_Quit(t *testing.T) {
 
 	assert.True(t, m.quitting)
 	assert.NotNil(t, cmd) // Should return tea.Quit
+}
+
+func TestDashboardModel_View_EmptyState(t *testing.T) {
+	// Setup
+	columns := []table.Column{
+		{Title: "ID", Width: 10},
+		{Title: "Summary", Width: 40},
+		{Title: "Status", Width: 10},
+		{Title: "Duration", Width: 10},
+	}
+	tModel := table.New(table.WithColumns(columns))
+
+	model := DashboardModel{
+		host:  "test-host",
+		table: tModel,
+		jobs:  []orchestrator.JobInfo{}, // Empty jobs
+		status: orchestrator.Status{
+			Uptime: "10m",
+		},
+		viewState: viewMain,
+	}
+
+	// Act
+	view := model.View()
+
+	// Assert
+	assert.Contains(t, view, "No active jobs found")
 }
