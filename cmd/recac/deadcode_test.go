@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestDeadcodeAnalysis(t *testing.T) {
@@ -107,5 +110,114 @@ func (u *UnusedType) UnusedMethodOnUnusedType() {
 	}
 	if len(b) == 0 {
 		t.Error("JSON output is empty")
+	}
+}
+
+func TestRunDeadcode(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mainGo := `package main
+
+import "fmt"
+
+func main() {
+	UsedFunc()
+	fmt.Println("Hello")
+}
+
+func UsedFunc() {
+	fmt.Println("Used")
+}
+
+func UnusedFunc() {
+	fmt.Println("Unused")
+}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	libGo := `package lib
+
+func UnusedLibFunc() {
+}
+`
+	if err := os.Mkdir(filepath.Join(tmpDir, "lib"), 0755); err != nil {
+		t.Fatalf("Failed to create lib dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "lib", "lib.go"), []byte(libGo), 0644); err != nil {
+		t.Fatalf("Failed to write lib.go: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		strict      bool
+		json        bool
+		fail        bool
+		wantErr     bool
+		wantOut     []string
+		wantMissing []string
+	}{
+		{
+			name:    "Default",
+			wantOut: []string{"TYPE", "IDENTIFIER", "UnusedFunc"},
+		},
+		{
+			name:    "JSON",
+			json:    true,
+			wantOut: []string{`"identifier": "UnusedFunc"`},
+		},
+		{
+			name:    "Fail Flag",
+			fail:    true,
+			wantErr: true, // Should fail because UnusedFunc exists
+			wantOut: []string{"TYPE", "IDENTIFIER"},
+		},
+		{
+			name:    "Strict Mode",
+			strict:  true,
+			wantOut: []string{"UnusedLibFunc"},
+		},
+		{
+			name:    "Non-Strict (Lib Ignored)",
+			strict:  false,
+			// UnusedLibFunc should NOT be present
+			// But UnusedFunc (main) SHOULD be present
+			wantOut:     []string{"UnusedFunc"},
+			wantMissing: []string{"UnusedLibFunc"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset globals
+			deadcodeJSON = tt.json
+			deadcodeFail = tt.fail
+			deadcodeStrict = tt.strict
+
+			cmd := &cobra.Command{}
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			// We need to pass the path as argument
+			args := []string{tmpDir}
+
+			err := runDeadcode(cmd, args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("runDeadcode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			output := buf.String()
+			for _, want := range tt.wantOut {
+				if !strings.Contains(output, want) {
+					t.Errorf("runDeadcode() output missing %q, got:\n%s", want, output)
+				}
+			}
+			for _, missing := range tt.wantMissing {
+				if strings.Contains(output, missing) {
+					t.Errorf("runDeadcode() output unexpected %q, got:\n%s", missing, output)
+				}
+			}
+		})
 	}
 }

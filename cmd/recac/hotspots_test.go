@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func setupGitRepo(t *testing.T, dir string) {
@@ -128,5 +132,82 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	}
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
+	}
+}
+
+func TestRunHotspots(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// File A: High Complexity (Loop + If)
+	complexCode := `package main
+	func complex() {
+		for i := 0; i < 10; i++ {
+			if i % 2 == 0 {
+				print(i)
+			}
+		}
+	}`
+	// Complexity: 3
+	commitFile(t, tmpDir, "complex.go", complexCode)
+
+	// Modify to create churn
+	commitFile(t, tmpDir, "complex.go", complexCode+"\n// mod")
+
+	tests := []struct {
+		name    string
+		json    bool
+		limit   int
+		wantErr bool
+		wantOut []string
+	}{
+		{
+			name:    "Default Report",
+			wantOut: []string{"HOTSPOTS REPORT", "complex.go", "SCORE", "6"},
+		},
+		{
+			name:    "JSON Output",
+			json:    true,
+			wantOut: []string{`"file": "complex.go"`, `"score": 6`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset globals
+			hotspotsDays = 30
+			hotspotsLimit = 10
+			if tt.limit > 0 {
+				hotspotsLimit = tt.limit
+			}
+			hotspotsJSON = tt.json
+
+			cmd := &cobra.Command{}
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			args := []string{tmpDir}
+
+			// We need to pass the run function wrapper or just invoke the function if exposed
+			// hotspotsCmd.RunE is an anonymous function, so we can't call it directly unless we exported it or assigned it.
+			// However, `runHotspotAnalysis` is what does the work, and `hotspotsCmd` just formats it.
+			// Wait, the `RunE` function in `hotspots.go` is defined inline.
+			// I can invoke `hotspotsCmd.RunE` if I can access it.
+
+			// hotspotsCmd is exported (variable in main package).
+			// So I can call hotspotsCmd.RunE(cmd, args)
+
+			err := hotspotsCmd.RunE(cmd, args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("hotspotsCmd.RunE() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			output := buf.String()
+			for _, want := range tt.wantOut {
+				if !strings.Contains(output, want) {
+					t.Errorf("hotspotsCmd output missing %q, got:\n%s", want, output)
+				}
+			}
+		})
 	}
 }
