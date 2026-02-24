@@ -97,21 +97,20 @@ smoke-k8s: ## Run full E2E smoke test in local Kubernetes (k3d)
 
 ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	if [ -z "$$OPENROUTER_API_KEY" ]; then echo "Error: OPENROUTER_API_KEY is not set"; exit 1; fi; \
 	go run e2e/runner/main.go \
 		-scenario prime-python \
-		-provider openrouter \
-		-model "openrouter/aurora-alpha" \
+		-provider mock \
+		-model mock \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "openrouter/aurora-alpha"
+	./scripts/ci_simulate_refactored.sh -provider mock -model mock
 
 # Scenario Defaults
-PROVIDER ?= openrouter
-MODEL ?= "openrouter/aurora-alpha"
+PROVIDER ?= mock
+MODEL ?= mock
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
