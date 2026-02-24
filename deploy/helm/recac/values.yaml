@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: tngtech/deepseek-r1t2-chimera:free
+  model: openai/gpt-4o-mini
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090

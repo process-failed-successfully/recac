@@ -69,7 +69,7 @@ Execute `recac start` using the Label generated in Step 1.
 ./recac start \
   --jira-label <LABEL> \
   --provider openrouter \
-  --model tngtech/deepseek-r1t2-chimera:free \
+  --model openai/gpt-4o-mini \
   --allow-dirty \
   --max-iterations 40
 ```
