@@ -62,6 +62,10 @@ func main() {
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 	pflag.String("db-file", "", "Path to SQLite database for job history persistence")
 
+	pflag.Int("max-iterations", 30, "Maximum number of iterations")
+	pflag.Int("manager-frequency", 5, "Frequency of manager reviews")
+	pflag.Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
+
 	// Janitor Flags
 	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
 	pflag.Duration("cleanup-interval", 5*time.Minute, "Janitor check interval")
@@ -125,6 +129,10 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
 	viper.BindPFlag("orchestrator.metrics_port", pflag.Lookup("metrics-port"))
+
+	viper.BindPFlag("orchestrator.max_iterations", pflag.Lookup("max-iterations"))
+	viper.BindPFlag("orchestrator.manager_frequency", pflag.Lookup("manager-frequency"))
+	viper.BindPFlag("orchestrator.task_max_iterations", pflag.Lookup("task-max-iterations"))
 
 	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
 	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
@@ -309,6 +317,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	var spawner orchestrator.Spawner
 	var err error
 	agentModel := viper.GetString("orchestrator.agent_model")
+	maxIterations := viper.GetInt("orchestrator.max_iterations")
+	managerFrequency := viper.GetInt("orchestrator.manager_frequency")
+	taskMaxIterations := viper.GetInt("orchestrator.task_max_iterations")
+
 	var janitorClient orchestrator.DockerClient
 
 	switch mode {
@@ -317,7 +329,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		if pullPolicy == "" {
 			pullPolicy = corev1.PullAlways
 		}
-		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
+		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, maxIterations, managerFrequency, taskMaxIterations)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize K8s spawner: %w", err)
 		}
@@ -333,7 +345,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return fmt.Errorf("Failed to initialize Session Manager: %w", err)
 		}
 
-		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm, maxIterations, managerFrequency, taskMaxIterations)
 		janitorClient = dockerCli
 	default:
 		return fmt.Errorf("Invalid mode. Use 'local' or 'k8s': %s", mode)
