@@ -105,7 +105,16 @@ func initConfig() {
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
 
 	// Start Metrics Server, but not in test mode to avoid hanging
-	if flag.Lookup("test.v") == nil {
+	// Also skip for 'orchestrate' command as it starts its own server with API handlers
+	isOrchestrate := false
+	for _, arg := range os.Args {
+		if arg == "orchestrate" {
+			isOrchestrate = true
+			break
+		}
+	}
+
+	if flag.Lookup("test.v") == nil && !isOrchestrate {
 		go func() {
 			port := viper.GetInt("metrics_port")
 			if _, _, err := telemetry.StartMetricsServer(port); err != nil {

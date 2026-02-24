@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -121,6 +122,27 @@ var orchestrateCmd = &cobra.Command{
 
 		// 4. Orchestrator
 		orch := orchestrator.New(poller, spawner, interval)
+
+		// Start Metrics Server
+		metricsPort := viper.GetInt("orchestrator.metrics_port")
+		statusHandler := func(mux *http.ServeMux) {
+			orchestrator.RegisterAPI(mux, orch, logger, ctx)
+		}
+
+		metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort, statusHandler)
+		if err != nil {
+			logger.Error("Failed to start metrics server", "error", err)
+		} else {
+			logger.Info("Metrics server started", "port", actualPort)
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := metricsServer.Shutdown(shutdownCtx); err != nil {
+					logger.Error("Metrics server shutdown error", "error", err)
+				}
+			}()
+		}
+
 		if err := orch.Run(ctx, logger); err != nil {
 			if ctx.Err() != nil {
 				// Graceful shutdown
@@ -133,6 +155,7 @@ var orchestrateCmd = &cobra.Command{
 }
 
 func init() {
+	orchestrateCmd.Flags().Int("metrics-port", 2112, "Port to expose Prometheus metrics and API")
 	orchestrateCmd.Flags().String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	orchestrateCmd.Flags().String("jira-label", "recac-agent", "Jira label to poll for")
 	orchestrateCmd.Flags().String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
@@ -168,6 +191,7 @@ func init() {
 	viper.BindPFlag("orchestrator.max_iterations", orchestrateCmd.Flags().Lookup("max-iterations"))
 	viper.BindPFlag("orchestrator.manager_frequency", orchestrateCmd.Flags().Lookup("manager-frequency"))
 	viper.BindPFlag("orchestrator.task_max_iterations", orchestrateCmd.Flags().Lookup("task-max-iterations"))
+	viper.BindPFlag("orchestrator.metrics_port", orchestrateCmd.Flags().Lookup("metrics-port"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
@@ -183,6 +207,7 @@ func init() {
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	viper.BindEnv("orchestrator.metrics_port", "RECAC_METRICS_PORT")
 
 	rootCmd.AddCommand(orchestrateCmd)
 }
