@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"recac/internal/utils"
 	"runtime"
 	"strings"
 
@@ -91,12 +92,7 @@ Do not include any markdown formatting (like `+"```json"+`) around the JSON. Jus
 	}
 
 	// Robustly extract JSON from the response
-	cleanedResp := strings.TrimSpace(resp)
-	start := strings.Index(cleanedResp, "{")
-	end := strings.LastIndex(cleanedResp, "}")
-	if start != -1 && end != -1 && start <= end {
-		cleanedResp = cleanedResp[start : end+1]
-	}
+	cleanedResp := utils.CleanJSONBlock(resp)
 
 	var result DoResponse
 	if err := json.Unmarshal([]byte(cleanedResp), &result); err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 	"text/tabwriter"
@@ -14,10 +15,10 @@ import (
 )
 
 var (
-	a11yJSON     bool
-	a11yFail     bool
-	a11yAI       bool
-	a11yIgnore   string
+	a11yJSON   bool
+	a11yFail   bool
+	a11yAI     bool
+	a11yIgnore string
 )
 
 var a11yCmd = &cobra.Command{
@@ -74,7 +75,7 @@ func NewA11yScanner(ignoreList string) *A11yScanner {
 
 		"Positive Tabindex":        regexp.MustCompile(`tabindex\s*=\s*["']([1-9][0-9]*)["']`),
 		"Click on Non-Interactive": regexp.MustCompile(`<(div|span|p|section|article)[^>]*?onClick[^>]*?>`),
-		"Empty Button":             regexp.MustCompile(`<button[^>]*?>\s*</button>`),        // Very basic empty button
+		"Empty Button":             regexp.MustCompile(`<button[^>]*?>\s*</button>`),       // Very basic empty button
 		"Mouse Events without Key": regexp.MustCompile(`onMouse(Over|Out|Down|Up)[^>]*?>`), // Warn if mouse events are used without keyboard equiv?
 	}
 
@@ -332,13 +333,7 @@ Code:
 	}
 
 	// Simple cleanup
-	resp = strings.TrimSpace(resp)
-	if strings.HasPrefix(resp, "```") {
-		lines := strings.Split(resp, "\n")
-		if len(lines) > 2 {
-			resp = strings.Join(lines[1:len(lines)-1], "\n")
-		}
-	}
+	resp = utils.CleanJSONBlock(resp)
 
 	var findings []A11yFinding
 	// We use a temporary struct to unmarshal

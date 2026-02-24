@@ -7,7 +7,6 @@ import (
 	"recac/internal/runner"
 	"strings"
 	"testing"
-
 )
 
 // TestHelperProcess isn't a real test. It's a helper process that's executed

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"recac/internal/agent"
+	"recac/internal/utils"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -24,7 +24,7 @@ type QuizQuestion struct {
 }
 
 var (
-	quizAgentFactory    = agent.NewAgent
+	quizAgentFactory    = agentClientFactory
 	generateContextFunc = GenerateCodebaseContext
 	quizQuestions       int
 	quizFocus           string
@@ -84,21 +84,10 @@ func generateQuiz(ctx context.Context) ([]QuizQuestion, error) {
 	if provider == "" {
 		provider = os.Getenv("RECAC_AGENT_PROVIDER")
 	}
-	if provider == "" {
-		provider = "mock"
-	}
 
 	model := viper.GetString("agent_model")
-	if model == "" {
-		model = os.Getenv("RECAC_AGENT_MODEL")
-	}
 
-	apiKey := viper.GetString("api_key")
-	if apiKey == "" {
-		apiKey = os.Getenv("RECAC_API_KEY")
-	}
-
-	a, err := quizAgentFactory(provider, apiKey, model, ".", "recac-quiz")
+	a, err := quizAgentFactory(ctx, provider, model, ".", "recac-quiz")
 	if err != nil {
 		return nil, fmt.Errorf("failed to init agent: %w", err)
 	}
@@ -127,14 +116,7 @@ IMPORTANT: Return ONLY the JSON array. Do not include markdown code blocks.`, qu
 	}
 
 	// Clean up response
-	resp = strings.TrimSpace(resp)
-	if strings.HasPrefix(resp, "```json") {
-		resp = strings.TrimPrefix(resp, "```json")
-		resp = strings.TrimSuffix(resp, "```")
-	} else if strings.HasPrefix(resp, "```") {
-		resp = strings.TrimPrefix(resp, "```")
-		resp = strings.TrimSuffix(resp, "```")
-	}
+	resp = utils.CleanJSONBlock(resp)
 
 	var qs []QuizQuestion
 	if err := json.Unmarshal([]byte(resp), &qs); err != nil {

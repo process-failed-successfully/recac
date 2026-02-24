@@ -14,29 +14,29 @@ import (
 
 var (
 	explorerBaseStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240"))
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.Color("240"))
 
 	explorerHeaderStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		Padding(0, 1)
+				Bold(true).
+				Foreground(lipgloss.Color("205")).
+				Padding(0, 1)
 
 	explorerSelectedStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(true)
+				Foreground(lipgloss.Color("229")).
+				Background(lipgloss.Color("57")).
+				Bold(true)
 
 	explorerDirStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("39")).
-		Bold(true)
+				Foreground(lipgloss.Color("39")).
+				Bold(true)
 
 	explorerFileStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252"))
+				Foreground(lipgloss.Color("252"))
 
 	explorerFooterStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(1)
+				Foreground(lipgloss.Color("241")).
+				MarginTop(1)
 )
 
 type ExplorerModel struct {

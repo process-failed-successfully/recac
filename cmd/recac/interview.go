@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/agent"
+	"recac/internal/utils"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -19,7 +20,7 @@ import (
 
 // -- Dependency Injection --
 var (
-	interviewAgentFactory = agent.NewAgent
+	interviewAgentFactory = agentClientFactory
 	interviewContextFunc  = GenerateCodebaseContext
 )
 
@@ -101,9 +102,8 @@ func runInterview(cmd *cobra.Command, args []string) error {
 
 	// Use explicit config/env for model if set, otherwise default
 	model := viper.GetString("agent_model")
-	apiKey := viper.GetString("api_key")
 
-	ag, err := interviewAgentFactory(provider, apiKey, model, ".", "recac-interview")
+	ag, err := interviewAgentFactory(cmd.Context(), provider, model, ".", "recac-interview")
 	if err != nil {
 		return fmt.Errorf("failed to init agent: %w", err)
 	}
@@ -148,10 +148,10 @@ type interviewModel struct {
 	currentQuestion *InterviewQuestion
 	lastEvaluation  *InterviewEvaluation
 
-	textarea    textarea.Model
-	viewport    viewport.Model
-	renderer    *glamour.TermRenderer
-	err         error
+	textarea textarea.Model
+	viewport viewport.Model
+	renderer *glamour.TermRenderer
+	err      error
 
 	width, height int
 }
@@ -252,14 +252,7 @@ Return ONLY a JSON object with keys:
 }
 
 func parseJSON(input string, target interface{}) error {
-	// Clean markdown code blocks
-	input = strings.TrimSpace(input)
-	if strings.HasPrefix(input, "```") {
-		lines := strings.Split(input, "\n")
-		if len(lines) > 2 {
-			input = strings.Join(lines[1:len(lines)-1], "\n")
-		}
-	}
+	input = utils.CleanJSONBlock(input)
 	return json.Unmarshal([]byte(input), target)
 }
 
