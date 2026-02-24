@@ -41,18 +41,21 @@ func runPodcast(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
+	// Read flags from command to allow testing override
+	since, _ := cmd.Flags().GetString("since")
+	output, _ := cmd.Flags().GetString("output")
+	speak, _ := cmd.Flags().GetBool("speak")
+
 	// 1. Gather Data
 	fmt.Fprintln(cmd.OutOrStdout(), "🎙️  Gathering material for the show...")
 
 	// Git History
 	// use parseDurationExtended from debt.go to handle "d" suffix
-	sinceArg := podcastSince
-	if d, err := parseDurationExtended(podcastSince); err == nil {
+	sinceArg := since
+	if d, err := parseDurationExtended(since); err == nil {
 		sinceArg = time.Now().Add(-d).Format(time.RFC3339)
 	} else {
-		// Fallback: if parse fails, maybe git can handle it (e.g. "yesterday")
-		// But ideally we want consistent format.
-		// If parseDurationExtended fails, we assume user passed something git understands directly.
+		// Fallback: if parse fails, assume user passed something git understands directly.
 	}
 
 	commits, err := getCatchupCommits(cwd, sinceArg, "", "", nil)
@@ -108,7 +111,7 @@ Format the output as a script:
 **Sam**: ...
 
 Keep it engaging, professional but conversational. Do not use sound effects notation.
-`, auditScore, auditSummary, readme, podcastSince, strings.Join(commits, "\n"))
+`, auditScore, auditSummary, readme, since, strings.Join(commits, "\n"))
 
 	// 3. Call Agent
 	provider := viper.GetString("provider")
@@ -126,17 +129,17 @@ Keep it engaging, professional but conversational. Do not use sound effects nota
 	}
 
 	// 4. Output
-	if podcastOutput != "" {
-		if err := os.WriteFile(podcastOutput, []byte(script), 0644); err != nil {
+	if output != "" {
+		if err := os.WriteFile(output, []byte(script), 0644); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Script saved to %s\n", podcastOutput)
+		fmt.Fprintf(cmd.OutOrStdout(), "Script saved to %s\n", output)
 	} else {
 		fmt.Fprintln(cmd.OutOrStdout(), "\n"+script)
 	}
 
 	// 5. Speak (Optional)
-	if podcastSpeak {
+	if speak {
 		fmt.Fprintln(cmd.OutOrStdout(), "\n🔊 Playing audio...")
 		// Clean markdown for TTS
 		cleanScript := cleanForTTS(script)
@@ -172,8 +175,8 @@ func cleanForTTS(text string) string {
 	re := regexp.MustCompile(`[\*\_]{1,2}`)
 	text = re.ReplaceAllString(text, "")
 
-	// Remove Headers (#)
-	reHead := regexp.MustCompile(`^#+\s+`)
+	// Remove Headers (#) at start of line (entire line)
+	reHead := regexp.MustCompile(`(?m)^#+.*$`)
 	text = reHead.ReplaceAllString(text, "")
 
 	return text
