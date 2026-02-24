@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func setupGitRepo(t *testing.T, dir string) {
@@ -128,5 +132,69 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	}
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
+	}
+}
+
+func TestRunHotspotsCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Create file A: High Complexity
+	complexCode := `package main
+	func complex() {
+		for i := 0; i < 10; i++ {
+			if i % 2 == 0 {
+				print(i)
+			}
+		}
+	}`
+	commitFile(t, tmpDir, "complex.go", complexCode)
+
+	// Mock Command
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// We need to call RunE of hotspotsCmd but point it to tmpDir.
+	// hotspotsCmd.RunE takes args. Arg[0] is path.
+	// But hotspotsCmd is a global variable.
+	// We can manually invoke the function assigned to RunE if we had access to it by name,
+	// or we can use hotspotsCmd.RunE(cmd, []string{tmpDir}).
+
+	// We also need to set flags.
+	// hotspotsDays, hotspotsLimit, hotspotsJSON are global vars.
+	oldDays := hotspotsDays
+	oldLimit := hotspotsLimit
+	oldJSON := hotspotsJSON
+	defer func() {
+		hotspotsDays = oldDays
+		hotspotsLimit = oldLimit
+		hotspotsJSON = oldJSON
+	}()
+	hotspotsDays = 30
+	hotspotsLimit = 10
+	hotspotsJSON = false
+
+	if err := hotspotsCmd.RunE(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("hotspotsCmd failed: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "HOTSPOTS REPORT") {
+		t.Error("Output should contain HOTSPOTS REPORT")
+	}
+	if !strings.Contains(output, "complex.go") {
+		t.Error("Output should contain complex.go")
+	}
+
+	// Test JSON
+	buf.Reset()
+	hotspotsJSON = true
+	if err := hotspotsCmd.RunE(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("hotspotsCmd (json) failed: %v", err)
+	}
+	output = buf.String()
+	if !strings.Contains(output, "\"file\": \"complex.go\"") {
+		t.Error("JSON output should contain complex.go")
 	}
 }

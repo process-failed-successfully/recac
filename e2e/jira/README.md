@@ -69,7 +69,7 @@ Execute `recac start` using the Label generated in Step 1.
 ./recac start \
   --jira-label <LABEL> \
   --provider openrouter \
-  --model google/gemini-2.0-flash-001 \
+  --model openai/gpt-4o-mini \
   --allow-dirty \
   --max-iterations 40
 ```

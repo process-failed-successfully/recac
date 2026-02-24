@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestDeadcodeAnalysis(t *testing.T) {
@@ -107,5 +110,76 @@ func (u *UnusedType) UnusedMethodOnUnusedType() {
 	}
 	if len(b) == 0 {
 		t.Error("JSON output is empty")
+	}
+}
+
+func TestRunDeadcode(t *testing.T) {
+	// 1. Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// 2. Create files
+	mainGo := `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello")
+}
+
+func UnusedFunc() {
+	fmt.Println("Unused")
+}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	// 3. Mock Command
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// Save/Restore flags
+	oldJSON := deadcodeJSON
+	oldFail := deadcodeFail
+	defer func() {
+		deadcodeJSON = oldJSON
+		deadcodeFail = oldFail
+	}()
+
+	// Test 1: Normal output
+	deadcodeJSON = false
+	deadcodeFail = false
+	if err := runDeadcode(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("runDeadcode failed: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "UnusedFunc") {
+		t.Error("Output should contain UnusedFunc")
+	}
+
+	// Test 2: JSON output
+	buf.Reset()
+	deadcodeJSON = true
+	if err := runDeadcode(cmd, []string{tmpDir}); err != nil {
+		t.Fatalf("runDeadcode (json) failed: %v", err)
+	}
+	output = buf.String()
+	if !strings.Contains(output, "\"identifier\": \"UnusedFunc\"") {
+		t.Error("JSON output should contain UnusedFunc")
+	}
+
+	// Test 3: Fail flag
+	buf.Reset()
+	deadcodeJSON = false
+	deadcodeFail = true
+	if err := runDeadcode(cmd, []string{tmpDir}); err == nil {
+		t.Error("runDeadcode should fail when unused code found and --fail is set")
+	} else if !strings.Contains(err.Error(), "unused identifiers") {
+		t.Errorf("Unexpected error message: %v", err)
 	}
 }
