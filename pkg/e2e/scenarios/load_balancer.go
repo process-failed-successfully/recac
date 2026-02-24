@@ -129,7 +129,7 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	}()
 
 	// Wait for LB to be ready
-	lbURL := "http://localhost:8080"
+	lbURL := "http://localhost:18080"
 	ready := false
 	for i := 0; i < 20; i++ {
 		resp, err := http.Get(lbURL)

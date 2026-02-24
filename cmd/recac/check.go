@@ -85,7 +85,15 @@ func fixConfig() error {
 	// Simple fix: create default config if missing
 	viper.SetDefault("provider", "gemini")
 	viper.SetDefault("model", "gemini-pro")
-	return viper.SafeWriteConfig()
+	// If SafeWriteConfig fails (e.g. because path is not set or file exists but we want to overwrite?),
+	// we try WriteConfig if we have a path.
+	if err := viper.SafeWriteConfig(); err != nil {
+		if viper.ConfigFileUsed() != "" {
+			return viper.WriteConfig()
+		}
+		return err
+	}
+	return nil
 }
 
 func checkGo() error {
