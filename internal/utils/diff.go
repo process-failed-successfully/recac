@@ -4,19 +4,20 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 )
 
-// GenerateDiff creates a unified diff between original and improved content.
-func GenerateDiff(filename, original, improved string) (string, error) {
-	labelOrig := filename
-	if labelOrig == "" {
-		labelOrig = "original"
+// GenerateDiff creates a unified diff between two contents.
+func GenerateDiff(labelA, contentA, labelB, contentB string) (string, error) {
+	if labelA == "" {
+		labelA = "original"
 	}
-	labelNew := labelOrig + " (improved)"
+	if labelB == "" {
+		labelB = "improved"
+	}
 
 	diff := difflib.UnifiedDiff{
-		A:        difflib.SplitLines(original),
-		B:        difflib.SplitLines(improved),
-		FromFile: labelOrig,
-		ToFile:   labelNew,
+		A:        difflib.SplitLines(contentA),
+		B:        difflib.SplitLines(contentB),
+		FromFile: labelA,
+		ToFile:   labelB,
 		Context:  3,
 	}
 

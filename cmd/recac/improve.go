@@ -92,7 +92,7 @@ Code to improve:
 			inPlace, _ := cmd.Flags().GetBool("in-place")
 
 			if showDiff {
-				diff, err := utils.GenerateDiff(filePath, string(content), improvedCode)
+				diff, err := utils.GenerateDiff(filePath, string(content), filePath+" (improved)", improvedCode)
 				if err != nil {
 					return fmt.Errorf("failed to generate diff: %w", err)
 				}

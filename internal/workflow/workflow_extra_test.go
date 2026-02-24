@@ -73,7 +73,7 @@ func TestProcessDirectTask_WorkspaceFail(t *testing.T) {
 	// Test failure to setup workspace (e.g. invalid repo URL that causes git failure)
 
 	cfg := SessionConfig{
-		RepoURL: "/non/existent/repo",
+		RepoURL:     "/non/existent/repo",
 		ProjectPath: "/tmp/test-project-direct-fail",
 	}
 

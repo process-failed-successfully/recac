@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"log/slog"
 	"recac/internal/agent"
 	"recac/internal/docker"
 	"recac/internal/notify"

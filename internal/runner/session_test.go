@@ -33,7 +33,6 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return m.Response, nil
 }
 
-
 func TestSession_ReadSpec(t *testing.T) {
 	tmpDir := t.TempDir()
 	specContent := "Application Specification v1.0"
@@ -350,11 +349,11 @@ func TestSession_RunQAAgent(t *testing.T) {
 		Workspace: tmpDir,
 	}
 	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
-	
+
 	// Inject Store and Project into MockAgent now that session is created with DBStore
 	mockAgent.Store = session.DBStore
 	mockAgent.Project = session.Project
-	
+
 	session.QAAgent = mockAgent
 
 	// Create feature list (all passing)

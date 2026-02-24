@@ -1,12 +1,12 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 

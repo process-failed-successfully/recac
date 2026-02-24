@@ -73,4 +73,3 @@ func TestDashboardModel_Update_ToggleHistory(t *testing.T) {
 	assert.True(t, m.showHistory)
 	assert.NotNil(t, cmd) // Should fetch status
 }
-
