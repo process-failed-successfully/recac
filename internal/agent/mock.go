@@ -45,6 +45,57 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+		return `I will implement the prime number script as requested.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes implementation"
+git push
+
+# Mark project as signed off to trigger early exit in smoke tests
+recac signal set PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	if strings.Contains(prompt, "Create a guided tour of this codebase") {
+		return `[
+  {
+    "title": "Project Overview",
+    "filepath": "README.md",
+    "description": "# Project Overview\n\nWelcome to **recac**! This is a distributed autonomous coding framework.\n\nKey features:\n- **Orchestrator**: Manages tasks and agents.\n- **Agent**: The core autonomous coding logic.\n- **CLI**: The command-line interface you are using now."
+  },
+  {
+    "title": "Entry Point",
+    "filepath": "cmd/recac/main.go",
+    "description": "This is the main entry point for the CLI. It uses ` + "`cobra`" + ` to handle commands."
+  },
+  {
+    "title": "Core Logic",
+    "filepath": "internal/runner/runner.go",
+    "description": "The ` + "`runner`" + ` package contains the core loop for the autonomous agent. It manages the session, state, and execution of actions."
+  }
+]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
