@@ -161,8 +161,8 @@ func init() {
 	orchestrateCmd.Flags().String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
 	orchestrateCmd.Flags().String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	orchestrateCmd.Flags().Duration("interval", 1*time.Minute, "Polling interval")
-	orchestrateCmd.Flags().String("agent-provider", "openrouter", "Provider for spawned agents")
-	orchestrateCmd.Flags().String("agent-model", "openrouter/aurora-alpha", "Model for spawned agents")
+	orchestrateCmd.Flags().String("agent-provider", orchestrator.DefaultAgentProvider, "Provider for spawned agents")
+	orchestrateCmd.Flags().String("agent-model", orchestrator.DefaultAgentModel, "Model for spawned agents")
 	orchestrateCmd.Flags().String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	orchestrateCmd.Flags().Int("max-iterations", 30, "Maximum number of iterations")

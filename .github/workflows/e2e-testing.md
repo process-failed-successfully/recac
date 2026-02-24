@@ -25,8 +25,8 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "openrouter/aurora-alpha"
-This is a free token so use large iteration counts.
+--provider openrouter --model "openai/gpt-4o-mini"
+This is a cheap model so use large iteration counts.
 
 Github:
 Use gh cli
