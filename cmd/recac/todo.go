@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -75,6 +76,22 @@ var todoRmCmd = &cobra.Command{
 	},
 }
 
+var todoUiCmd = &cobra.Command{
+	Use:   "ui",
+	Short: "Interactive TODO list manager",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		model, err := NewTodoModel()
+		if err != nil {
+			return err
+		}
+		p := tea.NewProgram(model, tea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(todoCmd)
 	todoCmd.AddCommand(todoAddCmd)
@@ -82,6 +99,7 @@ func init() {
 	todoCmd.AddCommand(todoDoneCmd)
 	todoCmd.AddCommand(todoUndoneCmd)
 	todoCmd.AddCommand(todoRmCmd)
+	todoCmd.AddCommand(todoUiCmd)
 }
 
 func ensureTodoFile() error {
@@ -91,113 +109,133 @@ func ensureTodoFile() error {
 	return nil
 }
 
-func appendTask(task string) error {
-	if err := ensureTodoFile(); err != nil {
-		return err
-	}
-
-	f, err := os.OpenFile(todoFile, os.O_APPEND|os.O_WRONLY, 0644)
+func appendTask(taskDesc string) error {
+	tasks, err := loadTasks()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if _, err := f.WriteString(fmt.Sprintf("- [ ] %s\n", task)); err != nil {
+	tasks = append(tasks, Task{
+		Desc: taskDesc,
+		Done: false,
+	})
+
+	if err := saveTasks(tasks); err != nil {
 		return err
 	}
-	fmt.Printf("Added task: %s\n", task)
+	fmt.Printf("Added task: %s\n", taskDesc)
 	return nil
 }
 
 func listTasks(cmd *cobra.Command) error {
-	if err := ensureTodoFile(); err != nil {
-		return err
-	}
-
-	lines, err := utils.ReadLines(todoFile)
+	tasks, err := loadTasks()
 	if err != nil {
 		return err
 	}
 
-	index := 1
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- [ ]") {
-			fmt.Fprintf(cmd.OutOrStdout(), "%d. [ ] %s\n", index, strings.TrimPrefix(trimmed, "- [ ] "))
-			index++
-		} else if strings.HasPrefix(trimmed, "- [x]") {
-			fmt.Fprintf(cmd.OutOrStdout(), "%d. [x] %s\n", index, strings.TrimPrefix(trimmed, "- [x] "))
-			index++
-		}
-	}
-	if index == 1 {
+	if len(tasks) == 0 {
 		fmt.Fprintln(cmd.OutOrStdout(), "No tasks found.")
+		return nil
+	}
+
+	for i, t := range tasks {
+		prefix := "[ ]"
+		if t.Done {
+			prefix = "[x]"
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "%d. %s %s\n", i+1, prefix, t.Desc)
 	}
 	return nil
 }
 
-func modifyTask(targetIndex int, action func(line string) (string, bool)) error {
-	if err := ensureTodoFile(); err != nil {
-		return err
-	}
-
-	lines, err := utils.ReadLines(todoFile)
+func toggleTaskStatus(targetIndex int, done bool) error {
+	tasks, err := loadTasks()
 	if err != nil {
 		return err
 	}
 
-	newLines := make([]string, 0, len(lines))
-	currentIndex := 1
-	found := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- [ ]") || strings.HasPrefix(trimmed, "- [x]") {
-			if currentIndex == targetIndex {
-				newLine, keep := action(trimmed)
-				if keep {
-					newLines = append(newLines, newLine)
-				}
-				found = true
-			} else {
-				newLines = append(newLines, line)
-			}
-			currentIndex++
-		} else {
-			newLines = append(newLines, line)
-		}
-	}
-
-	if !found {
+	if targetIndex < 1 || targetIndex > len(tasks) {
 		return fmt.Errorf("task index %d not found", targetIndex)
 	}
 
-	return utils.WriteLines(todoFile, newLines)
-}
-
-func toggleTaskStatus(targetIndex int, done bool) error {
-	return modifyTask(targetIndex, func(trimmed string) (string, bool) {
-		content := ""
-		if strings.HasPrefix(trimmed, "- [ ]") {
-			content = strings.TrimPrefix(trimmed, "- [ ] ")
-		} else {
-			content = strings.TrimPrefix(trimmed, "- [x] ")
-		}
-
-		prefix := "- [ ]"
-		if done {
-			prefix = "- [x]"
-		}
-		return fmt.Sprintf("%s %s", prefix, content), true
-	})
+	tasks[targetIndex-1].Done = done
+	return saveTasks(tasks)
 }
 
 func removeTask(targetIndex int) error {
-	err := modifyTask(targetIndex, func(trimmed string) (string, bool) {
-		return "", false
-	})
-	if err == nil {
-		fmt.Printf("Removed task %d\n", targetIndex)
+	tasks, err := loadTasks()
+	if err != nil {
+		return err
 	}
-	return err
+
+	if targetIndex < 1 || targetIndex > len(tasks) {
+		return fmt.Errorf("task index %d not found", targetIndex)
+	}
+
+	tasks = append(tasks[:targetIndex-1], tasks[targetIndex:]...)
+
+	if err := saveTasks(tasks); err != nil {
+		return err
+	}
+	fmt.Printf("Removed task %d\n", targetIndex)
+	return nil
+}
+
+type Task struct {
+	Desc string
+	Done bool
+}
+
+func (t Task) FilterValue() string {
+	return t.Desc
+}
+
+func (t Task) Title() string {
+	if t.Done {
+		return "[x] " + t.Desc
+	}
+	return "[ ] " + t.Desc
+}
+
+func (t Task) Description() string {
+	return ""
+}
+
+func loadTasks() ([]Task, error) {
+	if err := ensureTodoFile(); err != nil {
+		return nil, err
+	}
+	lines, err := utils.ReadLines(todoFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var tasks []Task
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "- [ ]") {
+			tasks = append(tasks, Task{
+				Desc: strings.TrimPrefix(trimmed, "- [ ] "),
+				Done: false,
+			})
+		} else if strings.HasPrefix(trimmed, "- [x]") {
+			tasks = append(tasks, Task{
+				Desc: strings.TrimPrefix(trimmed, "- [x] "),
+				Done: true,
+			})
+		}
+	}
+	return tasks, nil
+}
+
+func saveTasks(tasks []Task) error {
+	lines := []string{"# TODO", ""}
+	for _, t := range tasks {
+		prefix := "- [ ]"
+		if t.Done {
+			prefix = "- [x]"
+		}
+		lines = append(lines, fmt.Sprintf("%s %s", prefix, t.Desc))
+	}
+	return utils.WriteLines(todoFile, lines)
 }
