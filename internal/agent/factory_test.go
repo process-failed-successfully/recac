@@ -4,12 +4,20 @@ import (
 	"testing"
 )
 
+func unwrapAgent(a Agent) Agent {
+	if da, ok := a.(*DirectiveAgent); ok {
+		return da.Inner()
+	}
+	return a
+}
+
 func TestNewAgent(t *testing.T) {
 	// Test Gemini
 	a, err := NewAgent("gemini", "key", "gemini-pro", "", "test-project")
 	if err != nil {
 		t.Fatalf("failed to create gemini agent: %v", err)
 	}
+	a = unwrapAgent(a)
 	if _, ok := a.(*GeminiClient); !ok {
 		t.Errorf("expected *GeminiClient, got %T", a)
 	}
@@ -19,6 +27,7 @@ func TestNewAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create openai agent: %v", err)
 	}
+	a = unwrapAgent(a)
 	if _, ok := a.(*OpenAIClient); !ok {
 		t.Errorf("expected *OpenAIClient, got %T", a)
 	}
@@ -28,6 +37,7 @@ func TestNewAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create ollama agent: %v", err)
 	}
+	a = unwrapAgent(a)
 	if _, ok := a.(*OllamaClient); !ok {
 		t.Errorf("expected *OllamaClient, got %T", a)
 	}
@@ -59,6 +69,7 @@ func TestNewAgent_OpenRouterModelCorrection(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create openrouter agent for %s: %v", tt.model, err)
 		}
+		a = unwrapAgent(a)
 		client, ok := a.(*OpenRouterClient)
 		if !ok {
 			t.Fatalf("expected *OpenRouterClient, got %T", a)

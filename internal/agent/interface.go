@@ -44,24 +44,29 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		}
 	}
 
+	var ag Agent
+
 	switch provider {
 	case "gemini":
-		return NewGeminiClient(apiKey, model, project), nil
+		ag = NewGeminiClient(apiKey, model, project)
 	case "gemini-cli":
-		return NewGeminiCLIClient(apiKey, model, workDir, project), nil
+		ag = NewGeminiCLIClient(apiKey, model, workDir, project)
 	case "openai":
-		return NewOpenAIClient(apiKey, model, project), nil
+		ag = NewOpenAIClient(apiKey, model, project)
 	case "ollama":
-		return NewOllamaClient(apiKey, model, project), nil
+		ag = NewOllamaClient(apiKey, model, project)
 	case "openrouter":
-		return NewOpenRouterClient(apiKey, model, project), nil
+		ag = NewOpenRouterClient(apiKey, model, project)
 	case "cursor-cli":
-		return NewCursorCLIClient(apiKey, model, project), nil
+		ag = NewCursorCLIClient(apiKey, model, project)
 	case "opencode", "opencode-cli":
-		return NewOpenCodeCLIClient(apiKey, model, workDir, project), nil
+		ag = NewOpenCodeCLIClient(apiKey, model, workDir, project)
 	case "mock":
-		return NewMockAgent(), nil
+		ag = NewMockAgent()
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
+
+	// Wrap with DirectiveAgent to enforce project-wide instructions
+	return NewDirectiveAgent(ag, workDir), nil
 }
