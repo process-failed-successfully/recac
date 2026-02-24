@@ -18,29 +18,35 @@ import (
 )
 
 type DockerSpawner struct {
-	Client         DockerClient
-	Image          string
-	Network        string
-	Poller         Poller // To update status on completion
-	AgentProvider  string
-	AgentModel     string
-	projectName    string
-	Logger         *slog.Logger
-	SessionManager ISessionManager
-	GitClient      IGitClient
+	Client            DockerClient
+	Image             string
+	Network           string
+	Poller            Poller // To update status on completion
+	AgentProvider     string
+	AgentModel        string
+	projectName       string
+	Logger            *slog.Logger
+	SessionManager    ISessionManager
+	GitClient         IGitClient
+	MaxIterations     int
+	ManagerFrequency  int
+	TaskMaxIterations int
 }
 
-func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager, maxIterations, managerFrequency, taskMaxIterations int) *DockerSpawner {
 	return &DockerSpawner{
-		Client:         client,
-		Image:          image,
-		projectName:    projectName,
-		Poller:         poller,
-		AgentProvider:  provider,
-		AgentModel:     model,
-		Logger:         logger,
-		SessionManager: sm,
-		GitClient:      git.NewClient(),
+		Client:            client,
+		Image:             image,
+		projectName:       projectName,
+		Poller:            poller,
+		AgentProvider:     provider,
+		AgentModel:        model,
+		Logger:            logger,
+		SessionManager:    sm,
+		GitClient:         git.NewClient(),
+		MaxIterations:     maxIterations,
+		ManagerFrequency:  managerFrequency,
+		TaskMaxIterations: taskMaxIterations,
 	}
 }
 
@@ -92,6 +98,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--path", "/workspace",
 		"--verbose",
 		"--repo-url", item.RepoURL, // Delegate cloning
+		fmt.Sprintf("--max-iterations=%d", s.MaxIterations),
+		fmt.Sprintf("--manager-frequency=%d", s.ManagerFrequency),
+		fmt.Sprintf("--task-max-iterations=%d", s.TaskMaxIterations),
 	}
 
 	cmd := s.constructShellCommand(agentCmd)

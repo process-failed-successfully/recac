@@ -20,16 +20,19 @@ import (
 )
 
 type K8sSpawner struct {
-	Client        kubernetes.Interface
-	Namespace     string
-	Image         string
-	AgentProvider string
-	AgentModel    string
-	PullPolicy    corev1.PullPolicy
-	Logger        *slog.Logger
+	Client            kubernetes.Interface
+	Namespace         string
+	Image             string
+	AgentProvider     string
+	AgentModel        string
+	PullPolicy        corev1.PullPolicy
+	Logger            *slog.Logger
+	MaxIterations     int
+	ManagerFrequency  int
+	TaskMaxIterations int
 }
 
-func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy) (*K8sSpawner, error) {
+func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy, maxIterations, managerFrequency, taskMaxIterations int) (*K8sSpawner, error) {
 	// 1. Try In-Cluster Config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -61,13 +64,16 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 	}
 
 	return &K8sSpawner{
-		Client:        clientset,
-		Namespace:     namespace,
-		Image:         image,
-		AgentProvider: provider,
-		AgentModel:    model,
-		PullPolicy:    pullPolicy,
-		Logger:        logger,
+		Client:            clientset,
+		Namespace:         namespace,
+		Image:             image,
+		AgentProvider:     provider,
+		AgentModel:        model,
+		PullPolicy:        pullPolicy,
+		Logger:            logger,
+		MaxIterations:     maxIterations,
+		ManagerFrequency:  managerFrequency,
+		TaskMaxIterations: taskMaxIterations,
 	}, nil
 }
 
@@ -160,8 +166,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --verbose --allow-dirty --repo-url %q
-	`, item.ID, item.ID, s.Image, item.RepoURL)
+		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --verbose --allow-dirty --repo-url %q --max-iterations %d --manager-frequency %d --task-max-iterations %d
+	`, item.ID, item.ID, s.Image, item.RepoURL, s.MaxIterations, s.ManagerFrequency, s.TaskMaxIterations)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

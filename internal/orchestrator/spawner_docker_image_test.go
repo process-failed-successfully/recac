@@ -19,7 +19,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
-	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM, 30, 5, 10)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{
