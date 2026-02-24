@@ -66,7 +66,11 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Add prime number script and output"
+# Commit only if there are changes to avoid exit code 1 on retries
+git diff --cached --quiet || git commit -m "Add prime number script and output"
+
+# Signal completion to the orchestrator
+agent-bridge feature set $RECAC_PROJECT_ID --status done --passes true
 ` + "```" + `
 `, nil
 	}
