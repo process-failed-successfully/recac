@@ -115,7 +115,7 @@ func main() {
 	}
 
 	var index uint64
-	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	http.ListenAndServe(":18080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Active health check / retry logic on request (simplified)
 		// Try up to len(urls) times to find a healthy backend
 		for i := 0; i < len(urls)*2; i++ {
