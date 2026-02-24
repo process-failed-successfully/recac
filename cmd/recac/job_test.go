@@ -95,7 +95,7 @@ func setupJobTest(t *testing.T) (*httptest.Server, *cobra.Command, *bytes.Buffer
 	}
 
 	// Reset flags
-	viper.Reset()
+	// Do not use viper.Reset() as it wipes global state for other tests in the package
 	jobCmd.PersistentFlags().Set("host", server.URL)
 	viper.Set("job.host", server.URL)
 

@@ -33,8 +33,42 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan
+	// If the prompt looks like the Prime Python spec, return a valid JSON plan or execution steps
 	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+		// If prompt contains "Plan:" or similar, it means we are in the execution loop for the task
+		// We need to return the actual execution steps to create the file and finish.
+		// However, the prompt for planning vs execution differs.
+		// Let's check if we are being asked to IMPLEMENT the task.
+		if strings.Contains(prompt, "You are currently working on") || strings.Contains(prompt, "Task:") {
+			return `I will create the primes.py script and run it.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes.py and generated primes.json"
+git push
+` + "```" + `
+
+I have implemented the script, generated the json, and pushed the changes.
+DONE
+`, nil
+		}
+
+		// Otherwise, assume it's the initial planning phase
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
