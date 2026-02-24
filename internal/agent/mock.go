@@ -34,7 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mocking for Smoke Tests
 	// If the prompt looks like the Prime Python spec, return a valid JSON plan
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+	// We check for "ID:[PRIMES]" which is in the Jira ticket title
+	if strings.Contains(prompt, "ID:[PRIMES]") {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
