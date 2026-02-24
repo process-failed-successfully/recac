@@ -45,6 +45,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+		return `I will implement the prime number script as requested.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes implementation"
+git push
+` + "```" + `
+`, nil
+	}
+
 	if strings.Contains(prompt, "Create a guided tour of this codebase") {
 		return `[
   {
