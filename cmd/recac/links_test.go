@@ -102,9 +102,9 @@ func TestLinksCmd_External(t *testing.T) {
 
 	// Setup mock
 	mockResponses := map[string]int{
-		"http://valid.com":   200,
-		"http://broken.com":  404,
-		"http://error.com":   0, // simulates error
+		"http://valid.com":  200,
+		"http://broken.com": 404,
+		"http://error.com":  0, // simulates error
 	}
 
 	httpHeadFunc = func(url string) (*http.Response, error) {

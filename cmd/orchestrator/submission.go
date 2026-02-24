@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	exitFunc = os.Exit
+	exitFunc           = os.Exit
 	stdout   io.Writer = os.Stdout
 )
 

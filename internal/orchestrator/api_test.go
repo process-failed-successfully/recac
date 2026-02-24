@@ -89,7 +89,7 @@ func TestRegisterAPI(t *testing.T) {
 		// Expect Spawn call
 		mockSpawner.On("Spawn", mock.Anything, item).Return(nil)
 
-		resp, err := http.Post(server.URL + "/jobs", "application/json", strings.NewReader(string(body)))
+		resp, err := http.Post(server.URL+"/jobs", "application/json", strings.NewReader(string(body)))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 
@@ -106,7 +106,7 @@ func TestRegisterAPI(t *testing.T) {
 		// Expect Cancel call
 		mockSpawner.On("Cancel", mock.Anything, "JOB-123").Return(nil)
 
-		req, _ := http.NewRequest(http.MethodDelete, server.URL + "/jobs/JOB-123", nil)
+		req, _ := http.NewRequest(http.MethodDelete, server.URL+"/jobs/JOB-123", nil)
 		resp, err := http.DefaultClient.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)

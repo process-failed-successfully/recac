@@ -20,20 +20,20 @@ import (
 
 var (
 	baseStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240"))
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240"))
 
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		Padding(0, 1)
+			Bold(true).
+			Foreground(lipgloss.Color("205")).
+			Padding(0, 1)
 
 	statusStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Margin(1, 0)
+			Foreground(lipgloss.Color("241")).
+			Margin(1, 0)
 
 	detailsStyle = lipgloss.NewStyle().
-		Padding(1, 2)
+			Padding(1, 2)
 )
 
 type viewState int

@@ -116,9 +116,9 @@ func TestManager_Notify_ProviderErrors(t *testing.T) {
 	}
 
 	m := &Manager{
-		client: mockSlack,
+		client:          mockSlack,
 		discordNotifier: mockDiscord,
-		logger: logger,
+		logger:          logger,
 	}
 
 	ctx := context.Background()
@@ -173,9 +173,9 @@ func TestManager_Notify_ProviderDisabledRuntime(t *testing.T) {
 	mockDiscord := &mockDiscordPoster{}
 
 	m := &Manager{
-		client: mockSlack,
+		client:          mockSlack,
 		discordNotifier: mockDiscord,
-		channelID: "#test",
+		channelID:       "#test",
 	}
 
 	// Now disable them via viper

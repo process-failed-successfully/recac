@@ -50,7 +50,7 @@ func TestInterview_RepoContext(t *testing.T) {
 func TestInterviewModel_Update_Flow(t *testing.T) {
 	// Setup Mock Agent
 	mockAgent := &MockInterviewAgent{
-		QuestionResponse: `{"question": "What is 2+2?", "context": "Math"}`,
+		QuestionResponse:   `{"question": "What is 2+2?", "context": "Math"}`,
 		EvaluationResponse: `{"feedback": "Good job", "score": 10, "is_correct": true, "follow_up": "What is 4+4?"}`,
 	}
 
