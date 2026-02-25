@@ -64,24 +64,9 @@ func B() string { return "B" }`
 	// example.com/test/pkg/b -> []
 
 	aPath := "example.com/test/pkg/a"
-	bPath := "example.com/test/pkg/b"
 
 	if _, ok := deps[aPath]; !ok {
 		t.Errorf("pkg/a missing from deps")
-	}
-	if _, ok := deps[bPath]; !ok {
-		// Empty deps might be missing keys depending on implementation?
-		// My implementation adds keys only if file walked.
-		// So it should be there with empty list? No, map defaults to nil slice.
-		// Wait, AnalyzeDependencies iterates files.
-		// If pkg/b has no imports, it might not be added to map if I don't initialize it?
-		// Let's check code:
-		// It does `deps[pkgPath] = append(deps[pkgPath], target)` ONLY inside loop over imports.
-		// So if no imports, key might be missing unless I explicitly set it.
-		// Code check:
-		// for _, imp := range f.Imports { ... }
-		// So if no imports, deps[pkgPath] is never touched.
-		// I should probably fix this to ensure every walked package exists in map even if empty.
 	}
 
 	// Check pkg/a imports
@@ -132,5 +117,81 @@ import "example.com/test/pkg/ignoreme"
 	imports := deps["example.com/test/pkg/a"]
 	if len(imports) != 0 {
 		t.Errorf("Expected 0 imports, got %v", imports)
+	}
+}
+
+func TestGetModuleName(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deps-modname-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Case 1: Valid go.mod
+	goMod := "module example.com/my-module\n\ngo 1.21\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	modName, err := GetModuleName(tmpDir)
+	if err != nil {
+		t.Errorf("GetModuleName failed: %v", err)
+	}
+	if modName != "example.com/my-module" {
+		t.Errorf("Expected module name 'example.com/my-module', got '%s'", modName)
+	}
+
+	// Case 2: Missing go.mod
+	missingDir, _ := os.MkdirTemp("", "recac-deps-missing-mod")
+	defer os.RemoveAll(missingDir)
+
+	_, err = GetModuleName(missingDir)
+	if err == nil {
+		t.Error("Expected error for missing go.mod, got nil")
+	}
+
+	// Case 3: Invalid go.mod (no module directive)
+	invalidDir, _ := os.MkdirTemp("", "recac-deps-invalid-mod")
+	defer os.RemoveAll(invalidDir)
+
+	os.WriteFile(filepath.Join(invalidDir, "go.mod"), []byte("package main\n"), 0644)
+	_, err = GetModuleName(invalidDir)
+	if err == nil {
+		t.Error("Expected error for invalid go.mod, got nil")
+	}
+}
+
+func TestAnalyzeDependencies_AutoModule(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deps-auto-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	goMod := "module auto.com/mod\n\ngo 1.21\n"
+	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644)
+
+	// Create a simple file
+	os.MkdirAll(filepath.Join(tmpDir, "main"), 0755)
+	mainGo := "package main\nimport \"fmt\"\nfunc main() { fmt.Println() }"
+	os.WriteFile(filepath.Join(tmpDir, "main", "main.go"), []byte(mainGo), 0644)
+
+	opts := DependencyOptions{
+		Root: tmpDir,
+		// No ModuleName provided
+		ShowStdLib: true,
+	}
+
+	deps, err := AnalyzeDependencies(opts)
+	if err != nil {
+		t.Fatalf("AnalyzeDependencies failed: %v", err)
+	}
+
+	// Check if dependencies were analyzed correctly (at least check if module name was resolved implicitly)
+	// If module name was resolved, we should see auto.com/mod/main in keys
+
+	expectedPkg := "auto.com/mod/main"
+	if _, ok := deps[expectedPkg]; !ok {
+		t.Errorf("Expected package %s not found in deps. Found keys: %v", expectedPkg, deps)
 	}
 }

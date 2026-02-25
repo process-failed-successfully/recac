@@ -47,7 +47,8 @@ func runArchitectVisualize(cmd *cobra.Command, args []string) error {
 	mermaidGraph := generateArchMermaid(&arch)
 
 	// 3. Serve HTML
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		tmpl, err := template.New("index").Parse(htmlTemplate)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -64,13 +65,16 @@ func runArchitectVisualize(cmd *cobra.Command, args []string) error {
 
 	// Start server in a goroutine so we can open the browser
 	go func() {
-		if err := openBrowserForVis(url); err != nil {
+		if err := openBrowserForVisFunc(url); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to open browser: %v\n", err)
 		}
 	}()
 
-	return http.ListenAndServe(port, nil)
+	return listenAndServeFunc(port, mux)
 }
+
+var openBrowserForVisFunc = openBrowserForVis
+var listenAndServeFunc = http.ListenAndServe
 
 func generateArchMermaid(arch *architecture.SystemArchitecture) string {
 	var sb strings.Builder

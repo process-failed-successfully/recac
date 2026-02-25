@@ -20,10 +20,7 @@ var dashboardCmd = &cobra.Command{
 
 		// Check connectivity
 		fmt.Fprintf(cmd.OutOrStdout(), "Connecting to orchestrator at %s...\n", host)
-		client := http.Client{
-			Timeout: 2 * time.Second,
-		}
-		resp, err := client.Get(fmt.Sprintf("%s/status", host))
+		resp, err := dashboardGetFunc(fmt.Sprintf("%s/status", host))
 		if err != nil {
 			return fmt.Errorf("failed to connect to orchestrator at %s: %w\n\nMake sure the orchestrator is running:\n  recac orchestrate --mode local", host, err)
 		}
@@ -34,12 +31,21 @@ var dashboardCmd = &cobra.Command{
 		}
 
 		// Launch TUI
-		if err := tui.StartDashboard(host); err != nil {
+		if err := startDashboardFunc(host); err != nil {
 			return fmt.Errorf("dashboard failed: %w", err)
 		}
 		return nil
 	},
 }
+
+var dashboardGetFunc = func(url string) (*http.Response, error) {
+	client := http.Client{
+		Timeout: 2 * time.Second,
+	}
+	return client.Get(url)
+}
+
+var startDashboardFunc = tui.StartDashboard
 
 func init() {
 	dashboardCmd.Flags().String("host", "http://localhost:2112", "Orchestrator host URL")
