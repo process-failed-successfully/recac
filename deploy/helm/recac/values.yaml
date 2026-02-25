@@ -84,6 +84,9 @@ dockerSocket:
 # Subcharts
 postgresql:
   enabled: false
+  image:
+    registry: public.ecr.aws
+    repository: bitnami/postgresql
   auth:
     database: recac
     username: recac
