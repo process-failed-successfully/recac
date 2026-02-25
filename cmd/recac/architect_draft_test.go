@@ -49,8 +49,12 @@ func TestArchitectDraft_Flow(t *testing.T) {
 	// Init Model
 	m := initialDraftModel(mockAgent, tmpPath)
 
+	// Test Init
+	assert.NotNil(t, m.Init())
+
 	// 1. Initial State: Project Name
 	assert.Equal(t, StateDraftProjectName, m.state)
+	assert.Contains(t, m.View(), "What is the name of your project?")
 
 	// User types project name and hits Enter
 	m.projectNameInput.SetValue("MyProject")
@@ -61,6 +65,8 @@ func TestArchitectDraft_Flow(t *testing.T) {
 	assert.Equal(t, StateDraftPitch, m.state)
 
 	// 2. Pitch State
+	assert.Contains(t, m.View(), "Describe your project")
+
 	// User types pitch and hits Ctrl+S
 	m.pitchInput.SetValue("MyPitch")
 	ctrlSMsg := tea.KeyMsg{Type: tea.KeyCtrlS}
@@ -82,6 +88,8 @@ func TestArchitectDraft_Flow(t *testing.T) {
 	m = newM.(draftModel)
 	assert.Equal(t, StateDraftAnsweringQuestions, m.state)
 	assert.Equal(t, 0, m.currQIdx)
+	assert.Contains(t, m.View(), "Question 1/2")
+	assert.Contains(t, m.View(), "Q1")
 
 	// 3. Answer Questions
 	// Q1
@@ -112,11 +120,13 @@ func TestArchitectDraft_Flow(t *testing.T) {
 	m = newM.(draftModel)
 	assert.Equal(t, StateDraftReview, m.state)
 	assert.Equal(t, "This is the final spec.", m.finalSpec)
+	assert.Contains(t, m.View(), "Here is the generated spec")
 
 	// 4. Review and Save
 	newM, cmd = m.Update(enterMsg)
 	m = newM.(draftModel)
 	assert.Equal(t, StateDraftDone, m.state)
+	assert.Contains(t, m.View(), "Done! Saved to")
 
 	// Check file content
 	content, err := os.ReadFile(tmpPath)

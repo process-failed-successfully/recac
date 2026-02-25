@@ -47,16 +47,7 @@ func runArchitectVisualize(cmd *cobra.Command, args []string) error {
 	mermaidGraph := generateArchMermaid(&arch)
 
 	// 3. Serve HTML
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		tmpl, err := template.New("index").Parse(htmlTemplate)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := tmpl.Execute(w, map[string]string{"Graph": mermaidGraph}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
+	mux := setupVisualizeServer(mermaidGraph)
 
 	port := ":8080"
 	url := "http://localhost" + port
@@ -69,7 +60,22 @@ func runArchitectVisualize(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	return http.ListenAndServe(port, nil)
+	return http.ListenAndServe(port, mux)
+}
+
+func setupVisualizeServer(mermaidGraph string) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		tmpl, err := template.New("index").Parse(htmlTemplate)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := tmpl.Execute(w, map[string]string{"Graph": mermaidGraph}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	return mux
 }
 
 func generateArchMermaid(arch *architecture.SystemArchitecture) string {

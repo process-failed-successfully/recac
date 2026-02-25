@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/agent"
-	"strings"
+	"recac/internal/utils"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -164,7 +164,9 @@ Example:
 		}
 
 		var qs []DraftQuestion
-		if err := parseJSONList(resp, &qs); err != nil {
+		// Parse using util
+		jsonStr := utils.CleanJSONBlock(resp)
+		if err := json.Unmarshal([]byte(jsonStr), &qs); err != nil {
 			return questionsMsg{err: fmt.Errorf("failed to parse questions: %w", err)}
 		}
 		return questionsMsg{questions: qs}
@@ -208,30 +210,9 @@ Return ONLY the content of the spec file. Do not use markdown code blocks.`,
 		}
 
 		// Clean up response if it's wrapped in code blocks
-		spec := cleanCodeBlock(resp)
+		spec := utils.CleanCodeBlock(resp)
 		return specMsg{spec: spec}
 	}
-}
-
-func parseJSONList(input string, target interface{}) error {
-	input = cleanCodeBlock(input)
-	return json.Unmarshal([]byte(input), target)
-}
-
-func cleanCodeBlock(input string) string {
-	input = strings.TrimSpace(input)
-	if strings.HasPrefix(input, "```") {
-		lines := strings.Split(input, "\n")
-		if len(lines) >= 2 {
-			// Find end
-			end := len(lines) - 1
-			if strings.HasPrefix(lines[end], "```") {
-				return strings.Join(lines[1:end], "\n")
-			}
-			return strings.Join(lines[1:], "\n")
-		}
-	}
-	return input
 }
 
 // -- Update --
