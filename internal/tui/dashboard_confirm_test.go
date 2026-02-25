@@ -1,0 +1,88 @@
+package tui
+
+import (
+	"recac/internal/orchestrator"
+	"testing"
+	"time"
+
+	"github.com/charmbracelet/bubbles/table"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDashboardModel_ConfirmationFlow(t *testing.T) {
+	// Setup
+	columns := []table.Column{
+		{Title: "ID", Width: 10},
+		{Title: "Summary", Width: 40},
+		{Title: "Status", Width: 10},
+		{Title: "Duration", Width: 10},
+	}
+	tModel := table.New(table.WithColumns(columns))
+
+	// Add a job
+	now := time.Now()
+	jobs := []orchestrator.JobInfo{
+		{ID: "JOB-1", Summary: "Test Job 1", Status: "Running", StartTime: now},
+	}
+
+	// Populate table
+	rows := []table.Row{
+		{"JOB-1", "Test Job 1", "Running", "1s"},
+	}
+	tModel.SetRows(rows)
+	tModel.SetCursor(0)
+
+	model := DashboardModel{
+		host:      "http://localhost",
+		table:     tModel,
+		jobs:      jobs,
+		viewState: viewMain,
+	}
+
+	// 1. Press 'c' to trigger cancel confirmation
+	// We need to simulate KeyMsg
+	updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("c")})
+	m := updatedModel.(DashboardModel)
+
+	// Verify state transition
+	assert.Equal(t, viewConfirmation, m.viewState)
+	assert.Equal(t, "JOB-1", m.pendingJobId)
+	assert.Equal(t, "cancel", m.pendingAction)
+	assert.Nil(t, cmd) // Should be nil as we are just changing state
+
+	// 2. Press 'n' to abort
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	m = updatedModel.(DashboardModel)
+
+	// Verify return to main
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Equal(t, "", m.pendingJobId)
+	assert.Equal(t, "", m.pendingAction)
+	assert.Nil(t, cmd)
+
+	// 3. Press 'r' to trigger retry confirmation
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	m = updatedModel.(DashboardModel)
+
+	assert.Equal(t, viewConfirmation, m.viewState)
+	assert.Equal(t, "JOB-1", m.pendingJobId)
+	assert.Equal(t, "retry", m.pendingAction)
+
+	// 4. Press 'y' to confirm
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	m = updatedModel.(DashboardModel)
+
+	// Verify action executed and return to main
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Equal(t, "", m.pendingJobId)
+	assert.Equal(t, "", m.pendingAction)
+	assert.NotNil(t, cmd) // Should have returned the retry command
+
+	// Verify View contains confirmation message when in confirmation state
+	m.viewState = viewConfirmation
+	m.pendingJobId = "JOB-1"
+	m.pendingAction = "retry"
+	view := m.View()
+	assert.Contains(t, view, "Are you sure you want to retry job JOB-1?")
+}
