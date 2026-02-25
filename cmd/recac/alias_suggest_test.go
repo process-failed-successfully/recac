@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"testing"
+	"recac/internal/agent"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -99,6 +101,11 @@ func (m *MockAgentAlias) Send(ctx context.Context, prompt string) (string, error
 	return m.Response, m.Err
 }
 
+func (m *MockAgentAlias) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	onChunk(m.Response)
+	return m.Response, m.Err
+}
+
 func TestGetAISuggestions(t *testing.T) {
 	stats := []commandStat{
 		{Command: "todo solve --file foo.go", Count: 5},
@@ -108,9 +115,9 @@ func TestGetAISuggestions(t *testing.T) {
 		{"command": "todo solve --file foo.go", "alias": "fix-foo", "reason": "Test"}
 	]`
 
-	agent := &MockAgentAlias{Response: mockResp}
+	ag := &MockAgentAlias{Response: mockResp}
 
-	suggestions, err := getAISuggestions(context.Background(), agent, stats)
+	suggestions, err := getAISuggestions(context.Background(), ag, stats)
 	require.NoError(t, err)
 	require.Len(t, suggestions, 1)
 	assert.Equal(t, "fix-foo", suggestions[0].Alias)
@@ -119,8 +126,113 @@ func TestGetAISuggestions(t *testing.T) {
 
 func TestGetAISuggestions_InvalidJSON(t *testing.T) {
 	stats := []commandStat{{Command: "foo", Count: 1}}
-	agent := &MockAgentAlias{Response: "invalid json"}
+	ag := &MockAgentAlias{Response: "invalid json"}
 
-	_, err := getAISuggestions(context.Background(), agent, stats)
+	_, err := getAISuggestions(context.Background(), ag, stats)
 	assert.Error(t, err)
+}
+
+func TestRunAliasSuggest(t *testing.T) {
+	// Create mock history
+	content := `
+recac todo solve --file main.go
+recac todo solve --file main.go
+recac todo solve --file main.go
+`
+	tmpfile, err := os.CreateTemp("", "bash_history")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+	_, err = tmpfile.WriteString(content)
+	require.NoError(t, err)
+	tmpfile.Close()
+
+	// Mock Agent
+	mockResp := `[
+		{"command": "todo solve --file main.go", "alias": "fix-main", "reason": "Frequent"}
+	]`
+	mockAg := &MockAgentAlias{Response: mockResp}
+
+	// Override Factory
+	origFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAg, nil
+	}
+	defer func() { agentClientFactory = origFactory }()
+
+	// Execute command
+	// Set flags via variables (since they are package level vars in alias_suggest.go)
+	// aliasSuggestHistoryFile, etc. are vars in alias_suggest.go
+	// But flags are bound to them.
+	// runAliasSuggest reads from flags?
+	// runAliasSuggest reads from variables: `histFile := aliasSuggestHistoryFile`
+
+	oldHist := aliasSuggestHistoryFile
+	oldShell := aliasSuggestShell
+	oldMinFreq := aliasSuggestMinFreq
+	oldJSON := aliasSuggestJSON
+
+	defer func() {
+		aliasSuggestHistoryFile = oldHist
+		aliasSuggestShell = oldShell
+		aliasSuggestMinFreq = oldMinFreq
+		aliasSuggestJSON = oldJSON
+	}()
+
+	aliasSuggestHistoryFile = tmpfile.Name()
+	aliasSuggestShell = "bash"
+	aliasSuggestMinFreq = 2
+	aliasSuggestJSON = false
+
+	cmd := aliasSuggestCmd
+	// Set output to buffer
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// We can't call cmd.Execute() easily because it parses flags.
+	// But runAliasSuggest takes cmd and args.
+	err = runAliasSuggest(cmd, []string{})
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "fix-main")
+	assert.Contains(t, output, "recac todo solve --file main.go")
+}
+
+func TestRunAliasSuggest_JSON(t *testing.T) {
+	// Mock History
+	content := `recac long command
+recac long command
+recac long command`
+	tmpfile, _ := os.CreateTemp("", "hist")
+	defer os.Remove(tmpfile.Name())
+	tmpfile.WriteString(content)
+	tmpfile.Close()
+
+	// Mock Agent
+	mockResp := `[{"command": "long command", "alias": "lc", "reason": "test"}]`
+	mockAg := &MockAgentAlias{Response: mockResp}
+
+	// Override Factory
+	origFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAg, nil
+	}
+	defer func() { agentClientFactory = origFactory }()
+
+	// Set Vars
+	aliasSuggestHistoryFile = tmpfile.Name()
+	aliasSuggestShell = "bash"
+	aliasSuggestMinFreq = 2
+	aliasSuggestJSON = true
+	defer func() { aliasSuggestJSON = false }()
+
+	cmd := aliasSuggestCmd
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err := runAliasSuggest(cmd, []string{})
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, `"alias": "lc"`)
 }

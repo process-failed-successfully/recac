@@ -53,12 +53,14 @@ func NewSessionModel(ag agent.Agent) SessionModel {
 
 	initialText := "Welcome to RECAC Interactive Session!\nType /help for commands.\n\n"
 	vp := viewport.New(0, 0)
-	vp.SetContent(initialText)
 
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(80),
 	)
+
+	renderedInitial, _ := r.Render(initialText)
+	vp.SetContent(renderedInitial)
 
 	return SessionModel{
 		agent:           ag,
@@ -67,8 +69,8 @@ func NewSessionModel(ag agent.Agent) SessionModel {
 		input:           ta,
 		renderer:        r,
 		ctx:             context.Background(),
-		history:         "",
-		renderedHistory: initialText,
+		history:         initialText,
+		renderedHistory: renderedInitial,
 		currentResponse: "",
 		contextFiles:    make(map[string]string),
 	}
