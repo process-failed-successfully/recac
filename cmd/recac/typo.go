@@ -180,7 +180,7 @@ func extractTypoCandidates(files []string) ([]string, map[string][]string) {
 	}
 
 	for _, file := range files {
-		content, err := os.ReadFile(file)
+		content, err := readFileFunc(file)
 		if err != nil {
 			continue
 		}
@@ -287,7 +287,7 @@ func findFilesWithWord(fileMap map[string][]string, word string) []string {
 }
 
 func replaceInFile(path, old, newWord string) error {
-	content, err := os.ReadFile(path)
+	content, err := readFileFunc(path)
 	if err != nil {
 		return err
 	}
@@ -302,5 +302,5 @@ func replaceInFile(path, old, newWord string) error {
 
 	newContent := re.ReplaceAll(content, []byte(newWord))
 
-	return os.WriteFile(path, newContent, 0644)
+	return writeFileFunc(path, newContent, 0644)
 }

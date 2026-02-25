@@ -71,7 +71,7 @@ func runSuggest(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), "🔍 Analyzing codebase...")
-	codebaseContext, err := GenerateCodebaseContext(opts)
+	codebaseContext, err := generateContextFunc(opts)
 	if err != nil {
 		return fmt.Errorf("failed to generate codebase context: %w", err)
 	}

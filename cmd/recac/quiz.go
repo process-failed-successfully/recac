@@ -24,10 +24,9 @@ type QuizQuestion struct {
 }
 
 var (
-	quizAgentFactory    = agent.NewAgent
-	generateContextFunc = GenerateCodebaseContext
-	quizQuestions       int
-	quizFocus           string
+	quizAgentFactory = agent.NewAgent
+	quizQuestions    int
+	quizFocus        string
 )
 
 var quizCmd = &cobra.Command{
