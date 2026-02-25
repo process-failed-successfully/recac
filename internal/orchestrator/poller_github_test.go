@@ -134,3 +134,20 @@ func TestGitHubPoller_UpdateStatus_InProgress(t *testing.T) {
 	assert.True(t, commentPosted, "Comment should be posted")
 	assert.False(t, issueClosed, "Issue should NOT be closed")
 }
+
+func TestGitHubPoller_Ping(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/owner/repo" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	p := NewGitHubPoller("test-token", "owner", "repo", "test-label")
+	p.BaseURL = server.URL
+
+	err := p.Ping(context.Background())
+	assert.NoError(t, err)
+}

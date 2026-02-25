@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,13 +44,6 @@ func TestExtractTypoCandidates(t *testing.T) {
 	files := []string{"file1.txt", "file2.txt"}
 	candidates, fileMap := extractTypoCandidates(files)
 
-	// We expect "funtion" and "reciever" to be in candidates.
-	// We also expect "this", "with", "another", "function" unless they are allowed.
-	// "function" is not in the hardcoded allowlist in typo.go? Wait, let me check.
-	// typo.go has "func", "return", etc.
-	// "function" is > 4 chars.
-
-	// Just check if our target typos are present.
 	foundFuntion := false
 	foundReciever := false
 	for _, c := range candidates {
@@ -116,4 +112,70 @@ func TestReplaceInFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "file1.txt", capturedPath)
 	assert.Equal(t, "This is a function.", string(capturedContent))
+}
+
+func TestRunTypo(t *testing.T) {
+	// 1. Setup temporary directory
+	tmpDir, err := os.MkdirTemp("", "recac-typo-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with a typo
+	filePath := filepath.Join(tmpDir, "typo.txt")
+	originalContent := "This is a funtion."
+	if err := os.WriteFile(filePath, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+
+	// 2. Mock Agent Factory
+	origAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return &MockTypoAgent{
+			Response: `{"funtion": "function"}`,
+		}, nil
+	}
+	defer func() { agentClientFactory = origAgentFactory }()
+
+	// 3. Setup Command
+	cmd := &cobra.Command{
+		Use: "typo",
+		RunE: runTypo,
+	}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	// Set Flags
+	typoAutoFix = false
+	typoLimit = 100
+
+	// 4. Run Command
+	err = runTypo(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	// 5. Verify Output
+	output := buf.String()
+	assert.Contains(t, output, "Scanning")
+	assert.Contains(t, output, "Found 1 typos")
+	assert.Contains(t, output, "'funtion' -> 'function'")
+
+	// 6. Test Auto-Fix
+	typoAutoFix = true
+	buf.Reset()
+
+	// Reset file content because runTypo might have touched it? No, typoAutoFix was false.
+	// But let's be safe.
+	// Actually we want to verify it fixes it now.
+
+	err = runTypo(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	output = buf.String()
+	assert.Contains(t, output, "Fixed in")
+
+	// Verify file content
+	content, err := os.ReadFile(filePath)
+	assert.NoError(t, err)
+	assert.Equal(t, "This is a function.", string(content))
 }

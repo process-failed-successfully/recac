@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDeadcodeAnalysis(t *testing.T) {
@@ -108,4 +112,60 @@ func (u *UnusedType) UnusedMethodOnUnusedType() {
 	if len(b) == 0 {
 		t.Error("JSON output is empty")
 	}
+}
+
+func TestRunDeadcode(t *testing.T) {
+	// 1. Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// 2. Create files
+	mainGo := `package main
+
+import "fmt"
+
+func main() {
+}
+
+func UnusedFunc() {
+	fmt.Println("Unused")
+}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	// 3. Setup Command
+	cmd := &cobra.Command{
+		Use: "deadcode",
+		RunE: runDeadcode,
+	}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	// 4. Run Command
+	// We pass the directory as argument
+	err = runDeadcode(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	// 5. Verify Output
+	output := buf.String()
+	assert.Contains(t, output, "TYPE")
+	assert.Contains(t, output, "IDENTIFIER")
+	assert.Contains(t, output, "UnusedFunc")
+
+	// Test JSON output
+	deadcodeJSON = true
+	defer func() { deadcodeJSON = false }()
+	buf.Reset()
+
+	err = runDeadcode(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	output = buf.String()
+	assert.Contains(t, output, "[") // JSON array start
+	assert.Contains(t, output, "\"identifier\": \"UnusedFunc\"")
 }
