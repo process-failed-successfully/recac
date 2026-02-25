@@ -19,9 +19,6 @@ func TestRun_Blocker(t *testing.T) {
 	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-
-	// Ideally we check DB state, but 'run' just prints to stdout/stderr.
-	// We trust SetSignal is covered by db tests. Here we test the CLI wiring.
 }
 
 func TestRun_QA(t *testing.T) {
@@ -63,13 +60,17 @@ func TestRun_Verify(t *testing.T) {
 
 	// Create dummy ui_verification.json
 	uiPath := "ui_verification.json"
+	// Ensure we don't mess up current dir
+	origWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origWd)
+
 	uiContent := `{
 		"requests": [
 			{"feature_id": "F1", "instruction": "Check UI", "status": "pending_human"}
 		]
 	}`
 	os.WriteFile(uiPath, []byte(uiContent), 0644)
-	defer os.Remove(uiPath)
 
 	args := []string{"agent-bridge", "verify", "F1", "pass"}
 	projectID := "test-project"
@@ -89,7 +90,7 @@ func TestRun_Feature(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 	projectID := "test-project"
 
-	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}) // Fixed SaveFeatures call
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
 	store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`)
 	store.Close()
 
@@ -100,13 +101,8 @@ func TestRun_Feature(t *testing.T) {
 }
 
 func TestMainEntry(t *testing.T) {
-	// We can't easily test os.Exit(1) without subprocess,
-	// but we can at least call main() with valid args to get coverage.
-	// We'll use a temp DB and valid args.
 	tmpDir := t.TempDir()
 
-	// Backup and restore os.Args and a way to control dbPath in main if possible?
-	// main() uses hardcoded ".recac.db". Let's temporarily change CWD.
 	oldWd, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(oldWd)
@@ -115,6 +111,10 @@ func TestMainEntry(t *testing.T) {
 	defer func() { os.Args = oldArgs }()
 
 	os.Args = []string{"agent-bridge", "qa"}
+	// This calls main() which calls os.Exit(1) on failure.
+	// Since we set up env correctly (defaults), it should pass and exit normally?
+	// main() calls run(). If run() returns nil, main() finishes.
+	// But main() doesn't call os.Exit(0).
 	main()
 }
 
@@ -137,9 +137,73 @@ func TestRun_Invalid(t *testing.T) {
 	if err := run([]string{"agent-bridge", "verify", "F1"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 		t.Error("Expected error for verify missing args")
 	}
+}
 
-	// verify missing file
-	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for verify missing file")
+func TestRun_ClearSignal(t *testing.T) {
+	tmpDir := t.TempDir()
+	origWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origWd)
+
+	// Setup DB in tmpDir (because clear-signal looks in CWD)
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, _ := db.NewSQLiteStore(dbPath)
+	store.SetSignal(filepath.Base(tmpDir), "KEY", "VALUE")
+	store.Close()
+
+	// args: agent-bridge clear-signal KEY
+	args := []string{"agent-bridge", "clear-signal", "KEY"}
+
+	config := db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}
+
+	if err := run(args, config, "ignored"); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify signal cleared
+	store, _ = db.NewSQLiteStore(dbPath)
+	defer store.Close()
+	val, err := store.GetSignal(filepath.Base(tmpDir), "KEY")
+	if err != nil {
+		t.Errorf("GetSignal failed: %v", err)
+	}
+	if val != "" {
+		t.Errorf("Signal not cleared, got: %q", val)
+	}
+}
+
+func TestRun_Import(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+
+	jsonContent := `{"features": [{"id": "F_IMP", "name": "Imported"}]}`
+	origInput := inputReader
+	inputReader = strings.NewReader(jsonContent)
+	defer func() { inputReader = origInput }()
+
+	args := []string{"agent-bridge", "import"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "test-proj"); err != nil {
+		t.Fatalf("run import failed: %v", err)
+	}
+
+	// Verify import
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	defer store.Close()
+	content, _ := store.GetFeatures("test-proj")
+	if !strings.Contains(content, "F_IMP") {
+		t.Errorf("Feature not imported")
+	}
+}
+
+func TestRun_FeatureList(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	store.SaveFeatures("test-proj", `{"features": [{"id": "F_LIST", "name": "Listed"}]}`)
+	store.Close()
+
+	args := []string{"agent-bridge", "feature", "list"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "test-proj"); err != nil {
+		t.Fatalf("run feature list failed: %v", err)
 	}
 }

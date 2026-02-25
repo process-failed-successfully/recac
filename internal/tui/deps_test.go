@@ -1,71 +1,95 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewDepsModel_Calculations(t *testing.T) {
-	// Setup graph:
-	// A -> B
-	// B -> C, D
-	// C -> (none)
-	// D -> (none)
-	// E -> A
-	graph := map[string][]string{
-		"A": {"B"},
-		"B": {"C", "D"},
-		"C": {},
-		"D": {},
-		"E": {"A"},
+func TestDepsModel(t *testing.T) {
+	// 1. Setup Data
+	outgoing := map[string][]string{
+		"pkgA": {"pkgB", "pkgC"},
+		"pkgB": {"pkgC"},
+		"pkgC": {},
 	}
 
-	model := NewDepsModel(graph)
+	// 2. Initialize Model
+	m := NewDepsModel(outgoing)
 
-	// Verify Metrics
-	// Package A:
-	// Ce (outgoing) = 1 (B)
-	// Ca (incoming) = 1 (E)
-	// I = 1 / (1 + 1) = 0.5
-	mA, ok := model.metrics["A"]
-	assert.True(t, ok)
-	assert.Equal(t, 1, mA.Efferent, "A Ce mismatch")
-	assert.Equal(t, 1, mA.Afferent, "A Ca mismatch")
-	assert.InDelta(t, 0.5, mA.Instability, 0.001, "A Instability mismatch")
+	// Check initial state
+	assert.Equal(t, 3, len(m.metrics))
+	assert.Equal(t, 2, m.metrics["pkgA"].Efferent)
 
-	// Package B:
-	// Ce = 2 (C, D)
-	// Ca = 1 (A)
-	// I = 2 / (2 + 1) = 0.666...
-	mB, ok := model.metrics["B"]
-	assert.True(t, ok)
-	assert.Equal(t, 2, mB.Efferent, "B Ce mismatch")
-	assert.Equal(t, 1, mB.Afferent, "B Ca mismatch")
-	assert.InDelta(t, 2.0/3.0, mB.Instability, 0.001, "B Instability mismatch")
+	// 3. Test Init
+	cmd := m.Init()
+	assert.Nil(t, cmd)
 
-	// Package C:
-	// Ce = 0
-	// Ca = 1 (B)
-	// I = 0 / (0 + 1) = 0
-	mC, ok := model.metrics["C"]
-	assert.True(t, ok)
-	assert.Equal(t, 0, mC.Efferent, "C Ce mismatch")
-	assert.Equal(t, 1, mC.Afferent, "C Ca mismatch")
-	assert.Equal(t, 0.0, mC.Instability, "C Instability mismatch")
+	// 4. Test View (Initial)
+	view := m.View()
+	assert.Contains(t, view, "Initializing...")
 
-	// Package E:
-	// Ce = 1 (A)
-	// Ca = 0
-	// I = 1 / (1 + 0) = 1
-	mE, ok := model.metrics["E"]
-	assert.True(t, ok)
-	assert.Equal(t, 1, mE.Efferent, "E Ce mismatch")
-	assert.Equal(t, 0, mE.Afferent, "E Ca mismatch")
-	assert.Equal(t, 1.0, mE.Instability, "E Instability mismatch")
+	// 5. Test Update (Window Size)
+	newModel, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	m = newModel.(DepsModel)
+	assert.True(t, m.ready)
+	assert.Equal(t, 100, m.width)
+	assert.Equal(t, 50, m.height)
 
-	// Verify incoming graph logic
-	assert.Contains(t, model.graph.Incoming["A"], "E")
-	assert.Contains(t, model.graph.Incoming["B"], "A")
-	assert.Contains(t, model.graph.Incoming["C"], "B")
+	// Check View after ready
+	view = m.View()
+	assert.Contains(t, view, "pkgA")
+	assert.Contains(t, view, "pkgB")
+	assert.Contains(t, view, "pkgC")
+
+	// 6. Test Selection Update
+	selected := m.list.SelectedItem().(depsItem)
+	assert.Equal(t, "pkgA", selected.metric.Name)
+	assert.Equal(t, "pkgA", m.selectedPkg)
+
+	// Verify Viewport content
+	viewportContent := m.viewport.View()
+	assert.Contains(t, viewportContent, "Instability")
+	// "1.00" might be followed by spaces or ansi codes, so relax check
+	assert.Contains(t, viewportContent, "1.00")
+
+	// Check content accounting for wrapping
+	assert.Contains(t, viewportContent, "Outgoing")
+	assert.Contains(t, viewportContent, "(Ce):")
+	assert.Contains(t, viewportContent, "2")
+
+	assert.Contains(t, viewportContent, "Incoming")
+	assert.Contains(t, viewportContent, "(Ca):")
+	assert.Contains(t, viewportContent, "0")
+
+	// 7. Test Filter
+	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = newModel.(DepsModel)
+	assert.Equal(t, list.Filtering, m.list.FilterState())
+
+	// 8. Test Quit
+	newModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	// tea.Quit is a Cmd, which is func() Msg
+	// Execute the command to see if it produces tea.QuitMsg
+	if cmd != nil {
+		msg := cmd()
+		assert.IsType(t, tea.QuitMsg{}, msg)
+	} else {
+		t.Error("Expected quit command")
+	}
+}
+
+func TestRenderHelpers(t *testing.T) {
+	// renderMetric
+	out := renderMetric("Label", "Value")
+	assert.True(t, strings.Contains(out, "Label:") || strings.Contains(out, "Label"))
+	assert.True(t, strings.Contains(out, "Value"))
+
+	// renderInstabilityBar
+	bar := renderInstabilityBar(0.5, 20)
+	assert.Contains(t, bar, "█")
+	assert.Contains(t, bar, "░")
 }

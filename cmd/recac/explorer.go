@@ -16,6 +16,8 @@ Navigate files, preview content, and view metadata.`,
 	RunE: runExplorer,
 }
 
+var startExplorerFunc = tui.StartExplorer
+
 func init() {
 	rootCmd.AddCommand(explorerCmd)
 }
@@ -36,7 +38,7 @@ func runExplorer(cmd *cobra.Command, args []string) error {
 	}
 
 	// Launch TUI
-	if err := tui.StartExplorer(path); err != nil {
+	if err := startExplorerFunc(path); err != nil {
 		return fmt.Errorf("explorer failed: %w", err)
 	}
 
