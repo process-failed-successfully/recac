@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var startSessionFunc = tui.StartSession
+
 var sessionCmd = &cobra.Command{
 	Use:   "session",
 	Short: "Start an interactive AI pair programming session (TUI)",
@@ -32,7 +34,7 @@ func runSession(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start TUI
-	if err := tui.StartSession(ag); err != nil {
+	if err := startSessionFunc(ag); err != nil {
 		return fmt.Errorf("session failed: %w", err)
 	}
 

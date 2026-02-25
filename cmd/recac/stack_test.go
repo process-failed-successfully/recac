@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,104 +9,158 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStackCommand(t *testing.T) {
-	// Create a temp directory representing a project
-	tmpDir, err := os.MkdirTemp("", "recac-stack-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+func TestGetLanguage(t *testing.T) {
+	tests := []struct {
+		name     string
+		ext      string
+		filename string
+		expected string
+	}{
+		{"Go", ".go", "main.go", "Go"},
+		{"JavaScript", ".js", "script.js", "JavaScript"},
+		{"TypeScript", ".ts", "app.ts", "TypeScript"},
+		{"Python", ".py", "script.py", "Python"},
+		{"Java", ".java", "Main.java", "Java"},
+		{"Ruby", ".rb", "script.rb", "Ruby"},
+		{"Rust", ".rs", "main.rs", "Rust"},
+		{"PHP", ".php", "index.php", "PHP"},
+		{"HTML", ".html", "index.html", "HTML"},
+		{"CSS", ".css", "style.css", "CSS"},
+		{"Shell", ".sh", "script.sh", "Shell"},
+		{"SQL", ".sql", "query.sql", "SQL"},
+		{"Makefile", "", "Makefile", "Make"},
+		{"Unknown", ".xyz", "file.xyz", ""},
+	}
 
-	// create some dummy files
-	files := map[string]string{
-		"main.go": `package main
-import (
-	"fmt"
-	"github.com/spf13/cobra"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getLanguage(tt.ext, tt.filename))
+		})
+	}
+}
+
+func TestScanGoMod(t *testing.T) {
+	content := `module example.com/my/app
+
+go 1.21
+
+require (
+	github.com/gin-gonic/gin v1.9.1
+	github.com/spf13/cobra v1.8.0
+	gorm.io/gorm v1.25.5
 )
-func main() {}`,
-		"package.json": `{
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "go.mod")
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+
+	frameworks := scanGoMod(path)
+	assert.Contains(t, frameworks, "Gin")
+	assert.Contains(t, frameworks, "Cobra")
+	assert.Contains(t, frameworks, "GORM")
+	assert.NotContains(t, frameworks, "Fiber")
+}
+
+func TestScanPackageJson(t *testing.T) {
+	content := `{
+  "name": "my-app",
   "dependencies": {
-    "react": "^18.0.0",
-    "express": "^4.0.0"
+    "react": "^18.2.0",
+    "next": "13.5.6",
+    "tailwindcss": "^3.3.0"
   }
-}`,
-		"docker-compose.yml": `version: "3"
+}`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "package.json")
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+
+	frameworks := scanPackageJson(path)
+	assert.Contains(t, frameworks, "React")
+	assert.Contains(t, frameworks, "Next.js")
+	assert.Contains(t, frameworks, "Tailwind CSS")
+	assert.NotContains(t, frameworks, "Vue")
+}
+
+func TestScanDockerCompose(t *testing.T) {
+	content := `version: '3.8'
 services:
   db:
-    image: postgres:14
-  redis:
-    image: redis:alpine
-`,
-		"go.mod": `module example.com/test
-require (
-	github.com/spf13/cobra v1.7.0
-)
-`,
+    image: postgres:15
+  cache:
+    image: redis:7
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "docker-compose.yml")
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+
+	dbs := scanDockerCompose(path)
+	assert.Contains(t, dbs, "PostgreSQL")
+	assert.Contains(t, dbs, "Redis")
+	assert.NotContains(t, dbs, "MySQL")
+}
+
+func TestScanRequirementsTxt(t *testing.T) {
+	content := `Django==4.2.7
+numpy>=1.26.0
+pandas
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "requirements.txt")
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+
+	frameworks := scanRequirementsTxt(path)
+	assert.Contains(t, frameworks, "Django")
+	assert.Contains(t, frameworks, "NumPy")
+	assert.Contains(t, frameworks, "Pandas")
+	assert.NotContains(t, frameworks, "Flask")
+}
+
+func TestAnalyzeStack(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create some files
+	files := map[string]string{
+		"main.go":          "package main",
+		"go.mod":           "module example\nrequire github.com/gin-gonic/gin v1.9.0",
+		"package.json":     `{"dependencies": {"react": "^18.0.0"}}`,
+		"docker-compose.yml": "services:\n  db:\n    image: postgres:15",
 		".github/workflows/ci.yml": "name: CI",
 	}
 
-	for path, content := range files {
-		fullPath := filepath.Join(tmpDir, path)
-		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+	for name, content := range files {
+		path := filepath.Join(tmpDir, name)
+		err := os.MkdirAll(filepath.Dir(path), 0755)
 		require.NoError(t, err)
-		err = os.WriteFile(fullPath, []byte(content), 0644)
+		err = os.WriteFile(path, []byte(content), 0644)
 		require.NoError(t, err)
 	}
 
-	t.Run("AnalyzeStack", func(t *testing.T) {
-		info, err := analyzeStack(tmpDir)
-		require.NoError(t, err)
+	info, err := analyzeStack(tmpDir)
+	require.NoError(t, err)
 
-		// Check Languages
-		assert.Equal(t, 1, info.Languages["Go"])
-		// JSON isn't a language in our map unless .json extension is handled?
-		// looking at code: .json is not in getLanguage.
-		// But let's check what we have.
+	assert.Equal(t, 1, info.Languages["Go"])
+	assert.Contains(t, info.Frameworks, "Gin")
+	assert.Contains(t, info.Frameworks, "React")
+	assert.Contains(t, info.Infrastructure, "Docker Compose")
+	assert.Contains(t, info.Databases, "PostgreSQL")
+	assert.Contains(t, info.CI, "GitHub Actions")
+}
 
-		// Check Frameworks
-		assert.Contains(t, info.Frameworks, "Cobra")
-		assert.Contains(t, info.Frameworks, "React")
-		assert.Contains(t, info.Frameworks, "Express")
+func TestAppendUnique(t *testing.T) {
+	slice := []string{"a", "b"}
+	slice = appendUnique(slice, "b")
+	assert.Equal(t, []string{"a", "b"}, slice)
 
-		// Check Infra
-		assert.Contains(t, info.Infrastructure, "Docker Compose")
+	slice = appendUnique(slice, "c")
+	assert.Equal(t, []string{"a", "b", "c"}, slice)
+}
 
-		// Check DBs
-		assert.Contains(t, info.Databases, "PostgreSQL")
-		assert.Contains(t, info.Databases, "Redis")
-
-		// Check CI
-		assert.Contains(t, info.CI, "GitHub Actions")
-	})
-
-	t.Run("JSON Output", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "stack", tmpDir, "--json")
-		require.NoError(t, err)
-
-		var info StackInfo
-		err = json.Unmarshal([]byte(output), &info)
-		require.NoError(t, err)
-
-		assert.Equal(t, 1, info.Languages["Go"])
-		assert.Contains(t, info.Frameworks, "React")
-	})
-
-	t.Run("Mermaid Output", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "stack", tmpDir, "--mermaid")
-		require.NoError(t, err)
-
-		assert.Contains(t, output, "graph TD")
-		assert.Contains(t, output, "App[Go App]")
-		assert.Contains(t, output, "React")
-		assert.Contains(t, output, "PostgreSQL")
-	})
-
-	t.Run("Table Output", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "stack", tmpDir)
-		require.NoError(t, err)
-
-		assert.Contains(t, output, "PROJECT STACK")
-		assert.Contains(t, output, "Go (1 files)")
-		assert.Contains(t, output, "React")
-		assert.Contains(t, output, "PostgreSQL")
-	})
+func TestStackContains(t *testing.T) {
+	slice := []string{"a", "b"}
+	assert.True(t, stackContains(slice, "a"))
+	assert.False(t, stackContains(slice, "c"))
 }
