@@ -87,6 +87,31 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat .config/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Docker Socket Mount",
+			content:     "docker run -v /var/run/docker.sock:/var/run/docker.sock alpine",
+			wantFinding: "Docker Socket Mount",
+		},
+		{
+			name:        "Docker Socket Mount Short",
+			content:     "docker run -v /var/run/docker.sock alpine",
+			wantFinding: "Docker Socket Mount",
+		},
+		{
+			name:        "Privileged Container",
+			content:     "docker run --privileged alpine",
+			wantFinding: "Privileged Container",
+		},
+		{
+			name:        "Network Recon Nmap",
+			content:     "nmap -sS target.com",
+			wantFinding: "Network Recon",
+		},
+		{
+			name:        "Network Recon Masscan",
+			content:     "masscan 10.0.0.0/8 -p80",
+			wantFinding: "Network Recon",
+		},
 	}
 
 	for _, tt := range tests {
