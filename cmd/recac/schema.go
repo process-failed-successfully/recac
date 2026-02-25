@@ -113,7 +113,9 @@ func runSchema(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func extractSchema(connStr string) (*DatabaseSchema, error) {
+var extractSchema = realExtractSchema
+
+func realExtractSchema(connStr string) (*DatabaseSchema, error) {
 	var dbType string
 	var dsn string
 

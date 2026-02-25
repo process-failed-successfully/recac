@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+// MockChatAgent implements agent.Agent and records prompts
+type MockChatAgent struct {
+	LastPrompt string
+	Response   string
+}
+
+func (m *MockChatAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.LastPrompt = prompt
+	return m.Response, nil
+}
+
+func (m *MockChatAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	m.LastPrompt = prompt
+	if onChunk != nil {
+		onChunk(m.Response)
+	}
+	return m.Response, nil
+}
+
 func TestHandleChatCommand_Persona(t *testing.T) {
 	cmd := chatCmd
 	var out bytes.Buffer
@@ -47,6 +66,16 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 		t.Errorf("Expected persona to stay Security Auditor, got %s", session.CurrentPersona.Name)
 	}
 	if !strings.Contains(out.String(), "Unknown persona 'unknown'") {
+		t.Errorf("Output mismatch: %s", out.String())
+	}
+
+	// 3. No args
+	out.Reset()
+	res = handleChatCommand(cmd, session, "/persona")
+	if !res {
+		t.Error("Expected command to be handled")
+	}
+	if !strings.Contains(out.String(), "Usage: /persona") {
 		t.Errorf("Output mismatch: %s", out.String())
 	}
 }
@@ -100,6 +129,13 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	if !strings.Contains(errOut.String(), "Failed to read file") {
 		t.Errorf("Expected error message, got %s", errOut.String())
 	}
+
+	// 4. No args
+	out.Reset()
+	handleChatCommand(cmd, session, "/add")
+	if !strings.Contains(out.String(), "Usage: /add") {
+		t.Errorf("Output mismatch: %s", out.String())
+	}
 }
 
 func TestHandleChatCommand_Clear(t *testing.T) {
@@ -116,6 +152,65 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 	if session.History != "" {
 		t.Error("History not cleared")
 	}
+	if !strings.Contains(out.String(), "History cleared") {
+		t.Errorf("Output mismatch: %s", out.String())
+	}
+}
+
+func TestHandleChatCommand_Context(t *testing.T) {
+	cmd := chatCmd
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	session := &ChatSession{ContextFiles: make(map[string]string)}
+
+	// Empty
+	handleChatCommand(cmd, session, "/context")
+	if !strings.Contains(out.String(), "No files in context") {
+		t.Error("Expected no files message")
+	}
+
+	// With files
+	out.Reset()
+	session.ContextFiles["foo.txt"] = "bar"
+	handleChatCommand(cmd, session, "/context")
+	if !strings.Contains(out.String(), "foo.txt") {
+		t.Error("Expected file listing")
+	}
+}
+
+func TestHandleChatCommand_Help(t *testing.T) {
+	cmd := chatCmd
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	session := &ChatSession{}
+
+	handleChatCommand(cmd, session, "/help")
+	if !strings.Contains(out.String(), "Available commands") {
+		t.Error("Expected help text")
+	}
+}
+
+func TestHandleChatCommand_Quit(t *testing.T) {
+	cmd := chatCmd
+	session := &ChatSession{}
+	if handleChatCommand(cmd, session, "/quit") {
+		t.Error("Expected false for quit")
+	}
+	if handleChatCommand(cmd, session, "/exit") {
+		t.Error("Expected false for exit")
+	}
+}
+
+func TestHandleChatCommand_Unknown(t *testing.T) {
+	cmd := chatCmd
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	session := &ChatSession{}
+
+	handleChatCommand(cmd, session, "/unknown")
+	if !strings.Contains(out.String(), "Unknown command") {
+		t.Error("Expected unknown command message")
+	}
 }
 
 func TestRunChat_Integration(t *testing.T) {
@@ -123,8 +218,7 @@ func TestRunChat_Integration(t *testing.T) {
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()
 
-	mockAgent := agent.NewMockAgent()
-	mockAgent.SetResponse("Hello from Mock")
+	mockAgent := &MockChatAgent{Response: "Hello from Mock"}
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return mockAgent, nil
@@ -158,5 +252,54 @@ func TestRunChat_Integration(t *testing.T) {
 	}
 	if !strings.Contains(output, "Switched persona to: Product Manager") {
 		t.Error("Missing persona switch message")
+	}
+
+	// Verify prompt
+	// The last prompt should contain the last user input
+	if !strings.Contains(mockAgent.LastPrompt, "How about now?") {
+		t.Error("Last prompt missing user input")
+	}
+	// It should also contain history of previous turn
+	if !strings.Contains(mockAgent.LastPrompt, "User: Hello") {
+		t.Error("Last prompt missing history")
+	}
+	if !strings.Contains(mockAgent.LastPrompt, "Agent: Hello from Mock") {
+		t.Error("Last prompt missing agent history")
+	}
+	// It should verify system prompt changed
+	if !strings.Contains(mockAgent.LastPrompt, "Product Manager") {
+		t.Error("Last prompt missing persona system prompt")
+	}
+}
+
+func TestBuildChatPrompt(t *testing.T) {
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+	session := &ChatSession{
+		CurrentPersona: p,
+		ContextFiles:   map[string]string{"foo.txt": "bar content"},
+		History:        "User: A\nAgent: B\n",
+		PM:             pm,
+	}
+
+	prompt := buildChatPrompt(session, "Current Input")
+
+	if !strings.Contains(prompt, p.SystemPrompt) {
+		t.Error("Missing system prompt")
+	}
+	if !strings.Contains(prompt, "--- foo.txt ---") {
+		t.Error("Missing file header")
+	}
+	if !strings.Contains(prompt, "bar content") {
+		t.Error("Missing file content")
+	}
+	if !strings.Contains(prompt, "Chat History:") {
+		t.Error("Missing history header")
+	}
+	if !strings.Contains(prompt, "User: A") {
+		t.Error("Missing history content")
+	}
+	if !strings.Contains(prompt, "User: Current Input") {
+		t.Error("Missing current input")
 	}
 }
