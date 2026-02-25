@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -88,4 +89,46 @@ func TestCalculateStats(t *testing.T) {
 	require.Equal(t, 2, stats.StatusCounts["completed"], "Should have 2 completed sessions")
 	require.Equal(t, 1, stats.StatusCounts["running"], "Should have 1 running session")
 	require.Equal(t, 1, stats.StatusCounts["failed"], "Should have 1 failed session")
+}
+
+func TestDisplayStats(t *testing.T) {
+	stats := &AggregateStats{
+		TotalSessions:       10,
+		TotalTokens:         1000,
+		TotalPromptTokens:   300,
+		TotalResponseTokens: 700,
+		TotalCost:           1.2345,
+		StatusCounts: map[string]int{
+			"completed": 7,
+			"failed":    3,
+		},
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Restore stdout when done
+	defer func() {
+		os.Stdout = oldStdout
+	}()
+
+	displayStats(stats)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+	output := string(out)
+
+	require.Contains(t, output, "AGGREGATE SESSION STATISTICS")
+	require.Contains(t, output, "Total Sessions:")
+	require.Contains(t, output, "10")
+	require.Contains(t, output, "Total Tokens:")
+	require.Contains(t, output, "1000")
+	require.Contains(t, output, "Total Estimated Cost:")
+	require.Contains(t, output, "1.2345")
+	require.Contains(t, output, "completed:")
+	require.Contains(t, output, "7")
+	require.Contains(t, output, "failed:")
+	require.Contains(t, output, "3")
 }
