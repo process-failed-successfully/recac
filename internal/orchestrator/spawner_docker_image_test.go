@@ -19,7 +19,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
-	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", "Always", mockSM, 30, 5, 10)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{
@@ -30,6 +30,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
+	mockDocker.On("PullImage", ctx, imageName).Return(nil)
+
 	// We match "Anything" for arguments so we catch the call, then inspect it in Run
 	runCalled := make(chan string, 1)
 	mockDocker.On("RunContainerWithLabels", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "", mock.Anything).Run(func(args mock.Arguments) {

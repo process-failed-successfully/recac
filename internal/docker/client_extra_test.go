@@ -152,9 +152,9 @@ func TestRunContainer_Pull(t *testing.T) {
 
 	client.RunContainer(context.Background(), "image", "/tmp", nil, nil, nil, "")
 
-	if !pullCalled {
+	if pullCalled {
 
-		t.Error("Expected ImagePull to be called")
+		t.Error("Expected ImagePull NOT to be called by RunContainer")
 
 	}
 

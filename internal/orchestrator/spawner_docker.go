@@ -24,6 +24,7 @@ type DockerSpawner struct {
 	Poller            Poller // To update status on completion
 	AgentProvider     string
 	AgentModel        string
+	PullPolicy        string
 	projectName       string
 	Logger            *slog.Logger
 	SessionManager    ISessionManager
@@ -33,7 +34,7 @@ type DockerSpawner struct {
 	TaskMaxIterations int
 }
 
-func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager, maxIterations, managerFrequency, taskMaxIterations int) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model, pullPolicy string, sm ISessionManager, maxIterations, managerFrequency, taskMaxIterations int) *DockerSpawner {
 	return &DockerSpawner{
 		Client:            client,
 		Image:             image,
@@ -41,6 +42,7 @@ func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, pr
 		Poller:            poller,
 		AgentProvider:     provider,
 		AgentModel:        model,
+		PullPolicy:        pullPolicy,
 		Logger:            logger,
 		SessionManager:    sm,
 		GitClient:         git.NewClient(),
@@ -51,6 +53,34 @@ func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, pr
 }
 
 func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
+	// 0. Handle Image Pull Policy
+	switch s.PullPolicy {
+	case "Always":
+		s.Logger.Info("Pulling image (policy: Always)", "image", s.Image)
+		if err := s.Client.PullImage(ctx, s.Image); err != nil {
+			return fmt.Errorf("failed to pull image (policy: Always): %w", err)
+		}
+	case "Never":
+		exists, err := s.Client.ImageExists(ctx, s.Image)
+		if err != nil {
+			return fmt.Errorf("failed to check image existence: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("image %s not found locally and PullPolicy is Never", s.Image)
+		}
+	default: // "IfNotPresent" or empty or unknown
+		exists, err := s.Client.ImageExists(ctx, s.Image)
+		if err != nil {
+			return fmt.Errorf("failed to check image existence: %w", err)
+		}
+		if !exists {
+			s.Logger.Info("Pulling image (policy: IfNotPresent)", "image", s.Image)
+			if err := s.Client.PullImage(ctx, s.Image); err != nil {
+				return fmt.Errorf("failed to pull image: %w", err)
+			}
+		}
+	}
+
 	// 1. Create temporary workspace on host
 	tempDir, err := os.MkdirTemp("", fmt.Sprintf("recac-agent-%s-*", item.ID))
 	if err != nil {

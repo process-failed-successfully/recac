@@ -81,7 +81,8 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 	t.Run("DockerSpawner propagates all config vars", func(t *testing.T) {
 		mockDocker := new(MockDockerClient)
 		mockSM := new(MockSessionManager)
-		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM, 30, 5, 10)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", "Always", mockSM, 30, 5, 10)
+		mockDocker.On("PullImage", mock.Anything, "img").Return(nil)
 
 		// Use a mock GitClient that does nothing
 		mockGit := new(MockGitClient)
@@ -175,7 +176,8 @@ func TestSpawnerConsistency_LabelsAndGitConfig(t *testing.T) {
 	t.Run("DockerSpawner injects git config command", func(t *testing.T) {
 		mockDocker := new(MockDockerClient)
 		mockSM := new(MockSessionManager)
-		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM, 30, 5, 10)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", "Always", mockSM, 30, 5, 10)
+		mockDocker.On("PullImage", mock.Anything, "img").Return(nil)
 
 		// Use a MockGitClient
 		mockGit := new(MockGitClient)
@@ -261,7 +263,8 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 	t.Run("DockerSpawner sets correct command args", func(t *testing.T) {
 		mockDocker := new(MockDockerClient)
 		mockSM := new(MockSessionManager)
-		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM, 30, 5, 10)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", "Always", mockSM, 30, 5, 10)
+		mockDocker.On("PullImage", mock.Anything, "img").Return(nil)
 
 		// Use a MockGitClient
 		mockGit := new(MockGitClient)
