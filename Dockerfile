@@ -26,7 +26,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN npm install -g @google/gemini-cli
 
 # Install OpenCode CLI
-RUN npm install -g opencode-ai --ignore-scripts
+# RUN npm install -g opencode-ai --ignore-scripts
 
 # Install Cursor Agent
 ENV HOME=/root
