@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/architecture"
 	"recac/internal/cmdutils"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -118,20 +118,7 @@ func generateArchitecture(ctx context.Context, ag agent.Agent, spec string) (map
 	}
 
 	// Extract JSON
-	jsonStr := resp
-	if start := strings.Index(jsonStr, "```json"); start != -1 {
-		jsonStr = jsonStr[start+7:]
-		if end := strings.Index(jsonStr, "```"); end != -1 {
-			jsonStr = jsonStr[:end]
-		}
-	} else if start := strings.Index(jsonStr, "{"); start != -1 {
-		// Fallback: try to find the first curly brace
-		jsonStr = jsonStr[start:]
-		if end := strings.LastIndex(jsonStr, "}"); end != -1 {
-			jsonStr = jsonStr[:end+1]
-		}
-	}
-	jsonStr = strings.TrimSpace(jsonStr)
+	jsonStr := utils.CleanJSONBlock(resp)
 
 	var files map[string]string
 	if err := json.Unmarshal([]byte(jsonStr), &files); err != nil {

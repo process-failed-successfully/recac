@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -66,4 +68,22 @@ func TestGenerateArchMermaid(t *testing.T) {
 	// api-gateway -> user-service is defined in both Produces of gateway and Consumes of user-service
 	count := strings.Count(mermaid, "api_gateway -->|http| user_service")
 	assert.Equal(t, 1, count, "Duplicate edge found")
+}
+
+func TestSetupVisualizeServer(t *testing.T) {
+	mermaidGraph := "graph TD; A-->B;"
+	mux := setupVisualizeServer(mermaidGraph)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body := w.Body.String()
+	assert.Contains(t, body, "<title>RECAC Architecture Visualization</title>")
+	// Verify content (HTML escaped by template)
+	assert.Contains(t, body, "graph TD; A--&gt;B;")
 }
