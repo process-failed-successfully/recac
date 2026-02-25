@@ -227,6 +227,14 @@ func (m *mockDockerClient) WaitContainer(ctx context.Context, containerID string
 	return 0, nil
 }
 
+func (m *mockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockDockerClient) PullImage(ctx context.Context, imageRef string) error {
+	return nil
+}
+
 func TestJanitor_Start(t *testing.T) {
 	// Mock Docker Client
 	mockClient := &mockDockerClient{}

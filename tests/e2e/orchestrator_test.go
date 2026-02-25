@@ -16,6 +16,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/jira"
 	"recac/internal/orchestrator"
+	"recac/internal/runner"
 
 	"github.com/joho/godotenv"
 )
@@ -173,7 +174,8 @@ func TestOrchestrator_FullFlow_E2E(t *testing.T) {
 	// Assuming OpenAI/GPT-3.5-turbo or similar for speed/cost if available. Or OpenRouter.
 	provider := "openrouter"
 	model := "openai/gpt-4o-mini"
-	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", poller, provider, model)
+	sm, _ := runner.NewSessionManager()
+	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", "recac-e2e", poller, provider, model, "IfNotPresent", sm, 30, 5, 10)
 
 	orch := orchestrator.New(poller, spawner, 5*time.Second)
 

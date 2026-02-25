@@ -345,7 +345,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return fmt.Errorf("Failed to initialize Session Manager: %w", err)
 		}
 
-		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm, maxIterations, managerFrequency, taskMaxIterations)
+		pullPolicy := viper.GetString("orchestrator.image_pull_policy")
+		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 		janitorClient = dockerCli
 	default:
 		return fmt.Errorf("Invalid mode. Use 'local' or 'k8s': %s", mode)

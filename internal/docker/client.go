@@ -196,12 +196,6 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 // It returns the container ID or an error.
 func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string, labels map[string]string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
-	// 1. Pull Image (Best effort)
-	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
-	if err == nil {
-		defer reader.Close()
-		io.Copy(io.Discard, reader) // Drain output
-	}
 
 	// Prepare binds
 	sourcePath := workspace

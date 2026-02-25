@@ -69,6 +69,16 @@ func (m *MockDockerClient) WaitContainer(ctx context.Context, containerID string
 	return int64(args.Int(0)), args.Error(1)
 }
 
+func (m *MockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
+	args := m.Called(ctx, tag)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockDockerClient) PullImage(ctx context.Context, imageRef string) error {
+	args := m.Called(ctx, imageRef)
+	return args.Error(0)
+}
+
 // Mock Session Manager
 type MockSessionManager struct {
 	mock.Mock
@@ -169,7 +179,8 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockPoller := new(MockPoller)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM, 30, 5, 10)
+	// Updated constructor with "Always" to trigger pull
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", "Always", mockSM, 30, 5, 10)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{
@@ -179,6 +190,9 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
+	// Expect PullImage because Policy is Always
+	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 
 	// Mock expectations
 	// Expect RunContainerWithLabels with env containing project ID
@@ -230,12 +244,14 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", "Always", mockSM, 30, 5, 10)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
 	ctx := context.Background()
 	expectedErr := errors.New("run failed")
+
+	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 
 	// No Clone or StartSHA calls expected
 	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "", mock.Anything).Return("", expectedErr)
@@ -252,12 +268,14 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", "Always", sm, 30, 5, 10)
 
 	injectionItem := WorkItem{
 		ID:      "TASK-1\"; echo \"injected",
 		RepoURL: "https://github.com/example/repo",
 	}
+
+	client.On("PullImage", mock.Anything, "recac-agent:latest").Return(nil)
 
 	// Capture command from RunContainerWithLabels
 	var capturedCmd []string
@@ -271,12 +289,6 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	// Mock SessionManager
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
-	// GitClient not mocked here but used in Spawn? No, default GitClient is used which might be real?
-	// Ah, s.GitClient is initialized in NewDockerSpawner.
-	// But in this test we didn't mock it, so it uses real one.
-	// `CurrentCommitSHA` will fail if directory doesn't exist or not a repo.
-	// Wait, Spawn creates temp dir.
-	// `CurrentCommitSHA` just warns if fails.
 
 	err := spawner.Spawn(context.Background(), injectionItem)
 	assert.NoError(t, err)
@@ -303,12 +315,14 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", "Always", sm, 30, 5, 10)
 
 	item := WorkItem{
 		ID:      "TASK-ENV-TEST",
 		RepoURL: "https://github.com/example/repo",
 	}
+
+	client.On("PullImage", mock.Anything, "recac-agent:latest").Return(nil)
 
 	// Capture env from RunContainerWithLabels
 	var capturedEnv []string
@@ -342,7 +356,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 func TestDockerSpawner_Cleanup(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockDocker := new(MockDockerClient)
-	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", "Always", nil, 30, 5, 10)
 
 	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
 	assert.NoError(t, err)
@@ -351,17 +365,13 @@ func TestDockerSpawner_Cleanup(t *testing.T) {
 func TestDockerSpawner_GetLogs(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockDocker := new(MockDockerClient)
-	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", "Always", nil, 30, 5, 10)
 
 	ctx := context.Background()
 	jobID := "TEST-1"
 
 	t.Run("Success", func(t *testing.T) {
-		// Expect ListContainers with filter
 		mockDocker.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
-			// Check if filter is set correctly
-			// filters.Args is internal struct, can check via String() or by iterating
-			// simpler: just check if it was called
 			return true
 		})).Return([]types.Container{{ID: "c1"}}, nil).Once()
 
@@ -396,15 +406,13 @@ func TestDockerSpawner_GetLogs(t *testing.T) {
 func TestDockerSpawner_Cancel(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockDocker := new(MockDockerClient)
-	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", "Always", nil, 30, 5, 10)
 
 	ctx := context.Background()
 	jobID := "TEST-CANCEL"
 
-	// Success scenario
 	t.Run("Success", func(t *testing.T) {
 		mockDocker.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
-			// Could verify filter if needed
 			return true
 		})).Return([]types.Container{{ID: "c1"}}, nil).Once()
 		mockDocker.On("StopContainer", ctx, "c1").Return(nil).Once()
@@ -413,7 +421,6 @@ func TestDockerSpawner_Cancel(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	// No container found
 	t.Run("NoContainer", func(t *testing.T) {
 		mockDocker.On("ListContainers", ctx, mock.Anything).Return([]types.Container{}, nil).Once()
 
@@ -429,18 +436,18 @@ func TestDockerSpawner_FlagsPropagation(t *testing.T) {
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
 
-	// Set explicit config values
 	maxIter := 55
 	freq := 7
 	taskMax := 15
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, maxIter, freq, taskMax)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", "Always", sm, maxIter, freq, taskMax)
 
 	item := WorkItem{
 		ID:      "TASK-FLAGS-TEST",
 		RepoURL: "https://github.com/example/repo",
 	}
 
-	// Capture command from RunContainerWithLabels
+	client.On("PullImage", mock.Anything, "recac-agent:latest").Return(nil)
+
 	var capturedCmd []string
 	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		capturedCmd = args.Get(5).([]string) // cmd=5
@@ -453,9 +460,87 @@ func TestDockerSpawner_FlagsPropagation(t *testing.T) {
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
 
-	// Verify command contains flags
 	cmdStr := capturedCmd[2]
 	assert.Contains(t, cmdStr, "--max-iterations=55")
 	assert.Contains(t, cmdStr, "--manager-frequency=7")
 	assert.Contains(t, cmdStr, "--task-max-iterations=15")
+}
+
+func TestDockerSpawner_PullPolicy(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sm := new(MockSessionManager)
+	poller := new(MockPoller)
+
+	// Setup Session Mock
+	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	item := WorkItem{ID: "POLICY-TEST", RepoURL: "http://git"}
+
+	t.Run("Always", func(t *testing.T) {
+		client := new(MockDockerClient)
+		spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Always", sm, 30, 5, 10)
+
+		client.On("PullImage", mock.Anything, "img").Return(nil).Once()
+		client.On("RunContainerWithLabels", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("c1", nil)
+		client.On("WaitContainer", mock.Anything, "c1").Return(int(0), nil)
+
+		err := spawner.Spawn(context.Background(), item)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+
+	t.Run("Never_Exists", func(t *testing.T) {
+		client := new(MockDockerClient)
+		spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Never", sm, 30, 5, 10)
+
+		client.On("ImageExists", mock.Anything, "img").Return(true, nil).Once()
+		client.On("RunContainerWithLabels", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("c1", nil)
+		client.On("WaitContainer", mock.Anything, "c1").Return(int(0), nil)
+
+		err := spawner.Spawn(context.Background(), item)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+
+	t.Run("Never_NotExists", func(t *testing.T) {
+		client := new(MockDockerClient)
+		spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Never", sm, 30, 5, 10)
+
+		client.On("ImageExists", mock.Anything, "img").Return(false, nil).Once()
+		// Should fail, no PullImage, no RunContainer
+
+		err := spawner.Spawn(context.Background(), item)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found locally and PullPolicy is Never")
+		client.AssertExpectations(t)
+	})
+
+	t.Run("IfNotPresent_Exists", func(t *testing.T) {
+		client := new(MockDockerClient)
+		spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "IfNotPresent", sm, 30, 5, 10)
+
+		client.On("ImageExists", mock.Anything, "img").Return(true, nil).Once()
+		// No PullImage
+		client.On("RunContainerWithLabels", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("c1", nil)
+		client.On("WaitContainer", mock.Anything, "c1").Return(int(0), nil)
+
+		err := spawner.Spawn(context.Background(), item)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+
+	t.Run("IfNotPresent_NotExists", func(t *testing.T) {
+		client := new(MockDockerClient)
+		spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "IfNotPresent", sm, 30, 5, 10)
+
+		client.On("ImageExists", mock.Anything, "img").Return(false, nil).Once()
+		client.On("PullImage", mock.Anything, "img").Return(nil).Once()
+		client.On("RunContainerWithLabels", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("c1", nil)
+		client.On("WaitContainer", mock.Anything, "c1").Return(int(0), nil)
+
+		err := spawner.Spawn(context.Background(), item)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
 }

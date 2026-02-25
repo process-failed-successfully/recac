@@ -17,7 +17,7 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm, 30, 5, 10)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", "Always", sm, 30, 5, 10)
 
 	// Inject a malicious payload that tries to break out of single quotes
 	// The payload ' closes the opening quote, then executes echo PWNED
@@ -30,6 +30,8 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 			"MALICIOUS_VAR": maliciousPayload,
 		},
 	}
+
+	client.On("PullImage", mock.Anything, "recac-agent:latest").Return(nil)
 
 	// Capture the command passed to RunContainerWithLabels
 	capturedCmdChan := make(chan []string, 1)

@@ -60,6 +60,8 @@ type DockerClient interface {
 	RemoveContainer(ctx context.Context, containerID string, force bool) error
 	ContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error)
 	WaitContainer(ctx context.Context, containerID string) (int64, error)
+	ImageExists(ctx context.Context, tag string) (bool, error)
+	PullImage(ctx context.Context, imageRef string) error
 }
 
 // ISessionManager defines the interface for session management, created for mocking.
