@@ -114,7 +114,7 @@ Schema:
 	// 5. Execute (if requested)
 	if seedExecute {
 		fmt.Fprintln(cmd.ErrOrStderr(), "🚀 Executing seed data...")
-		if err := executeSeedSQL(connStr, sqlQuery); err != nil {
+		if err := executeSQLScript(connStr, sqlQuery); err != nil {
 			return fmt.Errorf("execution failed: %w", err)
 		}
 		fmt.Fprintln(cmd.ErrOrStderr(), "✅ Database seeded successfully!")
@@ -123,7 +123,7 @@ Schema:
 	return nil
 }
 
-func executeSeedSQL(connStr, query string) error {
+func executeSQLScript(connStr, query string) error {
 	var dbType string
 	var dsn string
 
