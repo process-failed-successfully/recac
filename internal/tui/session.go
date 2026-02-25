@@ -3,7 +3,9 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 	"recac/internal/agent"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -25,6 +27,7 @@ type SessionModel struct {
 	currentResponse string // Raw text of current streaming response
 	messages        []Message
 	ctx             context.Context
+	contextFiles    map[string]string // path -> content
 }
 
 type Message struct {
@@ -67,6 +70,7 @@ func NewSessionModel(ag agent.Agent) SessionModel {
 		history:         "",
 		renderedHistory: initialText,
 		currentResponse: "",
+		contextFiles:    make(map[string]string),
 	}
 }
 
@@ -212,9 +216,44 @@ func (m SessionModel) handleCommand(input string) (tea.Model, tea.Cmd) {
 		m.currentResponse = ""
 		m.viewport.SetContent("History cleared.\n\n")
 		return m, nil
+	case "/add":
+		if len(parts) < 2 {
+			m.appendHistory("Usage: /add <file_path>\n")
+			return m, nil
+		}
+		// Handle paths with spaces
+		path := strings.TrimSpace(strings.TrimPrefix(input, "/add"))
+		content, err := os.ReadFile(path)
+		if err != nil {
+			m.appendHistory(fmt.Sprintf("Failed to read file: %v\n", err))
+			return m, nil
+		}
+		m.contextFiles[path] = string(content)
+		m.appendHistory(fmt.Sprintf("Added %s to context (%d bytes).\n", path, len(content)))
+		return m, nil
+	case "/context":
+		if len(m.contextFiles) == 0 {
+			m.appendHistory("No files in context.\n")
+		} else {
+			m.appendHistory("Current context files:\n")
+			// Sort keys for deterministic output
+			keys := make([]string, 0, len(m.contextFiles))
+			for k := range m.contextFiles {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+
+			for _, path := range keys {
+				content := m.contextFiles[path]
+				m.appendHistory(fmt.Sprintf("- %s (%d bytes)\n", path, len(content)))
+			}
+		}
+		return m, nil
 	case "/help":
 		help := `
 **Available commands:**
+- /add <file>: Add file content to context
+- /context: List current context files
 - /quit, /exit: Quit the session
 - /clear: Clear chat history
 - /help: Show this help
@@ -248,9 +287,29 @@ func (m SessionModel) sendRequest(prompt string) tea.Cmd {
 }
 
 func (m SessionModel) buildPrompt() string {
-	// m.history already contains the conversation so far, including the latest user message.
-	// We just append "Assistant:" to cue the completion.
-	return m.history + "Assistant:"
+	var sb strings.Builder
+
+	// 1. Context Files
+	if len(m.contextFiles) > 0 {
+		sb.WriteString("Context Files:\n")
+		// Sort keys for deterministic prompt generation
+		keys := make([]string, 0, len(m.contextFiles))
+		for k := range m.contextFiles {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, path := range keys {
+			content := m.contextFiles[path]
+			sb.WriteString(fmt.Sprintf("--- %s ---\n%s\n--- End of %s ---\n\n", path, content, path))
+		}
+	}
+
+	// 2. Chat History (includes current message)
+	sb.WriteString(m.history)
+	sb.WriteString("Assistant:")
+
+	return sb.String()
 }
 
 func waitForChunk(ch <-chan string) tea.Cmd {
