@@ -101,3 +101,8 @@ test_state.json
 
 # Gemini Extension
 .gemini/*.local.md
+
+# Test artifacts
+test_output.txt
+test_output_cmd.txt
+test_spec
