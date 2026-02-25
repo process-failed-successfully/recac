@@ -243,3 +243,41 @@ func TestK8sSpawner_Cancel(t *testing.T) {
 	// Usually returns "jobs.batch "recac-agent-job-1" not found"
 	// But let's just check it's an error.
 }
+
+func TestK8sSpawner_GetLogs(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := &K8sSpawner{
+		Client:    clientset,
+		Namespace: "default",
+		Logger:    logger,
+	}
+
+	ctx := context.Background()
+	jobID := "LOG-JOB-1"
+	podName := "recac-agent-log-job-1-pod"
+
+	// 1. No Pods
+	_, err := spawner.GetLogs(ctx, jobID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no active pods found")
+
+	// 2. Pod Exists
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: "default",
+			Labels:    map[string]string{"work-item": jobID},
+		},
+	}
+	_, err = clientset.CoreV1().Pods("default").Create(ctx, pod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Attempt GetLogs.
+	// Fake client implementation of GetLogs returns a dummy request which might succeed with empty stream.
+	stream, err := spawner.GetLogs(ctx, jobID)
+	assert.NoError(t, err)
+	if stream != nil {
+		stream.Close()
+	}
+}

@@ -35,3 +35,6 @@ var agentClientFactory = func(ctx context.Context, provider, model, projectPath,
 var k8sClientFactory = func() (IK8sClient, error) {
 	return k8s.NewClient()
 }
+
+// generateContextFunc is a variable that can be overridden in tests.
+var generateContextFunc = GenerateCodebaseContext

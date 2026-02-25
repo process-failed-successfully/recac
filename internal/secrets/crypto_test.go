@@ -69,3 +69,49 @@ func TestKeySaveLoad(t *testing.T) {
 		t.Error("Loaded key does not match saved key")
 	}
 }
+
+func TestLoadKeyErrors(t *testing.T) {
+	// Invalid Path
+	_, err := LoadKey("non-existent-file")
+	if err == nil {
+		t.Error("Expected error for non-existent file")
+	}
+
+	// Invalid Hex
+	tmp, _ := os.CreateTemp("", "invalid-hex")
+	defer os.Remove(tmp.Name())
+	os.WriteFile(tmp.Name(), []byte("not-hex"), 0600)
+	_, err = LoadKey(tmp.Name())
+	if err == nil {
+		t.Error("Expected error for invalid hex")
+	}
+
+	// Invalid Length
+	tmp2, _ := os.CreateTemp("", "invalid-len")
+	defer os.Remove(tmp2.Name())
+	os.WriteFile(tmp2.Name(), []byte("001122"), 0600)
+	_, err = LoadKey(tmp2.Name())
+	if err == nil {
+		t.Error("Expected error for invalid length")
+	}
+}
+
+func TestEncryptDecryptErrors(t *testing.T) {
+	// Invalid Key Length
+	shortKey := []byte("short")
+	_, err := Encrypt([]byte("data"), shortKey)
+	if err == nil {
+		t.Error("Expected error for short key in Encrypt")
+	}
+	_, err = Decrypt([]byte("data"), shortKey)
+	if err == nil {
+		t.Error("Expected error for short key in Decrypt")
+	}
+
+	// Short Ciphertext
+	key, _ := GenerateKey()
+	_, err = Decrypt([]byte("short"), key)
+	if err == nil {
+		t.Error("Expected error for short ciphertext in Decrypt")
+	}
+}
