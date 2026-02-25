@@ -19,6 +19,9 @@ func TestExplorerModel_Init(t *testing.T) {
 
 	m := NewExplorerModel(dir)
 
+	// Check Model Init
+	assert.Nil(t, m.Init())
+
 	assert.Equal(t, 3, len(m.files))
 	// Sorted: subdir (dir), a.txt, b.txt
 	assert.Equal(t, "subdir", m.files[0].Name())
@@ -92,4 +95,57 @@ func TestExplorerModel_GoUp(t *testing.T) {
 	evalPath, _ := filepath.EvalSymlinks(m.path)
 	evalDir, _ := filepath.EvalSymlinks(absDir)
 	assert.Equal(t, evalDir, evalPath)
+}
+
+func TestExplorerModel_View(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("Hello World"), 0644)
+	os.Mkdir(filepath.Join(dir, "dir1"), 0755)
+
+	m := NewExplorerModel(dir)
+
+	// Simulate window size msg to initialize viewport
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = newM.(ExplorerModel)
+
+	view := m.View()
+	assert.NotEmpty(t, view)
+	assert.Contains(t, view, "RECAC Explorer")
+	assert.Contains(t, view, "file1.txt")
+	assert.Contains(t, view, "dir1/")
+
+	// Check preview content for initial selection (dir1 is first as it's a dir)
+	assert.Contains(t, view, "Directory: dir1")
+
+	// Move cursor to file1.txt
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = newM.(ExplorerModel)
+
+	view = m.View()
+	// Preview should show file content
+	assert.Contains(t, view, "Hello World")
+}
+
+func TestExplorerModel_LargeFile(t *testing.T) {
+	dir := t.TempDir()
+	// Create large file > 100KB
+	largeContent := make([]byte, 1024*101)
+	os.WriteFile(filepath.Join(dir, "large.txt"), largeContent, 0644)
+
+	m := NewExplorerModel(dir)
+	// Simulate window size
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = newM.(ExplorerModel)
+
+	// large.txt should be selected (only file)
+	view := m.View()
+	assert.Contains(t, view, "File too large to preview")
+}
+
+func TestExplorerModel_View_Unready(t *testing.T) {
+	dir := t.TempDir()
+	m := NewExplorerModel(dir)
+	// Not sending WindowSizeMsg, so ready=false
+
+	assert.Contains(t, m.View(), "Initializing...")
 }
