@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseGitLogOutput(t *testing.T) {
@@ -89,4 +94,122 @@ func TestAggregateTimesheet(t *testing.T) {
 
 	assert.Equal(t, 1.5, report.DailyStats["2023-10-27"])
 	assert.Equal(t, 2.0, report.DailyStats["2023-10-28"])
+}
+
+func TestPrintTimesheetTable(t *testing.T) {
+	report := TimesheetReport{
+		TotalHours:    10.5,
+		TotalSessions: 5,
+		TotalCost:     1050.0,
+		DailyStats: map[string]float64{
+			"2023-10-27": 5.5,
+			"2023-10-28": 5.0,
+		},
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printTimesheetTable(report, "jules", "24h", 100.0)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Timesheet Report")
+	assert.Contains(t, output, "Author: jules")
+	assert.Contains(t, output, "Period: Since 24h")
+	assert.Contains(t, output, "2023-10-27")
+	assert.Contains(t, output, "5.50 hrs")
+	// tabwriter replaces tabs with spaces, so we check for substring parts or use regex if needed
+	// Or just check that the values are present in the line
+	assert.Contains(t, output, "Total Hours:")
+	assert.Contains(t, output, "10.50 hrs")
+	assert.Contains(t, output, "Estimated Cost:")
+	assert.Contains(t, output, "$1050.00")
+}
+
+// Helper to mock GitClient
+type MockTimesheetGitClient struct {
+	LogOutput []string
+	RunOutput string
+}
+
+func (m *MockTimesheetGitClient) Checkout(repoPath, commitOrBranch string) error { return nil }
+func (m *MockTimesheetGitClient) Diff(repoPath, commitA, commitB string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) DiffStaged(repoPath string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) CurrentCommitSHA(repoPath string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) RepoExists(repoPath string) bool { return true }
+func (m *MockTimesheetGitClient) Commit(repoPath, message string) error { return nil }
+func (m *MockTimesheetGitClient) Log(repoPath string, args ...string) ([]string, error) {
+	return m.LogOutput, nil
+}
+func (m *MockTimesheetGitClient) Fetch(repoPath, remote, branch string) error { return nil }
+func (m *MockTimesheetGitClient) CurrentBranch(repoPath string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) CheckoutNewBranch(repoPath, branch string) error { return nil }
+func (m *MockTimesheetGitClient) BisectStart(repoPath, bad, good string) error { return nil }
+func (m *MockTimesheetGitClient) BisectGood(repoPath, rev string) error { return nil }
+func (m *MockTimesheetGitClient) BisectBad(repoPath, rev string) error { return nil }
+func (m *MockTimesheetGitClient) BisectReset(repoPath string) error { return nil }
+func (m *MockTimesheetGitClient) BisectLog(repoPath string) ([]string, error) { return nil, nil }
+func (m *MockTimesheetGitClient) Tag(repoPath, version string) error { return nil }
+func (m *MockTimesheetGitClient) DeleteTag(repoPath, version string) error { return nil }
+func (m *MockTimesheetGitClient) PushTags(repoPath string) error { return nil }
+func (m *MockTimesheetGitClient) LatestTag(repoPath string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) Run(repoPath string, args ...string) (string, error) {
+	return m.RunOutput, nil
+}
+func (m *MockTimesheetGitClient) DeleteLocalBranch(repoPath, branch string) error { return nil }
+func (m *MockTimesheetGitClient) CreatePR(repoPath, title, body, base string) (string, error) { return "", nil }
+
+func TestRunTimesheet(t *testing.T) {
+	origFactory := gitClientFactory
+	defer func() { gitClientFactory = origFactory }()
+
+	mockGit := &MockTimesheetGitClient{
+		RunOutput: "jules",
+		LogOutput: []string{
+			"a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit",
+			"e5f6g7h|jules|2023-10-27T10:15:00Z|Second commit",
+		},
+	}
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Use a dummy root command to execute timesheetCmd
+	// We need to be careful as timesheetCmd is global and might be attached to the real rootCmd
+	// But adding it to another command for testing is usually fine
+	root := &cobra.Command{Use: "test-root"}
+	root.AddCommand(timesheetCmd)
+
+	// Need to set output on root as well
+	root.SetOut(w)
+	root.SetErr(w)
+
+	root.SetArgs([]string{"timesheet", "--since=24h", "--rate=100"})
+	err := root.Execute()
+	require.NoError(t, err)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Timesheet Report")
+	assert.Contains(t, output, "Author: jules")
+	assert.Contains(t, output, "Total Hours:")
 }
