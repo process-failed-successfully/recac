@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"recac/internal/analysis"
+
 	"github.com/spf13/cobra"
 )
 
@@ -74,7 +76,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 	}
 
 	// Determine module name for test suggestion path resolution
-	moduleName, err := getModuleName(root)
+	moduleName, err := analysis.GetModuleName(root)
 	if err != nil {
 		return fmt.Errorf("could not determine module name: %w", err)
 	}
@@ -139,7 +141,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 // It also returns the set of directly changed packages for reference.
 func IdentifyImpactedPackages(files []string, root string) ([]string, map[string]bool, error) {
 	// 1. Determine Module Name
-	moduleName, err := getModuleName(root)
+	moduleName, err := analysis.GetModuleName(root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not determine module name: %w", err)
 	}
@@ -161,7 +163,12 @@ func IdentifyImpactedPackages(files []string, root string) ([]string, map[string
 	}
 
 	// 3. Analyze Dependencies (Full Graph)
-	deps, err := analyzeDependencies(root, moduleName, nil, false)
+	opts := analysis.DependencyOptions{
+		Root:       root,
+		ModuleName: moduleName,
+		ShowStdLib: false,
+	}
+	deps, err := analysis.AnalyzeDependencies(opts)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dependency analysis failed: %w", err)
 	}
@@ -240,7 +247,7 @@ func fileToPackage(root, moduleName, file string) (string, error) {
 	return fmt.Sprintf("%s/%s", moduleName, dir), nil
 }
 
-func invertDependencies(deps DepMap) map[string][]string {
+func invertDependencies(deps analysis.DepMap) map[string][]string {
 	rev := make(map[string][]string)
 	for src, targets := range deps {
 		for _, tgt := range targets {
