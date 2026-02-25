@@ -34,21 +34,27 @@ var (
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	reDockerSocket    = regexp.MustCompile(`(?i)-v\s+.*docker\.sock`)
+	rePrivileged      = regexp.MustCompile(`(?i)--privileged`)
+	reNetRecon        = regexp.MustCompile(`(?i)\b(nmap|masscan)\b`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
 func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
 		patterns: map[string]*regexp.Regexp{
-			"AWS Access Key":    reAWSAccessKey,
-			"Private Key":       rePrivateKey,
-			"Generic API Token": reGenericAPIToken,
-			"Slack Token":       reSlackToken,
-			"GitHub Token":      reGitHubToken,
-			"Dangerous Command": reDangerousCmd,
-			"Root Deletion":     reRootDeletion,
-			"Pipe to Shell":     rePipeShell,
-			"Reverse Shell":     reReverseShell,
+			"AWS Access Key":       reAWSAccessKey,
+			"Private Key":          rePrivateKey,
+			"Generic API Token":    reGenericAPIToken,
+			"Slack Token":          reSlackToken,
+			"GitHub Token":         reGitHubToken,
+			"Dangerous Command":    reDangerousCmd,
+			"Root Deletion":        reRootDeletion,
+			"Pipe to Shell":        rePipeShell,
+			"Reverse Shell":        reReverseShell,
+			"Docker Socket Mount":  reDockerSocket,
+			"Privileged Container": rePrivileged,
+			"Network Recon":        reNetRecon,
 		},
 	}
 }
