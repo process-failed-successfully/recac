@@ -42,14 +42,26 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	assert.Empty(t, active)
 
 	// 2. Retry the job
+	// Block the spawner to ensure we can catch the job in "active" state
+	blockCh := make(chan struct{})
+	spawner.blockCh = blockCh
+
 	err = orch.RetryJob(ctx, "RETRY-1", silentLogger)
 	require.NoError(t, err)
 
 	// Verify it is active again
-	active = orch.GetActiveJobs()
-	require.Len(t, active, 1)
+	// Use Eventually to allow for slight delay in goroutine scheduling
+	require.Eventually(t, func() bool {
+		active = orch.GetActiveJobs()
+		return len(active) == 1
+	}, 100*time.Millisecond, 5*time.Millisecond, "Job should become active")
+
 	assert.Equal(t, "RETRY-1", active[0].ID)
-	assert.Equal(t, "Spawning", active[0].Status)
+	// Status could be "Pending" or "Spawning" depending on how fast it hits the spawner
+	assert.Contains(t, []string{"Pending", "Spawning"}, active[0].Status)
+
+	// Unblock
+	close(blockCh)
 
 	// Wait for it to complete again
 	require.Eventually(t, func() bool {
@@ -66,8 +78,8 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	// Submit a new job and try to retry immediately
 	item2 := WorkItem{ID: "RETRY-2", Summary: "Active"}
 	// Use a blocking spawner to keep it active
-	blockCh := make(chan struct{})
-	spawner2 := &mockSpawner{blockCh: blockCh}
+	blockCh2 := make(chan struct{})
+	spawner2 := &mockSpawner{blockCh: blockCh2}
 	orch2 := New(poller, spawner2, 50*time.Millisecond)
 
 	err = orch2.SubmitJob(ctx, item2, silentLogger)
@@ -82,7 +94,7 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	assert.Contains(t, err.Error(), "already active")
 
 	// Clean up
-	close(blockCh)
+	close(blockCh2)
 
 	// 4. Test invalid retry (not found)
 	err = orch.RetryJob(ctx, "NON-EXISTENT", silentLogger)
