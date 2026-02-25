@@ -50,7 +50,12 @@ func runBoard(cmd *cobra.Command, args []string) error {
 	}
 
 	// 3. Start TUI
-	p := tea.NewProgram(initialBoardModel(client, projectKey), tea.WithAltScreen())
+	return runBoardTUIFunc(initialBoardModel(client, projectKey))
+}
+
+// runBoardTUIFunc allows mocking the TUI execution in tests
+var runBoardTUIFunc = func(m BoardModel) error {
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("error running board: %w", err)
 	}

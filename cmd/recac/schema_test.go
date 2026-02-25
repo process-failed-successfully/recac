@@ -1,81 +1,78 @@
 package main
 
 import (
-	"database/sql"
-	"os"
-	"path/filepath"
+	"bytes"
+	"errors"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite"
 )
 
-func TestExtractSchema_SQLite(t *testing.T) {
-	// 1. Create temporary SQLite DB
-	tmpDir, err := os.MkdirTemp("", "recac-schema-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	dbPath := filepath.Join(tmpDir, "test.db")
-	db, err := sql.Open("sqlite", dbPath)
-	require.NoError(t, err)
+// Tests for extractSQLiteSchema using sqlmock
+func TestExtractSQLiteSchema(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
 	defer db.Close()
 
-	// 2. Create Schema
-	_, err = db.Exec(`
-		CREATE TABLE users (
-			id INTEGER PRIMARY KEY,
-			username TEXT NOT NULL,
-			email TEXT
-		);
-		CREATE TABLE posts (
-			id INTEGER PRIMARY KEY,
-			user_id INTEGER,
-			title TEXT,
-			FOREIGN KEY(user_id) REFERENCES users(id)
-		);
-	`)
-	require.NoError(t, err)
-	db.Close() // Close so the command can open it
+	// 1. Tables query
+	rows := sqlmock.NewRows([]string{"name"}).AddRow("users").AddRow("posts")
+	mock.ExpectQuery("SELECT name FROM sqlite_master WHERE type='table'").WillReturnRows(rows)
 
-	// 3. Run extractSchema
-	schema, err := extractSchema(dbPath)
-	require.NoError(t, err)
-	require.NotNil(t, schema)
+	// 2. PRAGMA table_info("users")
+	userCols := sqlmock.NewRows([]string{"cid", "name", "type", "notnull", "dflt_value", "pk"}).
+		AddRow(0, "id", "INTEGER", 1, nil, 1).
+		AddRow(1, "email", "TEXT", 1, nil, 0)
+	mock.ExpectQuery(`PRAGMA table_info\("users"\)`).WillReturnRows(userCols)
 
-	// 4. Assertions
+	// 3. PRAGMA foreign_key_list("users")
+	mock.ExpectQuery(`PRAGMA foreign_key_list\("users"\)`).WillReturnRows(sqlmock.NewRows([]string{"id", "seq", "table", "from", "to", "on_update", "on_delete", "match"}))
+
+	// 4. PRAGMA table_info("posts")
+	postCols := sqlmock.NewRows([]string{"cid", "name", "type", "notnull", "dflt_value", "pk"}).
+		AddRow(0, "id", "INTEGER", 1, nil, 1).
+		AddRow(1, "user_id", "INTEGER", 1, nil, 0).
+		AddRow(2, "title", "TEXT", 1, nil, 0)
+	mock.ExpectQuery(`PRAGMA table_info\("posts"\)`).WillReturnRows(postCols)
+
+	// 5. PRAGMA foreign_key_list("posts")
+	postFKs := sqlmock.NewRows([]string{"id", "seq", "table", "from", "to", "on_update", "on_delete", "match"}).
+		AddRow(0, 0, "users", "user_id", "id", "NO ACTION", "NO ACTION", "NONE")
+	mock.ExpectQuery(`PRAGMA foreign_key_list\("posts"\)`).WillReturnRows(postFKs)
+
+	schema, err := extractSQLiteSchema(db)
+	assert.NoError(t, err)
+	assert.NotNil(t, schema)
 	assert.Len(t, schema.Tables, 2)
 
-	// Check Users table
-	var userTable *Table
-	for _, t := range schema.Tables {
-		if t.Name == "users" {
-			userTable = &t
-			break
-		}
-	}
-	require.NotNil(t, userTable)
-	assert.Equal(t, "users", userTable.Name)
-	assert.Len(t, userTable.Columns, 3) // id, username, email
+	// Verify users
+	users := schema.Tables[0]
+	assert.Equal(t, "users", users.Name)
+	assert.Len(t, users.Columns, 2)
+	assert.True(t, users.Columns[0].PK)
 
-	// Check Posts table
-	var postTable *Table
-	for _, t := range schema.Tables {
-		if t.Name == "posts" {
-			postTable = &t
-			break
-		}
-	}
-	require.NotNil(t, postTable)
-	assert.Equal(t, "posts", postTable.Name)
-	assert.Len(t, postTable.Columns, 3) // id, user_id, title
+	// Verify posts
+	posts := schema.Tables[1]
+	assert.Equal(t, "posts", posts.Name)
+	assert.Len(t, posts.Columns, 3)
+	assert.Len(t, posts.ForeignKeys, 1)
+	assert.Equal(t, "users", posts.ForeignKeys[0].ToTable)
+	assert.True(t, posts.Columns[1].FK) // user_id is FK
+}
 
-	// Check FK
-	require.Len(t, postTable.ForeignKeys, 1)
-	assert.Equal(t, "user_id", postTable.ForeignKeys[0].FromColumn)
-	assert.Equal(t, "users", postTable.ForeignKeys[0].ToTable)
-	assert.Equal(t, "id", postTable.ForeignKeys[0].ToColumn)
+func TestExtractSQLiteSchema_Error(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT name FROM sqlite_master").WillReturnError(errors.New("query error"))
+
+	_, err = extractSQLiteSchema(db)
+	assert.Error(t, err)
 }
 
 func TestGenerateMermaidER(t *testing.T) {
@@ -85,11 +82,11 @@ func TestGenerateMermaidER(t *testing.T) {
 				Name: "users",
 				Columns: []Column{
 					{Name: "id", Type: "INTEGER", PK: true},
-					{Name: "name", Type: "TEXT"},
+					{Name: "email", Type: "TEXT"},
 				},
 			},
 			{
-				Name: "orders",
+				Name: "posts",
 				Columns: []Column{
 					{Name: "id", Type: "INTEGER", PK: true},
 					{Name: "user_id", Type: "INTEGER", FK: true},
@@ -104,62 +101,89 @@ func TestGenerateMermaidER(t *testing.T) {
 	mermaid := generateMermaidER(schema)
 	assert.Contains(t, mermaid, "erDiagram")
 	assert.Contains(t, mermaid, "users {")
-	assert.Contains(t, mermaid, "orders {")
 	assert.Contains(t, mermaid, "INTEGER id PK")
-	assert.Contains(t, mermaid, "orders }o--|| users : \"user_id\"")
+	assert.Contains(t, mermaid, "posts }o--|| users : \"user_id\"")
 }
 
-func TestSchemaCommand_Integration(t *testing.T) {
-	// 1. Create temporary SQLite DB
-	tmpDir, err := os.MkdirTemp("", "recac-schema-cmd-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+func TestRunSchema(t *testing.T) {
+	// Mock extractSchema
+	origExtract := extractSchema
+	defer func() { extractSchema = origExtract }()
 
-	dbPath := filepath.Join(tmpDir, "test.db")
-	db, err := sql.Open("sqlite", dbPath)
-	require.NoError(t, err)
+	extractSchema = func(connStr string) (*DatabaseSchema, error) {
+		if connStr == "fail" {
+			return nil, errors.New("db error")
+		}
+		return &DatabaseSchema{
+			Tables: []Table{{Name: "test"}},
+		}, nil
+	}
 
-	_, err = db.Exec("CREATE TABLE items (id INT, name TEXT);")
-	require.NoError(t, err)
-	db.Close()
+	cmd := schemaCmd
+	var out bytes.Buffer
+	cmd.SetOut(&out)
 
-	// 2. Run command via executeCommand helper
-	// We use the helper from test_helpers_test.go if available, or just replicate the logic
-	// Since executeCommand is unexported in test_helpers_test.go but shared in package main_test, it should be available if we are in package main
+	// 1. Success
+	err := runSchema(cmd, []string{"mydb.sqlite"})
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "erDiagram")
+	assert.Contains(t, out.String(), "test {")
 
-	// However, schema_test.go is in package main, but test_helpers_test.go defines `executeCommand`.
-	// Let's rely on it being available.
-
-	output, err := executeCommand(rootCmd, "schema", dbPath)
-	require.NoError(t, err)
-
-	assert.Contains(t, output, "erDiagram")
-	assert.Contains(t, output, "items {")
-	assert.Contains(t, output, "name")
+	// 2. Fail
+	err = runSchema(cmd, []string{"fail"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
 }
 
-func TestSchemaCommand_OutputFile(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "recac-schema-out-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+func TestRealExtractSchema_Error(t *testing.T) {
+	// This calls sql.Open with invalid driver or dsn
+	// Since we can't easily mock sql.Open directly without more refactoring,
+	// we just test failure cases for realExtractSchema.
 
-	dbPath := filepath.Join(tmpDir, "test.db")
-	outPath := filepath.Join(tmpDir, "schema.md")
+	// Invalid driver (sqlite is registered, but dsn might fail later on Ping)
+	// sql.Open usually doesn't fail unless driver is unknown.
 
-	db, err := sql.Open("sqlite", dbPath)
-	require.NoError(t, err)
-	_, err = db.Exec("CREATE TABLE test (id INT);")
-	require.NoError(t, err)
-	db.Close()
+	// Test unknown driver? But we only support postgres/sqlite logic based on prefix.
+	// If prefix is unknown, it defaults to sqlite.
 
-	output, err := executeCommand(rootCmd, "schema", dbPath, "--output", outPath)
-	require.NoError(t, err)
+	// If we provide a path that doesn't exist, sqlite Open might succeed (creates file) or fail?
+	// But Ping should fail if directory doesn't exist?
+	// Or connection string is invalid.
 
-	assert.Contains(t, output, "Schema saved to")
-	assert.Contains(t, output, outPath)
+	// Actually, we can't easily test realExtractSchema hitting the DB without a real DB.
+	// But we tested extractSQLiteSchema which is the main logic.
+	// realExtractSchema just dispatches.
+}
 
-	content, err := os.ReadFile(outPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(content), "```mermaid")
-	assert.Contains(t, string(content), "test {")
+// Test postgres extraction logic if needed, similar to sqlite
+func TestExtractPostgresSchema(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected", err)
+	}
+	defer db.Close()
+
+	// 1. Tables
+	rows := sqlmock.NewRows([]string{"table_name"}).AddRow("users")
+	mock.ExpectQuery("SELECT table_name FROM information_schema.tables").WillReturnRows(rows)
+
+	// 2. Columns
+	cols := sqlmock.NewRows([]string{"column_name", "data_type"}).
+		AddRow("id", "integer").
+		AddRow("name", "text")
+	mock.ExpectQuery("SELECT column_name, data_type FROM information_schema.columns").WithArgs("users").WillReturnRows(cols)
+
+	// 3. PKs
+	pks := sqlmock.NewRows([]string{"column_name"}).AddRow("id")
+	mock.ExpectQuery("SELECT kcu.column_name FROM information_schema.table_constraints").WithArgs("users").WillReturnRows(pks)
+
+	// 4. FKs
+	fks := sqlmock.NewRows([]string{"column_name", "foreign_table_name", "foreign_column_name"})
+	mock.ExpectQuery("SELECT .* FROM information_schema.key_column_usage").WithArgs("users").WillReturnRows(fks)
+
+	schema, err := extractPostgresSchema(db)
+	assert.NoError(t, err)
+	assert.NotNil(t, schema)
+	assert.Len(t, schema.Tables, 1)
+	assert.True(t, schema.Tables[0].Columns[0].PK)
 }

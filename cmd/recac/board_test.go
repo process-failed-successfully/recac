@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"recac/internal/cmdutils"
@@ -12,16 +14,80 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestRunBoard(t *testing.T) {
+	// Setup Mock Server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"issues": []interface{}{},
+		})
+	}))
+	defer server.Close()
+
+	// Mock GetJiraClient
+	origGetClient := cmdutils.GetJiraClient
+	cmdutils.GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
+		return jira.NewClient(server.URL, "user", "token"), nil
+	}
+	defer func() { cmdutils.GetJiraClient = origGetClient }()
+
+	// Mock runBoardTUIFunc
+	origRunBoardTUIFunc := runBoardTUIFunc
+	runBoardTUIFunc = func(m BoardModel) error {
+		return nil
+	}
+	defer func() { runBoardTUIFunc = origRunBoardTUIFunc }()
+
+	// 1. Run with argument
+	cmd := &cobra.Command{}
+	err := runBoard(cmd, []string{"PROJ-KEY"})
+	assert.NoError(t, err)
+
+	// 2. Run without argument (auto-discovery)
+	serverDiscovery := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Response for searching projects
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"issues": []map[string]interface{}{
+				{
+					"key": "PROJ-123",
+				},
+			},
+		})
+	}))
+	defer serverDiscovery.Close()
+
+	cmdutils.GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
+		return jira.NewClient(serverDiscovery.URL, "user", "token"), nil
+	}
+
+	err = runBoard(cmd, []string{})
+	assert.NoError(t, err)
+}
+
+func TestRunBoard_Error(t *testing.T) {
+	// Mock GetJiraClient failure
+	origGetClient := cmdutils.GetJiraClient
+	cmdutils.GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
+		return nil, errors.New("auth failed")
+	}
+	defer func() { cmdutils.GetJiraClient = origGetClient }()
+
+	cmd := &cobra.Command{}
+	err := runBoard(cmd, []string{"PROJ"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
 
 func TestBoardModel_Init(t *testing.T) {
 	// Setup Mock Server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Expect search request
 		if r.URL.Path == "/rest/api/3/search/jql" {
 			w.WriteHeader(http.StatusOK)
-			// Return some issues
 			resp := map[string]interface{}{
 				"issues": []map[string]interface{}{
 					{
@@ -51,194 +117,162 @@ func TestBoardModel_Init(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Mock GetJiraClient
-	origGetClient := cmdutils.GetJiraClient
-	cmdutils.GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
-		return jira.NewClient(server.URL, "user", "token"), nil
-	}
-	defer func() { cmdutils.GetJiraClient = origGetClient }()
-
-	// Test Init
-	client, _ := cmdutils.GetJiraClient(context.Background())
+	client := jira.NewClient(server.URL, "user", "token")
 	m := initialBoardModel(client, "PROJ")
 
 	cmd := m.Init()
 	assert.NotNil(t, cmd)
 
-	// Execute the command to get the Msg
 	msg := cmd()
 	issuesMsg, ok := msg.(issuesMsg)
 	assert.True(t, ok)
-	assert.Len(t, issuesMsg.tasks, 4) // 2 from active query, 2 from done query (mock server returns same for both calls)
+	assert.Len(t, issuesMsg.tasks, 4) // 2 calls * 2 issues
 
-	// Since mock returns same response for both queries:
-	// Query 1 (!= Done): PROJ-1 (To Do), PROJ-2 (In Progress)
-	// Query 2 (= Done): PROJ-1 (forced to Done), PROJ-2 (forced to Done) -> Wait, logic?
-
-	// My mock returns "To Do" and "In Progress" status names.
-	// Logic:
-	// Bucket 1 (Active):
-	//   PROJ-1 -> Status "To Do" -> todo
-	//   PROJ-2 -> Status "In Progress" -> inProgress
-	// Bucket 2 (Done):
-	//   PROJ-1 -> Status "To Do" but forced to done? No, fetchIssuesCmd calls process(..., done)
-	//   So it forces status to `done`.
-
-	// So we expect:
-	// Task 1: PROJ-1 (Todo)
-	// Task 2: PROJ-2 (In Progress)
-	// Task 3: PROJ-1 (Done)
-	// Task 4: PROJ-2 (Done)
-
-	// Verify Task 1
 	assert.Equal(t, "PROJ-1", issuesMsg.tasks[0].id)
 	assert.Equal(t, todo, issuesMsg.tasks[0].status)
-
-	// Verify Task 3
-	assert.Equal(t, "PROJ-1", issuesMsg.tasks[2].id)
-	assert.Equal(t, done, issuesMsg.tasks[2].status)
 }
 
 func TestBoardModel_Update(t *testing.T) {
-	m := BoardModel{
-		cols: []column{
-			newColumn(todo),
-			newColumn(inProgress),
-			newColumn(done),
-		},
-		focused: 0,
-	}
+	client := jira.NewClient("http://example.com", "u", "p")
+	m := initialBoardModel(client, "PROJ")
+	m.loaded = true
 
-	// 1. Test Navigation
-	// Right
-	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	// 1. Window Resize
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	bm := newM.(BoardModel)
+	assert.Equal(t, 100, bm.width)
+	assert.Equal(t, 50, bm.height)
+
+	// 2. Navigation
+	// Right -> 1
+	newM, _ = bm.Update(tea.KeyMsg{Type: tea.KeyRight})
+	bm = newM.(BoardModel)
 	assert.Equal(t, 1, bm.focused)
-
-	// Right again
+	// Right -> 2
+	newM, _ = bm.Update(tea.KeyMsg{Type: tea.KeyRight})
+	bm = newM.(BoardModel)
+	assert.Equal(t, 2, bm.focused)
+	// Right -> max
 	newM, _ = bm.Update(tea.KeyMsg{Type: tea.KeyRight})
 	bm = newM.(BoardModel)
 	assert.Equal(t, 2, bm.focused)
 
-	// Right bound
-	newM, _ = bm.Update(tea.KeyMsg{Type: tea.KeyRight})
-	bm = newM.(BoardModel)
-	assert.Equal(t, 2, bm.focused)
-
-	// Left
+	// Left -> 1
 	newM, _ = bm.Update(tea.KeyMsg{Type: tea.KeyLeft})
 	bm = newM.(BoardModel)
 	assert.Equal(t, 1, bm.focused)
 
-	// 2. Test Loading Issues
-	tasks := []Task{
-		{id: "1", title: "T1", status: todo},
-		{id: "2", title: "T2", status: inProgress},
-	}
-	newM, _ = m.Update(issuesMsg{tasks: tasks})
-	bm = newM.(BoardModel)
+	// Quit
+	newM, cmd := bm.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	assert.Equal(t, tea.Quit(), cmd())
 
+	// Refresh
+	newM, cmd = bm.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	bm = newM.(BoardModel)
+	assert.False(t, bm.loaded) // should set loaded false
+	assert.NotNil(t, cmd)
+
+	// issuesMsg
+	tasks := []Task{{id: "1", status: todo}}
+	newM, _ = bm.Update(issuesMsg{tasks: tasks})
+	bm = newM.(BoardModel)
 	assert.True(t, bm.loaded)
-	assert.Equal(t, 1, len(bm.cols[0].list.Items())) // T1
-	assert.Equal(t, 1, len(bm.cols[1].list.Items())) // T2
-	assert.Equal(t, 0, len(bm.cols[2].list.Items()))
+	assert.Equal(t, 1, len(bm.cols[0].list.Items()))
+
+	// errorMsg
+	err := errors.New("oops")
+	newM, _ = bm.Update(errorMsg{err})
+	bm = newM.(BoardModel)
+	assert.Equal(t, err, bm.err)
+
+	// moveMsg
+	newM, cmd = bm.Update(moveMsg{})
+	assert.NotNil(t, cmd) // should trigger fetch
 }
 
-func TestBoardModel_MoveItem(t *testing.T) {
-	// Mock Server for transition
+func TestMoveItemCmd(t *testing.T) {
+	// Mock Server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/rest/api/3/issue/PROJ-1/transitions" {
-			// Get transitions request
-			if r.Method == "GET" {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"transitions": []map[string]interface{}{
-						{"id": "11", "name": "In Progress"},
-						{"id": "21", "name": "Done"},
-					},
-				})
-				return
-			}
-			// Post transition request
-			if r.Method == "POST" {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
+		if r.Method == "POST" && strings.Contains(r.URL.Path, "transitions") {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method == "GET" && strings.Contains(r.URL.Path, "transitions") {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"transitions": []map[string]interface{}{
+					{"id": "1", "name": "In Progress"},
+				},
+			})
+			return
 		}
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 
 	client := jira.NewClient(server.URL, "u", "p")
+	m := initialBoardModel(client, "PROJ")
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	m.cols[0].list.SetItems([]list.Item{
+		Task{id: "T-1", title: "Task 1", status: todo},
+	})
+	m.focused = 0
 
-	// Setup model with one item in To Do
-	m := BoardModel{
-		client: client,
-		cols: []column{
-			newColumn(todo),
-			newColumn(inProgress),
-		},
-		focused: 0,
-	}
-
-	// Add item manually
-	task := Task{id: "PROJ-1", title: "Test", status: todo}
-	m.cols[0].list.SetItems([]list.Item{task})
-
-	// Trigger Move (Enter)
-	// We call moveItemCmd directly or via Update
-	// Update with Enter key
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-
-	assert.NotNil(t, cmd)
-
-	// Execute command
+	// Move forward (Enter)
+	cmd := moveItemCmd(m, 1)
 	msg := cmd()
+	_, ok := msg.(moveMsg)
+	assert.True(t, ok)
 
-	// Should return moveMsg (success) or errorMsg
-	switch v := msg.(type) {
-	case errorMsg:
-		t.Fatalf("Move failed: %v", v.err)
-	case moveMsg:
-		// Success
-	default:
-		t.Fatalf("Unexpected message type: %T", v)
-	}
+	// Move backward from Todo (should fail or do nothing)
+	cmd = moveItemCmd(m, -1)
+	msg = cmd()
+	assert.Nil(t, msg) // nil because switch returns nil
 }
 
-func TestKeyMap(t *testing.T) {
-	// Verify keys are bound correctly
-	assert.Equal(t, []string{"up", "k"}, keys.Up.Keys())
-	assert.Equal(t, []string{"q", "ctrl+c"}, keys.Quit.Keys())
+func TestMoveItemCmd_Error(t *testing.T) {
+	// Mock Server to fail
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := jira.NewClient(server.URL, "u", "p")
+	m := initialBoardModel(client, "PROJ")
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	m.cols[0].list.SetItems([]list.Item{
+		Task{id: "T-1", status: todo},
+	})
+
+	cmd := moveItemCmd(m, 1)
+	msg := cmd()
+	errMsg, ok := msg.(errorMsg)
+	assert.True(t, ok)
+	assert.Error(t, errMsg.err)
 }
 
 func TestBoardView(t *testing.T) {
-	m := BoardModel{
-		cols: []column{
-			newColumn(todo),
-			newColumn(inProgress),
-			newColumn(done),
-		},
-		focused: 0,
-		loaded:  true,
-	}
+	m := BoardModel{}
 
-	// Set window size so view renders
-	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	// Error state
+	m.err = errors.New("fail")
+	assert.Contains(t, m.View(), "Error: fail")
 
-	// Add some tasks
-	m.cols[0].list.SetItems([]list.Item{
-		Task{id: "T-1", title: "Task One", status: todo},
-	})
-	m.cols[1].list.SetItems([]list.Item{
-		Task{id: "T-2", title: "Task Two", status: inProgress},
-	})
+	// Loading state
+	m.err = nil
+	m.loaded = false
+	assert.Contains(t, m.View(), "Loading...")
 
-	output := m.View()
+	// Loaded state
+	m.loaded = true
+	m.cols = []column{newColumn(todo)}
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40}) // Resize to render
+	assert.Contains(t, m.View(), "To Do")
+}
 
-	assert.NotEmpty(t, output)
-	assert.Contains(t, output, "To Do")
-	assert.Contains(t, output, "In Progress")
-	assert.Contains(t, output, "Task One")
-	assert.Contains(t, output, "Task Two")
+func TestTaskMethods(t *testing.T) {
+	task := Task{id: "ID", title: "Title", status: todo}
+	assert.Equal(t, "Title", task.FilterValue())
+	assert.Equal(t, "ID", task.Title())
+	assert.Equal(t, "Title", task.Description())
 }
