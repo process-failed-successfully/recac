@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 
+	"recac/internal/analysis"
+
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -84,14 +86,19 @@ func runArch(cmd *cobra.Command, args []string) error {
 	}
 
 	// 3. Analyze Dependencies
-	// Reuse logic from map.go
-	moduleName, err := getModuleName(cwd)
+	moduleName, err := analysis.GetModuleName(cwd)
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not read go.mod: %v\n", err)
 		moduleName = "unknown"
 	}
 
-	deps, err := analyzeDependencies(cwd, moduleName, nil, false) // false = ignore stdlib
+	opts := analysis.DependencyOptions{
+		Root:       cwd,
+		ModuleName: moduleName,
+		ShowStdLib: false,
+	}
+
+	deps, err := analysis.AnalyzeDependencies(opts)
 	if err != nil {
 		return fmt.Errorf("dependency analysis failed: %w", err)
 	}
@@ -200,7 +207,7 @@ rules:
 	return nil
 }
 
-func checkViolations(deps DepMap, config *ArchConfig, regexps map[string]*regexp.Regexp) []string {
+func checkViolations(deps analysis.DepMap, config *ArchConfig, regexps map[string]*regexp.Regexp) []string {
 	var violations []string
 
 	// Deterministic layer matching
@@ -244,12 +251,6 @@ func checkViolations(deps DepMap, config *ArchConfig, regexps map[string]*regexp
 		// Check if we have rules for this layer
 		allowedLayers, hasRule := allowed[srcLayer]
 		if !hasRule {
-			// If no rule is defined for a layer, do we allow everything or nothing?
-			// Usually, if listed in layers but not in rules, it implies no restrictions?
-			// Or should we strict defaults?
-			// Let's assume strict: if listed in layers, must have rule.
-			// But for now, let's assume if not in rules, it's free.
-			// Actually, typical ArchUnit style: if rule exists, enforce it.
 			continue
 		}
 

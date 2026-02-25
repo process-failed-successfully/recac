@@ -1,16 +1,13 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"context"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"os"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
+
+	"recac/internal/analysis"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -59,29 +56,24 @@ func runMap(cmd *cobra.Command, args []string) error {
 	}
 	mapIgnore = cleanIgnore
 
-	// fmt.Fprintf(cmd.ErrOrStderr(), "DEBUG: ignore=%v\n", mapIgnore)
-
 	mapFocus, _ := cmd.Flags().GetString("focus")
 	mapShowStdLib, _ := cmd.Flags().GetBool("stdlib")
 
 	// 1. Determine Module Name
-	moduleName, err := getModuleName(root)
+	moduleName, err := analysis.GetModuleName(root)
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not read go.mod: %v\n", err)
 	}
 
-	// Pre-compile ignore regexes
-	var ignoreRegexps []*regexp.Regexp
-	for _, pattern := range mapIgnore {
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return fmt.Errorf("invalid ignore pattern '%s': %w", pattern, err)
-		}
-		ignoreRegexps = append(ignoreRegexps, re)
+	// 2. Analyze Dependencies
+	opts := analysis.DependencyOptions{
+		Root:           root,
+		ModuleName:     moduleName,
+		IgnorePatterns: mapIgnore,
+		ShowStdLib:     mapShowStdLib,
 	}
 
-	// 2. Analyze Dependencies
-	deps, err := analyzeDependencies(root, moduleName, ignoreRegexps, mapShowStdLib)
+	deps, err := analysis.AnalyzeDependencies(opts)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -115,119 +107,7 @@ func runMap(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getModuleName(root string) (string, error) {
-	goModPath := filepath.Join(root, "go.mod")
-	lines, err := utils.ReadLines(goModPath)
-	if err != nil {
-		return "", err
-	}
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "module ") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				return fields[1], nil
-			}
-		}
-	}
-	return "", fmt.Errorf("module declaration not found")
-}
-
-// map[sourcePackage] -> []targetPackages
-type DepMap map[string][]string
-
-func analyzeDependencies(root string, moduleName string, ignoreRegexps []*regexp.Regexp, showStdLib bool) (DepMap, error) {
-	deps := make(DepMap)
-	fset := token.NewFileSet()
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			name := info.Name()
-			if name == ".git" || name == "vendor" || name == "node_modules" || name == ".recac" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-
-		// Calculate package path relative to module
-		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
-		if relDir == "." {
-			relDir = ""
-		}
-
-		pkgPath := moduleName
-		if relDir != "" {
-			pkgPath = filepath.Join(moduleName, relDir)
-		}
-		// Windows fix
-		pkgPath = strings.ReplaceAll(pkgPath, "\\", "/")
-
-		// Check ignore patterns for source package
-		for _, re := range ignoreRegexps {
-			if re.MatchString(pkgPath) {
-				return nil
-			}
-		}
-
-		// Parse file imports
-		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			return nil // Skip unparseable files
-		}
-
-		for _, imp := range f.Imports {
-			target := strings.Trim(imp.Path.Value, "\"")
-
-			// Check ignore patterns for target package
-			ignored := false
-			for _, re := range ignoreRegexps {
-				if re.MatchString(target) {
-					ignored = true
-					break
-				}
-			}
-			if ignored {
-				continue
-			}
-
-			if !showStdLib && !strings.Contains(target, ".") {
-				// Rough heuristic for stdlib
-				if !strings.HasPrefix(target, moduleName) && !strings.Contains(target, ".") {
-					continue
-				}
-			}
-
-			// Add dependency
-			// Avoid duplicates
-			found := false
-			for _, existing := range deps[pkgPath] {
-				if existing == target {
-					found = true
-					break
-				}
-			}
-			if !found {
-				deps[pkgPath] = append(deps[pkgPath], target)
-			}
-		}
-
-		return nil
-	})
-
-	return deps, err
-}
-
-func generateMermaidMap(deps DepMap, moduleName string, focus string) string {
+func generateMermaidMap(deps analysis.DepMap, moduleName string, focus string) string {
 	var sb strings.Builder
 	sb.WriteString("graph TD\n")
 
@@ -265,7 +145,7 @@ func generateMermaidMap(deps DepMap, moduleName string, focus string) string {
 	return sb.String()
 }
 
-func generateDOT(deps DepMap, moduleName string, focus string) string {
+func generateDOT(deps analysis.DepMap, moduleName string, focus string) string {
 	var sb strings.Builder
 	sb.WriteString("digraph G {\n")
 	sb.WriteString("  rankdir=LR;\n")
