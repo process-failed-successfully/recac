@@ -268,3 +268,40 @@ func TestInitLogger_SetsDefault(t *testing.T) {
 		t.Error("Default logger not set correctly by InitLogger")
 	}
 }
+
+type mockHandler struct {
+	enabled bool
+	err     error
+	slog.Handler
+}
+
+func (m *mockHandler) Enabled(context.Context, slog.Level) bool { return m.enabled }
+func (m *mockHandler) Handle(context.Context, slog.Record) error { return m.err }
+func (m *mockHandler) WithAttrs([]slog.Attr) slog.Handler { return m }
+func (m *mockHandler) WithGroup(string) slog.Handler { return m }
+
+func TestMultiHandler_EdgeCases(t *testing.T) {
+	ctx := context.Background()
+
+	// Case 1: All handlers disabled
+	h1 := &mockHandler{enabled: false}
+	h2 := &mockHandler{enabled: false}
+	mh := &multiHandler{handlers: []slog.Handler{h1, h2}}
+	if mh.Enabled(ctx, slog.LevelInfo) {
+		t.Error("MultiHandler should be disabled if all children are disabled")
+	}
+
+	// Case 2: One handler enabled -> MultiHandler enabled
+	h1.enabled = true
+	if !mh.Enabled(ctx, slog.LevelInfo) {
+		t.Error("MultiHandler should be enabled if at least one child is enabled")
+	}
+
+	// Case 3: Handle returns error
+	expectedErr := errors.New("handler error")
+	h3 := &mockHandler{err: expectedErr}
+	mhErr := &multiHandler{handlers: []slog.Handler{h3}}
+	if err := mhErr.Handle(ctx, slog.Record{}); err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
+	}
+}

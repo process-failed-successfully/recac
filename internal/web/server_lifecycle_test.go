@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer_StartStop(t *testing.T) {
-	mockStore := new(TestifyMockStore)
+	mockStore := &MockStore{}
 	server := NewServer(mockStore, 0, "test-project") // 0 for random port
 
 	// Channel to signal we are about to call Start
@@ -38,7 +38,7 @@ func TestServer_StartStop(t *testing.T) {
 }
 
 func TestServer_Stop_NotStarted(t *testing.T) {
-	mockStore := new(TestifyMockStore)
+	mockStore := &MockStore{}
 	server := NewServer(mockStore, 8080, "test-project")
 
 	err := server.Stop(context.Background())

@@ -193,3 +193,23 @@ func TestStartSession_Error(t *testing.T) {
 	// Can't easily test without mock.
 	// But minimal test that checks it exists.
 }
+
+func TestWaitForChunk(t *testing.T) {
+	ch := make(chan string, 1)
+	ch <- "test chunk"
+
+	cmd := waitForChunk(ch)
+	msg := cmd()
+
+	chunk, ok := msg.(chunkMsg)
+	require.True(t, ok)
+	assert.Equal(t, "test chunk", chunk.chunk)
+	assert.Equal(t, (<-chan string)(ch), chunk.ch)
+
+	close(ch)
+	cmd = waitForChunk(ch)
+	msg = cmd()
+
+	_, ok = msg.(doneMsg)
+	require.True(t, ok)
+}
