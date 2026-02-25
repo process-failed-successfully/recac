@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+var inputReader io.Reader = os.Stdin
+
 func main() {
 	// Check env vars for overrides
 	dbType := os.Getenv("RECAC_DB_TYPE")
@@ -259,7 +261,7 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 	case "import":
 		// Usage: cat features.json | agent-bridge import
 		// Reads JSON from Stdin and saves to DB
-		data, err := io.ReadAll(os.Stdin)
+		data, err := io.ReadAll(inputReader)
 		if err != nil {
 			return fmt.Errorf("failed to read from stdin: %w", err)
 		}

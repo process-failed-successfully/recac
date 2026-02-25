@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,7 @@ var directiveSetCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		instruction := strings.Join(args, " ")
-		return setDirective(instruction)
+		return setDirective(cmd.OutOrStdout(), instruction)
 	},
 }
 
@@ -39,7 +40,7 @@ var directiveClearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clear the global directive",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return clearDirective()
+		return clearDirective(cmd.OutOrStdout())
 	},
 }
 
@@ -58,7 +59,7 @@ func getDirectivePath() (string, error) {
 	return filepath.Join(cwd, ".recac", "directive"), nil
 }
 
-func setDirective(instruction string) error {
+func setDirective(w io.Writer, instruction string) error {
 	path, err := getDirectivePath()
 	if err != nil {
 		return err
@@ -74,7 +75,7 @@ func setDirective(instruction string) error {
 		return fmt.Errorf("failed to write directive: %w", err)
 	}
 
-	fmt.Printf("✅ Directive set: \"%s\"\n", instruction)
+	fmt.Fprintf(w, "✅ Directive set: \"%s\"\n", instruction)
 	return nil
 }
 
@@ -87,17 +88,17 @@ func showDirective(cmd *cobra.Command) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("No global directive set.")
+			fmt.Fprintln(cmd.OutOrStdout(), "No global directive set.")
 			return nil
 		}
 		return fmt.Errorf("failed to read directive: %w", err)
 	}
 
-	fmt.Printf("Global Directive:\n%s\n", string(content))
+	fmt.Fprintf(cmd.OutOrStdout(), "Global Directive:\n%s\n", string(content))
 	return nil
 }
 
-func clearDirective() error {
+func clearDirective(w io.Writer) error {
 	path, err := getDirectivePath()
 	if err != nil {
 		return err
@@ -105,12 +106,12 @@ func clearDirective() error {
 
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("No global directive to clear.")
+			fmt.Fprintln(w, "No global directive to clear.")
 			return nil
 		}
 		return fmt.Errorf("failed to clear directive: %w", err)
 	}
 
-	fmt.Println("✅ Directive cleared.")
+	fmt.Fprintln(w, "✅ Directive cleared.")
 	return nil
 }
