@@ -42,21 +42,24 @@ const (
 	viewMain viewState = iota
 	viewDetails
 	viewLogs
+	viewConfirmation
 )
 
 type DashboardModel struct {
-	host        string
-	table       table.Model
-	viewport    viewport.Model
-	status      orchestrator.Status
-	jobs        []orchestrator.JobInfo
-	details     orchestrator.JobInfo
-	logs        string
-	logStream   io.ReadCloser
-	err         error
-	quitting    bool
-	viewState   viewState
-	showHistory bool
+	host          string
+	table         table.Model
+	viewport      viewport.Model
+	status        orchestrator.Status
+	jobs          []orchestrator.JobInfo
+	details       orchestrator.JobInfo
+	logs          string
+	logStream     io.ReadCloser
+	err           error
+	quitting      bool
+	viewState     viewState
+	showHistory   bool
+	pendingJobId  string
+	pendingAction string
 }
 
 type tickMsg time.Time
@@ -214,6 +217,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewDetails, viewLogs:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
+	case viewConfirmation:
+		m, cmd = m.updateConfirmation(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -270,19 +276,48 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		case "c":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
-				id := selected[0]
-				return m, cancelJob(m.host, id)
+				m.pendingJobId = selected[0]
+				m.pendingAction = "cancel"
+				m.viewState = viewConfirmation
+				return m, nil
 			}
 		case "r":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
-				id := selected[0]
-				return m, retryJob(m.host, id)
+				m.pendingJobId = selected[0]
+				m.pendingAction = "retry"
+				m.viewState = viewConfirmation
+				return m, nil
 			}
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
+}
+
+func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "y", "enter":
+			var cmd tea.Cmd
+			if m.pendingAction == "cancel" {
+				cmd = cancelJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "retry" {
+				cmd = retryJob(m.host, m.pendingJobId)
+			}
+			m.pendingJobId = ""
+			m.pendingAction = ""
+			m.viewState = viewMain
+			return m, cmd
+		case "n", "q", "esc":
+			m.pendingJobId = ""
+			m.pendingAction = ""
+			m.viewState = viewMain
+			return m, nil
+		}
+	}
+	return m, nil
 }
 
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
@@ -359,6 +394,39 @@ func (m DashboardModel) View() string {
 	case viewLogs:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back | streaming logs...")
+	case viewConfirmation:
+		// Keep showing the main table in the background
+		contentView = baseStyle.Render(m.table.View())
+
+		// Create a modal dialog
+		dialogMsg := fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/n)", m.pendingAction, m.pendingJobId)
+
+		dialogWidth := 50
+		dialogHeight := 7
+
+		dialogStyle := lipgloss.NewStyle().
+			Width(dialogWidth).
+			Height(dialogHeight).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		// Overlay logic would be complex here without a layer manager,
+		// so for now we just replace the content view or render it differently.
+		// A simple way is to just render the dialog.
+		contentView = dialogStyle.Render(dialogMsg)
+
+		// If we want to center it nicely we might need more layout logic,
+		// but standard center alignment in the container usually works.
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height + 5). // approximate table height
+			Align(lipgloss.Center, lipgloss.Center)
+
+		contentView = containerStyle.Render(contentView)
+
+		helpView = statusStyle.Render("y: confirm | n/q/esc: cancel")
 	}
 
 	if m.err != nil {
