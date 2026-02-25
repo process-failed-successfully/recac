@@ -211,3 +211,34 @@ func TestKeyMap(t *testing.T) {
 	assert.Equal(t, []string{"up", "k"}, keys.Up.Keys())
 	assert.Equal(t, []string{"q", "ctrl+c"}, keys.Quit.Keys())
 }
+
+func TestBoardView(t *testing.T) {
+	m := BoardModel{
+		cols: []column{
+			newColumn(todo),
+			newColumn(inProgress),
+			newColumn(done),
+		},
+		focused: 0,
+		loaded:  true,
+	}
+
+	// Set window size so view renders
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	// Add some tasks
+	m.cols[0].list.SetItems([]list.Item{
+		Task{id: "T-1", title: "Task One", status: todo},
+	})
+	m.cols[1].list.SetItems([]list.Item{
+		Task{id: "T-2", title: "Task Two", status: inProgress},
+	})
+
+	output := m.View()
+
+	assert.NotEmpty(t, output)
+	assert.Contains(t, output, "To Do")
+	assert.Contains(t, output, "In Progress")
+	assert.Contains(t, output, "Task One")
+	assert.Contains(t, output, "Task Two")
+}
