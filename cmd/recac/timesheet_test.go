@@ -126,8 +126,12 @@ func TestPrintTimesheetTable(t *testing.T) {
 	assert.Contains(t, output, "Period: Since 24h")
 	assert.Contains(t, output, "2023-10-27")
 	assert.Contains(t, output, "5.50 hrs")
-	assert.Contains(t, output, "Total Hours:\t10.50 hrs")
-	assert.Contains(t, output, "Estimated Cost:\t$1050.00")
+	// tabwriter replaces tabs with spaces, so we check for substring parts or use regex if needed
+	// Or just check that the values are present in the line
+	assert.Contains(t, output, "Total Hours:")
+	assert.Contains(t, output, "10.50 hrs")
+	assert.Contains(t, output, "Estimated Cost:")
+	assert.Contains(t, output, "$1050.00")
 }
 
 // Helper to mock GitClient
