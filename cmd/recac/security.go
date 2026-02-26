@@ -15,6 +15,7 @@ import (
 var (
 	securityJSON bool
 	securityFail bool
+	securityFix  bool
 )
 
 var securityCmd = &cobra.Command{
@@ -35,6 +36,10 @@ var securityCmd = &cobra.Command{
 				fmt.Fprintln(cmd.OutOrStdout(), "[]")
 			}
 			return nil
+		}
+
+		if securityFix {
+			return runInteractiveSecurityFix(cmd, results)
 		}
 
 		if securityJSON {
@@ -59,6 +64,7 @@ func init() {
 	rootCmd.AddCommand(securityCmd)
 	securityCmd.Flags().BoolVar(&securityJSON, "json", false, "Output results as JSON")
 	securityCmd.Flags().BoolVar(&securityFail, "fail", false, "Exit with error code if findings are detected")
+	securityCmd.Flags().BoolVar(&securityFix, "fix", false, "Interactively fix discovered issues using AI")
 }
 
 type SecurityResult struct {
