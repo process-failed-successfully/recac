@@ -109,7 +109,7 @@ Code to document:
 				}
 				mode := info.Mode()
 
-				if err := os.WriteFile(filePath, []byte(documentedCode), mode); err != nil {
+				if err := safeWriteFile(filePath, []byte(documentedCode), mode); err != nil {
 					return fmt.Errorf("failed to write back to file: %w", err)
 				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "Successfully updated %s\n", filePath)

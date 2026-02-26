@@ -125,7 +125,7 @@ func runHeal(cmd *cobra.Command, args []string) error {
 
 		for path, content := range patches {
 			fmt.Fprintf(cmd.OutOrStdout(), "📝 Applying fix to %s...\n", path)
-			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			if err := safeWriteFile(path, []byte(content), 0644); err != nil {
 				return fmt.Errorf("failed to write file %s: %w", path, err)
 			}
 		}

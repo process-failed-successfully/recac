@@ -263,7 +263,7 @@ func applyFixCmd(issue *ReviewIssue) tea.Cmd {
 			newFileLines = append(newFileLines, lines[endIdx:]...)
 
 			output := strings.Join(newFileLines, "\n")
-			if err := os.WriteFile(issue.File, []byte(output), 0644); err != nil {
+			if err := safeWriteFile(issue.File, []byte(output), 0644); err != nil {
 				return errMsg{err}
 			}
 			return fixMsg{issue}
@@ -294,7 +294,7 @@ func applyFixCmd(issue *ReviewIssue) tea.Cmd {
 		newLines = append(newLines, lines[idx:]...)
 
 		output := strings.Join(newLines, "\n")
-		if err := os.WriteFile(issue.File, []byte(output), 0644); err != nil {
+		if err := safeWriteFile(issue.File, []byte(output), 0644); err != nil {
 			return errMsg{err}
 		}
 

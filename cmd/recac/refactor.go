@@ -120,7 +120,7 @@ func runRefactor(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("failed to create directory %s: %w", dir, err)
 			}
 
-			if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
+			if err := safeWriteFile(path, []byte(newContent), 0644); err != nil {
 				return fmt.Errorf("failed to write %s: %w", path, err)
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "Updated %s\n", path)
