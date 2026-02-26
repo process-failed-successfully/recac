@@ -147,6 +147,72 @@ func TestApplyFixCmd(t *testing.T) {
 	}
 }
 
+func TestApplyFixCmd_Replacement(t *testing.T) {
+	// Setup
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "replace.go")
+	content := "line 1\nline 2\nline 3\nline 4"
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Case 1: Simple Replacement (OriginalContent matches)
+	issue := &ReviewIssue{
+		File:            filePath,
+		Line:            3, // "line 3"
+		Title:           "Replace this",
+		Suggestion:      "irrelevant",
+		Replacement:     "better line 3",
+		OriginalContent: "line 3",
+	}
+
+	cmd := applyFixCmd(issue)
+	msg := cmd()
+
+	if _, ok := msg.(fixMsg); !ok {
+		if errMsg, ok := msg.(errMsg); ok {
+			t.Fatalf("Command returned error: %v", errMsg.err)
+		}
+		t.Fatalf("Command returned unexpected message: %T", msg)
+	}
+
+	newContentBytes, _ := os.ReadFile(filePath)
+	expected := "line 1\nline 2\nbetter line 3\nline 4"
+	if string(newContentBytes) != expected {
+		t.Errorf("Mismatch. Expected:\n%s\nGot:\n%s", expected, string(newContentBytes))
+	}
+}
+
+func TestApplyFixCmd_ReplacementMismatch(t *testing.T) {
+	// Setup
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "replace_mismatch.go")
+	content := "line 1\nline 2\nline 3 changed\nline 4"
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Case 2: Mismatch (OriginalContent != actual content)
+	issue := &ReviewIssue{
+		File:            filePath,
+		Line:            3,
+		Title:           "Replace this",
+		Replacement:     "better line 3",
+		OriginalContent: "line 3",
+	}
+
+	cmd := applyFixCmd(issue)
+	msg := cmd()
+
+	if errMsg, ok := msg.(errMsg); ok {
+		if errMsg.err == nil {
+			t.Error("Expected error but got nil")
+		}
+	} else {
+		t.Errorf("Expected errMsg, got %T", msg)
+	}
+}
+
 // TestApplyFixCmd_OutOfBounds verifies error handling for invalid lines
 func TestApplyFixCmd_OutOfBounds(t *testing.T) {
 	tempDir := t.TempDir()

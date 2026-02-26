@@ -216,22 +216,6 @@ type clearStatusMsg struct{}
 
 func applyFixCmd(issue *ReviewIssue) tea.Cmd {
 	return func() tea.Msg {
-		// 1. Validate suggestion is a code block or valid text
-		// Simple heuristic: if suggestion contains code, try to replace.
-		// For MVP, we only support replacing lines if suggestion is enclosed in ``` or just assumes it's the replacement.
-
-		// Let's assume the Suggestion IS the replacement code.
-		// We need to determine WHAT to replace.
-		// The agent gave us 'Line'. We can assume it's a single line or a block starting there.
-		// Without end line, it's risky.
-
-		// Heuristic: If suggestion is multi-line, we might not know how many lines to replace.
-		// BUT, if we assume the agent is smart, maybe we can't do auto-fix safely without more info (start/end lines).
-
-		// Fallback: Just append a comment with the suggestion if risky?
-		// Or: Create a patch file?
-
-		// Let's try to be smart:
 		// Read file.
 		content, err := os.ReadFile(issue.File)
 		if err != nil {
@@ -243,16 +227,52 @@ func applyFixCmd(issue *ReviewIssue) tea.Cmd {
 			return errMsg{fmt.Errorf("line %d out of bounds", issue.Line)}
 		}
 
-		// Check if suggestion is empty
+		// MODE 1: Replacement (if explicit Replacement provided)
+		if issue.Replacement != "" {
+			startIdx := issue.Line - 1
+			endIdx := startIdx + 1 // Default to replacing 1 line if no OriginalContent
+
+			// If OriginalContent is provided, verify and determine exact lines to replace
+			if issue.OriginalContent != "" {
+				origLines := strings.Split(strings.TrimRight(issue.OriginalContent, "\n"), "\n")
+				endIdx = startIdx + len(origLines)
+
+				if endIdx > len(lines) {
+					return errMsg{fmt.Errorf("verification failed: original content length exceeds file bounds")}
+				}
+
+				// Verify content matches (ignoring whitespace for robustness?)
+				// For strict safety, exact match is better, maybe trimming space.
+				for i, line := range origLines {
+					if strings.TrimSpace(lines[startIdx+i]) != strings.TrimSpace(line) {
+						return errMsg{fmt.Errorf("verification failed at line %d: content mismatch. Expected '%s', found '%s'", issue.Line+i, line, lines[startIdx+i])}
+					}
+				}
+			}
+
+			// Perform Replacement
+			var newFileLines []string
+			newFileLines = append(newFileLines, lines[:startIdx]...)
+			if issue.Replacement != "__DELETE__" { // Special marker for deletion? Or just empty string?
+				// If replacement is empty string, it might mean delete.
+				// But "Replacement != """ check above prevents entering here if empty.
+				// So if we want to delete, we should handle that.
+				// Let's assume Replacement is the new code.
+				newFileLines = append(newFileLines, strings.Split(strings.TrimRight(issue.Replacement, "\n"), "\n")...)
+			}
+			newFileLines = append(newFileLines, lines[endIdx:]...)
+
+			output := strings.Join(newFileLines, "\n")
+			if err := os.WriteFile(issue.File, []byte(output), 0644); err != nil {
+				return errMsg{err}
+			}
+			return fixMsg{issue}
+		}
+
+		// MODE 2: Suggestion (Insert Comment) - Fallback
 		if strings.TrimSpace(issue.Suggestion) == "" {
 			return errMsg{fmt.Errorf("empty suggestion, cannot apply")}
 		}
-
-		// Naive application: Insert the suggestion BEFORE the line as a comment,
-		// OR if it looks like a replacement (e.g. same indentation), replace the line.
-
-		// Let's go with SAFE approach:
-		// Insert a TODO comment with the suggestion above the line.
 
 		suggestionLines := strings.Split(issue.Suggestion, "\n")
 		var newLines []string

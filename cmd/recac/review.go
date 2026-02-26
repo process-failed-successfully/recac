@@ -28,12 +28,14 @@ var runReviewTUIFunc = func(m tea.Model) error {
 }
 
 type ReviewIssue struct {
-	File        string `json:"file"`
-	Line        int    `json:"line"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Severity    string `json:"severity"` // "CRITICAL", "WARNING", "INFO"
-	Suggestion  string `json:"suggestion"`
+	File            string `json:"file"`
+	Line            int    `json:"line"`
+	Title           string `json:"title"`
+	Description     string `json:"description"`
+	Severity        string `json:"severity"` // "CRITICAL", "WARNING", "INFO"
+	Suggestion      string `json:"suggestion"`
+	Replacement     string `json:"replacement,omitempty"`
+	OriginalContent string `json:"original_content,omitempty"`
 }
 
 func NewReviewCmd() *cobra.Command {
