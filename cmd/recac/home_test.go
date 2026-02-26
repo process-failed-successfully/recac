@@ -75,6 +75,12 @@ func (m *MockGitHomeClient) PushTags(d string) error { return nil }
 func (m *MockGitHomeClient) LatestTag(d string) (string, error) { return "", nil }
 func (m *MockGitHomeClient) CreatePR(d, t, b, base string) (string, error) { return "", nil }
 
+func (m *MockGitHomeClient) StashPush(d, msg string) error { return nil }
+func (m *MockGitHomeClient) StashList(d string) ([]string, error) { return nil, nil }
+func (m *MockGitHomeClient) StashShow(d, id string) (string, error) { return "", nil }
+func (m *MockGitHomeClient) StashApply(d, id string) error { return nil }
+func (m *MockGitHomeClient) StashDrop(d, id string) error { return nil }
+func (m *MockGitHomeClient) StashClear(d string) error { return nil }
 
 // MockSessionManager
 type MockHomeSessionManager struct {

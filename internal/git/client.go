@@ -311,6 +311,88 @@ func (c *Client) StashPop(dir string) error {
 	return cmd.Run()
 }
 
+// StashPush stashes local changes with a message.
+func (c *Client) StashPush(dir, message string) error {
+	args := []string{"stash", "push", "--include-untracked"}
+	if message != "" {
+		args = append(args, "-m", message)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// StashList lists all stashes.
+func (c *Client) StashList(dir string) ([]string, error) {
+	cmd := exec.Command("git", "stash", "list")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git stash list failed: %w", err)
+	}
+	output := strings.TrimSpace(out.String())
+	if output == "" {
+		return []string{}, nil
+	}
+	return strings.Split(output, "\n"), nil
+}
+
+// StashShow shows the diff of a stash.
+func (c *Client) StashShow(dir, id string) (string, error) {
+	args := []string{"stash", "show", "-p"}
+	if id != "" {
+		args = append(args, id)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git stash show failed: %w", err)
+	}
+	return out.String(), nil
+}
+
+// StashApply applies a stash.
+func (c *Client) StashApply(dir, id string) error {
+	args := []string{"stash", "apply"}
+	if id != "" {
+		args = append(args, id)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// StashDrop drops a stash.
+func (c *Client) StashDrop(dir, id string) error {
+	args := []string{"stash", "drop"}
+	if id != "" {
+		args = append(args, id)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// StashClear clears all stashes.
+func (c *Client) StashClear(dir string) error {
+	cmd := exec.Command("git", "stash", "clear")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // Recover attempts to fix common git errors by removing lock files.
 func (c *Client) Recover(dir string) error {
 	locks := []string{

@@ -353,6 +353,54 @@ type MockGitClient struct {
 	RunFunc               func(repoPath string, args ...string) (string, error)
 	DeleteLocalBranchFunc func(repoPath, branch string) error
 	CreatePRFunc          func(repoPath, title, body, base string) (string, error)
+	StashPushFunc         func(directory, message string) error
+	StashListFunc         func(directory string) ([]string, error)
+	StashShowFunc         func(directory, id string) (string, error)
+	StashApplyFunc        func(directory, id string) error
+	StashDropFunc         func(directory, id string) error
+	StashClearFunc        func(directory string) error
+}
+
+func (m *MockGitClient) StashPush(directory, message string) error {
+	if m.StashPushFunc != nil {
+		return m.StashPushFunc(directory, message)
+	}
+	return nil
+}
+
+func (m *MockGitClient) StashList(directory string) ([]string, error) {
+	if m.StashListFunc != nil {
+		return m.StashListFunc(directory)
+	}
+	return []string{}, nil
+}
+
+func (m *MockGitClient) StashShow(directory, id string) (string, error) {
+	if m.StashShowFunc != nil {
+		return m.StashShowFunc(directory, id)
+	}
+	return "", nil
+}
+
+func (m *MockGitClient) StashApply(directory, id string) error {
+	if m.StashApplyFunc != nil {
+		return m.StashApplyFunc(directory, id)
+	}
+	return nil
+}
+
+func (m *MockGitClient) StashDrop(directory, id string) error {
+	if m.StashDropFunc != nil {
+		return m.StashDropFunc(directory, id)
+	}
+	return nil
+}
+
+func (m *MockGitClient) StashClear(directory string) error {
+	if m.StashClearFunc != nil {
+		return m.StashClearFunc(directory)
+	}
+	return nil
 }
 
 func (m *MockGitClient) CreatePR(repoPath, title, body, base string) (string, error) {

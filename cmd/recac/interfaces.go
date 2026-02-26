@@ -61,6 +61,12 @@ type IGitClient interface {
 	Run(repoPath string, args ...string) (string, error)
 	DeleteLocalBranch(repoPath, branch string) error
 	CreatePR(repoPath, title, body, base string) (string, error)
+	StashPush(directory, message string) error
+	StashList(directory string) ([]string, error)
+	StashShow(directory, id string) (string, error)
+	StashApply(directory, id string) error
+	StashDrop(directory, id string) error
+	StashClear(directory string) error
 }
 
 // IK8sClient defines the interface for Kubernetes operations.

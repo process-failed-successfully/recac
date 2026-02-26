@@ -100,6 +100,13 @@ func (m *MockGitClientCommit) CreatePR(directory, title, body, base string) (str
 	return "", nil
 }
 
+func (m *MockGitClientCommit) StashPush(directory, message string) error      { return nil }
+func (m *MockGitClientCommit) StashList(directory string) ([]string, error)   { return nil, nil }
+func (m *MockGitClientCommit) StashShow(directory, id string) (string, error) { return "", nil }
+func (m *MockGitClientCommit) StashApply(directory, id string) error          { return nil }
+func (m *MockGitClientCommit) StashDrop(directory, id string) error           { return nil }
+func (m *MockGitClientCommit) StashClear(directory string) error              { return nil }
+
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks
 	origGitFactory := gitClientFactory

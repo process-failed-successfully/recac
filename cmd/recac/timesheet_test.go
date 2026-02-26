@@ -168,6 +168,13 @@ func (m *MockTimesheetGitClient) Run(repoPath string, args ...string) (string, e
 func (m *MockTimesheetGitClient) DeleteLocalBranch(repoPath, branch string) error { return nil }
 func (m *MockTimesheetGitClient) CreatePR(repoPath, title, body, base string) (string, error) { return "", nil }
 
+func (m *MockTimesheetGitClient) StashPush(d, msg string) error { return nil }
+func (m *MockTimesheetGitClient) StashList(d string) ([]string, error) { return nil, nil }
+func (m *MockTimesheetGitClient) StashShow(d, id string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) StashApply(d, id string) error { return nil }
+func (m *MockTimesheetGitClient) StashDrop(d, id string) error { return nil }
+func (m *MockTimesheetGitClient) StashClear(d string) error { return nil }
+
 func TestRunTimesheet(t *testing.T) {
 	origFactory := gitClientFactory
 	defer func() { gitClientFactory = origFactory }()

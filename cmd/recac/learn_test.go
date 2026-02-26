@@ -65,6 +65,12 @@ func (m *MockLearnGitClient) LatestTag(repoPath string) (string, error) { return
 func (m *MockLearnGitClient) Run(repoPath string, args ...string) (string, error) { return "", nil }
 func (m *MockLearnGitClient) DeleteLocalBranch(repoPath, branch string) error { return nil }
 func (m *MockLearnGitClient) CreatePR(repoPath, title, body, base string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) StashPush(d, msg string) error { return nil }
+func (m *MockLearnGitClient) StashList(d string) ([]string, error) { return nil, nil }
+func (m *MockLearnGitClient) StashShow(d, id string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) StashApply(d, id string) error { return nil }
+func (m *MockLearnGitClient) StashDrop(d, id string) error { return nil }
+func (m *MockLearnGitClient) StashClear(d string) error { return nil }
 
 func TestRunLearn(t *testing.T) {
 	// Setup temporary directory

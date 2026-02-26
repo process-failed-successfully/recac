@@ -18,6 +18,12 @@ type IClient interface {
 	Push(directory, branch string) error
 	Pull(directory, remote, branch string) error
 	Stash(directory string) error
+	StashPush(directory, message string) error
+	StashList(directory string) ([]string, error)
+	StashShow(directory, id string) (string, error)
+	StashApply(directory, id string) error
+	StashDrop(directory, id string) error
+	StashClear(directory string) error
 	Merge(directory, branchName string) error
 	AbortMerge(directory string) error
 	Recover(directory string) error
