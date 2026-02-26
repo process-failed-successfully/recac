@@ -64,8 +64,8 @@ mkdir -p test_projects
 # Copy default configuration if it doesn't exist
 if [ ! -f .recac/config.yaml ]; then
     echo "Creating default configuration..."
-    if [ -f config.yaml ]; then
-        cp config.yaml .recac/config.yaml.example
+    if [ -f config.example.yaml ]; then
+        cp config.example.yaml .recac/config.yaml.example
     fi
 fi
 
@@ -90,7 +90,7 @@ echo ""
 echo "Development tips:"
 echo "- Check Docker is running before starting"
 echo "- Use './recac --help' for command help"
-echo "- Configuration is in .recac/config.yaml"
+echo "- Configuration is in .recac/config.yaml or config.yaml"
 echo "- Logs are stored in .recac/logs/"
 echo ""
 echo "For more information, see README.md"

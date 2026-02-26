@@ -4,7 +4,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9080:9090"
     command:
@@ -26,7 +26,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - ./loki-config.yml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - monitoring
@@ -34,9 +34,9 @@ services:
   promtail:
     image: grafana/promtail:latest
     volumes:
-      - ./monitoring/promtail-config.yml:/etc/promtail/config.yaml
+      - ./promtail-config.yml:/etc/promtail/config.yaml
       - /var/log:/var/log
-      - ./agents/logs:/app/logs # Mount agent logs directory
+      - ../agents/logs:/app/logs # Mount agent logs directory
     command: -config.file=/etc/promtail/config.yaml
     networks:
       - monitoring
@@ -46,8 +46,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
     networks:
       - monitoring
     environment:
