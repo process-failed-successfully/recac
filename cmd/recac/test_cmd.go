@@ -283,7 +283,7 @@ Do not return diffs. Return full file content.
 		if err := mkdirAllFunc(dir, 0755); err != nil {
 			return false, fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
-		if err := writeFileFunc(path, []byte(content), 0644); err != nil {
+		if err := safeWriteFile(path, []byte(content), 0644); err != nil {
 			return false, fmt.Errorf("failed to write %s: %w", path, err)
 		}
 	}

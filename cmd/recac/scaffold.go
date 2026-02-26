@@ -100,7 +100,7 @@ Output ONLY the Go code for the file.`, baseName, desc, baseName, baseName, base
 		return fmt.Errorf("file %s already exists", filename)
 	}
 
-	if err := os.WriteFile(filename, []byte(code), 0644); err != nil {
+	if err := safeWriteFile(filename, []byte(code), 0644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", filename, err)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "✅ Created %s\n", filename)
