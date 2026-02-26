@@ -17,7 +17,7 @@ func init() {
 var settingsCmd = &cobra.Command{
 	Use:   "settings",
 	Short: "Manage configuration settings",
-	Long:  `Manage the application's configuration settings stored in config.yaml.`,
+	Long:  `Manage the application's configuration settings (e.g., config.yaml or .recac.yaml).`,
 }
 
 var settingsViewCmd = &cobra.Command{
