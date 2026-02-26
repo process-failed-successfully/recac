@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 	"text/tabwriter"
@@ -72,14 +73,7 @@ func runScan(root string) ([]ScanResult, error) {
 	var results []ScanResult
 
 	// Common directories to ignore
-	ignoredDirs := map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"dist":         true,
-		"build":        true,
-		".recac":       true,
-	}
+	ignoredDirs := DefaultIgnoreMap()
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -93,7 +87,13 @@ func runScan(root string) ([]ScanResult, error) {
 			return nil
 		}
 
-		// Skip binary files and likely large files (simple check)
+		// Skip binary files
+		ext := strings.ToLower(filepath.Ext(path))
+		if utils.IsBinaryExt(ext) {
+			return nil
+		}
+
+		// Skip binary content and likely large files (simple check)
 		if info.Size() > 1024*1024 { // Skip files > 1MB
 			return nil
 		}
@@ -115,6 +115,16 @@ func scanFile(path string) ([]ScanResult, error) {
 		return nil, err
 	}
 	defer f.Close()
+
+	// Read first 512 bytes to check for binary
+	buf := make([]byte, 512)
+	n, _ := f.Read(buf)
+	if n > 0 && utils.IsBinaryContent(buf[:n]) {
+		return nil, nil
+	}
+
+	// Reset file pointer
+	f.Seek(0, 0)
 
 	var results []ScanResult
 	scanner := bufio.NewScanner(f)
