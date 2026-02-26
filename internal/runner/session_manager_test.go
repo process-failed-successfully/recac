@@ -222,6 +222,36 @@ func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, e
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) StashPush(directory, message string) error {
+	args := m.Called(directory, message)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) StashList(directory string) ([]string, error) {
+	args := m.Called(directory)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockGitClient) StashShow(directory, id string) (string, error) {
+	args := m.Called(directory, id)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) StashApply(directory, id string) error {
+	args := m.Called(directory, id)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) StashDrop(directory, id string) error {
+	args := m.Called(directory, id)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) StashClear(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()

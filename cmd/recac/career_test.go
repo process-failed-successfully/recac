@@ -78,6 +78,13 @@ func (m *MockCareerGitClient) CreatePR(repoPath, title, body, base string) (stri
 	return "", nil
 }
 
+func (m *MockCareerGitClient) StashPush(directory, message string) error      { return nil }
+func (m *MockCareerGitClient) StashList(directory string) ([]string, error)   { return nil, nil }
+func (m *MockCareerGitClient) StashShow(directory, id string) (string, error) { return "", nil }
+func (m *MockCareerGitClient) StashApply(directory, id string) error          { return nil }
+func (m *MockCareerGitClient) StashDrop(directory, id string) error           { return nil }
+func (m *MockCareerGitClient) StashClear(directory string) error              { return nil }
+
 // MockCareerAgent mocks agent.Agent
 type MockCareerAgent struct {
 	SendFunc       func(ctx context.Context, prompt string) (string, error)

@@ -270,6 +270,30 @@ func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, e
 	return "", nil
 }
 
+func (m *MockGitClient) StashPush(directory, message string) error {
+	return nil
+}
+
+func (m *MockGitClient) StashList(directory string) ([]string, error) {
+	return nil, nil
+}
+
+func (m *MockGitClient) StashShow(directory, id string) (string, error) {
+	return "", nil
+}
+
+func (m *MockGitClient) StashApply(directory, id string) error {
+	return nil
+}
+
+func (m *MockGitClient) StashDrop(directory, id string) error {
+	return nil
+}
+
+func (m *MockGitClient) StashClear(directory string) error {
+	return nil
+}
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}
