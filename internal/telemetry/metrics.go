@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -151,7 +152,11 @@ func StartMetricsServer(basePort int, opts ...func(*http.ServeMux)) (*http.Serve
 			}
 
 			server := &http.Server{
-				Handler: mux,
+				Handler:           mux,
+				ReadHeaderTimeout: 5 * time.Second,
+				ReadTimeout:       10 * time.Second,
+				WriteTimeout:      30 * time.Second,
+				IdleTimeout:       60 * time.Second,
 			}
 
 			go func() {
