@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"recac/internal/agent"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -17,6 +19,7 @@ var (
 	clientNewClientWithOpts = client.NewClientWithOpts
 	viperConfigFileUsed     = viper.ConfigFileUsed
 	checkDockerConnectivity = checkDockerConnectivityFunc
+	newAgent                = agent.NewAgent
 )
 
 // DockerClient defines the interface for Docker client operations needed by the doctor.
@@ -40,6 +43,9 @@ func GetDoctor() string {
 	// Check 3: Docker Connectivity
 	dockerCli, err := clientNewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	builder.WriteString(checkDockerConnectivity(dockerCli, err))
+
+	// Check 4: AI Provider Connectivity
+	builder.WriteString(checkAIProvider())
 
 	return builder.String()
 }
@@ -79,4 +85,58 @@ func checkDockerConnectivityFunc(cli DockerClient, err error) string {
 	}
 
 	return "[✔] Docker: Daemon is responsive\n"
+}
+
+func checkAIProvider() string {
+	provider := viper.GetString("provider")
+	if provider == "" {
+		provider = viper.GetString("agent_provider")
+	}
+
+	model := viper.GetString("model")
+	if model == "" {
+		model = viper.GetString("agent_model")
+	}
+
+	apiKey := viper.GetString("api_key")
+	if apiKey == "" {
+		// Try common secret locations
+		apiKey = viper.GetString("secrets.openrouterApiKey")
+		if apiKey == "" {
+			apiKey = viper.GetString("secrets.apiKey")
+		}
+	}
+
+	if provider == "" {
+		return "[?] AI: Provider not configured (check .recac.yaml)\n"
+	}
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Initialize agent
+	// Note: We use "doctor-check" as project name
+	ag, err := newAgent(provider, apiKey, model, "", "doctor-check")
+	if err != nil {
+		return fmt.Sprintf("[✖] AI: Failed to initialize agent (%s/%s): %v\n", provider, model, err)
+	}
+
+	// Send test prompt
+	start := time.Now()
+	resp, err := ag.Send(ctx, "Hello, are you working?")
+	if err != nil {
+		return fmt.Sprintf("[✖] AI: Connection failed (%s/%s): %v\n", provider, model, err)
+	}
+	latency := time.Since(start)
+
+	// Truncate response for display
+	displayResp := resp
+	if len(displayResp) > 50 {
+		displayResp = displayResp[:50] + "..."
+	}
+	// Escape newlines to keep formatting clean
+	displayResp = strings.ReplaceAll(displayResp, "\n", " ")
+
+	return fmt.Sprintf("[✔] AI: Connected to %s/%s (Latency: %v)\n    Response: %q\n", provider, model, latency, displayResp)
 }
