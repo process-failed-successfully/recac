@@ -11,6 +11,7 @@ import (
 	"recac/internal/runner"
 	"sort"
 	"strings"
+	"time"
 )
 
 //go:embed static/*
@@ -57,7 +58,14 @@ func (s *Server) Start() error {
 
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
-	s.srv = &http.Server{Addr: addr, Handler: mux}
+	s.srv = &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 
 	fmt.Printf("Starting dashboard at http://%s\n", addr)
 	return s.srv.ListenAndServe()
