@@ -129,7 +129,7 @@ INSTRUCTIONS:
 		return fmt.Errorf("received empty response from agent")
 	}
 
-	if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
+	if err := safeWriteFile(filePath, []byte(newContent), 0644); err != nil {
 		return fmt.Errorf("failed to write updated file: %w", err)
 	}
 

@@ -3,7 +3,6 @@ package main
 import (
 	"recac/internal/utils"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -227,11 +226,7 @@ func makeKey(file, content string) string {
 }
 
 func writeTodoFile(entries []*TodoEntry) error {
-	f, err := os.Create(todoFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+	var sb strings.Builder
 
 	for _, entry := range entries {
 		if entry.IsAuto {
@@ -253,9 +248,7 @@ func writeTodoFile(entries []*TodoEntry) error {
 				line = fmt.Sprintf("- [%s] [%s:%d] %s\n", mark, entry.File, entry.Line, entry.Content)
 			}
 
-			if _, err := f.WriteString(line); err != nil {
-				return err
-			}
+			sb.WriteString(line)
 		} else {
 			// Manual entry or non-task line (header, etc)
 			// Just write OriginalLine if it exists, or reconstruct
@@ -263,11 +256,9 @@ func writeTodoFile(entries []*TodoEntry) error {
 				if !strings.HasSuffix(entry.OriginalLine, "\n") {
 					entry.OriginalLine += "\n"
 				}
-				if _, err := f.WriteString(entry.OriginalLine); err != nil {
-					return err
-				}
+				sb.WriteString(entry.OriginalLine)
 			}
 		}
 	}
-	return nil
+	return safeWriteFile(todoFile, []byte(sb.String()), 0644)
 }

@@ -39,6 +39,13 @@ func TestStartCommand_Detached(t *testing.T) {
 	}
 	defer func() { sessionManagerFactory = originalFactory }()
 
+	// Mock undoCaptureFunc to avoid git dependency
+	originalUndo := undoCaptureFunc
+	undoCaptureFunc = func(paths ...string) (string, error) {
+		return "", nil
+	}
+	defer func() { undoCaptureFunc = originalUndo }()
+
 	tmpDir := t.TempDir()
 
 	// Execute start --detached --name test-session --path tmpDir --mock
@@ -72,6 +79,13 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 
+	// Mock undoCaptureFunc
+	originalUndo := undoCaptureFunc
+	undoCaptureFunc = func(paths ...string) (string, error) {
+		return "", nil
+	}
+	defer func() { undoCaptureFunc = originalUndo }()
+
 	var err error
 	output := captureOutput(func() {
 		_, err = executeCommand(rootCmd, "start",
@@ -94,6 +108,13 @@ func TestStartCommand_Resume(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	t.Setenv("HOME", t.TempDir())
+
+	// Mock undoCaptureFunc
+	originalUndo := undoCaptureFunc
+	undoCaptureFunc = func(paths ...string) (string, error) {
+		return "", nil
+	}
+	defer func() { undoCaptureFunc = originalUndo }()
 
 	output := captureOutput(func() {
 		executeCommand(rootCmd, "start",
@@ -118,6 +139,13 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 		return agent.NewMockAgent(), nil
 	}
 	defer func() { agentClientFactory = originalFactory }()
+
+	// Mock undoCaptureFunc
+	originalUndo := undoCaptureFunc
+	undoCaptureFunc = func(paths ...string) (string, error) {
+		return "", nil
+	}
+	defer func() { undoCaptureFunc = originalUndo }()
 
 	t.Setenv("HOME", t.TempDir())
 

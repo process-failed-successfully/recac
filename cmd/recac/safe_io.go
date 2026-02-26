@@ -34,3 +34,25 @@ func safeWriteFile(path string, data []byte, perm os.FileMode) error {
 	// 2. Write file
 	return writeFileFunc(path, data, perm)
 }
+
+// safeAppendFile appends data to a file safely by first capturing a backup.
+func safeAppendFile(path string, data []byte, perm os.FileMode) error {
+	// 1. Capture state
+	if _, err := undoCaptureFunc(path); err != nil {
+		return err
+	}
+
+	// 2. Append file
+	// We use os.OpenFile directly here, or we can use a mockable func if needed.
+	// For now, let's use os.OpenFile but allow mocking via package var if we want strict testing.
+	// But writeFileFunc is os.WriteFile (overwrite).
+	// Let's stick to os.OpenFile for now as it's standard for appending.
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.Write(data)
+	return err
+}

@@ -86,7 +86,7 @@ func init() {
 
 func ensureTodoFile() error {
 	if _, err := os.Stat(todoFile); os.IsNotExist(err) {
-		return os.WriteFile(todoFile, []byte("# TODO\n\n"), 0644)
+		return safeWriteFile(todoFile, []byte("# TODO\n\n"), 0644)
 	}
 	return nil
 }
@@ -96,15 +96,11 @@ func appendTask(task string) error {
 		return err
 	}
 
-	f, err := os.OpenFile(todoFile, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
+	entry := fmt.Sprintf("- [ ] %s\n", task)
+	if err := safeAppendFile(todoFile, []byte(entry), 0644); err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if _, err := f.WriteString(fmt.Sprintf("- [ ] %s\n", task)); err != nil {
-		return err
-	}
 	fmt.Printf("Added task: %s\n", task)
 	return nil
 }
@@ -172,7 +168,9 @@ func modifyTask(targetIndex int, action func(line string) (string, bool)) error 
 		return fmt.Errorf("task index %d not found", targetIndex)
 	}
 
-	return utils.WriteLines(todoFile, newLines)
+	// Join lines and write safely
+	content := strings.Join(newLines, "\n") + "\n"
+	return safeWriteFile(todoFile, []byte(content), 0644)
 }
 
 func toggleTaskStatus(targetIndex int, done bool) error {
