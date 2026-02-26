@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -132,5 +133,57 @@ import "example.com/test/pkg/ignoreme"
 	imports := deps["example.com/test/pkg/a"]
 	if len(imports) != 0 {
 		t.Errorf("Expected 0 imports, got %v", imports)
+	}
+}
+
+func BenchmarkAnalyzeDependencies(b *testing.B) {
+	// Setup a large dummy project
+	tmpDir, err := os.MkdirTemp("", "bench-deps")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	moduleName := "example.com/bench"
+	goMod := fmt.Sprintf("module %s\n\ngo 1.21\n", moduleName)
+	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644)
+
+	// Create 100 packages, each with 5 files, each with 10 common imports
+	commonImports := []string{
+		"fmt", "os", "strings", "net/http", "encoding/json",
+		"github.com/pkg/errors", "github.com/stretchr/testify/assert",
+		"k8s.io/client-go/kubernetes", "sigs.k8s.io/controller-runtime",
+		"github.com/prometheus/client_golang/prometheus",
+	}
+
+	for i := 0; i < 50; i++ {
+		pkgName := fmt.Sprintf("pkg%d", i)
+		pkgDir := filepath.Join(tmpDir, pkgName)
+		os.MkdirAll(pkgDir, 0755)
+
+		for j := 0; j < 5; j++ {
+			fileName := fmt.Sprintf("file%d.go", j)
+			content := fmt.Sprintf("package %s\nimport (\n", pkgName)
+			for _, imp := range commonImports {
+				content += fmt.Sprintf("\t\"%s\"\n", imp)
+			}
+			content += ")\nfunc Foo() {}\n"
+			os.WriteFile(filepath.Join(pkgDir, fileName), []byte(content), 0644)
+		}
+	}
+
+	opts := DependencyOptions{
+		Root:           tmpDir,
+		ModuleName:     moduleName,
+		IgnorePatterns: []string{"vendor", ".*test.*", "internal/.*"},
+		ShowStdLib:     true,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := AnalyzeDependencies(opts)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

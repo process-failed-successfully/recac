@@ -50,6 +50,9 @@ func AnalyzeDependencies(opts DependencyOptions) (DepMap, error) {
 		}
 	}
 
+	// Cache ignore check results for import paths to avoid repeated regex matching
+	checkedImports := make(map[string]bool)
+
 	err := filepath.Walk(opts.Root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -104,13 +107,17 @@ func AnalyzeDependencies(opts DependencyOptions) (DepMap, error) {
 			target := strings.Trim(imp.Path.Value, "\"")
 
 			// Check ignore patterns for target package
-			ignored := false
-			for _, re := range ignoreRegexps {
-				if re.MatchString(target) {
-					ignored = true
-					break
+			ignored, checked := checkedImports[target]
+			if !checked {
+				for _, re := range ignoreRegexps {
+					if re.MatchString(target) {
+						ignored = true
+						break
+					}
 				}
+				checkedImports[target] = ignored
 			}
+
 			if ignored {
 				continue
 			}
