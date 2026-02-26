@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,6 +20,7 @@ type SessionModel struct {
 	agent           agent.Agent
 	viewport        viewport.Model
 	input           textarea.Model
+	spinner         spinner.Model
 	renderer        *glamour.TermRenderer
 	err             error
 	isLoading       bool
@@ -62,11 +64,16 @@ func NewSessionModel(ag agent.Agent) SessionModel {
 	renderedInitial, _ := r.Render(initialText)
 	vp.SetContent(renderedInitial)
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	return SessionModel{
 		agent:           ag,
 		messages:        []Message{},
 		viewport:        vp,
 		input:           ta,
+		spinner:         s,
 		renderer:        r,
 		ctx:             context.Background(),
 		history:         initialText,
@@ -85,17 +92,19 @@ func StartSession(ag agent.Agent) error {
 }
 
 func (m SessionModel) Init() tea.Cmd {
-	return textarea.Blink
+	return tea.Batch(textarea.Blink, m.spinner.Tick)
 }
 
 func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		tiCmd tea.Cmd
-		vpCmd tea.Cmd
+		tiCmd   tea.Cmd
+		vpCmd   tea.Cmd
+		spinCmd tea.Cmd
 	)
 
 	m.input, tiCmd = m.input.Update(msg)
 	m.viewport, vpCmd = m.viewport.Update(msg)
+	m.spinner, spinCmd = m.spinner.Update(msg)
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -123,7 +132,7 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.appendHistory(userMsg)
 
 				// Start streaming
-				return m, tea.Batch(tiCmd, m.sendRequest(v))
+				return m, tea.Batch(tiCmd, m.sendRequest(v), spinCmd)
 			}
 		case "ctrl+l":
 			// Clear screen shortcut
@@ -139,7 +148,7 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update viewport with rendered history + raw current response
 		m.viewport.SetContent(m.renderedHistory + m.currentResponse)
 		m.viewport.GotoBottom()
-		return m, waitForChunk(msg.ch)
+		return m, tea.Batch(waitForChunk(msg.ch), spinCmd)
 
 	case doneMsg:
 		m.isLoading = false
@@ -153,14 +162,14 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.viewport.SetContent(m.renderedHistory)
 		m.viewport.GotoBottom()
-		return m, nil
+		return m, spinCmd
 
 	case errMsg:
 		m.err = msg
 		m.isLoading = false
 		errorMsg := fmt.Sprintf("\n**Error**: %v\n\n", msg)
 		m.appendHistory(errorMsg)
-		return m, nil
+		return m, spinCmd
 
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
@@ -184,7 +193,7 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return m, tea.Batch(tiCmd, vpCmd)
+	return m, tea.Batch(tiCmd, vpCmd, spinCmd)
 }
 
 func (m *SessionModel) appendHistory(text string) {
@@ -325,9 +334,24 @@ func waitForChunk(ch <-chan string) tea.Cmd {
 }
 
 func (m SessionModel) View() string {
+	borderColor := lipgloss.Color("63") // Default purple
+	if m.isLoading {
+		borderColor = lipgloss.Color("240") // Dimmed grey
+	}
+
+	inputView := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), true, false, false, false).
+		BorderForeground(borderColor).
+		Render(m.input.View())
+
+	footer := inputView
+	if m.isLoading {
+		footer = fmt.Sprintf("%s Thinking...\n%s", m.spinner.View(), inputView)
+	}
+
 	return fmt.Sprintf(
 		"%s\n%s",
 		m.viewport.View(),
-		lipgloss.NewStyle().Border(lipgloss.NormalBorder(), true, false, false, false).Render(m.input.View()),
+		footer,
 	)
 }
