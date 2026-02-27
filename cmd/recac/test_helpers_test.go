@@ -360,6 +360,10 @@ type MockGitClient struct {
 	StashApplyFunc          func(directory, id string) error
 	StashDropFunc           func(directory, id string) error
 	StashClearFunc          func(directory string) error
+	PushFunc                func(directory, branch string) error
+	PullFunc                func(directory, remote, branch string) error
+	StashFunc               func(directory string) error
+	MergeFunc               func(directory, branchName string) error
 	AbortMergeFunc          func(directory string) error
 	RecoverFunc             func(directory string) error
 	CleanFunc               func(directory string) error
@@ -373,10 +377,6 @@ type MockGitClient struct {
 	ConfigAddGlobalFunc     func(key, value string) error
 	RemoteBranchExistsFunc  func(directory, remote, branch string) (bool, error)
 	CloneFunc               func(ctx context.Context, repoURL, directory string) error
-	PushFunc                func(directory, branch string) error
-	PullFunc                func(directory, remote, branch string) error
-	StashFunc               func(directory string) error
-	MergeFunc               func(directory, branchName string) error
 }
 
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {

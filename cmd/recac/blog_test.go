@@ -29,8 +29,8 @@ func (m *MockBlogGitClient) RepoExists(dir string) bool {
 // Stubs for other interface methods
 func (m *MockBlogGitClient) DiffStaged(dir string) (string, error) { return "", nil }
 func (m *MockBlogGitClient) Commit(dir, msg string) error          { return nil }
-func (m *MockBlogGitClient) Push(dir string) error                 { return nil }
-func (m *MockBlogGitClient) Pull(dir string) error                 { return nil }
+func (m *MockBlogGitClient) Push(dir, branch string) error                 { return nil }
+func (m *MockBlogGitClient) Pull(dir, remote, branch string) error                 { return nil }
 func (m *MockBlogGitClient) Status(dir string) (string, error)     { return "", nil }
 func (m *MockBlogGitClient) Init(dir string) error                 { return nil }
 func (m *MockBlogGitClient) Add(dir string, args ...string) error  { return nil }
@@ -63,6 +63,18 @@ func (m *MockBlogGitClient) DeleteLocalBranch(dir, branch string) error { return
 func (m *MockBlogGitClient) DeleteRemoteBranch(dir, remote, branch string) error { return nil }
 func (m *MockBlogGitClient) DiffStat(dir, startCommit, endCommit string) (string, error) { return "", nil }
 func (m *MockBlogGitClient) CurrentCommitSHA(dir string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) AbortMerge(dir string) error { return nil }
+func (m *MockBlogGitClient) Recover(dir string) error { return nil }
+func (m *MockBlogGitClient) Clean(dir string) error { return nil }
+func (m *MockBlogGitClient) ResetHard(dir, remote, branch string) error { return nil }
+func (m *MockBlogGitClient) SetRemoteURL(dir, name, url string) error { return nil }
+func (m *MockBlogGitClient) LocalBranchExists(dir, branch string) (bool, error) { return false, nil }
+func (m *MockBlogGitClient) Config(dir, key, value string) error { return nil }
+func (m *MockBlogGitClient) ConfigGlobal(key, value string) error { return nil }
+func (m *MockBlogGitClient) ConfigAddGlobal(key, value string) error { return nil }
+func (m *MockBlogGitClient) RemoteBranchExists(dir, remote, branch string) (bool, error) { return false, nil }
+func (m *MockBlogGitClient) Clone(ctx context.Context, repoURL, dir string) error { return nil }
+func (m *MockBlogGitClient) Merge(dir, branchName string) error { return nil }
 
 // MockAgent for blog tests
 type MockBlogAgent struct {

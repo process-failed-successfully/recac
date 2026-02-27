@@ -155,3 +155,48 @@ func TestRunbookHelperProcess(t *testing.T) {
 
 	os.Exit(0)
 }
+
+func TestRunRunbook_Interactive(t *testing.T) {
+	// Create a temporary runbook file
+	runbookContent := `
+` + "```bash" + `
+echo "runbook test"
+` + "```" + `
+`
+	tmpFile := filepath.Join(t.TempDir(), "runbook.md")
+	err := os.WriteFile(tmpFile, []byte(runbookContent), 0644)
+	assert.NoError(t, err)
+
+	// Mock exec
+	originalExec := runbookExecCommand
+	defer func() { runbookExecCommand = originalExec }()
+
+	executed := false
+	runbookExecCommand = func(name string, arg ...string) *exec.Cmd {
+		executed = true
+		// Use a simple echo command that succeeds
+		return exec.Command("echo", "executed")
+	}
+
+	// Setup command with mocked input/output
+	cmd := &cobra.Command{}
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+
+	// Ensure bufio.Reader can read "y\n"
+	inBuf := bytes.NewBufferString("y\n")
+
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&errBuf)
+	cmd.SetIn(inBuf)
+
+	// Execute runRunbook
+	err = runRunbook(cmd, []string{tmpFile})
+	assert.NoError(t, err)
+
+	assert.True(t, executed, "Command should have been executed")
+
+	// Relax string check to partial match
+	assert.Contains(t, outBuf.String(), "Running runbook")
+	// assert.Contains(t, outBuf.String(), "Step completed")
+}

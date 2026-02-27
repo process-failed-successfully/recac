@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"testing"
@@ -174,6 +175,23 @@ func (m *MockTimesheetGitClient) StashShow(d, id string) (string, error) { retur
 func (m *MockTimesheetGitClient) StashApply(d, id string) error { return nil }
 func (m *MockTimesheetGitClient) StashDrop(d, id string) error { return nil }
 func (m *MockTimesheetGitClient) StashClear(d string) error { return nil }
+func (m *MockTimesheetGitClient) AbortMerge(d string) error { return nil }
+func (m *MockTimesheetGitClient) Recover(d string) error { return nil }
+func (m *MockTimesheetGitClient) Clean(d string) error { return nil }
+func (m *MockTimesheetGitClient) ResetHard(d, remote, branch string) error { return nil }
+func (m *MockTimesheetGitClient) StashPop(d string) error { return nil }
+func (m *MockTimesheetGitClient) DeleteRemoteBranch(d, remote, branch string) error { return nil }
+func (m *MockTimesheetGitClient) SetRemoteURL(d, name, url string) error { return nil }
+func (m *MockTimesheetGitClient) LocalBranchExists(d, branch string) (bool, error) { return false, nil }
+func (m *MockTimesheetGitClient) Config(d, key, value string) error { return nil }
+func (m *MockTimesheetGitClient) ConfigGlobal(key, value string) error { return nil }
+func (m *MockTimesheetGitClient) ConfigAddGlobal(key, value string) error { return nil }
+func (m *MockTimesheetGitClient) RemoteBranchExists(d, remote, branch string) (bool, error) { return false, nil }
+func (m *MockTimesheetGitClient) Clone(ctx context.Context, repoURL, d string) error { return nil }
+func (m *MockTimesheetGitClient) Push(d, branch string) error { return nil }
+func (m *MockTimesheetGitClient) Pull(d, remote, branch string) error { return nil }
+func (m *MockTimesheetGitClient) Stash(d string) error { return nil }
+func (m *MockTimesheetGitClient) Merge(d, branchName string) error { return nil }
 
 func TestRunTimesheet(t *testing.T) {
 	origFactory := gitClientFactory
