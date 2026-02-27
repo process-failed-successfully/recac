@@ -447,7 +447,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 		}
 	}
 
-	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
+	if _, err := cmdutils.SetupWorkspace(ctx, gitClientFactory(), cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		return
 	}

@@ -590,11 +590,11 @@ recac/cmd/recac/routes.go:97:			generateOpenAPI				77.3%
 recac/cmd/recac/run.go:33:			init					100.0%
 recac/cmd/recac/run.go:37:			executeRunCmd				85.0%
 recac/cmd/recac/runbook.go:29:			init					100.0%
-recac/cmd/recac/runbook.go:34:			runRunbook				0.0%
+recac/cmd/recac/runbook.go:34:			runRunbook				66.7%
 recac/cmd/recac/runbook.go:134:			parseRunbook				75.0%
-recac/cmd/recac/runbook.go:143:			promptUser				0.0%
-recac/cmd/recac/runbook.go:166:			askToContinue				0.0%
-recac/cmd/recac/runbook.go:176:			executeBlock				87.5%
+recac/cmd/recac/runbook.go:143:			promptUser				50.0%
+recac/cmd/recac/runbook.go:166:			askToContinue				66.7%
+recac/cmd/recac/runbook.go:176:			executeBlock				91.7%
 recac/cmd/recac/safe_io.go:22:			safeWriteFile				66.7%
 recac/cmd/recac/safe_io.go:39:			safeAppendFile				75.0%
 recac/cmd/recac/sandbox.go:17:			init					100.0%
@@ -647,7 +647,7 @@ recac/cmd/recac/session.go:25:			runSession				80.0%
 recac/cmd/recac/session.go:45:			init					100.0%
 recac/cmd/recac/settings_cmd.go:10:		init					100.0%
 recac/cmd/recac/setup.go:31:			init					100.0%
-recac/cmd/recac/setup.go:42:			runSetup				0.0%
+recac/cmd/recac/setup.go:42:			runSetup				69.0%
 recac/cmd/recac/shared_utils.go:38:		DefaultIgnoreMap			100.0%
 recac/cmd/recac/shared_utils.go:56:		extractFileContexts			96.0%
 recac/cmd/recac/shell.go:37:			init					100.0%
@@ -689,9 +689,9 @@ recac/cmd/recac/stack.go:412:			printStackMermaid			0.0%
 recac/cmd/recac/standup.go:22:			init					100.0%
 recac/cmd/recac/standup.go:28:			runStandup				70.9%
 recac/cmd/recac/start.go:28:			init					100.0%
-recac/cmd/recac/start.go:421:			processDirectTask			0.0%
+recac/cmd/recac/start.go:421:			processDirectTask			58.6%
 recac/cmd/recac/start.go:479:			processJiraTicket			0.0%
-recac/cmd/recac/start.go:617:			runWorkflow				62.3%
+recac/cmd/recac/start.go:617:			runWorkflow				62.9%
 recac/cmd/recac/stash.go:79:			init					100.0%
 recac/cmd/recac/stash.go:92:			runStashSave				72.4%
 recac/cmd/recac/stash.go:139:			runStashList				71.4%
@@ -818,4 +818,4 @@ recac/cmd/recac/workdiff.go:52:			handleTwoSessionDiff			69.6%
 recac/cmd/recac/workdiff.go:95:			getSessionEndSHA			22.2%
 recac/cmd/recac/workflow.go:46:			init					100.0%
 recac/cmd/recac/workflow.go:51:			runWorkflowCmd				79.5%
-total:						(statements)				76.1%
+total:						(statements)				76.7%
