@@ -80,7 +80,17 @@ func TestFlashcardsGenerate(t *testing.T) {
 	var cards []flashcards.Flashcard
 	json.Unmarshal(content, &cards)
 	assert.Len(t, cards, 2)
-	assert.Equal(t, "What is A?", cards[0].Question)
+
+	// Since map iteration is random, the order in file (and thus loaded slice) is not guaranteed
+	// We check that "What is A?" exists in the list
+	foundA := false
+	for _, c := range cards {
+		if c.Question == "What is A?" {
+			foundA = true
+			break
+		}
+	}
+	assert.True(t, foundA, "Expected to find card with question 'What is A?'")
 }
 
 func TestFlashcardsStats(t *testing.T) {
