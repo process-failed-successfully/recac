@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -132,5 +133,52 @@ import "example.com/test/pkg/ignoreme"
 	imports := deps["example.com/test/pkg/a"]
 	if len(imports) != 0 {
 		t.Errorf("Expected 0 imports, got %v", imports)
+	}
+}
+
+func BenchmarkAnalyzeDependencies(b *testing.B) {
+	// 1. Setup Benchmark Data
+	tmpDir, err := os.MkdirTemp("", "recac-deps-bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	goMod := "module example.com/bench\n\ngo 1.21\n"
+	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644)
+
+	// Create 500 files with various imports to make regex check more significant
+	for i := 0; i < 500; i++ {
+		dirPath := filepath.Join(tmpDir, fmt.Sprintf("pkg%d", i))
+		os.MkdirAll(dirPath, 0755)
+		content := fmt.Sprintf(`package pkg%d
+import (
+	"fmt"
+	"os"
+	"net/http"
+	"strings"
+	"encoding/json"
+	"example.com/bench/pkg%d"
+	"example.com/bench/ignore%d"
+	"example.com/bench/another%d"
+)
+func F() {}
+`, i, (i+1)%500, i, i)
+		os.WriteFile(filepath.Join(dirPath, "file.go"), []byte(content), 0644)
+	}
+
+	opts := DependencyOptions{
+		Root:           tmpDir,
+		ModuleName:     "example.com/bench",
+		IgnorePatterns: []string{"ignore.*", "another.*"}, // Multiple regexes
+		ShowStdLib:     true,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := AnalyzeDependencies(opts)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
