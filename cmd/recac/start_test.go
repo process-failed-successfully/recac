@@ -12,8 +12,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// captureOutput is moved to a shared test helper file or removed if not needed since executeCommand captures it.
-// Assuming we use executeCommand which returns output.
+import (
+	"bytes"
+	"io"
+)
+
+func captureOutput(f func()) string {
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
 
 func TestStartCommand_Detached(t *testing.T) {
 	// Setup Mock SessionManager
@@ -36,15 +52,17 @@ func TestStartCommand_Detached(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Execute start --detached --name test-session --path tmpDir --mock
-	output, err := executeCommand(rootCmd, "start",
-		"--detached",
-		"--name", "test-session",
-		"--path", tmpDir,
-		"--mock",
-	)
+	var err error
+	output := captureOutput(func() {
+		_, err = executeCommand(rootCmd, "start",
+			"--detached",
+			"--name", "test-session",
+			"--path", tmpDir,
+			"--mock",
+		)
+	})
 
 	// Verify output
-	// executeCommand catches exit(1) but detached shouldn't exit 1.
 	require.NoError(t, err)
 	assert.Contains(t, output, "Session 'test-session' started in background")
 
@@ -70,12 +88,15 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	}
 	defer func() { undoCaptureFunc = originalUndo }()
 
-	output, err := executeCommand(rootCmd, "start",
-		"--mock",
-		"--path", tmpDir,
-		"--max-iterations", "1",
-		"--name", "interactive-test",
-	)
+	var err error
+	output := captureOutput(func() {
+		_, err = executeCommand(rootCmd, "start",
+			"--mock",
+			"--path", tmpDir,
+			"--max-iterations", "1",
+			"--name", "interactive-test",
+		)
+	})
 
 	if err != nil {
 		t.Logf("Command failed with output: %s", output)
@@ -97,12 +118,14 @@ func TestStartCommand_Resume(t *testing.T) {
 	}
 	defer func() { undoCaptureFunc = originalUndo }()
 
-	output, _ := executeCommand(rootCmd, "start",
-		"--resume-from", tmpDir,
-		"--mock",
-		"--max-iterations", "1",
-		"--name", "resume-test",
-	)
+	output := captureOutput(func() {
+		executeCommand(rootCmd, "start",
+			"--resume-from", tmpDir,
+			"--mock",
+			"--max-iterations", "1",
+			"--name", "resume-test",
+		)
+	})
 
 	// Just check output
 	assert.Contains(t, output, fmt.Sprintf("Resuming session 'resume-test' from workspace: %s", tmpDir))
@@ -136,19 +159,16 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 
 	t.Setenv("HOME", t.TempDir())
 
-	output, err := executeCommand(rootCmd, "start",
-		"--path", tmpDir,
-		"--max-iterations", "1",
-		"--name", "normal-test",
-		"--allow-dirty",
-		"--project", "test-project",
-	)
-
-	// We expect executeCommand to possibly fail if RunLoop hits max iterations (which mocks often do),
-	// but we don't want it to panic.
-	// The test asserts "Starting RECAC session" which is printed early.
-	// If it panics, err will be non-nil (if executeCommand catches it) or the test will crash.
-	// We just want to ensure clean execution environment.
+	var err error
+	output := captureOutput(func() {
+		_, err = executeCommand(rootCmd, "start",
+			"--path", tmpDir,
+			"--max-iterations", "1",
+			"--name", "normal-test",
+			"--allow-dirty",
+			"--project", "test-project",
+		)
+	})
 
 	if err != nil {
 		// Log but don't fail if it's just max iterations
