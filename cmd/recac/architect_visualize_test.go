@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"recac/internal/architecture"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -86,4 +91,59 @@ func TestSetupVisualizeServer(t *testing.T) {
 	assert.Contains(t, body, "<title>RECAC Architecture Visualization</title>")
 	// Verify content (HTML escaped by template)
 	assert.Contains(t, body, "graph TD; A--&gt;B;")
+}
+
+func TestRunArchitectVisualize(t *testing.T) {
+	// 1. Setup Temp Architecture File
+	tmpDir := t.TempDir()
+	archFile := filepath.Join(tmpDir, "architecture.yaml")
+
+	yamlContent := `
+components:
+  - id: service-a
+    type: service
+    description: Test Service
+`
+	if err := os.WriteFile(archFile, []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Mock Dependencies
+	originalListen := listenAndServeFunc
+	originalOpen := openBrowserFunc
+	defer func() {
+		listenAndServeFunc = originalListen
+		openBrowserFunc = originalOpen
+	}()
+
+	listenCalled := false
+	listenAndServeFunc = func(addr string, handler http.Handler) error {
+		listenCalled = true
+		return nil // Return nil to simulate successful start (and immediate return for test)
+	}
+
+	openCalled := false
+	openBrowserFunc = func(url string) error {
+		openCalled = true
+		return nil
+	}
+
+	// 3. Run Command
+	// We construct a command similar to the real one
+	cmd := &cobra.Command{Use: "visualize", RunE: runArchitectVisualize}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// We pass the file path as an argument
+	err := runArchitectVisualize(cmd, []string{archFile})
+
+	// 4. Verify
+	assert.NoError(t, err)
+	assert.True(t, listenCalled, "ListenAndServe should be called")
+
+	// Wait a bit for goroutine
+	time.Sleep(10 * time.Millisecond)
+	assert.True(t, openCalled, "OpenBrowser should be called")
+
+	assert.Contains(t, buf.String(), "Serving architecture visualization")
 }

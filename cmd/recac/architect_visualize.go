@@ -26,6 +26,12 @@ func init() {
 	architectCmd.AddCommand(architectVisualizeCmd)
 }
 
+// listenAndServeFunc mocks http.ListenAndServe
+var listenAndServeFunc = http.ListenAndServe
+
+// openBrowserFunc mocks opening the browser
+var openBrowserFunc = openBrowserForVis
+
 func runArchitectVisualize(cmd *cobra.Command, args []string) error {
 	path := ".recac/architecture/architecture.yaml"
 	if len(args) > 0 {
@@ -55,12 +61,12 @@ func runArchitectVisualize(cmd *cobra.Command, args []string) error {
 
 	// Start server in a goroutine so we can open the browser
 	go func() {
-		if err := openBrowserForVis(url); err != nil {
+		if err := openBrowserFunc(url); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to open browser: %v\n", err)
 		}
 	}()
 
-	return http.ListenAndServe(port, mux)
+	return listenAndServeFunc(port, mux)
 }
 
 func setupVisualizeServer(mermaidGraph string) *http.ServeMux {
