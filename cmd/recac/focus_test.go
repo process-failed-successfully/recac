@@ -119,3 +119,70 @@ func TestFocusFlags(t *testing.T) {
 	dndFlag := focusCmd.Flags().Lookup("dnd")
 	assert.NotNil(t, dndFlag)
 }
+
+func TestFocus_RunFocus(t *testing.T) {
+	// Reset flags
+	oldDuration := focusDuration
+	oldTask := focusTask
+	oldMusic := focusMusic
+	oldDND := focusDND
+
+	defer func() {
+		focusDuration = oldDuration
+		focusTask = oldTask
+		focusMusic = oldMusic
+		focusDND = oldDND
+	}()
+
+	focusTask = "A specific task"
+	focusMusic = false
+	focusDND = false
+
+	// Override execCommand to avoid running actual stuff
+	oldExec := execCommand
+	execCommand = fakeFocusExecCommand
+	defer func() { execCommand = oldExec }()
+
+	// Override TUI func
+	oldTUI := startFocusTUIFunc
+	startFocusTUIFunc = func(m tea.Model) error {
+		return nil
+	}
+	defer func() { startFocusTUIFunc = oldTUI }()
+
+	err := runFocus(focusCmd, []string{})
+	assert.NoError(t, err)
+}
+
+func TestFocus_RunFocus_Music_DND(t *testing.T) {
+	// Reset flags
+	oldTask := focusTask
+	oldMusic := focusMusic
+	oldDND := focusDND
+
+	defer func() {
+		focusTask = oldTask
+		focusMusic = oldMusic
+		focusDND = oldDND
+	}()
+
+	focusTask = "A specific task"
+	focusMusic = true
+	// Testing DND logic depends on macOS via runtime.GOOS, so let's mock the exec and set the flag
+	focusDND = true
+
+	// Override execCommand to avoid running actual stuff
+	oldExec := execCommand
+	execCommand = fakeFocusExecCommand
+	defer func() { execCommand = oldExec }()
+
+	// Override TUI func
+	oldTUI := startFocusTUIFunc
+	startFocusTUIFunc = func(m tea.Model) error {
+		return nil
+	}
+	defer func() { startFocusTUIFunc = oldTUI }()
+
+	err := runFocus(focusCmd, []string{})
+	assert.NoError(t, err)
+}

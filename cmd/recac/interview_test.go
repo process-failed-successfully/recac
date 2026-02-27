@@ -203,14 +203,88 @@ func TestInterviewRun_Init(t *testing.T) {
 	cmd := interviewCmd
 	// Set some flags
 	cmd.SetArgs([]string{"--topic", "TestTopic", "--level", "Junior", "--rounds", "1"})
-	// We can't call RunE easily as it blocks on tea.NewProgram(m).Run()
-	// But we can verify flags are set correctly.
-	err := cmd.ParseFlags([]string{"--topic", "TestTopic", "--level", "Junior", "--rounds", "1"})
+
+	// Must execute the command to parse flags correctly, instead of calling runInterview manually
+	// Or explicitly parse flags if we just want to test runInterview behavior.
+	// Since cobra persists flag state, let's explicitly set the variables.
+
+	oldTopic := interviewTopic
+	oldLevel := interviewLevel
+	oldRounds := interviewRounds
+	defer func() {
+		interviewTopic = oldTopic
+		interviewLevel = oldLevel
+		interviewRounds = oldRounds
+	}()
+
+	interviewTopic = "TestTopic"
+	interviewLevel = "Junior"
+	interviewRounds = 1
+
+	// Override TUI func so RunE doesn't block
+	origTUIFunc := startInterviewTUIFunc
+	defer func() { startInterviewTUIFunc = origTUIFunc }()
+	startInterviewTUIFunc = func(m tea.Model) error {
+		return nil
+	}
+
+	err := runInterview(cmd, []string{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "TestTopic", interviewTopic)
 	assert.Equal(t, "Junior", interviewLevel)
 	assert.Equal(t, 1, interviewRounds)
+}
+
+func TestInterview_View(t *testing.T) {
+	mockAgent := &MockInterviewAgent{}
+	session := &InterviewSession{
+		Topic:     "Math",
+		Level:     "Junior",
+		MaxRounds: 2,
+		Current:   0,
+		Score:     0,
+		Agent:     mockAgent,
+	}
+
+	m := initialInterviewModel(session, "Mock Context Repo")
+
+	// StateLoading
+	m.state = StateLoading
+	view := m.View()
+	assert.Contains(t, view, "Thinking...")
+	assert.Contains(t, view, "Interview: Math")
+
+	// StateAnswer
+	m.state = StateAnswer
+	m.currentQuestion = &InterviewQuestion{Question: "What is 2+2?", Context: "Basic Math"}
+	view = m.View()
+	assert.Contains(t, view, "What is 2+2?")
+	assert.Contains(t, view, "Basic Math")
+	assert.Contains(t, view, "Ctrl+S to submit")
+
+	// StateEvaluation
+	m.state = StateEvaluation
+	m.lastEvaluation = &InterviewEvaluation{Score: 8, Feedback: "Good"}
+	view = m.View()
+	assert.Contains(t, view, "Score: ")
+	assert.Contains(t, view, "Good")
+
+	// StateFinished
+	m.state = StateFinished
+	m.session.Score = 18
+	view = m.View()
+	assert.Contains(t, view, "Interview Complete!")
+	assert.Contains(t, view, "You're hired!")
+
+	m.session.Score = 10
+	view = m.View()
+	assert.Contains(t, view, "Keep practicing")
+
+	// Error
+	m.err = errors.New("something went wrong")
+	view = m.View()
+	assert.Contains(t, view, "Error: something went wrong")
 }
 
 func TestInterview_GenerateQuestion_Error(t *testing.T) {

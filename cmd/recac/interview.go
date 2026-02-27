@@ -73,6 +73,15 @@ type InterviewSession struct {
 	Agent     agent.Agent
 }
 
+// Factory functions
+var startInterviewTUIFunc = func(m tea.Model) error {
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // -- Main Entry Point --
 
 func runInterview(cmd *cobra.Command, args []string) error {
@@ -120,11 +129,11 @@ func runInterview(cmd *cobra.Command, args []string) error {
 	// 3. Start TUI
 	// Initial question generation happens in Init()
 	modelTUI := initialInterviewModel(session, repoContext)
-	p := tea.NewProgram(modelTUI, tea.WithAltScreen())
 
-	if _, err := p.Run(); err != nil {
+	if err := startInterviewTUIFunc(modelTUI); err != nil {
 		return fmt.Errorf("error running interview: %w", err)
 	}
+
 	return nil
 }
 
