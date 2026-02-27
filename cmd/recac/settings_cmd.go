@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -12,6 +13,7 @@ func init() {
 	settingsCmd.AddCommand(settingsViewCmd)
 	settingsCmd.AddCommand(settingsGetCmd)
 	settingsCmd.AddCommand(settingsSetCmd)
+	settingsCmd.AddCommand(settingsEditCmd)
 }
 
 var settingsCmd = &cobra.Command{
@@ -35,6 +37,34 @@ var settingsViewCmd = &cobra.Command{
 		for key, value := range allSettings {
 			fmt.Fprintf(cmd.OutOrStdout(), "%s: %v\n", key, value)
 		}
+		return nil
+	},
+}
+
+var settingsEditCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Edit the configuration file in your default editor",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configFile := viperConfigFileUsed()
+		if configFile == "" {
+			return fmt.Errorf("no configuration file found. Try creating one or using 'recac setup'")
+		}
+
+		editor := os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vim" // Fallback
+		}
+
+		c := execCommand(editor, configFile)
+		c.Stdin = os.Stdin
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+
+		if err := c.Run(); err != nil {
+			return fmt.Errorf("failed to open editor %s: %w", editor, err)
+		}
+
+		fmt.Fprintf(cmd.OutOrStdout(), "Configuration saved.\n")
 		return nil
 	},
 }
