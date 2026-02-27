@@ -20,47 +20,53 @@ var (
 	flowFile   string
 )
 
-var flowCmd = &cobra.Command{
-	Use:   "flow [function]",
-	Short: "Generate a Mermaid flowchart for a function",
-	Long:  `Analyzes the Go code to extract a function's logic and uses AI to generate a Mermaid flowchart.`,
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		targetFunc := args[0]
-		ctx := cmd.Context()
-		cwd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
+func NewFlowCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "flow [function]",
+		Short: "Generate a Mermaid flowchart for a function",
+		Long:  `Analyzes the Go code to extract a function's logic and uses AI to generate a Mermaid flowchart.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			targetFunc := args[0]
+			ctx := cmd.Context()
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
 
-		// 1. Locate Function Source
-		searchDir := flowDir
-		if searchDir == "" {
-			searchDir = cwd
-		}
+			// 1. Locate Function Source
+			searchDir := flowDir
+			if searchDir == "" {
+				searchDir = cwd
+			}
 
-		// fmt.Fprintf(cmd.ErrOrStderr(), "DEBUG: searchDir=%s target=%s\n", searchDir, targetFunc)
+			// We can't rely on global vars if we want instance-isolation,
+			// but Cobra flags bind to vars.
+			// Ideally we bind flags to local vars of the struct or closure.
+			// But for now, sticking to globals is easier if we reset them,
+			// OR we can query flags directly.
 
-		if flowFile != "" {
-			// If file specified, just check that file (or dir containing it if path is relative)
-			// But to reuse logic, we can just walk.
-			// Actually, let's implement a specific finder.
-		}
+			d, _ := cmd.Flags().GetString("dir")
+			if d != "" {
+				searchDir = d
+			}
+			f, _ := cmd.Flags().GetString("file")
+			o, _ := cmd.Flags().GetString("output")
 
-		sourceCode, err := findFunctionSource(searchDir, flowFile, targetFunc)
-		if err != nil {
-			return fmt.Errorf("failed to find function '%s' in %s: %w", targetFunc, searchDir, err)
-		}
+			sourceCode, err := findFunctionSource(searchDir, f, targetFunc)
+			if err != nil {
+				return fmt.Errorf("failed to find function '%s' in %s: %w", targetFunc, searchDir, err)
+			}
 
-		// 2. Generate Flowchart with AI
-		provider := viper.GetString("provider")
-		model := viper.GetString("model")
-		ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-flow")
-		if err != nil {
-			return fmt.Errorf("failed to create agent: %w", err)
-		}
+			// 2. Generate Flowchart with AI
+			provider := viper.GetString("provider")
+			model := viper.GetString("model")
+			ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-flow")
+			if err != nil {
+				return fmt.Errorf("failed to create agent: %w", err)
+			}
 
-		prompt := fmt.Sprintf(`You are an expert in code visualization.
+			prompt := fmt.Sprintf(`You are an expert in code visualization.
 Generate a Mermaid flowchart (graph TD) that represents the logic of the following Go function.
 Use standard flowchart shapes (diamonds for decisions, rectangles for processes).
 Label the decision branches (Yes/No, True/False).
@@ -73,39 +79,44 @@ Function Code:
 
 Return ONLY the Mermaid code. Do not include markdown blocks.`, sourceCode)
 
-		fmt.Fprintf(cmd.ErrOrStderr(), "🤖 Generating flowchart for '%s'...\n", targetFunc)
-		resp, err := ag.Send(ctx, prompt)
-		if err != nil {
-			return fmt.Errorf("agent failed: %w", err)
-		}
-
-		diagram := utils.CleanCodeBlock(resp)
-
-		// 3. Output
-		if flowOutput != "" {
-			if err := os.WriteFile(flowOutput, []byte(diagram), 0644); err != nil {
-				return fmt.Errorf("failed to write output file: %w", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "🤖 Generating flowchart for '%s'...\n", targetFunc)
+			resp, err := ag.Send(ctx, prompt)
+			if err != nil {
+				return fmt.Errorf("agent failed: %w", err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Flowchart saved to %s\n", flowOutput)
-		} else {
-			fmt.Fprintln(cmd.OutOrStdout(), diagram)
-		}
 
-		return nil
-	},
+			diagram := utils.CleanCodeBlock(resp)
+
+			// 3. Output
+			if o != "" {
+				if err := os.WriteFile(o, []byte(diagram), 0644); err != nil {
+					return fmt.Errorf("failed to write output file: %w", err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "Flowchart saved to %s\n", o)
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), diagram)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&flowOutput, "output", "o", "", "Output file path")
+	cmd.Flags().StringVar(&flowDir, "dir", ".", "Directory to search (default: current)")
+	cmd.Flags().StringVarP(&flowFile, "file", "f", "", "Specific file to analyze (optional)")
+
+	return cmd
 }
+
+var flowCmd = NewFlowCmd()
 
 func init() {
 	rootCmd.AddCommand(flowCmd)
-	flowCmd.Flags().StringVarP(&flowOutput, "output", "o", "", "Output file path")
-	flowCmd.Flags().StringVar(&flowDir, "dir", ".", "Directory to search (default: current)")
-	flowCmd.Flags().StringVarP(&flowFile, "file", "f", "", "Specific file to analyze (optional)")
 }
 
 func findFunctionSource(root, specificFile, funcName string) (string, error) {
 	fset := token.NewFileSet()
 	var foundSource string
-    // fmt.Fprintf(os.Stderr, "DEBUG: Walking %s for %s\n", root, funcName)
 
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {

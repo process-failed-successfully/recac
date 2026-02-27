@@ -50,14 +50,8 @@ func processData(data int) string {
 	}
 	defer func() { agentClientFactory = origFactory }()
 
-	// Run Command
-	// NOTE: We must create a new command instance if we want to isolate flags, but flowCmd is global.
-	// We rely on SetArgs overwriting.
-
-	// Explicitly reset the global flags bound to the command if possible, or just overwrite via args.
-	// Since cobra parses args into the bound variables, previous tests shouldn't affect if we pass args.
-
-	cmd := flowCmd
+	// Use Factory
+	cmd := NewFlowCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
@@ -82,7 +76,6 @@ func TestFlowCmd_NotFound(t *testing.T) {
 	// Create a dummy file so walk has something to check, but NOT the function we want
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte("package main\nfunc other() {}"), 0644)
 
-	// Switch working directory to temp dir to avoid accidental matches in current directory if --dir fails
 	cwd, _ := os.Getwd()
 	defer os.Chdir(cwd)
 	os.Chdir(tmpDir)
@@ -95,18 +88,8 @@ func TestFlowCmd_NotFound(t *testing.T) {
 	}
 	defer func() { agentClientFactory = origFactory }()
 
-	// Reset global vars used by cobra flags manually, just in case
-	flowFile = ""
-	flowDir = tmpDir
-	flowOutput = ""
-
-	// Also reset via flags API
-	flowCmd.Flags().Set("file", "")
-	flowCmd.Flags().Set("dir", tmpDir)
-	flowCmd.Flags().Set("output", "")
-
-	// Run Command
-	cmd := flowCmd
+	// Use Factory - Ensures clean state
+	cmd := NewFlowCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
