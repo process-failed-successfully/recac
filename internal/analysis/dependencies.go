@@ -38,6 +38,9 @@ func AnalyzeDependencies(opts DependencyOptions) (DepMap, error) {
 		ignoreRegexps = append(ignoreRegexps, re)
 	}
 
+	// Cache for regex checks
+	checkedImports := make(map[string]bool)
+
 	// Determine module name if not provided
 	moduleName := opts.ModuleName
 	if moduleName == "" {
@@ -105,12 +108,18 @@ func AnalyzeDependencies(opts DependencyOptions) (DepMap, error) {
 
 			// Check ignore patterns for target package
 			ignored := false
-			for _, re := range ignoreRegexps {
-				if re.MatchString(target) {
-					ignored = true
-					break
+			if v, ok := checkedImports[target]; ok {
+				ignored = v
+			} else {
+				for _, re := range ignoreRegexps {
+					if re.MatchString(target) {
+						ignored = true
+						break
+					}
 				}
+				checkedImports[target] = ignored
 			}
+
 			if ignored {
 				continue
 			}
