@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -330,35 +331,143 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 
 // MockGitClient is a mock implementation of the IGitClient interface.
 type MockGitClient struct {
-	CheckoutFunc          func(repoPath, commitOrBranch string) error
-	DiffFunc              func(repoPath, commitA, commitB string) (string, error)
-	DiffStagedFunc        func(repoPath string) (string, error)
-	DiffStatFunc          func(repoPath, commitA, commitB string) (string, error)
-	CurrentCommitSHAFunc  func(repoPath string) (string, error)
-	RepoExistsFunc        func(repoPath string) bool
-	CommitFunc            func(repoPath, message string) error
-	LogFunc               func(repoPath string, args ...string) ([]string, error)
-	FetchFunc             func(repoPath, remote, branch string) error
-	CurrentBranchFunc     func(repoPath string) (string, error)
-	CheckoutNewBranchFunc func(repoPath, branch string) error
-	BisectStartFunc       func(repoPath, bad, good string) error
-	BisectGoodFunc        func(repoPath, rev string) error
-	BisectBadFunc         func(repoPath, rev string) error
-	BisectResetFunc       func(repoPath string) error
-	BisectLogFunc         func(repoPath string) ([]string, error)
-	TagFunc               func(repoPath, version string) error
-	DeleteTagFunc         func(repoPath, version string) error
-	PushTagsFunc          func(repoPath string) error
-	LatestTagFunc         func(repoPath string) (string, error)
-	RunFunc               func(repoPath string, args ...string) (string, error)
-	DeleteLocalBranchFunc func(repoPath, branch string) error
-	CreatePRFunc          func(repoPath, title, body, base string) (string, error)
-	StashPushFunc         func(directory, message string) error
-	StashListFunc         func(directory string) ([]string, error)
-	StashShowFunc         func(directory, id string) (string, error)
-	StashApplyFunc        func(directory, id string) error
-	StashDropFunc         func(directory, id string) error
-	StashClearFunc        func(directory string) error
+	CheckoutFunc            func(repoPath, commitOrBranch string) error
+	DiffFunc                func(repoPath, commitA, commitB string) (string, error)
+	DiffStagedFunc          func(repoPath string) (string, error)
+	DiffStatFunc            func(repoPath, commitA, commitB string) (string, error)
+	CurrentCommitSHAFunc    func(repoPath string) (string, error)
+	RepoExistsFunc          func(repoPath string) bool
+	CommitFunc              func(repoPath, message string) error
+	LogFunc                 func(repoPath string, args ...string) ([]string, error)
+	FetchFunc               func(repoPath, remote, branch string) error
+	CurrentBranchFunc       func(repoPath string) (string, error)
+	CheckoutNewBranchFunc   func(repoPath, branch string) error
+	BisectStartFunc         func(repoPath, bad, good string) error
+	BisectGoodFunc          func(repoPath, rev string) error
+	BisectBadFunc           func(repoPath, rev string) error
+	BisectResetFunc         func(repoPath string) error
+	BisectLogFunc           func(repoPath string) ([]string, error)
+	TagFunc                 func(repoPath, version string) error
+	DeleteTagFunc           func(repoPath, version string) error
+	PushTagsFunc            func(repoPath string) error
+	LatestTagFunc           func(repoPath string) (string, error)
+	RunFunc                 func(repoPath string, args ...string) (string, error)
+	DeleteLocalBranchFunc   func(repoPath, branch string) error
+	CreatePRFunc            func(repoPath, title, body, base string) (string, error)
+	StashPushFunc           func(directory, message string) error
+	StashListFunc           func(directory string) ([]string, error)
+	StashShowFunc           func(directory, id string) (string, error)
+	StashApplyFunc          func(directory, id string) error
+	StashDropFunc           func(directory, id string) error
+	StashClearFunc          func(directory string) error
+	AbortMergeFunc          func(directory string) error
+	RecoverFunc             func(directory string) error
+	CleanFunc               func(directory string) error
+	ResetHardFunc           func(directory, remote, branch string) error
+	StashPopFunc            func(directory string) error
+	DeleteRemoteBranchFunc  func(directory, remote, branch string) error
+	SetRemoteURLFunc        func(directory, name, url string) error
+	LocalBranchExistsFunc   func(directory, branch string) (bool, error)
+	ConfigFunc              func(directory, key, value string) error
+	ConfigGlobalFunc        func(key, value string) error
+	ConfigAddGlobalFunc     func(key, value string) error
+	RemoteBranchExistsFunc  func(directory, remote, branch string) (bool, error)
+	CloneFunc               func(ctx context.Context, repoURL, directory string) error
+	PushFunc                func(directory, branch string) error
+	PullFunc                func(directory, remote, branch string) error
+	StashFunc               func(directory string) error
+	MergeFunc               func(directory, branchName string) error
+}
+
+func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
+	if m.CloneFunc != nil {
+		return m.CloneFunc(ctx, repoURL, directory)
+	}
+	return nil
+}
+
+func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	if m.RemoteBranchExistsFunc != nil {
+		return m.RemoteBranchExistsFunc(directory, remote, branch)
+	}
+	return false, nil
+}
+
+func (m *MockGitClient) Config(directory, key, value string) error {
+	if m.ConfigFunc != nil {
+		return m.ConfigFunc(directory, key, value)
+	}
+	return nil
+}
+
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	if m.ConfigGlobalFunc != nil {
+		return m.ConfigGlobalFunc(key, value)
+	}
+	return nil
+}
+
+func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
+	if m.ConfigAddGlobalFunc != nil {
+		return m.ConfigAddGlobalFunc(key, value)
+	}
+	return nil
+}
+
+func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
+	if m.LocalBranchExistsFunc != nil {
+		return m.LocalBranchExistsFunc(directory, branch)
+	}
+	return false, nil
+}
+
+func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
+	if m.SetRemoteURLFunc != nil {
+		return m.SetRemoteURLFunc(directory, name, url)
+	}
+	return nil
+}
+
+func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
+	if m.DeleteRemoteBranchFunc != nil {
+		return m.DeleteRemoteBranchFunc(directory, remote, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) StashPop(directory string) error {
+	if m.StashPopFunc != nil {
+		return m.StashPopFunc(directory)
+	}
+	return nil
+}
+
+func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
+	if m.ResetHardFunc != nil {
+		return m.ResetHardFunc(directory, remote, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Clean(directory string) error {
+	if m.CleanFunc != nil {
+		return m.CleanFunc(directory)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Recover(directory string) error {
+	if m.RecoverFunc != nil {
+		return m.RecoverFunc(directory)
+	}
+	return nil
+}
+
+func (m *MockGitClient) AbortMerge(directory string) error {
+	if m.AbortMergeFunc != nil {
+		return m.AbortMergeFunc(directory)
+	}
+	return nil
 }
 
 func (m *MockGitClient) StashPush(directory, message string) error {
@@ -560,6 +669,34 @@ func (m *MockGitClient) RepoExists(repoPath string) bool {
 func (m *MockGitClient) Commit(repoPath, message string) error {
 	if m.CommitFunc != nil {
 		return m.CommitFunc(repoPath, message)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Push(directory, branch string) error {
+	if m.PushFunc != nil {
+		return m.PushFunc(directory, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Pull(directory, remote, branch string) error {
+	if m.PullFunc != nil {
+		return m.PullFunc(directory, remote, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Stash(directory string) error {
+	if m.StashFunc != nil {
+		return m.StashFunc(directory)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Merge(directory, branchName string) error {
+	if m.MergeFunc != nil {
+		return m.MergeFunc(directory, branchName)
 	}
 	return nil
 }
