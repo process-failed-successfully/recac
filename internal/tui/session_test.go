@@ -14,11 +14,12 @@ import (
 
 func TestSessionModel_Update(t *testing.T) {
 	mockAg := agent.NewMockAgent()
-	m := NewSessionModel(mockAg)
+	m := NewSessionModel(mockAg, "default")
 
 	// Test initial state
 	assert.Empty(t, m.messages)
 	assert.False(t, m.isLoading)
+	assert.Equal(t, "Default", m.persona.Name)
 
 	// Test Enter with empty input -> No Op
 	m.input.SetValue("")
@@ -64,7 +65,7 @@ func TestSessionModel_Update(t *testing.T) {
 }
 
 func TestSessionModel_Commands(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 
 	// /help
 	m.input.SetValue("/help")
@@ -93,7 +94,7 @@ func TestSessionModel_Commands(t *testing.T) {
 }
 
 func TestSessionModel_HandleCommand_Add(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "test.txt")
 	err := os.WriteFile(fpath, []byte("content"), 0644)
@@ -110,7 +111,7 @@ func TestSessionModel_HandleCommand_Add(t *testing.T) {
 }
 
 func TestSessionModel_HandleCommand_Context(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 
 	// Empty context
 	m.input.SetValue("/context")
@@ -130,8 +131,31 @@ func TestSessionModel_HandleCommand_Context(t *testing.T) {
 	assert.Contains(t, sessM.history, "foo.txt")
 }
 
+func TestSessionModel_HandleCommand_Persona(t *testing.T) {
+	m := NewSessionModel(nil, "default")
+
+	// List personas
+	m.input.SetValue("/persona")
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM := newM.(SessionModel)
+	assert.Contains(t, sessM.history, "Available personas")
+
+	// Switch persona
+	m.input.SetValue("/persona security")
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM = newM.(SessionModel)
+	assert.Equal(t, "Security Auditor", sessM.persona.Name)
+	assert.Contains(t, sessM.history, "Switched persona to **Security Auditor**")
+
+	// Unknown persona
+	m.input.SetValue("/persona unknown")
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM = newM.(SessionModel)
+	assert.Contains(t, sessM.history, "Unknown persona 'unknown'")
+}
+
 func TestSessionModel_View(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 
 	// Simulate window size to init viewport/renderer
 	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -149,16 +173,18 @@ func TestSessionModel_View(t *testing.T) {
 
 	view = m.View()
 	assert.Contains(t, view, "Hello")
+	assert.Contains(t, view, "Persona: Default")
 }
 
 func TestSessionModel_BuildPrompt(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 	m.contextFiles["a.txt"] = "A content"
 	m.contextFiles["b.txt"] = "B content"
 	m.history = "History..."
 
 	prompt := m.buildPrompt()
 
+	assert.Contains(t, prompt, m.persona.SystemPrompt)
 	assert.Contains(t, prompt, "Context Files:")
 	assert.Contains(t, prompt, "--- a.txt ---")
 	assert.Contains(t, prompt, "A content")
@@ -174,7 +200,7 @@ func TestSessionModel_BuildPrompt(t *testing.T) {
 }
 
 func TestSessionModel_UnknownCommand(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 	m.input.SetValue("/unknown")
 	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	sessM := newM.(SessionModel)
@@ -183,7 +209,7 @@ func TestSessionModel_UnknownCommand(t *testing.T) {
 }
 
 func TestSessionModel_Init(t *testing.T) {
-	m := NewSessionModel(nil)
+	m := NewSessionModel(nil, "default")
 	cmd := m.Init()
 	assert.NotNil(t, cmd) // Should return blink cmd
 }
@@ -216,7 +242,7 @@ func TestWaitForChunk(t *testing.T) {
 
 func TestSessionModel_FocusTransition(t *testing.T) {
 	mockAg := agent.NewMockAgent()
-	m := NewSessionModel(mockAg)
+	m := NewSessionModel(mockAg, "default")
 
 	// Initially focused
 	assert.True(t, m.input.Focused(), "Input should be focused initially")

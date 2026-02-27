@@ -6,38 +6,35 @@ import (
 	"recac/internal/agent"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSessionModel_ContextCommands(t *testing.T) {
-	// Setup temporary directory and file
-	tempDir := t.TempDir()
-	tempFile := filepath.Join(tempDir, "test.txt")
-	err := os.WriteFile(tempFile, []byte("Hello World"), 0644)
+func TestSessionModel_ContextFiles(t *testing.T) {
+	mockAg := agent.NewMockAgent()
+	m := NewSessionModel(mockAg, "default")
+
+	// Create temp file
+	dir := t.TempDir()
+	file1 := filepath.Join(dir, "file1.txt")
+	err := os.WriteFile(file1, []byte("content1"), 0644)
 	require.NoError(t, err)
 
-	m := NewSessionModel(agent.NewMockAgent())
+	// Add context file directly
+	m.contextFiles[file1] = "content1"
 
-	// Test /add command
-	cmdInput := "/add " + tempFile
-	m.input.SetValue(cmdInput)
-	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	sessM := newM.(SessionModel)
+	// Build prompt and verify content is included
+	prompt := m.buildPrompt()
+	assert.Contains(t, prompt, "file1.txt")
+	assert.Contains(t, prompt, "content1")
 
-	// Verify file was added to context
-	// NOTE: contextFiles is not yet exported or defined, this test expects it to be added
-	assert.Contains(t, sessM.contextFiles, tempFile)
-	assert.Equal(t, "Hello World", sessM.contextFiles[tempFile])
-	assert.Contains(t, sessM.history, "Added "+tempFile)
+	// Add another file
+	file2 := filepath.Join(dir, "file2.txt")
+	err = os.WriteFile(file2, []byte("content2"), 0644)
+	require.NoError(t, err)
 
-	// Test /context command
-	sessM.input.SetValue("/context")
-	newM, _ = sessM.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	sessM = newM.(SessionModel)
-
-	// Verify context listing in history
-	assert.Contains(t, sessM.history, "Current context files:")
-	assert.Contains(t, sessM.history, tempFile)
+	m.handleCommand("/add " + file2)
+	prompt = m.buildPrompt()
+	assert.Contains(t, prompt, "file2.txt")
+	assert.Contains(t, prompt, "content2")
 }
