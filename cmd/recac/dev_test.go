@@ -1,183 +1,279 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestDevHelperProcess is used to mock exec.Command
-func TestDevHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
+func TestDetectDevCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    []string
+		expected string
+	}{
+		{
+			name:     "Go project",
+			files:    []string{"go.mod"},
+			expected: "go test ./...",
+		},
+		{
+			name:     "Node project",
+			files:    []string{"package.json"},
+			expected: "npm test",
+		},
+		{
+			name:     "Make project",
+			files:    []string{"Makefile"},
+			expected: "make",
+		},
+		{
+			name:     "Python project",
+			files:    []string{"requirements.txt"},
+			expected: "pytest",
+		},
+		{
+			name:     "Unknown project",
+			files:    []string{"foo.txt"},
+			expected: "",
+		},
 	}
-	// Simulate success
-	os.Exit(0)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			for _, file := range tt.files {
+				f, err := os.Create(filepath.Join(tmpDir, file))
+				require.NoError(t, err)
+				f.Close()
+			}
+
+			cmd := detectDevCommand(tmpDir)
+			assert.Equal(t, tt.expected, cmd)
+		})
+	}
 }
 
-func fakeExecCommand(command string, args ...string) *exec.Cmd {
-	cs := []string{"-test.run=TestDevHelperProcess", "--", command}
-	cs = append(cs, args...)
-	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-	return cmd
+func TestParseExtensions(t *testing.T) {
+	tests := []struct {
+		name     string
+		flagExt  string
+		cmd      string
+		expected []string
+	}{
+		{
+			name:     "Explicit flag",
+			flagExt:  ".go, .js",
+			cmd:      "anything",
+			expected: []string{".go", ".js"},
+		},
+		{
+			name:     "Explicit flag without dots",
+			flagExt:  "py, rb",
+			cmd:      "anything",
+			expected: []string{".py", ".rb"},
+		},
+		{
+			name:     "Inferred Go",
+			flagExt:  "",
+			cmd:      "go test",
+			expected: []string{".go", ".mod"},
+		},
+		{
+			name:     "Inferred Node",
+			flagExt:  "",
+			cmd:      "npm test",
+			expected: []string{".js", ".ts", ".json"},
+		},
+		{
+			name:     "Inferred Python",
+			flagExt:  "",
+			cmd:      "pytest",
+			expected: []string{".py"},
+		},
+		{
+			name:     "Inferred Make",
+			flagExt:  "",
+			cmd:      "make",
+			expected: []string{".go", ".c", ".cpp", ".h", ".rs"},
+		},
+		{
+			name:     "Unknown command",
+			flagExt:  "",
+			cmd:      "echo hello",
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exts := parseExtensions(tt.flagExt, tt.cmd)
+			assert.Equal(t, tt.expected, exts)
+		})
+	}
 }
 
-func TestDevCmd(t *testing.T) {
-	// 1. Setup Temp Dir
-	tempDir, err := os.MkdirTemp("", "recac-dev-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+func TestShouldTrigger(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		exts     []string
+		expected bool
+	}{
+		{
+			name:     "Match extension",
+			path:     "main.go",
+			exts:     []string{".go"},
+			expected: true,
+		},
+		{
+			name:     "No match extension",
+			path:     "main.go",
+			exts:     []string{".js"},
+			expected: false,
+		},
+		{
+			name:     "Empty extensions (trigger all)",
+			path:     "main.go",
+			exts:     []string{},
+			expected: true,
+		},
+		{
+			name:     "Match one of many",
+			path:     "test.ts",
+			exts:     []string{".js", ".ts"},
+			expected: true,
+		},
 	}
-	defer os.RemoveAll(tempDir)
 
-	// Create dummy go.mod to trigger detection
-	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module test"), 0644); err != nil {
-		t.Fatalf("Failed to create go.mod: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shouldTrigger(tt.path, tt.exts)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExecuteDevCommand(t *testing.T) {
+	// Swap execCommand with mock
+	originalExecCommand := devExecCommand
+	defer func() { devExecCommand = originalExecCommand }()
+
+	var executedCmd string
+	var executedArgs []string
+
+	devExecCommand = func(name string, arg ...string) *exec.Cmd {
+		executedCmd = name
+		executedArgs = arg
+		// Create a dummy command that just echoes
+		return exec.Command("echo", "mock")
 	}
 
-	// 2. Mock devExecCommand
-	var executedCommands []string
-	var mu sync.Mutex
+	// Redirect stdout to capture output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
-	originalExec := devExecCommand
-	defer func() { devExecCommand = originalExec }()
+	executeDevCommand("go test ./...")
 
-	devExecCommand = func(command string, args ...string) *exec.Cmd {
-		mu.Lock()
-		executedCommands = append(executedCommands, command+" "+strings.Join(args, " "))
-		mu.Unlock()
-		return fakeExecCommand(command, args...)
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	assert.Equal(t, "go", executedCmd)
+	assert.Equal(t, []string{"test", "./..."}, executedArgs)
+	assert.Contains(t, output, "Running...")
+	assert.Contains(t, output, "Passed")
+}
+
+func TestExecuteDevCommand_Fail(t *testing.T) {
+	// Swap execCommand with mock
+	originalExecCommand := devExecCommand
+	defer func() { devExecCommand = originalExecCommand }()
+
+	devExecCommand = func(name string, arg ...string) *exec.Cmd {
+		// Create a command that fails
+		return exec.Command("false")
 	}
 
-	// 3. Configure Command
-	// We need to reset flags because they are package-level globals in dev.go
-	devWatchDir = tempDir
-	devCmdFlag = ""
-	devExtensions = ""
-	devRecursive = false
-	devDebounce = 100 * time.Millisecond // Short debounce for test
+	// Redirect stdout to capture output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
-	// 4. Run Dev Loop in Goroutine with Context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Ensure cleanup
+	executeDevCommand("fail command")
 
-	// Run command with context
-	// devCmd struct has a global RunE but we invoke runDev directly or via devCmd.ExecuteContext
-	// However, Cobra Execute() handles context if set on command?
-	// Or we can just call runDev passing a command with context.
+	w.Close()
+	os.Stdout = oldStdout
 
-	// Create a command instance for this test to inject context
-	// (Though runDev uses global flags, so it's a bit mixed)
-	cmd := devCmd
-	cmd.SetContext(ctx)
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
 
-	// Use WaitGroup to ensure goroutine finishes
-	var wg sync.WaitGroup
-	wg.Add(1)
+	assert.Contains(t, output, "Failed")
+}
+
+func TestDevAddRecursiveWatch(t *testing.T) {
+	// Setup a temporary directory structure
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	ignoredDir := filepath.Join(tmpDir, "node_modules")
+	hiddenDir := filepath.Join(tmpDir, ".git")
+
+	require.NoError(t, os.Mkdir(subDir, 0755))
+	require.NoError(t, os.Mkdir(ignoredDir, 0755))
+	require.NoError(t, os.Mkdir(hiddenDir, 0755))
+
+	watcher, err := fsnotify.NewWatcher()
+	require.NoError(t, err)
+	defer watcher.Close()
+
+	// We can't easily inspect the watcher's internal state (watched directories)
+	// directly without using private fields or reflection, which is brittle.
+	// Instead, we trust that filepath.Walk works and verify logic by ensuring no error is returned.
+	// A more robust test would trigger an event in a subdir and see if the watcher catches it,
+	// but that involves timing and OS-specific behavior.
+	//
+	// However, we can verify that the walk function does NOT return error.
+
+	err = devAddRecursiveWatch(watcher, tmpDir)
+	assert.NoError(t, err)
+
+	// To verify exclusions, we'd need to mock fsnotify.Watcher.Add, but it's a struct method.
+	// We could create a wrapper interface for Watcher, but that changes production code significantly.
+	// Given the constraints, just ensuring it runs without error on a structure is a decent baseline.
+
+	// Let's try to verify by creating a file in subdir and waiting for event
+	// Only if the watcher was correctly added will this work.
+
+	// Start a goroutine to read events
+	eventDetected := make(chan bool)
 	go func() {
-		defer wg.Done()
-		// Suppress stdout for clean test output
-		// devCmd.SetOut(io.Discard)
-		// devCmd.SetErr(io.Discard)
-		runDev(cmd, []string{})
+		select {
+		case <-watcher.Events:
+			eventDetected <- true
+		case <-time.After(500 * time.Millisecond):
+			eventDetected <- false
+		}
 	}()
 
-	// Wait for watcher to start (heuristic)
-	time.Sleep(500 * time.Millisecond)
+	// Create file in subdir
+	time.Sleep(50 * time.Millisecond) // Give watcher time to set up
+	f, err := os.Create(filepath.Join(subDir, "test.txt"))
+	require.NoError(t, err)
+	f.Close()
 
-	// 5. Trigger File Change
-	testFile := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(testFile, []byte("package main"), 0644); err != nil {
-		t.Fatalf("Failed to write test file: %v", err)
-	}
-
-	// Wait for debounce + execution
-	time.Sleep(1000 * time.Millisecond)
-
-	// Stop the loop
-	cancel()
-	wg.Wait() // Wait for runDev to actually return
-
-	// 6. Assert
-	mu.Lock()
-	count := len(executedCommands)
-	mu.Unlock()
-
-	// Should be at least 2: 1 for initial run, 1 for file change
-	assert.GreaterOrEqual(t, count, 2, "Should execute command at least twice (init + change)")
-
-	mu.Lock()
-	if len(executedCommands) > 0 {
-		assert.Contains(t, executedCommands[0], "go test ./...", "Should execute auto-detected command")
-	}
-	mu.Unlock()
-}
-
-func TestDevCmd_Manual(t *testing.T) {
-	// Test with manual command flag
-	tempDir, err := os.MkdirTemp("", "recac-dev-manual-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	var executedCommands []string
-	var mu sync.Mutex
-
-	originalExec := devExecCommand
-	defer func() { devExecCommand = originalExec }()
-
-	devExecCommand = func(command string, args ...string) *exec.Cmd {
-		mu.Lock()
-		executedCommands = append(executedCommands, command+" "+strings.Join(args, " "))
-		mu.Unlock()
-		return fakeExecCommand(command, args...)
-	}
-
-	devWatchDir = tempDir
-	devCmdFlag = "echo manual"
-	devExtensions = ".txt"
-	devRecursive = false
-	devDebounce = 100 * time.Millisecond
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cmd := devCmd
-	cmd.SetContext(ctx)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		runDev(cmd, []string{})
-	}()
-
-	time.Sleep(500 * time.Millisecond)
-
-	testFile := filepath.Join(tempDir, "test.txt")
-	os.WriteFile(testFile, []byte("hello"), 0644)
-
-	time.Sleep(1000 * time.Millisecond)
-	cancel()
-	wg.Wait()
-
-	mu.Lock()
-	count := len(executedCommands)
-	lastCmd := ""
-	if count > 0 {
-		lastCmd = executedCommands[len(executedCommands)-1]
-	}
-	mu.Unlock()
-
-	assert.GreaterOrEqual(t, count, 2)
-	assert.Contains(t, lastCmd, "echo manual")
+	// Verify event was detected (implies subdir was watched)
+	detected := <-eventDetected
+	assert.True(t, detected, "Watcher should detect changes in subdirectories")
 }

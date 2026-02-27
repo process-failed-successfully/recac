@@ -13,6 +13,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// diffExecCommand is a package-level variable to allow mocking in tests.
+var diffExecCommand = exec.Command
+
 // displayStatus formats and prints the detailed session status.
 func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agent.State) {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
@@ -255,7 +258,7 @@ func printMetadataDiff(cmd *cobra.Command, sA, sB *runner.SessionState) {
 }
 
 func printLogDiff(cmd *cobra.Command, logA, logB string) error {
-	diffCmd := exec.Command("diff", "-u", logA, logB)
+	diffCmd := diffExecCommand("diff", "-u", logA, logB)
 	output, err := diffCmd.CombinedOutput()
 
 	// diff exits with 1 if files differ, which is not an error for us.
