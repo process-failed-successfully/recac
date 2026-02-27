@@ -45,6 +45,12 @@ func init() {
 	architectDraftCmd.Flags().String("out", "app_spec.txt", "Output file path")
 }
 
+// runDraftProgramFunc allows mocking the TUI program execution in tests.
+var runDraftProgramFunc = func(model tea.Model, opts ...tea.ProgramOption) (tea.Model, error) {
+	p := tea.NewProgram(model, opts...)
+	return p.Run()
+}
+
 func runArchitectDraft(cmd *cobra.Command, args []string) error {
 	outPath, _ := cmd.Flags().GetString("out")
 
@@ -60,8 +66,7 @@ func runArchitectDraft(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start TUI
-	p := tea.NewProgram(initialDraftModel(ag, outPath), tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
+	if _, err := runDraftProgramFunc(initialDraftModel(ag, outPath), tea.WithAltScreen()); err != nil {
 		return fmt.Errorf("error running draft wizard: %w", err)
 	}
 	return nil

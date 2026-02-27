@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -146,4 +147,30 @@ components:
 	assert.True(t, openCalled, "OpenBrowser should be called")
 
 	assert.Contains(t, buf.String(), "Serving architecture visualization")
+}
+
+func TestOpenBrowserForVis(t *testing.T) {
+	// Mock execCommand
+	originalExec := execCommand
+	defer func() { execCommand = originalExec }()
+
+	var cmdName string
+	var cmdArgs []string
+
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		cmdName = name
+		cmdArgs = arg
+		// Return a dummy command that does nothing
+		return exec.Command("true")
+	}
+
+	url := "http://localhost:8080"
+	err := openBrowserForVis(url)
+
+	assert.NoError(t, err)
+
+	// Check command based on OS (runtime.GOOS)
+	// We can't easily mock runtime.GOOS, so we just check if it called *something* reasonable
+	assert.NotEmpty(t, cmdName)
+	assert.Contains(t, cmdArgs, url)
 }
