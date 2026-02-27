@@ -90,6 +90,13 @@ var orchestrateCmd = &cobra.Command{
 		managerFrequency := viper.GetInt("orchestrator.manager_frequency")
 		taskMaxIterations := viper.GetInt("orchestrator.task_max_iterations")
 
+		// Initialize SessionManager early to be available for both modes
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			logger.Error("Failed to initialize Session Manager", "error", err)
+			os.Exit(1)
+		}
+
 		var spawner orchestrator.Spawner
 		switch mode {
 		case "k8s", "kubernetes":
@@ -97,7 +104,7 @@ var orchestrateCmd = &cobra.Command{
 			if pullPolicy == "" {
 				pullPolicy = corev1.PullAlways
 			}
-			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, maxIterations, managerFrequency, taskMaxIterations)
+			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 			if err != nil {
 				logger.Error("Failed to initialize K8s spawner", "error", err)
 				os.Exit(1)
@@ -109,11 +116,7 @@ var orchestrateCmd = &cobra.Command{
 				logger.Error("Failed to initialize Docker client", "error", err)
 				os.Exit(1)
 			}
-			sm, err := runner.NewSessionManager()
-			if err != nil {
-				logger.Error("Failed to initialize Session Manager", "error", err)
-				os.Exit(1)
-			}
+
 			pullPolicy := viper.GetString("orchestrator.image_pull_policy")
 			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 		default:

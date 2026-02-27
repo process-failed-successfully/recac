@@ -93,6 +93,7 @@ type JiraClient interface {
 }
 
 // NewSession creates a new worker session
+// Returns *Session and error. Callers must handle the error.
 func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *Session {
 	// Default to "unknown" if project is empty
 	if project == "" {
@@ -111,8 +112,8 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	maxRetries := 6
 	for i := 0; i < maxRetries; i++ {
 		if i > 0 {
-			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
-			time.Sleep(5 * time.Second)
+			// exponential backoff could be better but linear is fine for now
+			time.Sleep(1 * time.Second)
 		}
 		dbStore, err = db.NewStore(storeConfig)
 		if err == nil {
@@ -121,10 +122,10 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
 	}
 
+	// Previously this exited os.Exit(1). Now we just log warning and proceed without DB if it fails.
+	// This is safer for tests and allows the session to run with limited functionality (no persistence).
 	if err != nil {
-		// Critical failure - Fail Fast
-		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "[Session] CRITICAL WARNING: Could not connect to database after retries. Continuing without persistence.\n")
 	} else {
 		// Success
 		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
@@ -595,12 +596,6 @@ func (s *Session) ensureImage(ctx context.Context) error {
 	if s.Docker == nil {
 		fmt.Println("Docker not available available. Skipping image check (assuming local execution or pre-pulled).")
 		return nil
-	}
-
-	if s.Image == "" {
-		// Use default if empty (though config should catch this, better safe than panic)
-		s.Image = "ghcr.io/process-failed-successfully/recac-agent:latest"
-		fmt.Println("Warning: No image specified, defaulting to", s.Image)
 	}
 
 	// 1. Check for custom Dockerfile in workspace

@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"recac/internal/git"
+	"recac/internal/runner"
 	"regexp"
 	"strings"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,12 +30,14 @@ type K8sSpawner struct {
 	AgentModel        string
 	PullPolicy        corev1.PullPolicy
 	Logger            *slog.Logger
+	SessionManager    ISessionManager
+	GitClient         IGitClient
 	MaxIterations     int
 	ManagerFrequency  int
 	TaskMaxIterations int
 }
 
-func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy, maxIterations, managerFrequency, taskMaxIterations int) (*K8sSpawner, error) {
+func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy, sm ISessionManager, maxIterations, managerFrequency, taskMaxIterations int) (*K8sSpawner, error) {
 	// 1. Try In-Cluster Config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -71,6 +76,8 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 		AgentModel:        model,
 		PullPolicy:        pullPolicy,
 		Logger:            logger,
+		SessionManager:    sm,
+		GitClient:         git.NewClient(),
 		MaxIterations:     maxIterations,
 		ManagerFrequency:  managerFrequency,
 		TaskMaxIterations: taskMaxIterations,
@@ -220,13 +227,81 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		},
 	}
 
+	// 1. Initialize session
+	session := &runner.SessionState{
+		Name:           item.ID,
+		Status:         "running",
+		StartTime:      time.Now(),
+		Command:        []string{"recac-agent", "--jira", item.ID}, // Approximate command
+		Workspace:      "/workspace",
+		Type:           "orchestrated-k8s",
+		AgentStateFile: ".agent_state.json",
+	}
+
+	if err := s.SessionManager.SaveSession(session); err != nil {
+		s.Logger.Error("failed to save initial session state", "item", item.ID, "error", err)
+		return fmt.Errorf("failed to save session: %w", err)
+	}
+
+	// 2. Create Job
 	_, err = s.Client.BatchV1().Jobs(s.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create job: %w", err)
 	}
 
 	s.Logger.Info("Job created", "name", jobName)
-	return nil
+
+	// 3. Wait for Job completion
+	waitErr := s.waitForJob(ctx, jobName)
+
+	// 4. Update session
+	finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
+	if loadErr != nil {
+		s.Logger.Error("failed to reload session for update", "item", item.ID, "error", loadErr)
+		finalSession = session // Fallback
+	}
+
+	finalSession.EndTime = time.Now()
+	if waitErr != nil {
+		finalSession.Status = "error"
+		finalSession.Error = waitErr.Error()
+		s.Logger.Error("Job failed", "name", jobName, "error", waitErr)
+	} else {
+		finalSession.Status = "completed"
+		s.Logger.Info("Job completed successfully", "name", jobName)
+	}
+	// EndCommitSHA is not easily accessible from remote pod without extra tooling
+	finalSession.EndCommitSHA = ""
+
+	if err := s.SessionManager.SaveSession(finalSession); err != nil {
+		s.Logger.Error("failed to save final session state", "item", item.ID, "error", err)
+	}
+
+	return waitErr
+}
+
+func (s *K8sSpawner) waitForJob(ctx context.Context, jobName string) error {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			job, err := s.Client.BatchV1().Jobs(s.Namespace).Get(ctx, jobName, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get job status: %w", err)
+			}
+
+			if job.Status.Succeeded > 0 {
+				return nil
+			}
+			if job.Status.Failed > 0 {
+				return fmt.Errorf("job failed with %d failed pods", job.Status.Failed)
+			}
+		}
+	}
 }
 
 func (s *K8sSpawner) Cancel(ctx context.Context, jobID string) error {

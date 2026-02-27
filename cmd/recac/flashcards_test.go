@@ -9,6 +9,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/flashcards"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -115,4 +116,83 @@ func TestFlashcardsStats(t *testing.T) {
 	assert.Contains(t, output, "Total Cards:   2")
 	assert.Contains(t, output, "New:           1")
 	assert.Contains(t, output, "Learning:      1")
+}
+
+func TestFlashcardsList(t *testing.T) {
+	// 1. Setup Temp Dir and Store
+	tmpDir := t.TempDir()
+	originalWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalWd)
+
+	storePath := filepath.Join(tmpDir, ".recac", "flashcards.json")
+	os.MkdirAll(filepath.Dir(storePath), 0755)
+
+	// Create some cards
+	now := time.Now()
+	cards := []flashcards.Flashcard{
+		{
+			ID:       "1",
+			Question: "Q1",
+			Answer:   "A1",
+			Topic:    "T1",
+			DueDate:  now,
+			State:    flashcards.StateNew,
+		},
+		{
+			ID:       "2",
+			Question: "Q2",
+			Answer:   "A2",
+			Topic:    "T2",
+			DueDate:  now.Add(24 * time.Hour),
+			State:    flashcards.StateLearning,
+		},
+	}
+
+	data, _ := json.Marshal(cards)
+	os.WriteFile(storePath, data, 0644)
+
+	// 2. Run Command
+	cmd := &cobra.Command{Use: "list", RunE: runFlashcardsList}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err := runFlashcardsList(cmd, []string{})
+	assert.NoError(t, err)
+
+	// 3. Verify Output
+	output := buf.String()
+	assert.Contains(t, output, "[T1] Q1")
+	assert.Contains(t, output, "[T2] Q2")
+
+	// Check date format if needed (just check it appears)
+	// DueDate format is "2006-01-02"
+	assert.Contains(t, output, now.Format("2006-01-02"))
+}
+
+func TestFlashcardsList_Empty(t *testing.T) {
+	// 1. Setup Temp Dir and Store
+	tmpDir := t.TempDir()
+	originalWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalWd)
+
+	storePath := filepath.Join(tmpDir, ".recac", "flashcards.json")
+	os.MkdirAll(filepath.Dir(storePath), 0755)
+
+	// No cards
+	data, _ := json.Marshal([]flashcards.Flashcard{})
+	os.WriteFile(storePath, data, 0644)
+
+	// 2. Run Command
+	cmd := &cobra.Command{Use: "list", RunE: runFlashcardsList}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err := runFlashcardsList(cmd, []string{})
+	assert.NoError(t, err)
+
+	// 3. Verify Output
+	output := buf.String()
+	assert.Contains(t, output, "No cards found")
 }

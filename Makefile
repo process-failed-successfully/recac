@@ -28,9 +28,6 @@ build-orchestrator: ## Build the orchestrator binary
 build-agent: ## Build the agent binary
 	go build -o recac-agent ./cmd/agent
 
-build-e2e: ## Build the e2e runner binary
-	go build -o recac-e2e ./cmd/e2e
-
 bridge: ## Build the agent-bridge binary
 	go build -o agent-bridge ./cmd/agent-bridge
 

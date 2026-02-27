@@ -93,6 +93,10 @@ var startCmd = &cobra.Command{
 				if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
 					panic(r)
 				}
+				// Also handle errors that might stringify to exit-
+				if err, ok := r.(error); ok && strings.HasPrefix(err.Error(), "exit-") {
+					panic(r)
+				}
 				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
 				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
