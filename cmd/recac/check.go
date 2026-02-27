@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -17,7 +16,7 @@ var checkCmd = &cobra.Command{
 	Short: "Check dependencies and environment",
 	Long: `Perform pre-flight checks on the environment and dependencies.
 Use --fix to automatically attempt repairs for minor issues.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("Running pre-flight checks...")
 		allPassed := true
 
@@ -55,12 +54,16 @@ Use --fix to automatically attempt repairs for minor issues.`,
 
 		if allPassed {
 			fmt.Println("\nAll checks passed! 🚀")
+			return nil
 		} else {
 			fmt.Println("\nSome checks failed.")
 			if !fixFlag {
 				fmt.Println("Run with --fix to attempt automatic repairs.")
 			}
-			exit(1)
+			// Return error to Cobra, which will exit(1) by default or print the error
+			// We silence default usage to just show the error or exit
+			cmd.SilenceUsage = true
+			return fmt.Errorf("checks failed")
 		}
 	},
 }
@@ -71,11 +74,11 @@ func init() {
 }
 
 func checkConfig() error {
-	configFile := viper.ConfigFileUsed()
+	configFile := viperConfigFileUsed()
 	if configFile == "" {
 		return fmt.Errorf("config file not found")
 	}
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+	if _, err := osStatFunc(configFile); os.IsNotExist(err) {
 		return fmt.Errorf("config file %s does not exist", configFile)
 	}
 	return nil
@@ -85,11 +88,11 @@ func fixConfig() error {
 	// Simple fix: create default config if missing
 	viper.SetDefault("provider", "gemini")
 	viper.SetDefault("model", "gemini-pro")
-	return viper.SafeWriteConfig()
+	return viperSafeWriteConfig()
 }
 
 func checkGo() error {
-	_, err := exec.LookPath("go")
+	_, err := lookPath("go")
 	if err != nil {
 		return fmt.Errorf("go binary not found in PATH")
 	}
@@ -97,6 +100,6 @@ func checkGo() error {
 }
 
 func checkDocker() error {
-	cmd := exec.Command("docker", "info")
+	cmd := execCommand("docker", "info")
 	return cmd.Run()
 }
