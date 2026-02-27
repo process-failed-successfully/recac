@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -276,4 +277,61 @@ func TestDevAddRecursiveWatch(t *testing.T) {
 	// Verify event was detected (implies subdir was watched)
 	detected := <-eventDetected
 	assert.True(t, detected, "Watcher should detect changes in subdirectories")
+}
+
+func TestRunDev_Integration(t *testing.T) {
+	// Setup temp dir and files
+	tmpDir := t.TempDir()
+	goMod := filepath.Join(tmpDir, "go.mod")
+	err := os.WriteFile(goMod, []byte("module test"), 0644)
+	require.NoError(t, err)
+
+	// Override devExecCommand to mock execution
+	originalExecCommand := devExecCommand
+	defer func() { devExecCommand = originalExecCommand }()
+
+	devExecCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("echo", "mock")
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() { os.Stdout = oldStdout }()
+
+	// Create a cancellable context
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// Configure flags (global vars in dev.go, so restore after)
+	oldWatchDir := devWatchDir
+	oldCmdFlag := devCmdFlag
+	oldDebounce := devDebounce
+	defer func() {
+		devWatchDir = oldWatchDir
+		devCmdFlag = oldCmdFlag
+		devDebounce = oldDebounce
+	}()
+
+	devWatchDir = tmpDir
+	devCmdFlag = "" // Auto-detect
+	devDebounce = 10 * time.Millisecond
+
+	// Execute runDev with context
+	// devCmd struct is global, we can invoke runDev directly with context
+	cmd := devCmd
+	cmd.SetContext(ctx) // Use SetContext instead of WithContext
+	err = runDev(cmd, []string{})
+
+	// Check results
+	w.Close()
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	require.NoError(t, err)
+	assert.Contains(t, output, "Auto-detected command: go test ./...")
+	assert.Contains(t, output, "Watching extensions: [.go .mod]")
+	assert.Contains(t, output, "Watching")
 }
