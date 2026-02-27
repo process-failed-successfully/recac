@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
@@ -12,6 +10,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+import (
+	"bytes"
+	"io"
 )
 
 func captureOutput(f func()) string {
@@ -60,7 +63,6 @@ func TestStartCommand_Detached(t *testing.T) {
 	})
 
 	// Verify output
-	// executeCommand catches exit(1) but detached shouldn't exit 1.
 	require.NoError(t, err)
 	assert.Contains(t, output, "Session 'test-session' started in background")
 
@@ -167,12 +169,6 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 			"--project", "test-project",
 		)
 	})
-
-	// We expect executeCommand to possibly fail if RunLoop hits max iterations (which mocks often do),
-	// but we don't want it to panic.
-	// The test asserts "Starting RECAC session" which is printed early.
-	// If it panics, err will be non-nil (if executeCommand catches it) or the test will crash.
-	// We just want to ensure clean execution environment.
 
 	if err != nil {
 		// Log but don't fail if it's just max iterations

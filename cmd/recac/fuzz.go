@@ -208,5 +208,5 @@ func extractFuzzCodeBlock(response string) string {
 		return rest // No closing block, return everything from start
 	}
 
-	return rest[:end]
+	return strings.TrimSpace(rest[:end])
 }

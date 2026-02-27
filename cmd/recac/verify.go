@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -163,7 +162,7 @@ func getChangedFiles(staged bool) ([]string, error) {
 	if staged {
 		args = append(args, "--cached")
 	}
-	cmd := exec.Command("git", args...)
+	cmd := execCommand("git", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -190,7 +189,7 @@ func getFileChangedLines(file string, staged bool) ([]LineInterval, error) {
 	}
 	args = append(args, "--", file)
 
-	cmd := exec.Command("git", args...)
+	cmd := execCommand("git", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err

@@ -58,10 +58,13 @@ func TestRunCmdHelperProcess(t *testing.T) {
 	switch cmd {
 	case "success_cmd":
 		fmt.Fprint(os.Stdout, "Command succeeded")
+		os.Stdout.Sync()
 		os.Exit(0)
 	case "fail_cmd":
 		fmt.Fprint(os.Stdout, "Partial output before failure")
+		os.Stdout.Sync()
 		fmt.Fprint(os.Stderr, "Command failed with error")
+		os.Stderr.Sync()
 		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown mock command: %s\n", cmd)
