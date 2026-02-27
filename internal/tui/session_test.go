@@ -213,3 +213,26 @@ func TestWaitForChunk(t *testing.T) {
 	_, ok = msg.(doneMsg)
 	require.True(t, ok)
 }
+
+func TestSessionModel_FocusTransition(t *testing.T) {
+	mockAg := agent.NewMockAgent()
+	m := NewSessionModel(mockAg)
+
+	// Initially focused
+	assert.True(t, m.input.Focused(), "Input should be focused initially")
+
+	// Send message -> Loading -> Blurred
+	m.input.SetValue("Hello")
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM := newM.(SessionModel)
+
+	assert.True(t, sessM.isLoading, "Should be loading")
+	assert.False(t, sessM.input.Focused(), "Input should be blurred during loading")
+
+	// Request completes -> Done -> Focused
+	newM, _ = sessM.Update(doneMsg{})
+	sessM = newM.(SessionModel)
+
+	assert.False(t, sessM.isLoading, "Should not be loading")
+	assert.True(t, sessM.input.Focused(), "Input should be focused after completion")
+}
