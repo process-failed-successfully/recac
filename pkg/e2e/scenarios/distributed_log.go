@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+var (
+	execCommand  = exec.Command
+	execLookPath = exec.LookPath
+	httpGet      = http.Get
+	httpPost     = http.Post
+)
+
 type DistributedLogScenario struct{}
 
 func (s *DistributedLogScenario) Name() string {
@@ -72,7 +79,7 @@ func (s *DistributedLogScenario) Verify(repoPath string, ticketKeys map[string]s
 	}
 
 	// Checkout branch
-	checkoutCmd := exec.Command("git", "checkout", branch)
+	checkoutCmd := execCommand("git", "checkout", branch)
 	checkoutCmd.Dir = repoPath
 	if out, err := checkoutCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to checkout %s: %v\nOutput: %s", branch, err, out)
@@ -82,11 +89,11 @@ func (s *DistributedLogScenario) Verify(repoPath string, ticketKeys map[string]s
 
 	startServer := func() (*exec.Cmd, error) {
 		var runCmd *exec.Cmd
-		if _, err := exec.LookPath("go"); err == nil {
-			runCmd = exec.Command("go", "run", ".")
+		if _, err := execLookPath("go"); err == nil {
+			runCmd = execCommand("go", "run", ".")
 			runCmd.Dir = repoPath
-		} else if _, err := exec.LookPath("python3"); err == nil {
-			runCmd = exec.Command("python3", "main.py")
+		} else if _, err := execLookPath("python3"); err == nil {
+			runCmd = execCommand("python3", "main.py")
 			runCmd.Dir = repoPath
 		}
 		if runCmd == nil {
@@ -97,7 +104,7 @@ func (s *DistributedLogScenario) Verify(repoPath string, ticketKeys map[string]s
 		}
 		// Wait for ready
 		for i := 0; i < 20; i++ {
-			resp, err := http.Get(serverURL + "/consume?offset=0")
+			resp, err := httpGet(serverURL + "/consume?offset=0")
 			if err == nil {
 				resp.Body.Close()
 				return runCmd, nil
@@ -115,7 +122,7 @@ func (s *DistributedLogScenario) Verify(repoPath string, ticketKeys map[string]s
 
 	// 2. Produce some data
 	produce := func(data string) error {
-		resp, err := http.Post(serverURL+"/produce", "application/json", bytes.NewBufferString(fmt.Sprintf(`{"data": "%s"}`, data)))
+		resp, err := httpPost(serverURL+"/produce", "application/json", bytes.NewBufferString(fmt.Sprintf(`{"data": "%s"}`, data)))
 		if err != nil {
 			return err
 		}
@@ -127,16 +134,22 @@ func (s *DistributedLogScenario) Verify(repoPath string, ticketKeys map[string]s
 	}
 
 	if err := produce("first-entry"); err != nil {
-		cmd1.Process.Kill()
+		if cmd1.Process != nil {
+			cmd1.Process.Kill()
+		}
 		return err
 	}
 	if err := produce("second-entry"); err != nil {
-		cmd1.Process.Kill()
+		if cmd1.Process != nil {
+			cmd1.Process.Kill()
+		}
 		return err
 	}
 
 	// 3. Restart Server (Verify Persistence)
-	cmd1.Process.Kill()
+	if cmd1.Process != nil {
+		cmd1.Process.Kill()
+	}
 	fmt.Println("Server killed, restarting to verify persistence...")
 	time.Sleep(1 * time.Second)
 
@@ -144,11 +157,15 @@ func (s *DistributedLogScenario) Verify(repoPath string, ticketKeys map[string]s
 	if err != nil {
 		return err
 	}
-	defer cmd2.Process.Kill()
+	defer func() {
+		if cmd2.Process != nil {
+			cmd2.Process.Kill()
+		}
+	}()
 
 	// 4. Consume and Verify
 	consume := func(offset int) (string, error) {
-		resp, err := http.Get(fmt.Sprintf("%s/consume?offset=%d", serverURL, offset))
+		resp, err := httpGet(fmt.Sprintf("%s/consume?offset=%d", serverURL, offset))
 		if err != nil {
 			return "", err
 		}
