@@ -89,6 +89,14 @@ var startCmd = &cobra.Command{
 		// Panic recovery for graceful shutdown
 		defer func() {
 			if r := recover(); r != nil {
+				// If it's our own exit-1 panic (from mock tests), just re-panic it to be caught by test handler
+				if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
+					panic(r)
+				}
+				// Also handle errors that might stringify to exit-
+				if err, ok := r.(error); ok && strings.HasPrefix(err.Error(), "exit-") {
+					panic(r)
+				}
 				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
 				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
@@ -366,6 +374,7 @@ var startCmd = &cobra.Command{
 		if cfg.ProjectPath == "" {
 			fmt.Fprintln(os.Stderr, "Error: Project path (--path) is required for local sessions.")
 			exit(1)
+			return // Ensure we stop here
 		} else {
 			fmt.Printf("Using project path: %s\n", cfg.ProjectPath)
 		}
