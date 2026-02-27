@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -88,11 +89,20 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Initial run
 	go func() { trigger <- struct{}{} }()
 
+	// We use command context if available, else background
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Event Loop
-	done := make(chan bool)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case event, ok := <-watcher.Events:
 				if !ok {
 					return
@@ -106,7 +116,10 @@ func runDev(cmd *cobra.Command, args []string) error {
 							timer.Stop()
 						}
 						timer = time.AfterFunc(devDebounce, func() {
-							trigger <- struct{}{}
+							select {
+							case trigger <- struct{}{}:
+							case <-ctx.Done():
+							}
 						})
 						mu.Unlock()
 					}
@@ -130,14 +143,20 @@ func runDev(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Execution Loop
-	go func() {
-		for range trigger {
+	// We'll loop here until context done or watcher closed.
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Wait for event loop to exit to avoid races on global variables
+			<-done
+			return nil
+		case <-done:
+			return nil
+		case <-trigger:
 			executeDevCommand(runCommand)
 		}
-	}()
-
-	<-done
-	return nil
+	}
 }
 
 func detectDevCommand(dir string) string {
