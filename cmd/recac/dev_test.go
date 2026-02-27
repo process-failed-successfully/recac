@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,20 +65,29 @@ func TestDevCmd(t *testing.T) {
 	devRecursive = false
 	devDebounce = 100 * time.Millisecond // Short debounce for test
 
-	// 4. Run Dev Loop in Goroutine
-	// We can't easily stop it, so we'll just let it leak or we need to refactor dev.go to be cancellable.
-	// For this test, leaking one goroutine is acceptable, or we can use a context if we modify dev.go.
-	// But let's verify logic first.
+	// 4. Run Dev Loop in Goroutine with Context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensure cleanup
 
-	// Note: runDev blocks. We run it in a goroutine.
+	// Run command with context
+	// devCmd struct has a global RunE but we invoke runDev directly or via devCmd.ExecuteContext
+	// However, Cobra Execute() handles context if set on command?
+	// Or we can just call runDev passing a command with context.
+
+	// Create a command instance for this test to inject context
+	// (Though runDev uses global flags, so it's a bit mixed)
+	cmd := devCmd
+	cmd.SetContext(ctx)
+
+	// Use WaitGroup to ensure goroutine finishes
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		// Suppress stdout for clean test output
 		// devCmd.SetOut(io.Discard)
 		// devCmd.SetErr(io.Discard)
-		// Actually runDev uses fmt.Printf / os.Stdout directly in some places (bad practice but common in CLIs)
-		// So we can't easily suppress all output without capturing stdout/stderr of the process,
-		// but since we are in a test binary, we can just let it print.
-		runDev(devCmd, []string{})
+		runDev(cmd, []string{})
 	}()
 
 	// Wait for watcher to start (heuristic)
@@ -92,16 +102,16 @@ func TestDevCmd(t *testing.T) {
 	// Wait for debounce + execution
 	time.Sleep(1000 * time.Millisecond)
 
+	// Stop the loop
+	cancel()
+	wg.Wait() // Wait for runDev to actually return
+
 	// 6. Assert
 	mu.Lock()
 	count := len(executedCommands)
 	mu.Unlock()
 
 	// Should be at least 2: 1 for initial run, 1 for file change
-	// In runDev, we have:
-	// go func() { trigger <- struct{}{} }() // Initial run
-	// And then the event trigger.
-
 	assert.GreaterOrEqual(t, count, 2, "Should execute command at least twice (init + change)")
 
 	mu.Lock()
@@ -138,8 +148,17 @@ func TestDevCmd_Manual(t *testing.T) {
 	devRecursive = false
 	devDebounce = 100 * time.Millisecond
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := devCmd
+	cmd.SetContext(ctx)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		runDev(devCmd, []string{})
+		defer wg.Done()
+		runDev(cmd, []string{})
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -148,6 +167,8 @@ func TestDevCmd_Manual(t *testing.T) {
 	os.WriteFile(testFile, []byte("hello"), 0644)
 
 	time.Sleep(1000 * time.Millisecond)
+	cancel()
+	wg.Wait()
 
 	mu.Lock()
 	count := len(executedCommands)
