@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 // execCommand is a package-level variable to allow mocking in tests.
@@ -19,6 +21,18 @@ var mkdirAllFunc = os.MkdirAll
 
 // readFileFunc is a package-level variable to allow mocking in tests.
 var readFileFunc = os.ReadFile
+
+// lookPath is a package-level variable to allow mocking in tests.
+var lookPath = exec.LookPath
+
+// osStatFunc is a package-level variable to allow mocking in tests.
+var osStatFunc = os.Stat
+
+// viperConfigFileUsed is a package-level variable to allow mocking in tests.
+var viperConfigFileUsed = viper.ConfigFileUsed
+
+// viperSafeWriteConfig is a package-level variable to allow mocking in tests.
+var viperSafeWriteConfig = viper.SafeWriteConfig
 
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
 func DefaultIgnoreMap() map[string]bool {
@@ -60,7 +74,7 @@ func extractFileContexts(output string) (string, error) {
 		uniqueFiles[path] = true
 
 		// Validate file exists
-		if _, err := os.Stat(path); os.IsNotExist(err) {
+		if _, err := osStatFunc(path); os.IsNotExist(err) {
 			// Try relative to CWD if not found
 			// (Output might be relative or absolute)
 			continue
