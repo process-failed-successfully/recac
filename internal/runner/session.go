@@ -597,6 +597,12 @@ func (s *Session) ensureImage(ctx context.Context) error {
 		return nil
 	}
 
+	if s.Image == "" {
+		// Use default if empty (though config should catch this, better safe than panic)
+		s.Image = "ghcr.io/process-failed-successfully/recac-agent:latest"
+		fmt.Println("Warning: No image specified, defaulting to", s.Image)
+	}
+
 	// 1. Check for custom Dockerfile in workspace
 	// 1. Check if workspace has a Dockerfile. If so, building is mandatory to allow customization.
 	workspaceDockerfile := filepath.Join(s.Workspace, "Dockerfile")
