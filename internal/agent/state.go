@@ -159,6 +159,21 @@ func (sm *StateManager) AddMemory(memoryItem string) error {
 	return sm.saveState(state)
 }
 
+// ClearMemory clears all memory items from the state and saves it
+func (sm *StateManager) ClearMemory() error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	state, err := sm.loadState()
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
+
+	state.Memory = []string{}
+
+	return sm.saveState(state)
+}
+
 // InitializeState initializes the state with max_tokens and model if not already set
 func (sm *StateManager) InitializeState(maxTokens int, model string) error {
 	sm.mu.Lock()
