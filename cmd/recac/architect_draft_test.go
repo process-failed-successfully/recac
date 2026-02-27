@@ -6,7 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"recac/internal/agent"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -132,4 +135,31 @@ func TestArchitectDraft_Flow(t *testing.T) {
 	content, err := os.ReadFile(tmpPath)
 	assert.NoError(t, err)
 	assert.Equal(t, "This is the final spec.", string(content))
+}
+
+func TestRunArchitectDraft(t *testing.T) {
+	// Mock Agent Factory
+	originalFactory := agentClientFactory
+	defer func() { agentClientFactory = originalFactory }()
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return &MockDraftAgent{}, nil
+	}
+
+	// Mock TUI Runner
+	originalRunFunc := runDraftProgramFunc
+	defer func() { runDraftProgramFunc = originalRunFunc }()
+
+	tuiRunCalled := false
+	runDraftProgramFunc = func(model tea.Model, opts ...tea.ProgramOption) (tea.Model, error) {
+		tuiRunCalled = true
+		return model, nil
+	}
+
+	// Run Command
+	cmd := &cobra.Command{Use: "draft", RunE: runArchitectDraft}
+	// We don't need to set args since we mock everything
+	err := runArchitectDraft(cmd, []string{})
+
+	assert.NoError(t, err)
+	assert.True(t, tuiRunCalled, "Expected TUI to be started")
 }

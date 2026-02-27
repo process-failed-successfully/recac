@@ -61,7 +61,7 @@ func init() {
 	flashcardsGenerateCmd.Flags().StringVarP(&flashcardsFocus, "focus", "f", ".", "Directory to analyze")
 }
 
-func getStore() (flashcards.Store, error) {
+var getStoreFunc = func() (flashcards.Store, error) {
 	path, err := flashcards.DefaultStorePath()
 	if err != nil {
 		return nil, err
@@ -73,16 +73,21 @@ func getStore() (flashcards.Store, error) {
 	return store, nil
 }
 
-func runFlashcardsStudy(cmd *cobra.Command, args []string) error {
-	store, err := getStore()
-	if err != nil {
-		return err
-	}
+// runFlashcardsProgramFunc allows mocking the TUI session in tests.
+var runFlashcardsProgramFunc = func(store flashcards.Store) error {
 	return tui.StartFlashcardsSession(store)
 }
 
+func runFlashcardsStudy(cmd *cobra.Command, args []string) error {
+	store, err := getStoreFunc()
+	if err != nil {
+		return err
+	}
+	return runFlashcardsProgramFunc(store)
+}
+
 func runFlashcardsStats(cmd *cobra.Command, args []string) error {
-	store, err := getStore()
+	store, err := getStoreFunc()
 	if err != nil {
 		return err
 	}
@@ -123,7 +128,7 @@ func runFlashcardsStats(cmd *cobra.Command, args []string) error {
 }
 
 func runFlashcardsList(cmd *cobra.Command, args []string) error {
-	store, err := getStore()
+	store, err := getStoreFunc()
 	if err != nil {
 		return err
 	}
@@ -205,7 +210,7 @@ CONTEXT:
 	}
 
 	// 5. Save
-	store, err := getStore()
+	store, err := getStoreFunc()
 	if err != nil {
 		return err
 	}

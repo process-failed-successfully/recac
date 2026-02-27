@@ -7,6 +7,7 @@ import (
 	"testing"
 	"recac/internal/agent"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -235,4 +236,62 @@ recac long command`
 
 	output := buf.String()
 	assert.Contains(t, output, `"alias": "lc"`)
+}
+
+func TestApplySelectedSuggestions(t *testing.T) {
+	suggestions := []AliasSuggestion{
+		{Command: "echo hello", Alias: "h", Frequency: 1},
+		{Command: "echo world", Alias: "w", Frequency: 2},
+	}
+
+	// 1. Simulate input: select 1st one (index 1)
+	input := "1\n"
+	in := bytes.NewBufferString(input)
+	out := new(bytes.Buffer)
+
+	// Mock Viper config
+	// We need to use a config file or just set it in memory
+	// Viper operates on global state
+	viper.Reset()
+	// Create a temp config file to allow SafeWriteConfig to work (it needs a file path)
+	tmpConfig, err := os.CreateTemp("", "config.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tmpConfig.Name())
+	tmpConfig.Close()
+
+	viper.SetConfigFile(tmpConfig.Name())
+	// Pre-populate aliases to ensure merge or overwrite
+	viper.Set("aliases", map[string]string{"existing": "cmd"})
+
+	applySelectedSuggestions(in, out, suggestions)
+
+	output := out.String()
+	assert.Contains(t, output, "Applied: h='echo hello'")
+
+	aliases := viper.GetStringMapString("aliases")
+	assert.Equal(t, "echo hello", aliases["h"])
+	assert.Equal(t, "cmd", aliases["existing"])
+}
+
+func TestApplySelectedSuggestions_All(t *testing.T) {
+	suggestions := []AliasSuggestion{
+		{Command: "a", Alias: "aa"},
+		{Command: "b", Alias: "bb"},
+	}
+
+	input := "all\n"
+	in := bytes.NewBufferString(input)
+	out := new(bytes.Buffer)
+
+	viper.Reset()
+	tmpConfig, _ := os.CreateTemp("", "config.yaml")
+	defer os.Remove(tmpConfig.Name())
+	tmpConfig.Close()
+	viper.SetConfigFile(tmpConfig.Name())
+
+	applySelectedSuggestions(in, out, suggestions)
+
+	aliases := viper.GetStringMapString("aliases")
+	assert.Equal(t, "a", aliases["aa"])
+	assert.Equal(t, "b", aliases["bb"])
 }

@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDoctest(t *testing.T) {
@@ -84,4 +87,59 @@ func TestDoctest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateBash(t *testing.T) {
+	// Mock lookPath to simulate bash presence
+	originalLookPath := lookPath
+	defer func() { lookPath = originalLookPath }()
+	lookPath = func(file string) (string, error) {
+		return "/bin/bash", nil
+	}
+
+	// Mock execCommand
+	originalExec := execCommand
+	defer func() { execCommand = originalExec }()
+
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		// Just echo for success
+		// If arg contains syntax error code, we could fail, but simpler to rely on external bash if present or assume success for mock
+		// The real test uses "bash -n -c code".
+		// Let's return a dummy success command.
+		return exec.Command("true")
+	}
+
+	err := validateBash("echo hello")
+	assert.NoError(t, err)
+
+	// Mock failure
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("false")
+	}
+	err = validateBash("syntax error")
+	assert.Error(t, err)
+}
+
+func TestValidateGo(t *testing.T) {
+	// Mock execCommand
+	originalExec := execCommand
+	defer func() { execCommand = originalExec }()
+
+	// For go build, we expect success
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("true")
+	}
+
+	err := validateGo("package main\nfunc main(){}")
+	assert.NoError(t, err)
+
+	// Mock failure
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		if name == "go" && len(arg) > 0 && arg[0] == "build" {
+			return exec.Command("false")
+		}
+		return exec.Command("true") // for go mod init
+	}
+	err = validateGo("package main\nfunc main(){ broken }")
+	assert.Error(t, err)
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -120,7 +121,7 @@ func runAliasSuggest(cmd *cobra.Command, args []string) error {
 	// Only if TTY
 	stat, _ := os.Stdout.Stat()
 	if (stat.Mode() & os.ModeCharDevice) != 0 {
-		applySelectedSuggestions(cmd, suggestions)
+		applySelectedSuggestions(cmd.InOrStdin(), cmd.OutOrStdout(), suggestions)
 	}
 
 	return nil
@@ -273,10 +274,10 @@ func printSuggestions(cmd *cobra.Command, suggestions []AliasSuggestion) {
 	}
 }
 
-func applySelectedSuggestions(cmd *cobra.Command, suggestions []AliasSuggestion) {
-	fmt.Fprint(cmd.OutOrStdout(), "Enter the numbers of aliases to apply (comma separated, e.g. 1,3) or 'all': ")
+func applySelectedSuggestions(in io.Reader, out io.Writer, suggestions []AliasSuggestion) {
+	fmt.Fprint(out, "Enter the numbers of aliases to apply (comma separated, e.g. 1,3) or 'all': ")
 
-	reader := bufio.NewReader(cmd.InOrStdin())
+	reader := bufio.NewReader(in)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -301,7 +302,7 @@ func applySelectedSuggestions(cmd *cobra.Command, suggestions []AliasSuggestion)
 	}
 
 	if len(selected) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No aliases selected.")
+		fmt.Fprintln(out, "No aliases selected.")
 		return
 	}
 
@@ -312,16 +313,18 @@ func applySelectedSuggestions(cmd *cobra.Command, suggestions []AliasSuggestion)
 
 	for _, s := range selected {
 		aliases[s.Alias] = s.Command
-		fmt.Fprintf(cmd.OutOrStdout(), "Applied: %s='%s'\n", s.Alias, s.Command)
+		fmt.Fprintf(out, "Applied: %s='%s'\n", s.Alias, s.Command)
 	}
 
 	viper.Set("aliases", aliases)
 	if err := viper.WriteConfig(); err != nil {
 		// Try safe write
 		if err := viper.SafeWriteConfig(); err != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to write config: %v\n", err)
+			// We might not have access to stderr here, so just print to out or ignore for TUI simplicity
+			// Or we could pass stderr as well. For now, writing to out is acceptable for interactive prompts.
+			fmt.Fprintf(out, "Failed to write config: %v\n", err)
 			return
 		}
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "✅ Configuration saved.")
+	fmt.Fprintln(out, "✅ Configuration saved.")
 }

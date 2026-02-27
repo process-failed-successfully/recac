@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -160,7 +159,7 @@ func validateGo(code string) error {
 
 	// Try to build (or just compile check)
 	// We use "go build -o /dev/null"
-	cmd := exec.Command("go", "build", "-o", os.DevNull, mainFile)
+	cmd := execCommand("go", "build", "-o", os.DevNull, mainFile)
 	// Important: Initialize a go.mod so imports might work if they are standard lib.
 	// For external libs, this is tricky.
 	// We can try to use the project's go.mod if we are in the project root?
@@ -169,7 +168,7 @@ func validateGo(code string) error {
 
 	cmd.Dir = tmpDir
 	// Init mod inside tmpDir
-	modInit := exec.Command("go", "mod", "init", "doctest")
+	modInit := execCommand("go", "mod", "init", "doctest")
 	modInit.Dir = tmpDir
 	modInit.Run()
 
@@ -183,13 +182,13 @@ func validateGo(code string) error {
 
 func validateBash(code string) error {
 	// Check if bash is available
-	_, err := exec.LookPath("bash")
+	_, err := lookPath("bash")
 	if err != nil {
 		return nil // Skip if no bash
 	}
 
 	// Syntax check: bash -n -c "code"
-	cmd := exec.Command("bash", "-n", "-c", code)
+	cmd := execCommand("bash", "-n", "-c", code)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s", string(out))

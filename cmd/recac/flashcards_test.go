@@ -206,3 +206,30 @@ func TestFlashcardsList_Empty(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "No cards found")
 }
+
+func TestRunFlashcardsStudy(t *testing.T) {
+	// Mock Store
+	originalGetStore := getStoreFunc
+	defer func() { getStoreFunc = originalGetStore }()
+
+	getStoreFunc = func() (flashcards.Store, error) {
+		return &flashcards.FileStore{}, nil // Dummy store
+	}
+
+	// Mock Program Runner
+	originalRunProgram := runFlashcardsProgramFunc
+	defer func() { runFlashcardsProgramFunc = originalRunProgram }()
+
+	called := false
+	runFlashcardsProgramFunc = func(store flashcards.Store) error {
+		called = true
+		return nil
+	}
+
+	// Run Command
+	cmd := &cobra.Command{Use: "study", RunE: runFlashcardsStudy}
+	err := runFlashcardsStudy(cmd, []string{})
+
+	assert.NoError(t, err)
+	assert.True(t, called, "Expected flashcards study program to run")
+}
