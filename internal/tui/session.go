@@ -30,6 +30,10 @@ type SessionModel struct {
 	messages        []Message
 	ctx             context.Context
 	contextFiles    map[string]string // path -> content
+
+	// Persona support
+	persona        agent.Persona
+	personaManager *agent.PersonaManager
 }
 
 type Message struct {
@@ -44,7 +48,7 @@ type chunkMsg struct {
 }
 type doneMsg struct{}
 
-func NewSessionModel(ag agent.Agent) SessionModel {
+func NewSessionModel(ag agent.Agent, initialPersonaID string) SessionModel {
 	ta := textarea.New()
 	ta.Placeholder = "Type your message (Enter to send)..."
 	ta.Focus()
@@ -61,12 +65,28 @@ func NewSessionModel(ag agent.Agent) SessionModel {
 		glamour.WithWordWrap(80),
 	)
 
-	renderedInitial, _ := r.Render(initialText)
-	vp.SetContent(renderedInitial)
-
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+	// Initialize Persona Manager
+	pm := agent.NewPersonaManager()
+	if err := pm.LoadPersonas(); err != nil {
+		initialText += fmt.Sprintf("Warning: Failed to load personas: %v\n\n", err)
+	}
+
+	// Set initial persona
+	persona, ok := pm.GetPersona(initialPersonaID)
+	if !ok {
+		// Fallback
+		persona, _ = pm.GetPersona("default")
+	}
+
+	// Prepend persona info to history
+	personaMsg := fmt.Sprintf("**System**: Persona set to **%s**\n_%s_\n\n", persona.Name, persona.Description)
+	initialText += personaMsg
+	renderedInitial, _ := r.Render(initialText)
+	vp.SetContent(renderedInitial)
 
 	return SessionModel{
 		agent:           ag,
@@ -80,11 +100,13 @@ func NewSessionModel(ag agent.Agent) SessionModel {
 		renderedHistory: renderedInitial,
 		currentResponse: "",
 		contextFiles:    make(map[string]string),
+		persona:         persona,
+		personaManager:  pm,
 	}
 }
 
-func StartSession(ag agent.Agent) error {
-	p := tea.NewProgram(NewSessionModel(ag), tea.WithAltScreen())
+func StartSession(ag agent.Agent, initialPersonaID string) error {
+	p := tea.NewProgram(NewSessionModel(ag, initialPersonaID), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return err
 	}
@@ -263,11 +285,28 @@ func (m SessionModel) handleCommand(input string) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+	case "/persona":
+		if len(parts) < 2 {
+			m.appendHistory("Usage: /persona <name>\nAvailable personas:\n")
+			for _, k := range m.personaManager.ListSorted() {
+				m.appendHistory(fmt.Sprintf("- %s\n", k))
+			}
+			return m, nil
+		}
+		name := parts[1]
+		if p, ok := m.personaManager.GetPersona(name); ok {
+			m.persona = p
+			m.appendHistory(fmt.Sprintf("**System**: Switched persona to **%s**\n_%s_\n\n", p.Name, p.Description))
+		} else {
+			m.appendHistory(fmt.Sprintf("Unknown persona '%s'.\n", name))
+		}
+		return m, nil
 	case "/help":
 		help := `
 **Available commands:**
 - /add <file>: Add file content to context
 - /context: List current context files
+- /persona <name>: Switch AI persona
 - /quit, /exit: Quit the session
 - /clear: Clear chat history
 - /help: Show this help
@@ -303,7 +342,11 @@ func (m SessionModel) sendRequest(prompt string) tea.Cmd {
 func (m SessionModel) buildPrompt() string {
 	var sb strings.Builder
 
-	// 1. Context Files
+	// 1. System Prompt (Persona)
+	sb.WriteString(m.persona.SystemPrompt)
+	sb.WriteString("\n\n")
+
+	// 2. Context Files
 	if len(m.contextFiles) > 0 {
 		sb.WriteString("Context Files:\n")
 		// Sort keys for deterministic prompt generation
@@ -319,7 +362,7 @@ func (m SessionModel) buildPrompt() string {
 		}
 	}
 
-	// 2. Chat History (includes current message)
+	// 3. Chat History (includes current message)
 	sb.WriteString(m.history)
 	sb.WriteString("Assistant:")
 
@@ -353,7 +396,7 @@ func (m SessionModel) View() string {
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	helpBar := helpStyle.Render("Esc: quit • Enter: send • /help commands")
+	helpBar := helpStyle.Render(fmt.Sprintf("Persona: %s • Esc: quit • Enter: send • /help commands", m.persona.Name))
 
 	return fmt.Sprintf(
 		"%s\n%s\n%s",

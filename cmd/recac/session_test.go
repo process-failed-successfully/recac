@@ -40,9 +40,10 @@ func TestRunSession(t *testing.T) {
 	defer func() { startSessionFunc = origStartSession }()
 
 	startSessionCalled := false
-	startSessionFunc = func(ag agent.Agent) error {
+	startSessionFunc = func(ag agent.Agent, personaID string) error {
 		startSessionCalled = true
 		assert.Equal(t, mockAgent, ag)
+		assert.Equal(t, "default", personaID) // Default value check
 		return nil
 	}
 
@@ -53,6 +54,37 @@ func TestRunSession(t *testing.T) {
 	// We need to execute `runSession` directly or via command.
 	// Via command requires proper args parsing setup.
 	// Calling runSession directly is easier.
+
+	err := runSession(sessionCmd, []string{})
+	assert.NoError(t, err)
+	assert.True(t, startSessionCalled)
+}
+
+func TestRunSessionWithPersona(t *testing.T) {
+	// Mock agent factory
+	origAgentFactory := agentClientFactory
+	defer func() { agentClientFactory = origAgentFactory }()
+
+	mockAgent := &MockSessionAgent{Response: "Hello from Mock Session"}
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+
+	// Mock StartSession
+	origStartSession := startSessionFunc
+	defer func() { startSessionFunc = origStartSession }()
+
+	startSessionCalled := false
+	startSessionFunc = func(ag agent.Agent, personaID string) error {
+		startSessionCalled = true
+		assert.Equal(t, mockAgent, ag)
+		assert.Equal(t, "security", personaID) // Custom value check
+		return nil
+	}
+
+	// Set flag manually
+	sessionPersona = "security"
+	defer func() { sessionPersona = "default" }() // Reset
 
 	err := runSession(sessionCmd, []string{})
 	assert.NoError(t, err)

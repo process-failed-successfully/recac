@@ -11,6 +11,7 @@ import (
 )
 
 var startSessionFunc = tui.StartSession
+var sessionPersona string
 
 var sessionCmd = &cobra.Command{
 	Use:   "session",
@@ -34,7 +35,7 @@ func runSession(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start TUI
-	if err := startSessionFunc(ag); err != nil {
+	if err := startSessionFunc(ag, sessionPersona); err != nil {
 		return fmt.Errorf("session failed: %w", err)
 	}
 
@@ -43,4 +44,5 @@ func runSession(cmd *cobra.Command, args []string) error {
 
 func init() {
 	rootCmd.AddCommand(sessionCmd)
+	sessionCmd.Flags().StringVarP(&sessionPersona, "persona", "p", "default", "Initial persona ID")
 }
