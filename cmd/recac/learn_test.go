@@ -71,6 +71,23 @@ func (m *MockLearnGitClient) StashShow(d, id string) (string, error) { return ""
 func (m *MockLearnGitClient) StashApply(d, id string) error { return nil }
 func (m *MockLearnGitClient) StashDrop(d, id string) error { return nil }
 func (m *MockLearnGitClient) StashClear(d string) error { return nil }
+func (m *MockLearnGitClient) AbortMerge(dir string) error { return nil }
+func (m *MockLearnGitClient) Recover(dir string) error { return nil }
+func (m *MockLearnGitClient) Clean(dir string) error { return nil }
+func (m *MockLearnGitClient) ResetHard(dir, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) StashPop(dir string) error { return nil }
+func (m *MockLearnGitClient) DeleteRemoteBranch(dir, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) SetRemoteURL(dir, name, url string) error { return nil }
+func (m *MockLearnGitClient) LocalBranchExists(dir, branch string) (bool, error) { return false, nil }
+func (m *MockLearnGitClient) Config(dir, key, value string) error { return nil }
+func (m *MockLearnGitClient) ConfigGlobal(key, value string) error { return nil }
+func (m *MockLearnGitClient) ConfigAddGlobal(key, value string) error { return nil }
+func (m *MockLearnGitClient) RemoteBranchExists(dir, remote, branch string) (bool, error) { return false, nil }
+func (m *MockLearnGitClient) Clone(ctx context.Context, repoURL, dir string) error { return nil }
+func (m *MockLearnGitClient) Push(dir, branch string) error { return nil }
+func (m *MockLearnGitClient) Pull(dir, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) Stash(dir string) error { return nil }
+func (m *MockLearnGitClient) Merge(dir, branchName string) error { return nil }
 
 func TestRunLearn(t *testing.T) {
 	// Setup temporary directory

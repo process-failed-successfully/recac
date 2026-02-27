@@ -38,6 +38,24 @@ type MockCareerGitClient struct {
 	CreatePRFunc          func(repoPath, title, body, base string) (string, error)
 }
 
+func (m *MockCareerGitClient) AbortMerge(directory string) error { return nil }
+func (m *MockCareerGitClient) Recover(directory string) error { return nil }
+func (m *MockCareerGitClient) Clean(directory string) error { return nil }
+func (m *MockCareerGitClient) ResetHard(directory, remote, branch string) error { return nil }
+func (m *MockCareerGitClient) StashPop(directory string) error { return nil }
+func (m *MockCareerGitClient) DeleteRemoteBranch(directory, remote, branch string) error { return nil }
+func (m *MockCareerGitClient) SetRemoteURL(directory, name, url string) error { return nil }
+func (m *MockCareerGitClient) LocalBranchExists(directory, branch string) (bool, error) { return false, nil }
+func (m *MockCareerGitClient) Config(directory, key, value string) error { return nil }
+func (m *MockCareerGitClient) ConfigGlobal(key, value string) error { return nil }
+func (m *MockCareerGitClient) ConfigAddGlobal(key, value string) error { return nil }
+func (m *MockCareerGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) { return false, nil }
+func (m *MockCareerGitClient) Clone(ctx context.Context, repoURL, directory string) error { return nil }
+func (m *MockCareerGitClient) Push(directory, branch string) error { return nil }
+func (m *MockCareerGitClient) Pull(directory, remote, branch string) error { return nil }
+func (m *MockCareerGitClient) Stash(directory string) error { return nil }
+func (m *MockCareerGitClient) Merge(directory, branchName string) error { return nil }
+
 func (m *MockCareerGitClient) Log(repoPath string, args ...string) ([]string, error) {
 	if m.LogFunc != nil {
 		return m.LogFunc(repoPath, args...)

@@ -67,6 +67,23 @@ type IGitClient interface {
 	StashApply(directory, id string) error
 	StashDrop(directory, id string) error
 	StashClear(directory string) error
+	AbortMerge(directory string) error
+	Recover(directory string) error
+	Clean(directory string) error
+	ResetHard(directory, remote, branch string) error
+	StashPop(directory string) error
+	DeleteRemoteBranch(directory, remote, branch string) error
+	SetRemoteURL(directory, name, url string) error
+	LocalBranchExists(directory, branch string) (bool, error)
+	Config(directory, key, value string) error
+	ConfigGlobal(key, value string) error
+	ConfigAddGlobal(key, value string) error
+	RemoteBranchExists(directory, remote, branch string) (bool, error)
+	Push(directory, branch string) error
+	Pull(directory, remote, branch string) error
+	Stash(directory string) error
+	Merge(directory, branchName string) error
+	Clone(ctx context.Context, repoURL, directory string) error
 }
 
 // IK8sClient defines the interface for Kubernetes operations.
