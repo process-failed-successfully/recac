@@ -335,3 +335,13 @@ func TestRunDev_Integration(t *testing.T) {
 	assert.Contains(t, output, "Watching extensions: [.go .mod]")
 	assert.Contains(t, output, "Watching")
 }
+
+func TestCopyIO(t *testing.T) {
+	input := "hello world"
+	r := bytes.NewReader([]byte(input))
+	var w bytes.Buffer
+
+	copyIO(&w, r)
+
+	assert.Equal(t, input, w.String())
+}

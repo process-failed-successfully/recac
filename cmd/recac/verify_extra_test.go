@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os/exec"
 	"strings"
 	"testing"
@@ -113,4 +114,61 @@ func TestRunVerify_NoChangedFiles(t *testing.T) {
 	cmd := &cobra.Command{}
 	err := runVerify(cmd, []string{})
 	require.NoError(t, err)
+}
+
+func TestPrintVerifyTable(t *testing.T) {
+	cmd := &cobra.Command{}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	issues := []VerifyIssue{
+		{
+			Severity: "High",
+			Type:     "Security",
+			File:     "main.go",
+			Line:     10,
+			Message:  "Bad thing",
+		},
+		{
+			Severity: "Medium",
+			Type:     "Complexity",
+			File:     "utils.go",
+			Line:     5,
+			Message:  "Complex thing",
+		},
+	}
+
+	printVerifyTable(cmd, issues)
+
+	output := buf.String()
+	assert.Contains(t, output, "SEVERITY")
+	assert.Contains(t, output, "🔴 High")
+	assert.Contains(t, output, "Bad thing")
+	assert.Contains(t, output, "🟡 Medium")
+	assert.Contains(t, output, "Complex thing")
+}
+
+func TestRunVerify_JSON(t *testing.T) {
+	// Setup flags
+	verifyJSON = true
+	defer func() { verifyJSON = false }()
+
+	// Mock execCommand
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
+
+	execCommand = func(name string, args ...string) *exec.Cmd {
+		// Return no files to keep it simple but hit the early return
+		return exec.Command("echo", "")
+	}
+
+	cmd := &cobra.Command{}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	err := runVerify(cmd, []string{})
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.JSONEq(t, "[]", output)
 }
