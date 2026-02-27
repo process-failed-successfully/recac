@@ -124,6 +124,59 @@ func TestPlayground_RunCode(t *testing.T) {
 	assert.Equal(t, "Execution Success", m.outputContent)
 }
 
+func TestPlayground_RunPlayground(t *testing.T) {
+	// Setup Mocks
+	originalStart := startPlaygroundTUIFunc
+	defer func() { startPlaygroundTUIFunc = originalStart }()
+
+	startPlaygroundTUIFunc = func(m tea.Model) error {
+		return nil // instantly succeed
+	}
+
+	err := runPlayground(nil, nil)
+	assert.NoError(t, err)
+}
+
+func TestPlayground_Init(t *testing.T) {
+	m := initialPlaygroundModel()
+	cmd := m.Init()
+	assert.NotNil(t, cmd)
+}
+
+func TestPlayground_Layout(t *testing.T) {
+	m := initialPlaygroundModel()
+	m, _ = updateModel(m, tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	assert.Equal(t, 100, m.width)
+	assert.Equal(t, 50, m.height)
+	assert.Equal(t, 94, m.codeArea.Width())
+	assert.Equal(t, 25, m.codeArea.Height()) // 50 * 0.5
+	assert.Equal(t, 100, m.outputView.Width)
+	assert.Equal(t, 15, m.outputView.Height) // 50 * 0.3
+}
+
+func TestPlayground_View(t *testing.T) {
+	m := initialPlaygroundModel()
+
+	// Initial View
+	view := m.View()
+	assert.Contains(t, view, "PLAYGROUND")
+	assert.Contains(t, view, "Language: GO")
+	assert.Contains(t, view, "Hello from")
+	assert.Contains(t, view, "Playground!")
+
+	// Running code state
+	m.running = true
+	view = m.View()
+	assert.Contains(t, view, "RUNNING...")
+
+	// AI Thinking state
+	m.running = false
+	m.thinking = true
+	view = m.View()
+	assert.Contains(t, view, "AI THINKING...")
+}
+
 func TestPlayground_AskAI(t *testing.T) {
 	// Setup Mocks
 	originalAgentFactory := agentClientFactory

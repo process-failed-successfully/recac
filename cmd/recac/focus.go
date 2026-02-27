@@ -17,6 +17,14 @@ var (
 	focusDND      bool
 )
 
+var startFocusTUIFunc = func(m tea.Model) error {
+	p := tea.NewProgram(m)
+	if _, err := p.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 var focusCmd = &cobra.Command{
 	Use:   "focus",
 	Short: "Start a focus session (Pomodoro timer)",
@@ -60,9 +68,8 @@ func runFocus(cmd *cobra.Command, args []string) error {
 	}
 
 	m := initialFocusModel(focusDuration, focusTask)
-	p := tea.NewProgram(m)
 
-	if _, err := p.Run(); err != nil {
+	if err := startFocusTUIFunc(m); err != nil {
 		return fmt.Errorf("error running focus timer: %w", err)
 	}
 
