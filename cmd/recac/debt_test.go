@@ -179,3 +179,112 @@ func TestDebtHelperProcess(t *testing.T) {
 	}
 	os.Exit(1)
 }
+
+func TestTimeSinceHuman(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name string
+		t    time.Time
+		want string
+	}{
+		{
+			name: "Today",
+			t:    now,
+			want: "today",
+		},
+		{
+			name: "Yesterday",
+			t:    now.AddDate(0, 0, -1),
+			want: "1d",
+		},
+		{
+			name: "10 days",
+			t:    now.AddDate(0, 0, -10),
+			want: "10d",
+		},
+		{
+			name: "1 month",
+			t:    now.AddDate(0, 0, -31),
+			want: "1.0m",
+		},
+		{
+			name: "6 months",
+			t:    now.AddDate(0, 0, -180),
+			want: "6.0m",
+		},
+		{
+			name: "1 year",
+			t:    now.AddDate(-1, 0, -1), // 366 days
+			want: "1.0y",
+		},
+		{
+			name: "2.5 years",
+			t:    now.AddDate(0, 0, -913),
+			want: "2.5y",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := timeSinceHuman(tt.t)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestParseDurationExtended(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{
+			name:  "Days",
+			input: "10d",
+			want:  time.Hour * 24 * 10,
+		},
+		{
+			name:  "Weeks",
+			input: "2w",
+			want:  time.Hour * 24 * 7 * 2,
+		},
+		{
+			name:  "Months",
+			input: "3m",
+			want:  time.Hour * 24 * 30 * 3,
+		},
+		{
+			name:  "Years",
+			input: "1y",
+			want:  time.Hour * 24 * 365,
+		},
+		{
+			name:  "Standard Go Duration",
+			input: "24h",
+			want:  time.Hour * 24,
+		},
+		{
+			name:    "Invalid Suffix",
+			input:   "10x",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid Number with Suffix",
+			input:   "abcy",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseDurationExtended(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}

@@ -109,6 +109,21 @@ func TestHelperProcess_FuzzSuccess(t *testing.T) {
 	os.Exit(0)
 }
 
+func TestHelperProcess_FuzzCrash(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	// Simulate crash output
+	fmt.Println("fuzz: elapsed: 0s, gathering baseline coverage: 0/10 completed")
+	fmt.Println("failure while testing: FuzzAdd")
+	fmt.Println("fuzz: minimizing 26-byte failing input file")
+	fmt.Println("--- FAIL: FuzzAdd (0.01s)")
+	fmt.Println("    fuzz_test.go:42: crash!")
+	fmt.Println("FAIL")
+	fmt.Println("exit status 1")
+	os.Exit(1)
+}
+
 func TestFuzzCmd_NoFunc(t *testing.T) {
 	// Setup
 	tmpDir := t.TempDir()
@@ -151,4 +166,49 @@ func Exported() {}
 
 	err = runFuzz(fuzzCmd, []string{filePath})
 	assert.NoError(t, err)
+}
+
+func TestFuzzCmd_Crash(t *testing.T) {
+	// Setup
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "crashy.go")
+	content := `package crashy
+func Crash(a int) { if a == 10 { panic("crash") } }
+`
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	require.NoError(t, err)
+
+	// Mock Agent
+	mockAgent := &FuzzTestMockAgent{
+		Response: "```go\npackage crashy\nfunc FuzzCrash(f *testing.F) {}\n```",
+	}
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// Mock Exec
+	originalExecCommand := execCommand
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		// Call the helper process simulating crash
+		exe, _ := os.Executable()
+		cmd := exec.Command(exe, "-test.run=TestHelperProcess_FuzzCrash", "--")
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		return cmd
+	}
+	defer func() { execCommand = originalExecCommand }()
+
+	fuzzFunc = "Crash"
+	fuzzDuration = "10ms"
+	fuzzKeep = true
+	fuzzCmd.Flags().Set("func", "Crash")
+
+	ctx := context.Background()
+	fuzzCmd.SetContext(ctx)
+
+	// runFuzz returns error on failure
+	err = runFuzz(fuzzCmd, []string{filePath})
+	assert.Error(t, err)
+	assert.Equal(t, "fuzzing failed", err.Error())
 }
