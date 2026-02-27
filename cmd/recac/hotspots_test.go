@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"encoding/json"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupGitRepo(t *testing.T, dir string) {
@@ -129,4 +134,47 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
 	}
+}
+
+func TestHotspotsCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Setup content
+	code := `package main
+	func main() {
+		if true {
+			print("hello")
+		}
+	}`
+	commitFile(t, tmpDir, "main.go", code)
+
+	// 1. Run default (Text output)
+	cmd := &cobra.Command{Use: "hotspots", RunE: hotspotsCmd.RunE}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	hotspotsDays = 30
+	hotspotsLimit = 10
+	hotspotsJSON = false
+
+	err := cmd.RunE(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "HOTSPOTS REPORT")
+	assert.Contains(t, output, "main.go")
+
+	// 2. Run JSON output
+	hotspotsJSON = true
+	buf.Reset()
+
+	err = cmd.RunE(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	var results []Hotspot
+	err = json.Unmarshal(buf.Bytes(), &results)
+	assert.NoError(t, err)
+	assert.Greater(t, len(results), 0)
+	assert.Equal(t, "main.go", results[0].File)
 }
