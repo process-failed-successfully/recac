@@ -126,6 +126,7 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// User message
 				m.input.Reset()
 				m.isLoading = true
+				m.input.Blur()
 
 				// Add to history and render
 				userMsg := fmt.Sprintf("**User**: %s\n\n", v)
@@ -152,6 +153,7 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case doneMsg:
 		m.isLoading = false
+		m.input.Focus()
 		// Commit current response to history
 		m.history += m.currentResponse + "\n\n"
 
@@ -167,13 +169,14 @@ func (m SessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 		m.isLoading = false
+		m.input.Focus()
 		errorMsg := fmt.Sprintf("\n**Error**: %v\n\n", msg)
 		m.appendHistory(errorMsg)
 		return m, spinCmd
 
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - m.input.Height() - 4 // margin
+		m.viewport.Height = msg.Height - m.input.Height() - 6 // margin
 		m.input.SetWidth(msg.Width)
 		// Re-render everything if size changed (to fix word wrap)
 		// Ideally we re-render m.history entirely
@@ -349,9 +352,13 @@ func (m SessionModel) View() string {
 		footer = fmt.Sprintf("%s Thinking...\n%s", m.spinner.View(), inputView)
 	}
 
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	helpBar := helpStyle.Render("Esc: quit • Enter: send • /help commands")
+
 	return fmt.Sprintf(
-		"%s\n%s",
+		"%s\n%s\n%s",
 		m.viewport.View(),
 		footer,
+		helpBar,
 	)
 }
