@@ -6,14 +6,59 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"recac/internal/runner"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+// Reusing MockSessionManager here if not exported, or defining one
+type MockSessionManagerK8s struct {
+	mock.Mock
+}
+
+func (m *MockSessionManagerK8s) SaveSession(session *runner.SessionState) error {
+	args := m.Called(session)
+	return args.Error(0)
+}
+
+func (m *MockSessionManagerK8s) LoadSession(name string) (*runner.SessionState, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*runner.SessionState), args.Error(1)
+}
+
+// Stubs for other methods
+func (m *MockSessionManagerK8s) ListSessions() ([]*runner.SessionState, error) { return nil, nil }
+func (m *MockSessionManagerK8s) StopSession(name string) error                  { return nil }
+func (m *MockSessionManagerK8s) PauseSession(name string) error                 { return nil }
+func (m *MockSessionManagerK8s) ResumeSession(name string) error                { return nil }
+func (m *MockSessionManagerK8s) GetSessionLogs(name string) (string, error)     { return "", nil }
+func (m *MockSessionManagerK8s) GetSessionLogContent(name string, lines int) (string, error) {
+	return "", nil
+}
+func (m *MockSessionManagerK8s) StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error) {
+	return nil, nil
+}
+func (m *MockSessionManagerK8s) GetSessionPath(name string) string { return "" }
+func (m *MockSessionManagerK8s) IsProcessRunning(pid int) bool     { return false }
+func (m *MockSessionManagerK8s) RemoveSession(name string, force bool) error { return nil }
+func (m *MockSessionManagerK8s) RenameSession(oldName, newName string) error { return nil }
+func (m *MockSessionManagerK8s) SessionsDir() string                         { return "" }
+func (m *MockSessionManagerK8s) GetSessionGitDiffStat(name string) (string, error) { return "", nil }
+func (m *MockSessionManagerK8s) ArchiveSession(name string) error                  { return nil }
+func (m *MockSessionManagerK8s) UnarchiveSession(name string) error                { return nil }
+func (m *MockSessionManagerK8s) ListArchivedSessions() ([]*runner.SessionState, error) {
+	return nil, nil
+}
 
 func TestK8sSpawner_Cleanup(t *testing.T) {
 	s := &K8sSpawner{}
@@ -28,7 +73,8 @@ func TestNewK8sSpawner_Config(t *testing.T) {
 		t.Setenv("KUBERNETES_SERVICE_HOST", "") // Ensure not in-cluster
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways, 30, 5, 10)
+		sm := new(MockSessionManagerK8s)
+		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways, sm, 30, 5, 10)
 		assert.Error(t, err)
 		assert.Nil(t, spawner)
 	})
@@ -64,7 +110,8 @@ users:
 		t.Setenv("KUBERNETES_SERVICE_HOST", "")
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways, 30, 5, 10)
+		sm := new(MockSessionManagerK8s)
+		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways, sm, 30, 5, 10)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, spawner)
@@ -76,6 +123,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	// Setup
 	fakeClient := fake.NewSimpleClientset()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sm := new(MockSessionManagerK8s)
 	spawner := &K8sSpawner{
 		Client:            fakeClient,
 		Namespace:         "default",
@@ -84,6 +132,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 		AgentModel:        "gpt-4",
 		PullPolicy:        corev1.PullIfNotPresent,
 		Logger:            logger,
+		SessionManager:    sm,
 		MaxIterations:     42,
 		ManagerFrequency:  7,
 		TaskMaxIterations: 12,
@@ -100,6 +149,38 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 		RepoURL: "https://github.com/test/repo",
 		EnvVars: map[string]string{"CUSTOM_VAR": "value"},
 	}
+
+	// Mock Session Manager
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil)
+
+	// Since we are using fake client, waitForJob will block unless we update status.
+	// We run Spawn in a goroutine and update status in main thread.
+
+	// Create Job first to ensure it exists for update?
+	// No, Spawn creates it. We need to wait for Spawn to create it.
+
+	go func() {
+		// Wait for job creation
+		for {
+			_, err := fakeClient.BatchV1().Jobs("default").Get(context.Background(), "recac-agent-ticket-1", metav1.GetOptions{})
+			if err == nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		// Update status to Succeeded
+		job, _ := fakeClient.BatchV1().Jobs("default").Get(context.Background(), "recac-agent-ticket-1", metav1.GetOptions{})
+		job.Status.Succeeded = 1
+		fakeClient.BatchV1().Jobs("default").Update(context.Background(), job, metav1.UpdateOptions{})
+	}()
+
+	sm.On("LoadSession", "TICKET-1").Return(&runner.SessionState{Name: "TICKET-1", Status: "running"}, nil)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed"
+	})).Return(nil)
 
 	// Execute
 	err := spawner.Spawn(context.Background(), item)
@@ -130,11 +211,14 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Contains(t, cmdArgs, "--max-iterations 42")
 	assert.Contains(t, cmdArgs, "--manager-frequency 7")
 	assert.Contains(t, cmdArgs, "--task-max-iterations 12")
+
+	sm.AssertExpectations(t)
 }
 
 func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	sm := new(MockSessionManagerK8s)
 	
 	spawner := &K8sSpawner{
 		Client:        clientset,
@@ -144,6 +228,7 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		AgentModel:    "gemini-pro",
 		PullPolicy:    corev1.PullAlways,
 		Logger:        logger,
+		SessionManager: sm,
 	}
 
 	item := WorkItem{
@@ -155,6 +240,28 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	}
 
 	t.Run("Create Success", func(t *testing.T) {
+		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "running"
+		})).Return(nil)
+
+		sm.On("LoadSession", "TASK-123").Return(&runner.SessionState{Name: "TASK-123", Status: "running"}, nil)
+		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "completed"
+		})).Return(nil)
+
+		go func() {
+			for {
+				_, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+				if err == nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			job, _ := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+			job.Status.Succeeded = 1
+			clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		}()
+
 		err := spawner.Spawn(context.Background(), item)
 		assert.NoError(t, err)
 
@@ -177,11 +284,21 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	})
 
 	t.Run("Retry Existing Failed Job", func(t *testing.T) {
-		// Set existing job to failed
-		job, _ := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
-		job.Status.Failed = 1
-		clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		// Clean up from previous run if any
+		clientset.BatchV1().Jobs("test-ns").Delete(context.Background(), "recac-agent-task-123", metav1.DeleteOptions{})
 
+		// Re-create failed job manually
+		job := &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "recac-agent-task-123",
+			},
+			Status: batchv1.JobStatus{
+				Failed: 1,
+			},
+		}
+		clientset.BatchV1().Jobs("test-ns").Create(context.Background(), job, metav1.CreateOptions{})
+
+		// Spawn should detect failed job and delete it, then return error to retry next cycle
 		err := spawner.Spawn(context.Background(), item)
 		// Should return error indicating cleanup and retry
 		assert.Error(t, err)
@@ -213,10 +330,12 @@ func TestSanitizeK8sName(t *testing.T) {
 func TestK8sSpawner_Cancel(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sm := new(MockSessionManagerK8s)
 	spawner := &K8sSpawner{
 		Client:    clientset,
 		Namespace: "test-ns",
 		Logger:    logger,
+		SessionManager: sm,
 	}
 
 	ctx := context.Background()
@@ -247,10 +366,12 @@ func TestK8sSpawner_Cancel(t *testing.T) {
 func TestK8sSpawner_GetLogs(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sm := new(MockSessionManagerK8s)
 	spawner := &K8sSpawner{
 		Client:    clientset,
 		Namespace: "default",
 		Logger:    logger,
+		SessionManager: sm,
 	}
 
 	ctx := context.Background()

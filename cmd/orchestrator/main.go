@@ -321,6 +321,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	managerFrequency := viper.GetInt("orchestrator.manager_frequency")
 	taskMaxIterations := viper.GetInt("orchestrator.task_max_iterations")
 
+	// Initialize SessionManager early
+	sm, err := runner.NewSessionManager()
+	if err != nil {
+		return fmt.Errorf("Failed to initialize Session Manager: %w", err)
+	}
+
 	var janitorClient orchestrator.DockerClient
 
 	switch mode {
@@ -329,7 +335,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		if pullPolicy == "" {
 			pullPolicy = corev1.PullAlways
 		}
-		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, maxIterations, managerFrequency, taskMaxIterations)
+		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize K8s spawner: %w", err)
 		}
@@ -338,11 +344,6 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		dockerCli, err := docker.NewClient(projectName)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize Docker client: %w", err)
-		}
-
-		sm, err := runner.NewSessionManager()
-		if err != nil {
-			return fmt.Errorf("Failed to initialize Session Manager: %w", err)
 		}
 
 		pullPolicy := viper.GetString("orchestrator.image_pull_policy")

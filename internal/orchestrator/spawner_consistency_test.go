@@ -39,15 +39,34 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 	// 1. Check K8s Spawner
 	t.Run("K8sSpawner propagates all config vars", func(t *testing.T) {
 		k8sClient := fake.NewSimpleClientset()
+		mockSM := new(MockSessionManager)
 		spawner := &K8sSpawner{
-			Client:        k8sClient,
-			Namespace:     "ns",
-			Image:         "img",
-			AgentProvider: "prov",
-			AgentModel:    "mod",
-			PullPolicy:    corev1.PullAlways,
-			Logger:        logger,
+			Client:         k8sClient,
+			Namespace:      "ns",
+			Image:          "img",
+			AgentProvider:  "prov",
+			AgentModel:     "mod",
+			PullPolicy:     corev1.PullAlways,
+			Logger:         logger,
+			SessionManager: mockSM,
 		}
+
+		mockSM.On("SaveSession", mock.Anything).Return(nil)
+		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{Name: "TASK-CONSISTENCY", Status: "running"}, nil)
+
+		// Simulate job completion for waitForJob
+		go func() {
+			for {
+				_, err := k8sClient.BatchV1().Jobs("ns").Get(context.Background(), "recac-agent-task-consistency", metav1.GetOptions{})
+				if err == nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			job, _ := k8sClient.BatchV1().Jobs("ns").Get(context.Background(), "recac-agent-task-consistency", metav1.GetOptions{})
+			job.Status.Succeeded = 1
+			k8sClient.BatchV1().Jobs("ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		}()
 
 		err := spawner.Spawn(ctx, item)
 		assert.NoError(t, err)
@@ -145,15 +164,33 @@ func TestSpawnerConsistency_LabelsAndGitConfig(t *testing.T) {
 	// 1. Check K8s Spawner Labels
 	t.Run("K8sSpawner sets correct labels", func(t *testing.T) {
 		k8sClient := fake.NewSimpleClientset()
+		mockSM := new(MockSessionManager)
 		spawner := &K8sSpawner{
-			Client:        k8sClient,
-			Namespace:     "ns",
-			Image:         "img",
-			AgentProvider: "prov",
-			AgentModel:    "mod",
-			PullPolicy:    corev1.PullAlways,
-			Logger:        logger,
+			Client:         k8sClient,
+			Namespace:      "ns",
+			Image:          "img",
+			AgentProvider:  "prov",
+			AgentModel:     "mod",
+			PullPolicy:     corev1.PullAlways,
+			Logger:         logger,
+			SessionManager: mockSM,
 		}
+
+		mockSM.On("SaveSession", mock.Anything).Return(nil)
+		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{Name: "TASK-CONSISTENCY", Status: "running"}, nil)
+
+		go func() {
+			for {
+				_, err := k8sClient.BatchV1().Jobs("ns").Get(context.Background(), "recac-agent-task-consistency", metav1.GetOptions{})
+				if err == nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			job, _ := k8sClient.BatchV1().Jobs("ns").Get(context.Background(), "recac-agent-task-consistency", metav1.GetOptions{})
+			job.Status.Succeeded = 1
+			k8sClient.BatchV1().Jobs("ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		}()
 
 		err := spawner.Spawn(ctx, item)
 		assert.NoError(t, err)
@@ -236,15 +273,33 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 	// 1. Check K8s Spawner Args
 	t.Run("K8sSpawner sets correct command args", func(t *testing.T) {
 		k8sClient := fake.NewSimpleClientset()
+		mockSM := new(MockSessionManager)
 		spawner := &K8sSpawner{
-			Client:        k8sClient,
-			Namespace:     "ns",
-			Image:         "img",
-			AgentProvider: "prov",
-			AgentModel:    "mod",
-			PullPolicy:    corev1.PullAlways,
-			Logger:        logger,
+			Client:         k8sClient,
+			Namespace:      "ns",
+			Image:          "img",
+			AgentProvider:  "prov",
+			AgentModel:     "mod",
+			PullPolicy:     corev1.PullAlways,
+			Logger:         logger,
+			SessionManager: mockSM,
 		}
+
+		mockSM.On("SaveSession", mock.Anything).Return(nil)
+		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{Name: "TASK-CONSISTENCY-ARGS", Status: "running"}, nil)
+
+		go func() {
+			for {
+				_, err := k8sClient.BatchV1().Jobs("ns").Get(context.Background(), "recac-agent-task-consistency-args", metav1.GetOptions{})
+				if err == nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			job, _ := k8sClient.BatchV1().Jobs("ns").Get(context.Background(), "recac-agent-task-consistency-args", metav1.GetOptions{})
+			job.Status.Succeeded = 1
+			k8sClient.BatchV1().Jobs("ns").Update(context.Background(), job, metav1.UpdateOptions{})
+		}()
 
 		err := spawner.Spawn(ctx, item)
 		assert.NoError(t, err)
