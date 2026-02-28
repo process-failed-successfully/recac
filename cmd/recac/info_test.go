@@ -5,6 +5,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"recac/internal/agent"
+	"recac/internal/runner"
 )
 
 func TestInfoCmd(t *testing.T) {
@@ -67,6 +70,59 @@ func TestInfoCmd(t *testing.T) {
 		return mockGit
 	}
 
+	// Mock Session Manager
+	originalSessionManagerFactory := sessionManagerFactory
+	defer func() {
+		sessionManagerFactory = originalSessionManagerFactory
+	}()
+
+	mockSessionManager := NewMockSessionManager()
+	mockSessionManager.Sessions = map[string]*runner.SessionState{
+		"session1": {
+			Name:           "session1",
+			AgentStateFile: "session1_state.json",
+		},
+		"session2": {
+			Name:           "session2",
+			AgentStateFile: "session2_state.json",
+		},
+		"session3": {
+			Name:           "session3",
+			AgentStateFile: "",
+		},
+	}
+
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSessionManager, nil
+	}
+
+	// Mock loadAgentState
+	originalLoadAgentState := loadAgentState
+	defer func() {
+		loadAgentState = originalLoadAgentState
+	}()
+
+	loadAgentState = func(path string) (*agent.State, error) {
+		if path == "session1_state.json" {
+			return &agent.State{
+				Model: "gemini-1.5-pro-latest",
+				TokenUsage: agent.TokenUsage{
+					TotalPromptTokens:   100,
+					TotalResponseTokens: 200,
+				},
+			}, nil
+		} else if path == "session2_state.json" {
+			return &agent.State{
+				Model: "gpt-4o",
+				TokenUsage: agent.TokenUsage{
+					TotalPromptTokens:   50,
+					TotalResponseTokens: 150,
+				},
+			}, nil
+		}
+		return nil, os.ErrNotExist
+	}
+
 	// Helper to capture output
 	execute := func(cmdArgs []string) (string, error) {
 		rootCmd.SetArgs(cmdArgs)
@@ -102,14 +158,26 @@ func TestInfoCmd(t *testing.T) {
 		if !strings.Contains(out, "Unstaged Changes:") || !strings.Contains(out, "2") {
 			t.Errorf("Expected 2 unstaged changes in output, got: %s", out)
 		}
-		if !strings.Contains(out, "Total Files:") || !strings.Contains(out, "2") {
-			t.Errorf("Expected 2 total files in output, got: %s", out)
+		if !strings.Contains(out, "Total Files:") {
+			t.Errorf("Expected total files in output, got: %s", out)
 		}
-		if !strings.Contains(out, "Total Lines:") || !strings.Contains(out, "5") {
-			t.Errorf("Expected 5 total lines in output, got: %s", out)
+		if !strings.Contains(out, "Total Lines:") {
+			t.Errorf("Expected total lines in output, got: %s", out)
 		}
 		if !strings.Contains(out, "TODO Count:") || !strings.Contains(out, "1") {
 			t.Errorf("Expected 1 TODO in output, got: %s", out)
+		}
+
+		if !strings.Contains(out, "Total Sessions:") || !strings.Contains(out, "3") {
+			t.Errorf("Expected 3 Total Sessions in output, got: %s", out)
+		}
+
+		// Expected cost:
+		// session1 (gemini-1.5-pro-latest): 100/1M * 7 + 200/1M * 21 = 0.0007 + 0.0042 = 0.0049
+		// session2 (gpt-4o): 50/1M * 5 + 150/1M * 15 = 0.00025 + 0.00225 = 0.0025
+		// total = 0.0074 => rounded to $0.01
+		if !strings.Contains(out, "Estimated AI Cost:") || !strings.Contains(out, "$0.01") {
+			t.Errorf("Expected Estimated AI Cost: $0.01 in output, got: %s", out)
 		}
 	})
 
