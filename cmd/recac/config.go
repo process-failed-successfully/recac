@@ -27,5 +27,6 @@ func init() {
 	configCmd.AddCommand(listKeysCmd)
 	configCmd.AddCommand(listModelsCmd)
 	configCmd.AddCommand(setCmd)
+	configCmd.AddCommand(unsetCmd)
 	rootCmd.AddCommand(configCmd)
 }
