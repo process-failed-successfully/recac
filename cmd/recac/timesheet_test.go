@@ -175,6 +175,8 @@ func (m *MockTimesheetGitClient) StashShow(d, id string) (string, error) { retur
 func (m *MockTimesheetGitClient) StashApply(d, id string) error { return nil }
 func (m *MockTimesheetGitClient) StashDrop(d, id string) error { return nil }
 func (m *MockTimesheetGitClient) StashClear(d string) error { return nil }
+func (m *MockTimesheetGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) ResetSoft(directory, target string) error       { return nil }
 func (m *MockTimesheetGitClient) AbortMerge(d string) error { return nil }
 func (m *MockTimesheetGitClient) Recover(d string) error { return nil }
 func (m *MockTimesheetGitClient) Clean(d string) error { return nil }

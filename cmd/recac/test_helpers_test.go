@@ -351,6 +351,8 @@ type MockGitClient struct {
 	DeleteTagFunc           func(repoPath, version string) error
 	PushTagsFunc            func(repoPath string) error
 	LatestTagFunc           func(repoPath string) (string, error)
+	MergeBaseFunc           func(repoPath, ref1, ref2 string) (string, error)
+	ResetSoftFunc           func(repoPath, target string) error
 	RunFunc                 func(repoPath string, args ...string) (string, error)
 	DeleteLocalBranchFunc   func(repoPath, branch string) error
 	CreatePRFunc            func(repoPath, title, body, base string) (string, error)
@@ -559,6 +561,20 @@ func (m *MockGitClient) LatestTag(repoPath string) (string, error) {
 		return m.LatestTagFunc(repoPath)
 	}
 	return "v0.0.0", nil
+}
+
+func (m *MockGitClient) MergeBase(repoPath, ref1, ref2 string) (string, error) {
+	if m.MergeBaseFunc != nil {
+		return m.MergeBaseFunc(repoPath, ref1, ref2)
+	}
+	return "", nil
+}
+
+func (m *MockGitClient) ResetSoft(repoPath, target string) error {
+	if m.ResetSoftFunc != nil {
+		return m.ResetSoftFunc(repoPath, target)
+	}
+	return nil
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {

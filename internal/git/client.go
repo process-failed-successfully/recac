@@ -430,6 +430,32 @@ func (c *Client) ResetHard(dir, remote, branch string) error {
 	return c.runWithMasking(context.Background(), dir, "reset", "--hard", target)
 }
 
+// ResetSoft resets the current branch to the specified target, keeping local changes staged.
+func (c *Client) ResetSoft(dir, target string) error {
+	cmd := exec.Command("git", "reset", "--soft", target)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git reset --soft failed: %w\nOutput: %s", err, out.String())
+	}
+	return nil
+}
+
+// MergeBase finds the best common ancestor between two refs.
+func (c *Client) MergeBase(dir, ref1, ref2 string) (string, error) {
+	cmd := exec.Command("git", "merge-base", ref1, ref2)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git merge-base failed: %w\nOutput: %s", err, out.String())
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
 // Clean force cleans the repository of untracked files and directories.
 func (c *Client) Clean(dir string) error {
 	// Pre-cleanup: Handle read-only Go module files that git clean fails on

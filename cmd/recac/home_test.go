@@ -81,6 +81,8 @@ func (m *MockGitHomeClient) StashShow(d, id string) (string, error) { return "",
 func (m *MockGitHomeClient) StashApply(d, id string) error { return nil }
 func (m *MockGitHomeClient) StashDrop(d, id string) error { return nil }
 func (m *MockGitHomeClient) StashClear(d string) error { return nil }
+func (m *MockGitHomeClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockGitHomeClient) ResetSoft(directory, target string) error       { return nil }
 
 // MockSessionManager
 type MockHomeSessionManager struct {
