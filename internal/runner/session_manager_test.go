@@ -187,6 +187,16 @@ func (m *MockGitClient) BisectReset(directory string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) MergeBase(directory, ref1, ref2 string) (string, error) {
+	args := m.Called(directory, ref1, ref2)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) ResetSoft(directory, target string) error {
+	args := m.Called(directory, target)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) BisectLog(directory string) ([]string, error) {
 	args := m.Called(directory)
 	return args.Get(0).([]string), args.Error(1)
