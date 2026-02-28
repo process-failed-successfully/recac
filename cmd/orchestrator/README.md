@@ -4,7 +4,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 
 ## Key Features
 
-- **Multi-Source Polling**: Supports Jira and local filesystem.
+- **Multi-Source Polling**: Supports Jira, GitHub, GitLab, and local filesystem.
 - **Hybrid Spawning**: Can run agents locally via Docker or in Kubernetes via Jobs.
 - **Auto-Retry**: Automatically cleans up and retries failed jobs.
 - **Configurable**: Fully controllable via CLI flags and environment variables.
@@ -20,7 +20,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | Flag               | Env Var                       | Default      | Description                            |
 | ------------------ | ----------------------------- | ------------ | -------------------------------------- |
 | `--mode`           | `RECAC_ORCHESTRATOR_MODE`     | `local`      | `local` (Docker) or `k8s` (Kubernetes) |
-| `--poller`         | `RECAC_POLLER`                | `jira`       | `jira` or `file`                       |
+| `--poller`         | `RECAC_POLLER`                | `jira`       | `jira`, `github`, `gitlab`, `file`     |
 | `--interval`       | `RECAC_ORCHESTRATOR_INTERVAL` | `1m`         | Polling interval (e.g., `30s`, `5m`)   |
 | `--agent-provider` | `RECAC_AGENT_PROVIDER`        | `openrouter` | AI provider for spawned agents         |
 | `--agent-model`    | `RECAC_AGENT_MODEL`           | `...`        | AI model for spawned agents            |
@@ -39,6 +39,24 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | -------------- | ------- | ------------- | ---------------------------------- |
 | `--jira-label` | -       | `recac-agent` | Poll for issues with this label    |
 | `--jira-query` | -       | -             | Custom JQL query (overrides label) |
+
+### GitHub Poller Flags
+
+| Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--github-token` | `RECAC_GITHUB_TOKEN` | - | GitHub API Token |
+| `--github-owner` | `RECAC_GITHUB_OWNER` | - | GitHub Repository Owner |
+| `--github-repo` | `RECAC_GITHUB_REPO` | - | GitHub Repository Name |
+| `--github-label` | `RECAC_GITHUB_LABEL` | - | GitHub Label to poll for |
+
+### GitLab Poller Flags
+
+| Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--gitlab-token` | `RECAC_GITLAB_TOKEN` | - | GitLab API Token |
+| `--gitlab-project` | `RECAC_GITLAB_PROJECT` | - | GitLab Project ID or URL-encoded path |
+| `--gitlab-label` | `RECAC_GITLAB_LABEL` | - | GitLab Label to poll for |
+| `--gitlab-url` | `RECAC_GITLAB_URL` | `https://gitlab.com` | GitLab instance URL |
 
 ### File Poller Flags
 
