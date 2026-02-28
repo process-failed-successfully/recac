@@ -66,10 +66,10 @@ func (j *Janitor) Cleanup(ctx context.Context) error {
 			continue
 		}
 
-		// Check age
-		// Created is int64 timestamp (unix seconds)
+		// Check state and age
+		// We remove if it's explicitly exited/dead OR if it's older than cutoff
 		createdAt := time.Unix(c.Created, 0)
-		if createdAt.After(cutoff) {
+		if c.State != "exited" && c.State != "dead" && createdAt.After(cutoff) {
 			continue
 		}
 

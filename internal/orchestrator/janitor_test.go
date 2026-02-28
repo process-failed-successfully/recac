@@ -48,14 +48,34 @@ func TestJanitor_Cleanup(t *testing.T) {
 				"created-by": "manual",
 			},
 		},
+		{
+			ID:      "exited-container",
+			Created: newTime.Unix(),
+			State:   "exited",
+			Labels: map[string]string{
+				"created-by": "recac-orchestrator",
+				"work-item":  "TASK-3",
+			},
+		},
+		{
+			ID:      "dead-container",
+			Created: newTime.Unix(),
+			State:   "dead",
+			Labels: map[string]string{
+				"created-by": "recac-orchestrator",
+				"work-item":  "TASK-4",
+			},
+		},
 	}
 
 	client.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
 		return opts.All == true
 	})).Return(containers, nil)
 
-	// Expect removal of old-container
+	// Expect removal of old-container, exited-container, and dead-container
 	client.On("RemoveContainer", ctx, "old-container", true).Return(nil)
+	client.On("RemoveContainer", ctx, "exited-container", true).Return(nil)
+	client.On("RemoveContainer", ctx, "dead-container", true).Return(nil)
 
 	// Janitor setup
 	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false)
