@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -53,13 +53,13 @@ func AnalyzeDependencies(opts DependencyOptions) (DepMap, error) {
 		}
 	}
 
-	err := filepath.Walk(opts.Root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(opts.Root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if info.IsDir() {
-			name := info.Name()
+		if d.IsDir() {
+			name := d.Name()
 			if name == ".git" || name == "vendor" || name == "node_modules" || name == ".recac" {
 				return filepath.SkipDir
 			}
