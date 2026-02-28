@@ -104,7 +104,7 @@ var orchestrateCmd = &cobra.Command{
 			if pullPolicy == "" {
 				pullPolicy = corev1.PullAlways
 			}
-			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
+			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, poller, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 			if err != nil {
 				logger.Error("Failed to initialize K8s spawner", "error", err)
 				os.Exit(1)

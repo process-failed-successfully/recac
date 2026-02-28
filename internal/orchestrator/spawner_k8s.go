@@ -26,6 +26,7 @@ type K8sSpawner struct {
 	Client            kubernetes.Interface
 	Namespace         string
 	Image             string
+	Poller            Poller // To update status on completion
 	AgentProvider     string
 	AgentModel        string
 	PullPolicy        corev1.PullPolicy
@@ -37,7 +38,7 @@ type K8sSpawner struct {
 	TaskMaxIterations int
 }
 
-func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy, sm ISessionManager, maxIterations, managerFrequency, taskMaxIterations int) (*K8sSpawner, error) {
+func NewK8sSpawner(logger *slog.Logger, image string, namespace string, poller Poller, provider, model string, pullPolicy corev1.PullPolicy, sm ISessionManager, maxIterations, managerFrequency, taskMaxIterations int) (*K8sSpawner, error) {
 	// 1. Try In-Cluster Config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -72,6 +73,7 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 		Client:            clientset,
 		Namespace:         namespace,
 		Image:             image,
+		Poller:            poller,
 		AgentProvider:     provider,
 		AgentModel:        model,
 		PullPolicy:        pullPolicy,
@@ -256,19 +258,38 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// 4. Update session
 	finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
-	if loadErr != nil {
-		s.Logger.Error("failed to reload session for update", "item", item.ID, "error", loadErr)
-		finalSession = session // Fallback
+
+	// Try to get logs
+	var output string
+	if waitErr != nil {
+		logs, err := s.GetLogs(ctx, item.ID)
+		if err == nil && logs != nil {
+			buf := make([]byte, 4096)
+			n, _ := logs.Read(buf)
+			output = string(buf[:n])
+			logs.Close()
+		}
 	}
 
-	finalSession.EndTime = time.Now()
-	if waitErr != nil {
-		finalSession.Status = "error"
-		finalSession.Error = waitErr.Error()
-		s.Logger.Error("Job failed", "name", jobName, "error", waitErr)
+	if loadErr != nil {
+		s.Logger.Error("failed to reload session for update", "item", item.ID, "error", loadErr)
+		if waitErr != nil && s.Poller != nil {
+			_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Job failed:\n%s\nOutput:\n%s", waitErr, output))
+		}
+		finalSession = session // Fallback
 	} else {
-		finalSession.Status = "completed"
-		s.Logger.Info("Job completed successfully", "name", jobName)
+		finalSession.EndTime = time.Now()
+		if waitErr != nil {
+			finalSession.Status = "error"
+			finalSession.Error = waitErr.Error()
+			s.Logger.Error("Job failed", "name", jobName, "error", waitErr, "output", output)
+			if s.Poller != nil {
+				_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Job failed:\n%s\nOutput:\n%s", waitErr, output))
+			}
+		} else {
+			finalSession.Status = "completed"
+			s.Logger.Info("Job completed successfully", "name", jobName)
+		}
 	}
 	// EndCommitSHA is not easily accessible from remote pod without extra tooling
 	finalSession.EndCommitSHA = ""

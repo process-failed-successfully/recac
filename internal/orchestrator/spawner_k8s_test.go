@@ -74,7 +74,7 @@ func TestNewK8sSpawner_Config(t *testing.T) {
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		sm := new(MockSessionManagerK8s)
-		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways, sm, 30, 5, 10)
+		spawner, err := NewK8sSpawner(logger, "img", "ns", nil, "p", "m", corev1.PullAlways, sm, 30, 5, 10)
 		assert.Error(t, err)
 		assert.Nil(t, spawner)
 	})
@@ -111,7 +111,7 @@ users:
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		sm := new(MockSessionManagerK8s)
-		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways, sm, 30, 5, 10)
+		spawner, err := NewK8sSpawner(logger, "img", "", nil, "p", "m", corev1.PullAlways, sm, 30, 5, 10)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, spawner)
