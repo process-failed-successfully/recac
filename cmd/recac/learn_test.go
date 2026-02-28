@@ -71,6 +71,8 @@ func (m *MockLearnGitClient) StashShow(d, id string) (string, error) { return ""
 func (m *MockLearnGitClient) StashApply(d, id string) error { return nil }
 func (m *MockLearnGitClient) StashDrop(d, id string) error { return nil }
 func (m *MockLearnGitClient) StashClear(d string) error { return nil }
+func (m *MockLearnGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) ResetSoft(directory, target string) error       { return nil }
 func (m *MockLearnGitClient) AbortMerge(dir string) error { return nil }
 func (m *MockLearnGitClient) Recover(dir string) error { return nil }
 func (m *MockLearnGitClient) Clean(dir string) error { return nil }

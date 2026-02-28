@@ -242,6 +242,14 @@ func (m *MockGitClient) BisectReset(directory string) error {
 	return nil
 }
 
+func (m *MockGitClient) MergeBase(directory, ref1, ref2 string) (string, error) {
+	return "", nil
+}
+
+func (m *MockGitClient) ResetSoft(directory, target string) error {
+	return nil
+}
+
 func (m *MockGitClient) BisectLog(directory string) ([]string, error) {
 	return []string{}, nil
 }

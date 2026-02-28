@@ -41,6 +41,8 @@ func (m *MockBlogGitClient) CheckoutNewBranch(dir, branch string) error  { retur
 func (m *MockBlogGitClient) CurrentBranch(dir string) (string, error) { return "main", nil }
 func (m *MockBlogGitClient) Stash(dir string) error                { return nil }
 func (m *MockBlogGitClient) StashPop(dir string) error             { return nil }
+func (m *MockBlogGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) ResetSoft(directory, target string) error       { return nil }
 func (m *MockBlogGitClient) StashPush(dir string, msg string) error { return nil }
 func (m *MockBlogGitClient) StashList(dir string) ([]string, error) { return []string{}, nil }
 func (m *MockBlogGitClient) StashShow(dir string, index string) (string, error) { return "", nil }

@@ -29,6 +29,7 @@ type IClient interface {
 	Recover(directory string) error
 	Clean(directory string) error
 	ResetHard(directory, remote, branch string) error
+	ResetSoft(directory, target string) error
 	StashPop(directory string) error
 	DeleteRemoteBranch(directory, remote, branch string) error
 	CurrentBranch(directory string) (string, error)
@@ -48,6 +49,7 @@ type IClient interface {
 	DeleteTag(directory, version string) error
 	PushTags(directory string) error
 	LatestTag(directory string) (string, error)
+	MergeBase(directory, ref1, ref2 string) (string, error)
 	Run(directory string, args ...string) (string, error)
 	CreatePR(directory, title, body, base string) (string, error)
 }

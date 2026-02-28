@@ -58,6 +58,7 @@ type IGitClient interface {
 	DeleteTag(repoPath, version string) error
 	PushTags(repoPath string) error
 	LatestTag(repoPath string) (string, error)
+	MergeBase(directory, ref1, ref2 string) (string, error)
 	Run(repoPath string, args ...string) (string, error)
 	DeleteLocalBranch(repoPath, branch string) error
 	CreatePR(repoPath, title, body, base string) (string, error)
@@ -71,6 +72,7 @@ type IGitClient interface {
 	Recover(directory string) error
 	Clean(directory string) error
 	ResetHard(directory, remote, branch string) error
+	ResetSoft(directory, target string) error
 	StashPop(directory string) error
 	DeleteRemoteBranch(directory, remote, branch string) error
 	SetRemoteURL(directory, name, url string) error

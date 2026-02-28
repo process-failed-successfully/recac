@@ -102,6 +102,8 @@ func (m *MockCareerGitClient) StashShow(directory, id string) (string, error) { 
 func (m *MockCareerGitClient) StashApply(directory, id string) error          { return nil }
 func (m *MockCareerGitClient) StashDrop(directory, id string) error           { return nil }
 func (m *MockCareerGitClient) StashClear(directory string) error              { return nil }
+func (m *MockCareerGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockCareerGitClient) ResetSoft(directory, target string) error       { return nil }
 
 // MockCareerAgent mocks agent.Agent
 type MockCareerAgent struct {

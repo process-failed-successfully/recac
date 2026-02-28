@@ -107,6 +107,8 @@ func (m *MockGitClientCommit) StashShow(directory, id string) (string, error) { 
 func (m *MockGitClientCommit) StashApply(directory, id string) error          { return nil }
 func (m *MockGitClientCommit) StashDrop(directory, id string) error           { return nil }
 func (m *MockGitClientCommit) StashClear(directory string) error              { return nil }
+func (m *MockGitClientCommit) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockGitClientCommit) ResetSoft(directory, target string) error       { return nil }
 
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks
