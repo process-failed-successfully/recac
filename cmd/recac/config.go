@@ -26,5 +26,6 @@ var listModelsCmd = &cobra.Command{
 func init() {
 	configCmd.AddCommand(listKeysCmd)
 	configCmd.AddCommand(listModelsCmd)
+	configCmd.AddCommand(setCmd)
 	rootCmd.AddCommand(configCmd)
 }
