@@ -194,7 +194,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	if loadErr != nil {
 		s.Logger.Error("failed to load session for final update", "session", item.ID, "error", loadErr)
 		// Still update poller status
-		if execErr != nil {
+		if execErr != nil && s.Poller != nil {
 			_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
 		}
 		return nil
@@ -205,7 +205,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		finalSession.Status = "error"
 		finalSession.Error = execErr.Error()
 		s.Logger.Error("Agent execution failed", "item", item.ID, "error", execErr, "output", output)
-		_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
+		if s.Poller != nil {
+			_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
+		}
 	} else {
 		finalSession.Status = "completed"
 		s.Logger.Info("Agent execution completed", "item", item.ID, "output", string(output))
