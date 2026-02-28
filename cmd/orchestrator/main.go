@@ -73,7 +73,7 @@ func main() {
 	pflag.Bool("cleanup-dry-run", false, "Janitor dry run (log only)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
-	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
+	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'gitlab', 'file', or 'file-dir'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
 	pflag.String("watch-dir", "", "Directory to watch for work item files (for 'file-dir' poller)")
 
@@ -81,6 +81,11 @@ func main() {
 	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+
+	pflag.String("gitlab-token", "", "GitLab API Token (for 'gitlab' poller)")
+	pflag.String("gitlab-project", "", "GitLab Project ID or URL-encoded path (for 'gitlab' poller)")
+	pflag.String("gitlab-label", "", "GitLab Label to poll for (defaults to jira-label if not set)")
+	pflag.String("gitlab-url", "", "GitLab URL (defaults to https://gitlab.com)")
 
 	pflag.Parse()
 
@@ -98,6 +103,11 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.gitlab_token", pflag.Lookup("gitlab-token"))
+	viper.BindPFlag("orchestrator.gitlab_project", pflag.Lookup("gitlab-project"))
+	viper.BindPFlag("orchestrator.gitlab_label", pflag.Lookup("gitlab-label"))
+	viper.BindPFlag("orchestrator.gitlab_url", pflag.Lookup("gitlab-url"))
 
 	viper.BindPFlag("orchestrator.dry_run", pflag.Lookup("dry-run"))
 	viper.BindEnv("orchestrator.dry_run", "RECAC_ORCHESTRATOR_DRY_RUN")
@@ -149,6 +159,10 @@ func main() {
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.gitlab_token", "RECAC_GITLAB_TOKEN", "GITLAB_TOKEN")
+	viper.BindEnv("orchestrator.gitlab_project", "RECAC_GITLAB_PROJECT")
+	viper.BindEnv("orchestrator.gitlab_label", "RECAC_GITLAB_LABEL")
+	viper.BindEnv("orchestrator.gitlab_url", "RECAC_GITLAB_URL")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -299,6 +313,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
+	case "gitlab":
+		token := viper.GetString("orchestrator.gitlab_token")
+		project := viper.GetString("orchestrator.gitlab_project")
+		url := viper.GetString("orchestrator.gitlab_url")
+		glLabel := viper.GetString("orchestrator.gitlab_label")
+		if glLabel == "" {
+			glLabel = label // Fallback to jira-label
+		}
+
+		if token == "" || project == "" {
+			return fmt.Errorf("GitLab token and project must be specified in gitlab poller mode")
+		}
+		poller = orchestrator.NewGitLabPoller(url, token, project, glLabel)
+		logger.Info("Using GitLab poller", "project", project, "label", glLabel)
 	default:
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
