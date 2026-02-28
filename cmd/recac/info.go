@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"recac/internal/agent"
 	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,7 @@ import (
 var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Display a summary of the current repository state",
-	Long:  `Provides a detailed summary of the current repository state including git branch, changes, file count, line count, and TODO count.`,
+	Long:  `Provides a detailed summary of the current repository state including git branch, changes, file count, line count, TODO count, and RECAC sessions.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -124,6 +125,22 @@ var infoCmd = &cobra.Command{
 			todoCount = len(todos)
 		}
 
+		// Sessions & Cost
+		sessionCount := 0
+		var totalCost float64
+		if sm, err := sessionManagerFactory(); err == nil {
+			if sessions, err := sm.ListSessions(); err == nil {
+				sessionCount = len(sessions)
+				for _, s := range sessions {
+					if s.AgentStateFile != "" {
+						if agentState, err := loadAgentState(s.AgentStateFile); err == nil {
+							totalCost += agent.CalculateCost(agentState.Model, agentState.TokenUsage)
+						}
+					}
+				}
+			}
+		}
+
 		// Output
 		fmt.Fprintln(cmd.OutOrStdout(), "Repository Info:")
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
@@ -136,6 +153,8 @@ var infoCmd = &cobra.Command{
 		fmt.Fprintf(w, "  Total Files:\t%d\n", fileCount)
 		fmt.Fprintf(w, "  Total Lines:\t%d\n", lineCount)
 		fmt.Fprintf(w, "  TODO Count:\t%d\n", todoCount)
+		fmt.Fprintf(w, "  Total Sessions:\t%d\n", sessionCount)
+		fmt.Fprintf(w, "  Estimated AI Cost:\t$%.2f\n", totalCost)
 		w.Flush()
 
 		return nil
