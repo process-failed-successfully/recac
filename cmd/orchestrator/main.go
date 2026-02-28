@@ -335,7 +335,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		if pullPolicy == "" {
 			pullPolicy = corev1.PullAlways
 		}
-		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
+		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, poller, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize K8s spawner: %w", err)
 		}
