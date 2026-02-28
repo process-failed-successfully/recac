@@ -75,6 +75,15 @@ var todoRmCmd = &cobra.Command{
 	},
 }
 
+var todoClearCmd = &cobra.Command{
+	Use:   "clear",
+	Short: "Remove all completed tasks",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return clearTasks(cmd)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(todoCmd)
 	todoCmd.AddCommand(todoAddCmd)
@@ -82,6 +91,7 @@ func init() {
 	todoCmd.AddCommand(todoDoneCmd)
 	todoCmd.AddCommand(todoUndoneCmd)
 	todoCmd.AddCommand(todoRmCmd)
+	todoCmd.AddCommand(todoClearCmd)
 }
 
 func ensureTodoFile() error {
@@ -198,4 +208,41 @@ func removeTask(targetIndex int) error {
 		fmt.Printf("Removed task %d\n", targetIndex)
 	}
 	return err
+}
+
+func clearTasks(cmd *cobra.Command) error {
+	if err := ensureTodoFile(); err != nil {
+		return err
+	}
+
+	lines, err := utils.ReadLines(todoFile)
+	if err != nil {
+		return err
+	}
+
+	newLines := make([]string, 0, len(lines))
+	removedCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "- [x]") {
+			removedCount++
+			continue
+		}
+		newLines = append(newLines, line)
+	}
+
+	if removedCount == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No completed tasks to remove.")
+		return nil
+	}
+
+	// Join lines and write safely
+	content := strings.Join(newLines, "\n") + "\n"
+	if err := safeWriteFile(todoFile, []byte(content), 0644); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Removed %d completed task(s).\n", removedCount)
+	return nil
 }

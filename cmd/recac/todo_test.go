@@ -142,4 +142,41 @@ func TestTodoCmd(t *testing.T) {
 			t.Error("TODO.md was not recreated")
 		}
 	})
+
+	// 7. Clear Tasks
+	t.Run("Clear Tasks", func(t *testing.T) {
+		// Setup a known state
+		os.Remove("TODO.md")
+		execute([]string{"todo", "add", "Task 1"})
+		execute([]string{"todo", "add", "Task 2"})
+		execute([]string{"todo", "add", "Task 3"})
+		execute([]string{"todo", "done", "1"})
+		execute([]string{"todo", "done", "3"})
+
+		// We have Task 1 (done), Task 2 (undone), Task 3 (done)
+		out, err := execute([]string{"todo", "clear"})
+		if err != nil {
+			t.Fatalf("Failed to clear tasks: %v", err)
+		}
+
+		if !strings.Contains(out, "Removed 2 completed task(s).") {
+			t.Errorf("Unexpected output from clear command: %s", out)
+		}
+
+		content, err := os.ReadFile("TODO.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		contentStr := string(content)
+
+		if strings.Contains(contentStr, "Task 1") {
+			t.Errorf("Task 1 should be cleared")
+		}
+		if strings.Contains(contentStr, "Task 3") {
+			t.Errorf("Task 3 should be cleared")
+		}
+		if !strings.Contains(contentStr, "- [ ] Task 2") {
+			t.Errorf("Task 2 should remain")
+		}
+	})
 }
