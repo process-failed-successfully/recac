@@ -9,6 +9,7 @@ import (
 
 func init() {
 	featureCmd.AddCommand(featureStartCmd)
+	featureCmd.AddCommand(featureBreakdownCmd)
 	rootCmd.AddCommand(featureCmd)
 }
 
