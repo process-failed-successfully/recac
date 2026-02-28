@@ -173,7 +173,7 @@ func (m FlashcardsModel) View() string {
 		content += controls
 	} else {
 		// Instructions
-		content += lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("Press Space to flip...")
+		content += lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("Press Space or Enter to flip...")
 	}
 
 	// Center usage
