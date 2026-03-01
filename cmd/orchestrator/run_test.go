@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strconv"
@@ -105,6 +106,41 @@ func TestRun_Commands(t *testing.T) {
 
 		err := run(ctx, logger)
 		assert.NoError(t, err)
+	})
+
+	t.Run("Status_Flag", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("orchestrator.status", true)
+
+		// Set up a mock server
+		mux := http.NewServeMux()
+		mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"poll_interval":"1m0s","uptime":"10m","last_poll":"2023-10-10T10:00:00Z","last_poll_items":5,"active_spawns":2,"total_spawns":10,"paused":false}`))
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		viper.Set("orchestrator.host", server.URL)
+
+		originalStdout := stdout
+		defer func() { stdout = originalStdout }()
+		out := new(bytes.Buffer)
+		stdout = out
+
+		err := run(ctx, logger)
+		assert.NoError(t, err)
+
+		output := out.String()
+		assert.Contains(t, output, "Orchestrator Status")
+		assert.Contains(t, output, "Uptime:")
+		assert.Contains(t, output, "10m")
+		assert.Contains(t, output, "Poll Interval:")
+		assert.Contains(t, output, "1m0s")
+		assert.Contains(t, output, "Active Spawns:")
+		assert.Contains(t, output, "2")
+		assert.Contains(t, output, "Total Spawns:")
+		assert.Contains(t, output, "10")
 	})
 
 	t.Run("Verify_Success", func(t *testing.T) {

@@ -36,6 +36,7 @@ func main() {
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
+	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
@@ -115,6 +116,7 @@ func main() {
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
+	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
@@ -193,6 +195,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		history := viper.GetBool("orchestrator.history")
 		listJobs(host, history)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.status") {
+		host := viper.GetString("orchestrator.host")
+		printStatus(host)
 		return nil
 	}
 
@@ -494,6 +502,65 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 	return nil
+}
+
+func printStatus(host string) {
+	url := fmt.Sprintf("%s/status", host)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(stdout, "Failed to fetch status: status %s\n", resp.Status)
+		exitFunc(1)
+		return
+	}
+
+	var status orchestrator.Status
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// Styles
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(18)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	fmt.Fprintln(stdout, titleStyle.Render("Orchestrator Status"))
+	fmt.Fprintln(stdout, "")
+
+	printField := func(label, value string) {
+		fmt.Fprintf(stdout, "%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value))
+	}
+
+	printField("Uptime", status.Uptime)
+	printField("Poll Interval", status.PollInterval)
+	if !status.LastPoll.IsZero() {
+		printField("Last Poll", status.LastPoll.Format(time.RFC3339))
+	} else {
+		printField("Last Poll", "N/A")
+	}
+	printField("Last Poll Items", fmt.Sprintf("%d", status.LastPollItems))
+	printField("Active Spawns", fmt.Sprintf("%d", status.ActiveSpawns))
+	printField("Total Spawns", fmt.Sprintf("%d", status.TotalSpawns))
+	printField("Paused", fmt.Sprintf("%t", status.Paused))
+	fmt.Fprintln(stdout, "")
 }
 
 func listJobs(host string, history bool) {
