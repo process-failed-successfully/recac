@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -164,4 +165,47 @@ func TestAPI(t *testing.T) { API() }
 		assert.Contains(t, res.AffectedPackages, "example.com/impactproj/pkg/mid")
 		assert.Contains(t, res.AffectedPackages, "example.com/impactproj/pkg/api")
 	})
+}
+
+func TestGetGitDiffFiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		staged   bool
+		mockOut  string
+		expected []string
+	}{
+		{
+			name:     "unstaged",
+			staged:   false,
+			mockOut:  "file1.go\nfile2.go\n\n",
+			expected: []string{"file1.go", "file2.go"},
+		},
+		{
+			name:     "staged",
+			staged:   true,
+			mockOut:  "file3.go\n",
+			expected: []string{"file3.go"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalExec := execCommand
+			defer func() { execCommand = originalExec }()
+
+			execCommand = func(name string, arg ...string) *exec.Cmd {
+				if tt.staged {
+					assert.Equal(t, []string{"diff", "--name-only", "--cached"}, arg)
+				} else {
+					assert.Equal(t, []string{"diff", "--name-only"}, arg)
+				}
+				cmd := exec.Command("echo", "-n", tt.mockOut)
+				return cmd
+			}
+
+			files, err := getGitDiffFiles(tt.staged)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, files)
+		})
+	}
 }

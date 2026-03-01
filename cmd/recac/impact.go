@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -275,7 +274,7 @@ func getGitDiffFiles(staged bool) ([]string, error) {
 	if staged {
 		args = append(args, "--cached")
 	}
-	cmd := exec.Command("git", args...)
+	cmd := execCommand("git", args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()

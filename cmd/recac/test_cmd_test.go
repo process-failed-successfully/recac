@@ -300,3 +300,45 @@ func TestRunTest_Fix_GiveUp(t *testing.T) {
 	assert.Contains(t, output, "Attempting fix 1/2")
 	assert.Contains(t, output, "Attempting fix 2/2")
 }
+
+func TestShouldIgnoreDir(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{".git", true},
+		{".idea", true},
+		{"node_modules", true},
+		{"vendor", true},
+		{"dist", true},
+		{"build", true},
+		{".", false},
+		{"src", false},
+		{"pkg", false},
+		{"internal", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.expected, shouldIgnoreDir(tt.path))
+		})
+	}
+}
+
+func TestShouldIgnoreFile(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{"test.tmp", true},
+		{"build.tmp", true},
+		{"main.go", false},
+		{"config.json", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.expected, shouldIgnoreFile(tt.path))
+		})
+	}
+}

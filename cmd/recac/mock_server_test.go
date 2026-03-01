@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"recac/internal/agent"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,4 +68,32 @@ func TestMockServer_Handler_Fallback(t *testing.T) {
 
 	assert.Equal(t, 200, resp.StatusCode) // Defaults to 200
 	assert.JSONEq(t, `{"error": "not found"}`, string(body))
+}
+
+func TestMockServerCmd(t *testing.T) {
+	// Setup
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return &MockServerTestAgent{Response: "test"}, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	t.Run("Invalid Spec File", func(t *testing.T) {
+		resetFlags(mockServerCmd)
+		mockServerSpec = "not_found.yaml"
+		err := runMockServer(mockServerCmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read spec file")
+	})
+
+	t.Run("Immediate ListenAndServe Error", func(t *testing.T) {
+		resetFlags(mockServerCmd)
+		mockServerSpec = ""
+		mockServerPrompt = "test prompt"
+		mockServerPort = -1 // Invalid port causes an immediate error
+
+		err := runMockServer(mockServerCmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid port") // from http.ListenAndServe
+	})
 }
