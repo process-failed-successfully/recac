@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"strings"
+	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"testing"
@@ -163,4 +166,178 @@ func TestStackContains(t *testing.T) {
 	slice := []string{"a", "b"}
 	assert.True(t, stackContains(slice, "a"))
 	assert.False(t, stackContains(slice, "c"))
+}
+
+func TestRunStack(t *testing.T) {
+	// Create a temp dir with some files
+	tmpDir := t.TempDir()
+	files := map[string]string{
+		"main.go":          "package main",
+		"go.mod":           "module example\nrequire github.com/gin-gonic/gin v1.9.0",
+		"package.json":     `{"dependencies": {"react": "^18.0.0"}}`,
+		"docker-compose.yml": "services:\n  db:\n    image: postgres:15",
+		".github/workflows/ci.yml": "name: CI",
+	}
+
+	for name, content := range files {
+		path := filepath.Join(tmpDir, name)
+		err := os.MkdirAll(filepath.Dir(path), 0755)
+		require.NoError(t, err)
+		err = os.WriteFile(path, []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		wantOut []string
+	}{
+		{
+			name:    "Default Table Output",
+			args:    []string{tmpDir},
+			wantErr: false,
+			wantOut: []string{"PROJECT STACK", "LANGUAGES:", "FRAMEWORKS & LIBRARIES:", "INFRASTRUCTURE & CI:", "DATABASES:"},
+		},
+		{
+			name:    "JSON Output",
+			args:    []string{tmpDir, "--json"},
+			wantErr: false,
+			wantOut: []string{"\"languages\":", "\"frameworks\":", "\"infrastructure\":", "\"databases\":", "\"ci\":"},
+		},
+		{
+			name:    "Mermaid Output",
+			args:    []string{tmpDir, "--mermaid"},
+			wantErr: false,
+			wantOut: []string{"graph TD", "App[", "FW0([", "Infra0[", "CI0{{", "DB0[("},
+		},
+		{
+			name:    "Invalid Directory",
+			args:    []string{"/path/to/non/existent/directory/xyz123"},
+			wantErr: true,
+			wantOut: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a new command to reset flags
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("json", false, "Output as JSON")
+			cmd.Flags().Bool("mermaid", false, "Output as a Mermaid component diagram")
+
+			// Parse custom flags manually
+			var cmdArgs []string
+			if len(tt.args) > 0 {
+				if tt.args[len(tt.args)-1] == "--json" {
+					cmd.Flags().Set("json", "true")
+					cmdArgs = tt.args[:len(tt.args)-1]
+				} else if tt.args[len(tt.args)-1] == "--mermaid" {
+					cmd.Flags().Set("mermaid", "true")
+					cmdArgs = tt.args[:len(tt.args)-1]
+				} else {
+					cmdArgs = tt.args
+				}
+			}
+
+			// Capture output
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			err := runStack(cmd, cmdArgs)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				out := buf.String()
+				for _, want := range tt.wantOut {
+					assert.Contains(t, out, want)
+				}
+			}
+		})
+	}
+}
+
+func TestPrintStackTable(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	info := &StackInfo{
+		Languages:      map[string]int{"Go": 5, "Python": 2},
+		Frameworks:     []string{"Gin", "React"},
+		Infrastructure: []string{"Docker"},
+		Databases:      []string{"PostgreSQL", "Redis"},
+		CI:             []string{"GitHub Actions"},
+	}
+
+	printStackTable(cmd, info)
+	out := buf.String()
+
+	assert.Contains(t, out, "LANGUAGES:")
+	assert.Contains(t, out, "- Go (5 files)")
+	assert.Contains(t, out, "- Python (2 files)")
+	assert.Contains(t, out, "FRAMEWORKS & LIBRARIES:")
+	assert.Contains(t, out, "- Gin")
+	assert.Contains(t, out, "- React")
+	assert.Contains(t, out, "INFRASTRUCTURE & CI:")
+	assert.Contains(t, out, "- Docker")
+	assert.Contains(t, out, "- GitHub Actions")
+	assert.Contains(t, out, "DATABASES:")
+	assert.Contains(t, out, "- PostgreSQL")
+	assert.Contains(t, out, "- Redis")
+
+	// Test empty info
+	buf.Reset()
+	emptyInfo := &StackInfo{
+		Languages:      map[string]int{},
+		Frameworks:     []string{},
+		Infrastructure: []string{},
+		Databases:      []string{},
+		CI:             []string{},
+	}
+	printStackTable(cmd, emptyInfo)
+	outEmpty := buf.String()
+	countNoneDetected := strings.Count(outEmpty, "None detected")
+	assert.Equal(t, 4, countNoneDetected)
+}
+
+func TestPrintStackMermaid(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	info := &StackInfo{
+		Languages:      map[string]int{"Go": 5, "Python": 2},
+		Frameworks:     []string{"Gin", "React"},
+		Infrastructure: []string{"Docker"},
+		Databases:      []string{"PostgreSQL", "Redis"},
+		CI:             []string{"GitHub Actions"},
+	}
+
+	printStackMermaid(cmd, info)
+	out := buf.String()
+
+	assert.Contains(t, out, "graph TD")
+	assert.Contains(t, out, "App[Go App]")
+	assert.Contains(t, out, "FW0([Gin]) -.-> App")
+	assert.Contains(t, out, "FW1([React]) -.-> App")
+	assert.Contains(t, out, "App --- Infra0[Docker]")
+	assert.Contains(t, out, "CI0{{GitHub Actions}} --> App")
+	assert.Contains(t, out, "App <--> DB0[(PostgreSQL)]")
+	assert.Contains(t, out, "App <--> DB1[(Redis)]")
+
+	// Test empty info
+	buf.Reset()
+	emptyInfo := &StackInfo{
+		Languages:      map[string]int{},
+		Frameworks:     []string{},
+		Infrastructure: []string{},
+		Databases:      []string{},
+		CI:             []string{},
+	}
+	printStackMermaid(cmd, emptyInfo)
+	outEmpty := buf.String()
+	assert.Contains(t, outEmpty, "graph TD")
+	assert.Contains(t, outEmpty, "App[Application]")
 }
