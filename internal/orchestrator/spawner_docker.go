@@ -119,7 +119,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	sort.Strings(env)
 
 	agentCmd := []string{
-		"/usr/local/bin/recac-agent",
+		"recac-agent",
 		"--jira", item.ID,
 		"--project", item.ID,
 		"--image", s.Image,
