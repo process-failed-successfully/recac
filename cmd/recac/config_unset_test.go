@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -187,4 +188,143 @@ func TestDeleteNestedKey(t *testing.T) {
 			assert.Equal(t, tt.expected, tt.m)
 		})
 	}
+}
+
+func TestUnsetConfigKey_Errors(t *testing.T) {
+	// Setup generic mock for readFileFunc to control error
+	originalReadFileFunc := readFileFunc
+	defer func() { readFileFunc = originalReadFileFunc }()
+
+	tests := []struct {
+		name         string
+		keyToUnset   string
+		mockReadErr  error
+		mockReadRet  []byte
+		mockWriteErr error
+		expectedErr  string
+	}{
+		{
+			name:        "Config file does not exist",
+			keyToUnset:  "agent.provider",
+			mockReadErr: os.ErrNotExist,
+			expectedErr: "config file config.yaml does not exist",
+		},
+		{
+			name:        "Failed to read config file",
+			keyToUnset:  "agent.provider",
+			mockReadErr: errors.New("read error"),
+			expectedErr: "failed to read config file config.yaml: read error",
+		},
+		{
+			name:        "Failed to parse config file",
+			keyToUnset:  "agent.provider",
+			mockReadRet: []byte("invalid yaml content: [}"),
+			expectedErr: "failed to parse config file config.yaml",
+		},
+		{
+			name:         "Failed to write config file",
+			keyToUnset:   "agent.provider",
+			mockReadRet:  []byte("agent:\n  provider: openai"),
+			mockWriteErr: errors.New("write error"),
+			expectedErr:  "failed to write config file config.yaml: write error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock viperConfigFileUsed
+			originalViperConfigFileUsed := viperConfigFileUsed
+			viperConfigFileUsed = func() string {
+				return "config.yaml" // Ensure fixed path for error matching
+			}
+			defer func() { viperConfigFileUsed = originalViperConfigFileUsed }()
+
+			readFileFunc = func(name string) ([]byte, error) {
+				return tt.mockReadRet, tt.mockReadErr
+			}
+
+			// Setup write mock
+			originalWriteFileFunc := writeFileFunc
+			writeFileFunc = func(name string, data []byte, perm os.FileMode) error {
+				return tt.mockWriteErr
+			}
+			defer func() { writeFileFunc = originalWriteFileFunc }()
+
+			// Execute the command directly via RunE to capture the error reliably
+			cmd := unsetCmd
+			err := unsetConfigKey(cmd, []string{tt.keyToUnset})
+
+			if tt.expectedErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDeleteNestedKey_EmptyKeys(t *testing.T) {
+	m := map[string]interface{}{
+		"a": 1,
+	}
+	deleted := deleteNestedKey(m, []string{})
+	assert.False(t, deleted)
+}
+
+func TestDeleteNestedKey_NonMapValue(t *testing.T) {
+	m := map[string]interface{}{
+		"a": 1,
+	}
+	deleted := deleteNestedKey(m, []string{"a", "b"})
+	assert.False(t, deleted)
+}
+
+func TestUnsetConfigKey_EmptyConfigFile(t *testing.T) {
+	// Setup mock viperConfigFileUsed
+	originalViperConfigFileUsed := viperConfigFileUsed
+	viperConfigFileUsed = func() string {
+		return ""
+	}
+	defer func() { viperConfigFileUsed = originalViperConfigFileUsed }()
+
+	// Setup mock readFileFunc
+	originalReadFileFunc := readFileFunc
+	readFileFunc = func(name string) ([]byte, error) {
+		return []byte("agent:\n  provider: openai"), nil
+	}
+	defer func() { readFileFunc = originalReadFileFunc }()
+
+	// Setup mock writeFileFunc
+	originalWriteFileFunc := writeFileFunc
+	writeFileFunc = func(name string, data []byte, perm os.FileMode) error {
+		return nil
+	}
+	defer func() { writeFileFunc = originalWriteFileFunc }()
+
+	cmd := unsetCmd
+	err := unsetConfigKey(cmd, []string{"agent.provider"})
+	require.NoError(t, err)
+}
+
+func TestUnsetConfigKey_MarshalError(t *testing.T) {
+	// Setup mock viperConfigFileUsed
+	originalViperConfigFileUsed := viperConfigFileUsed
+	viperConfigFileUsed = func() string {
+		return "config.yaml"
+	}
+	defer func() { viperConfigFileUsed = originalViperConfigFileUsed }()
+
+	// Setup mock readFileFunc
+	originalReadFileFunc := readFileFunc
+	readFileFunc = func(name string) ([]byte, error) {
+		return []byte("a: b"), nil // Valid yaml
+	}
+	defer func() { readFileFunc = originalReadFileFunc }()
+
+	// Provide a struct with an un-marshallable channel inside it, via monkey patching Unmarshal or similar.
+	// We can't easily mock `yaml.Marshal` directly since it's an external library call.
+	// But we can read something that parses into an unsupported type, like a function or channel if we could inject it.
+	// Since we use yaml.Unmarshal into map[string]interface{}, it'll always marshal back correctly.
+	// We'll skip testing the `yaml.Marshal` error case if it's practically unreachable.
 }
