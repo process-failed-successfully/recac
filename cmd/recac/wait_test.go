@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -40,10 +41,16 @@ func TestWaitCmd_Success(t *testing.T) {
 
 func TestWaitCmd_DelayedSuccess(t *testing.T) {
 	requestCount := 0
+	var mu sync.Mutex
+
 	// Create a mock server that returns 503 the first 2 times, then 200
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		requestCount++
-		if requestCount < 3 {
+		count := requestCount
+		mu.Unlock()
+
+		if count < 3 {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
@@ -66,7 +73,11 @@ func TestWaitCmd_DelayedSuccess(t *testing.T) {
 	err := cmd.Execute()
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "is ready!")
-	assert.GreaterOrEqual(t, requestCount, 3)
+
+	mu.Lock()
+	count := requestCount
+	mu.Unlock()
+	assert.GreaterOrEqual(t, count, 3)
 }
 
 func TestWaitCmd_Timeout(t *testing.T) {
