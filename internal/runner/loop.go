@@ -278,16 +278,32 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// 0. COMMIT WORK: Ensure any pending changes are committed before merging
 				// We use a more careful commit strategy to avoid re-adding ignored files
-				commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
-				commitCmd.Dir = s.Workspace
-				if out, err := commitCmd.CombinedOutput(); err != nil {
-					fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+				gitClient := git.NewClient()
+
+				// Add all files safely
+				addCmd := exec.Command("git", "add", ".")
+				addCmd.Dir = s.Workspace
+				if out, err := addCmd.CombinedOutput(); err != nil {
+					fmt.Printf("Warning: Failed to auto-commit work (git add): %v\nOutput: %s\n", err, out)
 				} else {
-					fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
+					// Commit safely without shell injection
+					commitMsg := fmt.Sprintf("feat: implemented features for %s", s.Project)
+					commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+					commitCmd.Dir = s.Workspace
+
+					if out, err := commitCmd.CombinedOutput(); err != nil {
+						// It's normal for commit to fail if there are no changes
+						if !strings.Contains(strings.ToLower(string(out)), "nothing to commit") {
+							fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+						} else {
+							fmt.Printf("Auto-committed work: Nothing to commit\n")
+						}
+					} else {
+						fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
+					}
 				}
 
 				fmt.Printf("Merging changes into base branch: %s\n", s.BaseBranch)
-				gitClient := git.NewClient()
 				// Actually, we are IN the workspace, so we can get current branch name
 				// But simpler: checkout BaseBranch -> Merge Previous -> Push
 
