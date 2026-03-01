@@ -1,0 +1,32 @@
+<<<<<<< SEARCH
+	// Set EDITOR environment variable
+	origEditor := os.Getenv("EDITOR")
+	os.Setenv("EDITOR", "my-test-editor")
+	defer os.Setenv("EDITOR", origEditor)
+=======
+	// Set EDITOR environment variable
+	origEditor, editorSet := os.LookupEnv("EDITOR")
+	os.Setenv("EDITOR", "my-test-editor")
+	defer func() {
+		if editorSet {
+			os.Setenv("EDITOR", origEditor)
+		} else {
+			os.Unsetenv("EDITOR")
+		}
+	}()
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+	origEditor := os.Getenv("EDITOR")
+	os.Setenv("EDITOR", "my-test-editor")
+	defer os.Setenv("EDITOR", origEditor)
+=======
+	origEditor, editorSet := os.LookupEnv("EDITOR")
+	os.Setenv("EDITOR", "my-test-editor")
+	defer func() {
+		if editorSet {
+			os.Setenv("EDITOR", origEditor)
+		} else {
+			os.Unsetenv("EDITOR")
+		}
+	}()
+>>>>>>> REPLACE
