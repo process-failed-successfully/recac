@@ -312,6 +312,7 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 		cmd := job.Spec.Template.Spec.Containers[0].Args[0]
 		assert.Contains(t, cmd, "--verbose", "K8s command should contain --verbose")
 		assert.Contains(t, cmd, "--allow-dirty", "K8s command should contain --allow-dirty")
+		assert.Contains(t, cmd, "recac-agent --jira", "K8s command should invoke recac-agent")
 	})
 
 	// 2. Check Docker Spawner Args
@@ -353,5 +354,6 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 		// Assertions
 		assert.Contains(t, cmdStr, "--verbose", "Docker command should contain --verbose")
 		assert.Contains(t, cmdStr, "--allow-dirty", "Docker command should contain --allow-dirty")
+		assert.Contains(t, cmdStr, "recac-agent --jira", "Docker command should invoke recac-agent without absolute path")
 	})
 }
