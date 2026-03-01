@@ -1,0 +1,117 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"recac/internal/utils"
+)
+
+func NewBranchCmd() *cobra.Command {
+	var dryRun bool
+	var issueKey string
+
+	cmd := &cobra.Command{
+		Use:   "branch [description...]",
+		Short: "Generate and checkout a git branch name using AI",
+		Long: `Uses the configured AI agent to generate a concise, kebab-case git branch name based on the provided description, and optionally an issue key. Then it checks out the new branch.
+
+Examples:
+  recac branch add login page
+  recac branch --issue-key JIRA-123 implement user authentication
+  recac branch --dry-run "fix bug in payment gateway"`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			description := strings.Join(args, " ")
+
+			// 1. Get Git Client
+			gitClient := gitClientFactory()
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current working directory: %w", err)
+			}
+
+			if !gitClient.RepoExists(cwd) {
+				return fmt.Errorf("not a git repository")
+			}
+
+			// 2. Get Agent
+			provider := viper.GetString("provider")
+			model := viper.GetString("model")
+
+			ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-branch")
+			if err != nil {
+				return fmt.Errorf("failed to create agent: %w", err)
+			}
+
+			// 3. Generate Branch Name
+			fmt.Fprintln(cmd.ErrOrStderr(), "Generating branch name...")
+
+			prompt := fmt.Sprintf(`Generate a concise, conventional git branch name for the following task description.
+The branch name MUST be in lowercase kebab-case.
+Do NOT output anything else, only the branch name itself.
+Do NOT wrap it in backticks or quotes.`)
+
+			if issueKey != "" {
+				prompt += fmt.Sprintf("\nInclude the issue key '%s' at the beginning of the branch name (e.g., %s/feature-name or %s-feature-name).", issueKey, issueKey, issueKey)
+			}
+
+			prompt += fmt.Sprintf("\n\nDescription:\n%s", description)
+
+			msg, err := ag.Send(ctx, prompt)
+			if err != nil {
+				return fmt.Errorf("failed to generate branch name: %w", err)
+			}
+
+			branchName := strings.TrimSpace(utils.CleanCodeBlock(msg))
+
+			// Basic validation/cleanup of the generated name just in case the AI messed up
+			branchName = strings.ReplaceAll(branchName, " ", "-")
+			branchName = strings.ReplaceAll(branchName, "\n", "")
+			branchName = strings.ReplaceAll(branchName, "\r", "")
+			branchName = strings.ReplaceAll(branchName, "\"", "")
+			branchName = strings.ReplaceAll(branchName, "'", "")
+
+			if branchName == "" {
+				return fmt.Errorf("generated branch name was empty")
+			}
+
+			if dryRun {
+				fmt.Fprintf(cmd.OutOrStdout(), "Generated Branch Name (Dry Run): %s\n", branchName)
+				return nil
+			}
+
+			// 4. Checkout new branch
+			fmt.Fprintf(cmd.ErrOrStderr(), "Checking out new branch '%s'...\n", branchName)
+
+			// We use git checkout -b
+			out, err := gitClient.Run(cwd, "checkout", "-b", branchName)
+			if err != nil {
+				return fmt.Errorf("failed to create and checkout branch: %s\n%w", out, err)
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Successfully created and checked out branch: %s\n", branchName)
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVarP(&dryRun, "dry-run", "d", false, "Print the generated branch name without creating it")
+	cmd.Flags().StringVarP(&issueKey, "issue-key", "i", "", "Optional issue key to prefix the branch name with (e.g. JIRA-123)")
+
+	return cmd
+}
+
+var branchCmd = NewBranchCmd()
+
+func init() {
+	rootCmd.AddCommand(branchCmd)
+}
