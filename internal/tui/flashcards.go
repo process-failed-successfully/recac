@@ -183,5 +183,5 @@ func (m FlashcardsModel) View() string {
 func (m FlashcardsModel) finishedView() string {
 	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205")).Render("Session Complete!")
 	stats := fmt.Sprintf("Reviewed: %d\nMastered: %d", m.reviewed, m.learned)
-	return fmt.Sprintf("%s\n\n%s\n\nPress q to quit.", title, stats)
+	return fmt.Sprintf("%s\n\n%s\n\nPress any key to quit.", title, stats)
 }
