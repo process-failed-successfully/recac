@@ -31,7 +31,11 @@ func TestSubmitAdHocJob(t *testing.T) {
 	defer server.Close()
 
 	// 2. Call function
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", false)
+	envVars := map[string]string{
+		"KEY1": "VALUE1",
+		"KEY2": "VALUE2",
+	}
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", false, envVars)
 
 	// 3. Verify payload
 	var item orchestrator.WorkItem
@@ -42,6 +46,7 @@ func TestSubmitAdHocJob(t *testing.T) {
 	assert.Equal(t, "http://repo.com", item.RepoURL)
 	assert.Equal(t, "My Task", item.Summary)
 	assert.Equal(t, "My Task", item.Description)
+	assert.Equal(t, envVars, item.EnvVars)
 }
 
 func TestSubmitAdHocJob_AutoID(t *testing.T) {
@@ -54,7 +59,7 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 	}))
 	defer server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", false)
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", false, nil)
 
 	var item orchestrator.WorkItem
 	err := json.Unmarshal(receivedBody, &item)

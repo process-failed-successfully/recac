@@ -49,6 +49,7 @@ func main() {
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
+	pflag.StringSlice("env", []string{}, "Environment variables to pass to the ad-hoc job (e.g., --env KEY=VALUE)")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -129,6 +130,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
+	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -261,7 +263,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		id := viper.GetString("orchestrator.submit_id")
 		wait := viper.GetBool("orchestrator.wait")
-		submitAdHocJob(host, submitURL, task, id, wait)
+		envPairs := viper.GetStringSlice("orchestrator.env")
+
+		envMap := make(map[string]string)
+		for _, pair := range envPairs {
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			} else {
+				logger.Warn("Invalid environment variable format", "input", pair)
+			}
+		}
+
+		submitAdHocJob(host, submitURL, task, id, wait, envMap)
 		return nil
 	}
 
