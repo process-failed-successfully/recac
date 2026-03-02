@@ -123,14 +123,15 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--jira", item.ID,
 		"--project", item.ID,
 		"--image", s.Image,
+		"--path", "/workspace",
 		"--detached=false",
 		"--cleanup=false",
-		"--path", "/workspace",
 		"--verbose",
+		"--allow-dirty",
 		"--repo-url", item.RepoURL, // Delegate cloning
-		fmt.Sprintf("--max-iterations=%d", s.MaxIterations),
-		fmt.Sprintf("--manager-frequency=%d", s.ManagerFrequency),
-		fmt.Sprintf("--task-max-iterations=%d", s.TaskMaxIterations),
+		"--max-iterations", fmt.Sprintf("%d", s.MaxIterations),
+		"--manager-frequency", fmt.Sprintf("%d", s.ManagerFrequency),
+		"--task-max-iterations", fmt.Sprintf("%d", s.TaskMaxIterations),
 	}
 
 	cmd := s.constructShellCommand(agentCmd)
@@ -277,7 +278,7 @@ func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadClose
 func (s *DockerSpawner) constructShellCommand(agentCmd []string) []string {
 	// Inject Git Config for GITHUB_TOKEN if present
 	cmdStr := "if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
-	cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
+	cmdStr += " && " + shellquote.Join(agentCmd...)
 	cmdStr += " && echo 'Recac Finished'"
 
 	return []string{"/bin/sh", "-c", cmdStr}
