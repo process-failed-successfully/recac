@@ -461,9 +461,9 @@ func TestDockerSpawner_FlagsPropagation(t *testing.T) {
 	assert.NoError(t, err)
 
 	cmdStr := capturedCmd[2]
-	assert.Contains(t, cmdStr, "--max-iterations=55")
-	assert.Contains(t, cmdStr, "--manager-frequency=7")
-	assert.Contains(t, cmdStr, "--task-max-iterations=15")
+	assert.Contains(t, cmdStr, "--max-iterations 55")
+	assert.Contains(t, cmdStr, "--manager-frequency 7")
+	assert.Contains(t, cmdStr, "--task-max-iterations 15")
 }
 
 func TestDockerSpawner_PullPolicy(t *testing.T) {

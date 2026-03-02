@@ -251,7 +251,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		Name:           item.ID,
 		Status:         "running",
 		StartTime:      time.Now(),
-		Command:        []string{"recac-agent", "--jira", item.ID}, // Approximate command
+		Command:        agentCmd,
 		Workspace:      "/workspace",
 		Type:           "orchestrated-k8s",
 		AgentStateFile: ".agent_state.json",
