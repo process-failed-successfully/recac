@@ -34,7 +34,7 @@ func TestOrchestrator_RetryFailedJobs(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	count, err := orch.RetryFailedJobs(ctx, silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "", silentLogger)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
@@ -74,7 +74,7 @@ func TestOrchestrator_RetryFailedJobs_AlreadyActive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	count, err := orch.RetryFailedJobs(ctx, silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "", silentLogger)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 
@@ -82,4 +82,74 @@ func TestOrchestrator_RetryFailedJobs_AlreadyActive(t *testing.T) {
 	spawner.mu.Lock()
 	assert.Empty(t, spawner.spawned)
 	spawner.mu.Unlock()
+}
+
+func TestOrchestrator_RetryFailedJobs_WithMatch(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	// Manually populate history
+	orch.completedJobs = []JobInfo{
+		{
+			ID:       "JOB-1",
+			Status:   "Failed",
+			Error:    "connection refused",
+			WorkItem: WorkItem{ID: "JOB-1", Summary: "Failed Job 1"},
+		},
+		{
+			ID:       "JOB-2",
+			Status:   "Completed",
+			WorkItem: WorkItem{ID: "JOB-2", Summary: "Success Job 2"},
+		},
+		{
+			ID:       "JOB-3",
+			Status:   "Failed",
+			Error:    "timeout waiting for response",
+			WorkItem: WorkItem{ID: "JOB-3", Summary: "Failed Job 3"},
+		},
+		{
+			ID:       "JOB-4",
+			Status:   "Failed",
+			Error:    "database connection refused",
+			WorkItem: WorkItem{ID: "JOB-4", Summary: "Failed Job 4"},
+		},
+	}
+
+	ctx := context.Background()
+
+	// Test matching "connection refused"
+	count, err := orch.RetryFailedJobs(ctx, "connection refused", silentLogger)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	time.Sleep(50 * time.Millisecond)
+
+	spawner.mu.Lock()
+	defer spawner.mu.Unlock()
+
+	assert.Len(t, spawner.spawned, 2)
+
+	ids := make(map[string]bool)
+	for _, item := range spawner.spawned {
+		ids[item.ID] = true
+	}
+	assert.True(t, ids["JOB-1"])
+	assert.False(t, ids["JOB-2"])
+	assert.False(t, ids["JOB-3"])
+	assert.True(t, ids["JOB-4"])
+}
+
+func TestOrchestrator_RetryFailedJobs_WithInvalidRegex(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	ctx := context.Background()
+
+	// Test with invalid regex
+	count, err := orch.RetryFailedJobs(ctx, "[invalid regex", silentLogger)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid retry match pattern")
+	assert.Equal(t, 0, count)
 }
