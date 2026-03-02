@@ -104,6 +104,8 @@ func executeRunCmd(cmd *cobra.Command, args []string) error {
 	fullCommand := strings.Join(quotedArgs, " ")
 	output := stdoutBuf.String() + "\n" + stderrBuf.String()
 
+	fileContext, _ := extractFileContexts(output)
+
 	prompt := fmt.Sprintf(`I ran the following command and it failed:
 
 <command>
@@ -114,9 +116,13 @@ func executeRunCmd(cmd *cobra.Command, args []string) error {
 %s
 </output>
 
+<file_context>
+%s
+</file_context>
+
 Please explain why it failed and suggest a fix.
 If the fix involves a corrected command, provide it clearly.
-`, fullCommand, output)
+`, fullCommand, output, fileContext)
 
 	_, err = agent.SendStream(ctx, prompt, func(chunk string) {
 		fmt.Fprint(userStdout, chunk)

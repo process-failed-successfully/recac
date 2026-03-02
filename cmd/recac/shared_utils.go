@@ -52,13 +52,13 @@ func DefaultIgnoreMap() map[string]bool {
 	}
 }
 
+var extractFileContextsRegex = regexp.MustCompile(`(?m)([\w\-\./]+\.\w+):(\d+)`)
+
 // extractFileContexts scans the output for file paths and returns their content formatted for the prompt.
 func extractFileContexts(output string) (string, error) {
 	// Regex to find file paths like "main.go:23" or "pkg/foo/bar.js:10:5"
 	// We look for alphanumeric+dots+slashes, followed by a colon and a number
-	re := regexp.MustCompile(`(?m)([\w\-\./]+\.\w+):(\d+)`)
-
-	matches := re.FindAllStringSubmatch(output, -1)
+	matches := extractFileContextsRegex.FindAllStringSubmatch(output, -1)
 	if len(matches) == 0 {
 		return "No specific files identified in error output.", nil
 	}
