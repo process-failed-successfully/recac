@@ -140,6 +140,6 @@ func (m HomeModel) View() string {
 		"",
 		lipgloss.JoinHorizontal(lipgloss.Top, gitBox, sessionsBox),
 		todoBox,
-		"\nPress 'q' to quit.",
+		"\nPress 'q' or 'ctrl+c' to quit.",
 	)
 }
