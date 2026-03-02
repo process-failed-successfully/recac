@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -43,6 +44,7 @@ func main() {
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
+	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
@@ -124,6 +126,7 @@ func main() {
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
+	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
@@ -230,9 +233,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if viper.GetBool("orchestrator.retry_failed") {
+	retryMatch := viper.GetString("orchestrator.retry_match")
+	if viper.GetBool("orchestrator.retry_failed") || retryMatch != "" {
 		host := viper.GetString("orchestrator.host")
-		retryFailedJobs(host)
+		retryFailedJobs(host, retryMatch)
 		return nil
 	}
 
@@ -855,8 +859,21 @@ func retryJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s retry submitted successfully.\n", jobID)
 }
 
-func retryFailedJobs(host string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
+func retryFailedJobs(host, match string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/retry-failed", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if match != "" {
+		q := u.Query()
+		q.Set("match", match)
+		u.RawQuery = q.Encode()
+	}
+
+	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
 		exitFunc(1)

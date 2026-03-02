@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -261,11 +262,23 @@ func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.
 }
 
 // RetryFailedJobs resubmits all failed jobs from history.
-func (o *Orchestrator) RetryFailedJobs(ctx context.Context, logger *slog.Logger) (int, error) {
+func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	var matcher *regexp.Regexp
+	var err error
+	if match != "" {
+		matcher, err = regexp.Compile(match)
+		if err != nil {
+			return 0, fmt.Errorf("invalid retry match pattern: %w", err)
+		}
+	}
+
 	o.mu.RLock()
 	var toRetry []WorkItem
 	for _, job := range o.completedJobs {
 		if job.Status == "Failed" {
+			if matcher != nil && !matcher.MatchString(job.Error) {
+				continue
+			}
 			// Check if already active
 			if _, active := o.activeJobs[job.ID]; !active {
 				toRetry = append(toRetry, job.WorkItem)

@@ -82,7 +82,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	})
 
 	mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
-		count, err := orch.RetryFailedJobs(r.Context(), logger)
+		match := r.URL.Query().Get("match")
+		count, err := orch.RetryFailedJobs(r.Context(), match, logger)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

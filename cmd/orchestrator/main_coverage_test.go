@@ -367,7 +367,7 @@ func TestRetryFailedJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		retryFailedJobs(server.URL)
+		retryFailedJobs(server.URL, "")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "Successfully retried 5 failed jobs")
@@ -381,7 +381,7 @@ func TestRetryFailedJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		retryFailedJobs(server.URL)
+		retryFailedJobs(server.URL, "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to retry failed jobs")
 	})
@@ -394,7 +394,7 @@ func TestRetryFailedJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		retryFailedJobs(server.URL)
+		retryFailedJobs(server.URL, "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})
@@ -402,7 +402,7 @@ func TestRetryFailedJobs(t *testing.T) {
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		retryFailedJobs("http://invalid-host")
+		retryFailedJobs("http://localhost:0", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})
