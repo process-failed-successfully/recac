@@ -66,6 +66,12 @@ func TestRunCmdHelperProcess(t *testing.T) {
 		fmt.Fprint(os.Stderr, "Command failed with error")
 		os.Stderr.Sync()
 		os.Exit(1)
+	case "fail_with_file_context":
+		fmt.Fprint(os.Stdout, "Building...")
+		os.Stdout.Sync()
+		fmt.Fprint(os.Stderr, "Error in test_dummy_file.go:10: syntax error")
+		os.Stderr.Sync()
+		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown mock command: %s\n", cmd)
 		os.Exit(2)
@@ -146,13 +152,48 @@ func TestRunCmd_Failure_CallsAI(t *testing.T) {
 
 	// Check prompt content
 	assert.Contains(t, mockAgent.CapturedPrompt, "<command>\nfail_cmd")
-	// assert.Contains(t, mockAgent.CapturedPrompt, "<output>\nPartial output before failure") // Output capture in `run.go` relies on `os.ReadFile(tmpFile)` or similar logic if it captures output?
-	// `run.go` uses `CombinedOutput` or captures it if it sends to AI.
-	// `executeRunCmd` logic: captures output to a file or buffer to send to AI?
-	// If `run.go` uses `cmd.Stdout = os.Stdout`, how does it get output for AI?
-	// It probably tees it or uses `MultiWriter`.
-	// If `TestRunCmdHelperProcess` writes to `os.Stdout`, and `run.go` uses `cmd.Stdout = os.Stdout`, it goes to terminal.
-	// `run.go` likely reads from a pipe or temp file to construct the prompt.
-	// If the prompt assertion passes, then `run.go` is correctly capturing.
-	// But `executeCommand` only captures what `rootCmd` writes to its Out.
+	assert.Contains(t, mockAgent.CapturedPrompt, "<file_context>")
+}
+
+func TestRunCmd_Failure_WithFileContext(t *testing.T) {
+	// Restore original execCommand after test
+	defer func() { runExecCommand = exec.Command }()
+
+	// Create a dummy file to be extracted
+	err := os.WriteFile("test_dummy_file.go", []byte("package main\n\nfunc main() {\n\tinvalid_syntax\n}\n"), 0644)
+	require.NoError(t, err)
+	defer os.Remove("test_dummy_file.go")
+
+	// Mock execCommand to call TestRunCmdHelperProcess
+	runExecCommand = func(command string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
+		cs = append(cs, args...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
+	}
+
+	// Mock Agent
+	mockAgent := &MockRunAgent{
+		Response: "You have a syntax error in your Go file.",
+	}
+	// Override factory
+	origFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, d, n string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = origFactory }()
+
+	// Execute
+	output, err := executeCommand(rootCmd, "run", "fail_with_file_context")
+
+	// Assertions
+	require.Error(t, err)
+	assert.Contains(t, output, "Asking AI for help")
+	assert.Contains(t, output, "You have a syntax error in your Go file.")
+
+	// Check prompt content to ensure file content is included
+	assert.Contains(t, mockAgent.CapturedPrompt, "<file_context>")
+	assert.Contains(t, mockAgent.CapturedPrompt, "File: test_dummy_file.go")
+	assert.Contains(t, mockAgent.CapturedPrompt, "invalid_syntax")
 }
