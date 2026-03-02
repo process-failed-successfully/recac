@@ -109,7 +109,7 @@ func (m *ExplorerModel) updatePreview() {
 	fullPath := filepath.Join(m.path, selected.Name())
 
 	if selected.IsDir() {
-		m.viewport.SetContent(fmt.Sprintf("Directory: %s\n\nPress Enter to open.", selected.Name()))
+		m.viewport.SetContent(fmt.Sprintf("Directory: %s\n\nPress Enter or 'l' to open.", selected.Name()))
 		return
 	}
 
