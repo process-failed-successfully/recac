@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kballard/go-shellquote"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -171,12 +172,28 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// We'll trust the Orchestrator passed a clone-able URL or we use env var injection in the shell command.
 	// item.RepoURL is plain.
 	// Command:
+	agentCmd := []string{
+		"recac-agent",
+		"--jira", item.ID,
+		"--project", item.ID,
+		"--image", s.Image,
+		"--path", "/workspace",
+		"--detached=false",
+		"--cleanup=false",
+		"--verbose",
+		"--allow-dirty",
+		"--repo-url", item.RepoURL,
+		"--max-iterations", fmt.Sprintf("%d", s.MaxIterations),
+		"--manager-frequency", fmt.Sprintf("%d", s.ManagerFrequency),
+		"--task-max-iterations", fmt.Sprintf("%d", s.TaskMaxIterations),
+	}
+
 	cmd := fmt.Sprintf(`
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --verbose --allow-dirty --repo-url %q --max-iterations %d --manager-frequency %d --task-max-iterations %d
-	`, item.ID, item.ID, s.Image, item.RepoURL, s.MaxIterations, s.ManagerFrequency, s.TaskMaxIterations)
+		%s
+	`, shellquote.Join(agentCmd...))
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
