@@ -27,6 +27,7 @@ func init() {
 	configCmd.AddCommand(listKeysCmd)
 	configCmd.AddCommand(listModelsCmd)
 	configCmd.AddCommand(configGetCmd)
+	configCmd.AddCommand(configSearchCmd)
 	configCmd.AddCommand(setCmd)
 	configCmd.AddCommand(unsetCmd)
 	configCmd.AddCommand(configExportCmd)
