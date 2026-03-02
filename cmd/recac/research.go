@@ -217,12 +217,17 @@ func fetchPageContent(pageURL string) (string, error) {
 	return cleanPageText(string(bodyBytes)), nil
 }
 
+var (
+	reScriptGlobal = regexp.MustCompile(`(?s)<script.*?>.*?</script>`)
+	reStyleGlobal  = regexp.MustCompile(`(?s)<style.*?>.*?</style>`)
+	reSpaceGlobal  = regexp.MustCompile(`\s+`)
+	reTagsGlobal   = regexp.MustCompile(`<[^>]*>`)
+)
+
 func cleanPageText(htmlContent string) string {
 	// 1. Remove scripts and styles
-	reScript := regexp.MustCompile(`(?s)<script.*?>.*?</script>`)
-	reStyle := regexp.MustCompile(`(?s)<style.*?>.*?</style>`)
-	htmlContent = reScript.ReplaceAllString(htmlContent, "")
-	htmlContent = reStyle.ReplaceAllString(htmlContent, "")
+	htmlContent = reScriptGlobal.ReplaceAllString(htmlContent, "")
+	htmlContent = reStyleGlobal.ReplaceAllString(htmlContent, "")
 
 	// 2. Strip tags
 	text := stripTags(htmlContent)
@@ -231,13 +236,11 @@ func cleanPageText(htmlContent string) string {
 	text = html.UnescapeString(text)
 
 	// 4. Collapse whitespace
-	reSpace := regexp.MustCompile(`\s+`)
-	text = reSpace.ReplaceAllString(text, " ")
+	text = reSpaceGlobal.ReplaceAllString(text, " ")
 
 	return strings.TrimSpace(text)
 }
 
 func stripTags(content string) string {
-	re := regexp.MustCompile(`<[^>]*>`)
-	return re.ReplaceAllString(content, " ")
+	return reTagsGlobal.ReplaceAllString(content, " ")
 }
