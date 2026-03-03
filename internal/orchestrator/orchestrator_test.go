@@ -280,3 +280,38 @@ func TestOrchestrator_SubmitJob(t *testing.T) {
 	assert.Len(t, spawner.spawned, 2)
 	spawner.mu.Unlock()
 }
+
+func TestOrchestrator_CancelAllJobs(t *testing.T) {
+	poller := newMockPoller(nil)
+	blockCh := make(chan struct{})
+	spawner := &mockSpawner{blockCh: blockCh}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	ctx := context.Background()
+
+	// Submit multiple jobs that will block in spawn
+	err := orch.SubmitJob(ctx, WorkItem{ID: "JOB-1"}, silentLogger)
+	require.NoError(t, err)
+
+	err = orch.SubmitJob(ctx, WorkItem{ID: "JOB-2"}, silentLogger)
+	require.NoError(t, err)
+
+	// Verify they are active
+	activeJobs := orch.GetActiveJobs()
+	assert.Len(t, activeJobs, 2)
+
+	// Cancel all jobs
+	count, err := orch.CancelAllJobs(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// Unblock spawner to let them finish
+	close(blockCh)
+
+	// Wait for goroutines to finish
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify active jobs is now 0
+	activeJobs = orch.GetActiveJobs()
+	assert.Len(t, activeJobs, 0)
+}

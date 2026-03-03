@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"recac/internal/orchestrator"
@@ -67,4 +68,31 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 
 	assert.NotEmpty(t, item.ID)
 	assert.Equal(t, "http://repo.com", item.RepoURL)
+}
+
+func TestCancelAllJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"canceled": 3}`))
+	}))
+	defer server.Close()
+
+	// Redirect stdout to capture the output
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelAllJobs(server.URL)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+
+	assert.Contains(t, string(out), "Successfully canceled 3 jobs.")
 }
