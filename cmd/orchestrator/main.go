@@ -48,6 +48,7 @@ func main() {
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
+	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
@@ -139,6 +140,7 @@ func main() {
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
+	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
@@ -268,6 +270,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.resume") {
 		host := viper.GetString("orchestrator.host")
 		resumeOrchestrator(host)
+		return nil
+	}
+
+	if waitJob := viper.GetString("orchestrator.wait_job"); waitJob != "" {
+		host := viper.GetString("orchestrator.host")
+		if err := waitForJob(host, waitJob, stdout); err != nil {
+			fmt.Fprintf(stdout, "Job failed: %v\n", err)
+			exitFunc(1)
+		}
 		return nil
 	}
 
