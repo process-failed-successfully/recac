@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,8 +14,61 @@ import (
 
 	"recac/internal/orchestrator"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestWaitJobCommand(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-123", func(w http.ResponseWriter, r *http.Request) {
+		job := orchestrator.JobInfo{
+			ID:     "JOB-123",
+			Status: "Completed",
+		}
+		json.NewEncoder(w).Encode(job)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Redirect stdout to capture the output
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	// Configure viper
+	viper.Set("orchestrator.wait_job", "JOB-123")
+	viper.Set("orchestrator.host", server.URL)
+
+	// Temporarily disable other bool flags that could be set by other tests
+	viper.Set("orchestrator.list_jobs", false)
+	viper.Set("orchestrator.status", false)
+	viper.Set("orchestrator.cancel_all", false)
+	viper.Set("orchestrator.retry_failed", false)
+	viper.Set("orchestrator.pause", false)
+	viper.Set("orchestrator.resume", false)
+	viper.Set("orchestrator.monitor", false)
+	defer viper.Reset()
+
+	// Mock exitFunc
+	originalExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = originalExit }()
+
+	// Execute run function which wraps the logic
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	err := run(context.Background(), logger)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, out.String(), "Job already completed.")
+}
 
 func TestWaitForJob(t *testing.T) {
 	// Scenario: Job starts Spawning -> logs -> Completed
