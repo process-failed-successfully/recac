@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
+	"os/exec"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -97,4 +98,53 @@ Theirs
 		assert.Equal(t, "Ours", ours)
 		assert.Equal(t, "Theirs", theirs)
 	})
+}
+
+func TestFindConflictedFiles(t *testing.T) {
+	origExec := execCommand
+	defer func() { execCommand = origExec }()
+
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		// Mock git grep
+		if command == "git" && args[0] == "grep" {
+			return exec.Command("echo", "file1.txt\nfile2.txt")
+		}
+		return exec.Command(command, args...)
+	}
+
+	files, err := findConflictedFiles()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"file1.txt", "file2.txt"}, files)
+}
+
+func TestConfirm(t *testing.T) {
+	// Redirect os.Stdin
+	oldStdin := os.Stdin
+	r, w, _ := os.Pipe()
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	go func() {
+		w.Write([]byte("y\n"))
+		w.Close()
+	}()
+
+	result := confirm("Are you sure?")
+	assert.True(t, result)
+}
+
+func TestConfirm_No(t *testing.T) {
+	// Redirect os.Stdin
+	oldStdin := os.Stdin
+	r, w, _ := os.Pipe()
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	go func() {
+		w.Write([]byte("n\n"))
+		w.Close()
+	}()
+
+	result := confirm("Are you sure?")
+	assert.False(t, result)
 }
