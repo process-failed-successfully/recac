@@ -4,6 +4,7 @@ import (
 	"context"
 	"recac/internal/agent"
 	"testing"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
@@ -124,4 +125,103 @@ func TestQuizModel_Update(t *testing.T) {
 	m = newM.(quizModel)
 
 	assert.True(t, m.finished)
+}
+
+func TestQuizModel_View(t *testing.T) {
+	questions := []QuizQuestion{
+		{
+			Question:      "Q1",
+			Options:       []string{"A", "B"},
+			CorrectAnswer: 0,
+			Explanation:   "Exp 1",
+		},
+	}
+
+	m := initialQuizModel(questions)
+
+	// Test Unready
+	assert.Equal(t, "Initializing...", m.View())
+
+	// Init viewport
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = newM.(quizModel)
+
+	// Test Question View
+	view := m.View()
+	assert.Contains(t, view, "Question 1/1")
+	assert.Contains(t, view, "Q1")
+	assert.Contains(t, view, "A")
+	assert.Contains(t, view, "B")
+
+	// Test Selection
+	m.selectedOption = 1
+	view = m.View()
+	assert.Contains(t, view, ">") // A bit brittle, but ensures rendering changes
+
+	// Test Result View Correct
+	m.selectedOption = 0
+	m.showResult = true
+	view = m.View()
+	assert.Contains(t, view, "Explanation: Exp 1")
+	assert.Contains(t, view, "✓")
+
+	// Test Result View Incorrect
+	m.selectedOption = 1
+	m.showResult = true
+	view = m.View()
+	assert.Contains(t, view, "✗")
+
+	// Test Finished View
+	m.finished = true
+	m.score = 1
+	view = m.View()
+	assert.Contains(t, view, "Quiz Complete!")
+	assert.Contains(t, view, "Your Score: 1/1")
+	assert.Contains(t, view, "Perfect score!")
+
+	m.score = 0
+	view = m.View()
+	assert.Contains(t, view, "Time to read the docs a bit more.")
+}
+
+func TestQuizModel_Init(t *testing.T) {
+	m := quizModel{}
+	cmd := m.Init()
+	assert.Nil(t, cmd)
+}
+
+func TestRunQuiz_NoQuestions(t *testing.T) {
+	// Mock context generator
+	origContextFunc := generateContextFunc
+	generateContextFunc = func(opts ContextOptions) (string, error) {
+		return "Mock Context", nil
+	}
+	defer func() { generateContextFunc = origContextFunc }()
+
+	// Mock factory to return empty list
+	origFactory := quizAgentFactory
+	defer func() { quizAgentFactory = origFactory }()
+
+	quizAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return &MockQuizAgent{Response: `[]`}, nil
+	}
+
+	cmd := quizCmd
+	err := runQuiz(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no questions generated")
+}
+
+func TestRunQuiz_ContextError(t *testing.T) {
+	// Mock context generator
+	origContextFunc := generateContextFunc
+	generateContextFunc = func(opts ContextOptions) (string, error) {
+		return "", fmt.Errorf("context error")
+	}
+	defer func() { generateContextFunc = origContextFunc }()
+
+	cmd := quizCmd
+	err := runQuiz(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to generate quiz")
 }
