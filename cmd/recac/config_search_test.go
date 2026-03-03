@@ -55,6 +55,12 @@ func TestConfigSearchCmd(t *testing.T) {
 			expectedOut:   []string{"secret_api_token\t[REDACTED]"},
 			unexpectedOut: []string{"super-secret-value"},
 		},
+		{
+			name:          "sensitive redaction bypassed with flag",
+			args:          []string{"search", "token", "--show-sensitive"},
+			expectedOut:   []string{"secret_api_token\tsuper-secret-value"},
+			unexpectedOut: []string{"[REDACTED]"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -64,8 +70,15 @@ func TestConfigSearchCmd(t *testing.T) {
 			cmd := configSearchCmd
 			cmd.SetOut(buf)
 
+			// Reset flag state before each run to prevent test leakage
+			cmd.Flags().Set("show-sensitive", "false")
+
+			// Parse flags explicitly for the test to pick up "--show-sensitive"
+			err := cmd.Flags().Parse(tt.args[1:])
+			assert.NoError(t, err)
+
 			// Execute the RunE function directly to avoid cobra parsing quirks.
-			err := cmd.RunE(cmd, []string{tt.args[1]})
+			err = cmd.RunE(cmd, []string{tt.args[1]})
 			assert.NoError(t, err)
 
 			output := buf.String()
