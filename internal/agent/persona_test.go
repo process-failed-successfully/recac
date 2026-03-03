@@ -99,3 +99,62 @@ func TestPersonaManager_OverrideDefault(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "Overridden Default", p.Name)
 }
+
+func TestPersonaManager_LoadSave_Errors(t *testing.T) {
+	pm := NewPersonaManager()
+
+	tmpDir := t.TempDir()
+	personasFile := filepath.Join(tmpDir, "personas.yaml")
+	os.Setenv("RECAC_PERSONAS_FILE", personasFile)
+	defer os.Unsetenv("RECAC_PERSONAS_FILE")
+
+	// Test invalid JSON on load
+	err := pm.SavePersonas()
+	if err != nil {
+		t.Fatalf("failed to save personas: %v", err)
+	}
+
+	err = os.MkdirAll(filepath.Dir(personasFile), 0755)
+	if err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+
+	err = os.WriteFile(personasFile, []byte("invalid json"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	err = pm.LoadPersonas()
+	if err == nil {
+		t.Fatalf("expected error on load due to invalid JSON, got none")
+	}
+
+	// Test mkdir error on save
+	os.RemoveAll(filepath.Dir(personasFile))
+	err = os.WriteFile(filepath.Dir(personasFile), []byte("file"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	err = pm.SavePersonas()
+	if err == nil {
+		t.Fatalf("expected error on save due to mkdir failure, got none")
+	}
+}
+
+func TestPersonaManager_ListPersonas(t *testing.T) {
+	pm := NewPersonaManager()
+
+	pm.AddPersona("personaB", Persona{Name: "personaB"})
+	pm.AddPersona("personaA", Persona{Name: "personaA"})
+
+	personas := pm.ListPersonas()
+	if len(personas) < 2 {
+		t.Fatalf("expected at least 2 personas, got %d", len(personas))
+	}
+
+	sorted := pm.ListSorted()
+	if len(sorted) < 2 {
+		t.Fatalf("expected at least 2 sorted personas, got %d", len(sorted))
+	}
+}
