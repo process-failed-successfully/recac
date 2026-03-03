@@ -197,3 +197,19 @@ func TestRunCmd_Failure_WithFileContext(t *testing.T) {
 	assert.Contains(t, mockAgent.CapturedPrompt, "File: test_dummy_file.go")
 	assert.Contains(t, mockAgent.CapturedPrompt, "invalid_syntax")
 }
+
+func TestHelperProcess_GitGrepConflicts(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	fmt.Print("file1.txt\nfile2.go\n")
+	os.Exit(0)
+}
+
+func TestHelperProcess_GitGrepNoConflicts(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	// grep returns exit status 1 when no lines are selected
+	os.Exit(1)
+}

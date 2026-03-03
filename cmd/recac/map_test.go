@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"recac/internal/agent"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -177,4 +179,19 @@ func Serve() {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid ignore pattern")
 	})
+}
+
+func TestExplainArchitecture(t *testing.T) {
+	// Setup Mock Agent
+	mockAgent := agent.NewMockAgent()
+	mockAgent.SetResponse("Mock explanation")
+	origFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = origFactory }()
+
+	cmd := getTestMapCmd()
+	err := explainArchitecture(cmd, "Mock Graph")
+	assert.NoError(t, err)
 }

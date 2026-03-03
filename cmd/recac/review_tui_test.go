@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -94,4 +96,85 @@ func TestReviewModel_Update_FilteringIgnore(t *testing.T) {
 
 	// Assert no issue was selected
 	assert.Nil(t, newM.(ReviewModel).selectedIssue)
+}
+
+func TestReviewItemMethods(t *testing.T) {
+	issue := ReviewIssue{
+		Title:    "Title",
+		File:     "file.go",
+		Line:     10,
+		Severity: "High",
+	}
+	i := item{issue: issue}
+
+	assert.Equal(t, "Title", i.Title())
+	assert.Equal(t, "file.go:10 [High]", i.Description())
+	assert.Equal(t, "Title", i.FilterValue())
+}
+
+func TestReviewModel_Init(t *testing.T) {
+	m := initialReviewModel([]ReviewIssue{})
+	cmd := m.Init()
+	assert.Nil(t, cmd)
+}
+
+func TestReviewModel_View(t *testing.T) {
+	issues := []ReviewIssue{
+		{
+			Title:       "Test Issue",
+			Description: "Test Desc",
+			File:        "test.go",
+			Line:        10,
+			Severity:    "High",
+		},
+	}
+	m := initialReviewModel(issues)
+
+	assert.Equal(t, "Initializing...", m.View())
+
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	m = newM.(ReviewModel)
+
+	// Ensure view renders without panicking and contains some known text
+	view := m.View()
+	assert.Contains(t, view, "Review Issues")
+	assert.Contains(t, view, "Test Issue")
+
+	// Set status message
+	m.statusMessage = "Status updated"
+	view = m.View()
+	assert.Contains(t, view, "Status updated")
+
+	// Empty selected issue
+	m.selectedIssue = nil
+	m.updateViewport()
+	view = m.View()
+	assert.Contains(t, view, "Select an issue to view details")
+}
+
+func TestReviewModel_ApplyFix(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.go")
+	content := []byte("package main\n\nfunc main() {\n\t// comment\n}\n")
+	err := os.WriteFile(filePath, content, 0644)
+	assert.NoError(t, err)
+
+	issue := &ReviewIssue{
+		Title:       "Add print",
+		File:        filePath,
+		Line:        4,
+		Severity:    "Low",
+		Suggestion:  "print(\"hello\")",
+		Replacement: "print(\"hello\")\n",
+	}
+
+	cmd := applyFixCmd(issue)
+	assert.NotNil(t, cmd)
+
+	msg := cmd()
+	assert.IsType(t, fixMsg{}, msg)
+
+	newContent, err := os.ReadFile(filePath)
+	assert.NoError(t, err)
+	assert.Contains(t, string(newContent), "print(\"hello\")")
 }
