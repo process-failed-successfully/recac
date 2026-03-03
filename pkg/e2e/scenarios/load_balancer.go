@@ -133,10 +133,13 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	ready := false
 	for i := 0; i < 20; i++ {
 		resp, err := http.Get(lbURL)
-		if err == nil {
+		if err == nil && resp.StatusCode == 200 {
 			resp.Body.Close()
 			ready = true
 			break
+		}
+		if err == nil {
+			resp.Body.Close()
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -150,6 +153,11 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 		resp, err := http.Get(lbURL)
 		if err != nil {
 			return fmt.Errorf("request %d failed: %v", i, err)
+		}
+		// In tests we often get 503 while LB is starting up or discovering backends
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			return fmt.Errorf("request %d failed with status %d", i, resp.StatusCode)
 		}
 		resp.Body.Close()
 	}
