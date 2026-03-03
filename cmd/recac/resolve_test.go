@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
@@ -97,4 +98,68 @@ Theirs
 		assert.Equal(t, "Ours", ours)
 		assert.Equal(t, "Theirs", theirs)
 	})
+}
+
+func TestFindConflictedFiles(t *testing.T) {
+	// Mock execCommand to simulate git grep output
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
+
+	t.Run("Conflicts Found", func(t *testing.T) {
+		execCommand = func(name string, arg ...string) *exec.Cmd {
+			cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess_GitGrepConflicts")
+			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+			return cmd
+		}
+		files, err := findConflictedFiles()
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"file1.txt", "file2.go"}, files)
+	})
+
+	t.Run("No Conflicts", func(t *testing.T) {
+		execCommand = func(name string, arg ...string) *exec.Cmd {
+			cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess_GitGrepNoConflicts")
+			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+			return cmd
+		}
+		files, err := findConflictedFiles()
+		assert.NoError(t, err)
+		assert.Empty(t, files)
+	})
+}
+
+func TestConfirm(t *testing.T) {
+	// Mock os.Stdin
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	r, w, _ := os.Pipe()
+	os.Stdin = r
+	w.WriteString("y\n")
+	w.Close()
+
+	assert.True(t, confirm("test"))
+
+	r, w, _ = os.Pipe()
+	os.Stdin = r
+	w.WriteString("no\n")
+	w.Close()
+
+	assert.False(t, confirm("test"))
+}
+
+func TestRunResolve_NoConflicts(t *testing.T) {
+	// Mock execCommand to return no conflicts
+	origExecCommand := execCommand
+	defer func() { execCommand = origExecCommand }()
+
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess_GitGrepNoConflicts")
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		return cmd
+	}
+
+	resolveCmd.Flags().Set("auto", "true")
+	err := runResolve(resolveCmd, []string{})
+	assert.NoError(t, err)
 }

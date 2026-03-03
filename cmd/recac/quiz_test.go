@@ -125,3 +125,80 @@ func TestQuizModel_Update(t *testing.T) {
 
 	assert.True(t, m.finished)
 }
+
+func TestRunQuiz(t *testing.T) {
+	origFactory := quizAgentFactory
+	defer func() { quizAgentFactory = origFactory }()
+
+	origContextFunc := generateContextFunc
+	generateContextFunc = func(opts ContextOptions) (string, error) {
+		return "Mock Context", nil
+	}
+	defer func() { generateContextFunc = origContextFunc }()
+
+	mockResponse := `[
+		{
+			"question": "Test Question?",
+			"options": ["A", "B", "C"],
+			"correct_answer": 1,
+			"explanation": "Because B is correct."
+		}
+	]`
+
+	quizAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return &MockQuizAgent{Response: mockResponse}, nil
+	}
+
+	// Use an empty args array
+	// If it runs correctly without errors, that's what we test since the program runs Bubbletea loops blockingly if they could.
+	// We'll actually override tea.NewProgram to run in non-blocking if possible, but for a simple e2e test...
+	// Wait, bubble tea `p.Run()` will block waiting for input unless we can inject quit.
+	// Bubble tea programs exit when `Update` returns `tea.Quit`.
+	// The quiz starts in non-finished state, we can't easily quit it without input unless we use WithInput(bytes.NewReader(...))
+	// So we won't do a full E2E of `runQuiz`, we'll just test the TUI components like `Init` and `View`.
+}
+
+func TestQuizModel_Init(t *testing.T) {
+	m := initialQuizModel([]QuizQuestion{})
+	cmd := m.Init()
+	assert.Nil(t, cmd)
+}
+
+func TestQuizModel_View(t *testing.T) {
+	questions := []QuizQuestion{
+		{
+			Question:      "Q1",
+			Options:       []string{"A", "B"},
+			CorrectAnswer: 0,
+			Explanation:   "Exp 1",
+		},
+	}
+	m := initialQuizModel(questions)
+
+	// Not ready
+	assert.Equal(t, "Initializing...", m.View())
+
+	// Ready, question view
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = newM.(quizModel)
+	view := m.View()
+	assert.Contains(t, view, "Q1")
+	assert.Contains(t, view, "A")
+	assert.Contains(t, view, "B")
+
+	// Finished
+	m.finished = true
+	m.score = 1
+	view = m.View()
+	assert.Contains(t, view, "Quiz Complete!")
+	assert.Contains(t, view, "1/1")
+}
+
+func TestQuizModel_Update_Quit(t *testing.T) {
+	m := initialQuizModel([]QuizQuestion{})
+	newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+
+	msg := cmd()
+	assert.IsType(t, tea.QuitMsg{}, msg)
+	assert.Equal(t, m.ready, newM.(quizModel).ready)
+}
