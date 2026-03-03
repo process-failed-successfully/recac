@@ -41,9 +41,11 @@ It prints the matching keys and their current values (redacting sensitive keys).
 		fmt.Fprintln(w, "KEY\tVALUE")
 		fmt.Fprintln(w, "---\t-----")
 
+		showSensitive, _ := cmd.Flags().GetBool("show-sensitive")
+
 		for _, key := range matchingKeys {
 			value := viper.Get(key)
-			if isSensitive(key) {
+			if isSensitive(key) && !showSensitive {
 				value = "[REDACTED]"
 			}
 			fmt.Fprintf(w, "%s\t%v\n", key, value)
@@ -51,4 +53,8 @@ It prints the matching keys and their current values (redacting sensitive keys).
 
 		return nil
 	},
+}
+
+func init() {
+	configSearchCmd.Flags().Bool("show-sensitive", false, "Do not redact sensitive values")
 }
