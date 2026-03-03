@@ -259,13 +259,13 @@ func (m ExplorerModel) View() string {
 
 	listView := explorerBaseStyle.
 		Width(listWidth).
-		Height(m.height - 4).
+		Height(m.height - 2).
 		Render(listBuilder.String())
 
 	// Render Preview
 	previewView := explorerBaseStyle.
 		Width(m.width - listWidth - 4).
-		Height(m.height - 4).
+		Height(m.height - 2).
 		Render(m.viewport.View())
 
 	// Header
