@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/kballard/go-shellquote"
 )
 
 type DockerSpawner struct {
@@ -134,7 +133,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--task-max-iterations", fmt.Sprintf("%d", s.TaskMaxIterations),
 	}
 
-	cmd := s.constructShellCommand(agentCmd)
+	cmd := ConstructShellCommand(agentCmd)
 
 	// 5. Create and Start Container
 	containerID, err := s.Client.RunContainerWithLabels(ctx, s.Image, tempDir, extraBinds, env, cmd, user, labels)
@@ -273,15 +272,6 @@ func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadClose
 	// ListContainers returns most recent first by default if not specified otherwise.
 	containerID := containers[0].ID
 	return s.Client.ContainerLogs(ctx, containerID)
-}
-
-func (s *DockerSpawner) constructShellCommand(agentCmd []string) []string {
-	// Inject Git Config for GITHUB_TOKEN if present
-	cmdStr := "if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
-	cmdStr += " && " + shellquote.Join(agentCmd...)
-	cmdStr += " && echo 'Recac Finished'"
-
-	return []string{"/bin/sh", "-c", cmdStr}
 }
 
 func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {

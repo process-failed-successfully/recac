@@ -207,7 +207,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS env var should be default 20")
 
 	// Check Flags
-	cmdArgs := job.Spec.Template.Spec.Containers[0].Args[0]
+	cmdArgs := job.Spec.Template.Spec.Containers[0].Command[2]
 	assert.Contains(t, cmdArgs, "--max-iterations 42")
 	assert.Contains(t, cmdArgs, "--manager-frequency 7")
 	assert.Contains(t, cmdArgs, "--task-max-iterations 12")
