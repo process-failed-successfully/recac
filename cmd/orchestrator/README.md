@@ -49,6 +49,14 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--github-repo` | `RECAC_GITHUB_REPO` | - | GitHub Repository Name |
 | `--github-label` | `RECAC_GITHUB_LABEL` | - | GitHub Label to poll for |
 
+### Linear Poller Flags
+
+| Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--linear-token` | `RECAC_LINEAR_TOKEN` | - | Linear API Token |
+| `--linear-team` | `RECAC_LINEAR_TEAM` | - | Linear Team ID (e.g. `ENG`) |
+| `--linear-label` | `RECAC_LINEAR_LABEL` | - | Linear Label to poll for (defaults to `jira-label`) |
+
 ### GitLab Poller Flags
 
 | Flag | Env Var | Default | Description |

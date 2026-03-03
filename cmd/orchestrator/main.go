@@ -87,6 +87,10 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	pflag.String("linear-token", "", "Linear API Token (for 'linear' poller)")
+	pflag.String("linear-team", "", "Linear Team ID (for 'linear' poller)")
+	pflag.String("linear-label", "", "Linear Label to poll for (for 'linear' poller)")
+
 	pflag.String("gitlab-token", "", "GitLab API Token (for 'gitlab' poller)")
 	pflag.String("gitlab-project", "", "GitLab Project ID or URL-encoded path (for 'gitlab' poller)")
 	pflag.String("gitlab-label", "", "GitLab Label to poll for (defaults to jira-label if not set)")
@@ -108,6 +112,10 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.linear_token", pflag.Lookup("linear-token"))
+	viper.BindPFlag("orchestrator.linear_team", pflag.Lookup("linear-team"))
+	viper.BindPFlag("orchestrator.linear_label", pflag.Lookup("linear-label"))
 
 	viper.BindPFlag("orchestrator.gitlab_token", pflag.Lookup("gitlab-token"))
 	viper.BindPFlag("orchestrator.gitlab_project", pflag.Lookup("gitlab-project"))
@@ -168,6 +176,9 @@ func main() {
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.linear_token", "RECAC_LINEAR_TOKEN", "LINEAR_TOKEN")
+	viper.BindEnv("orchestrator.linear_team", "RECAC_LINEAR_TEAM")
+	viper.BindEnv("orchestrator.linear_label", "RECAC_LINEAR_LABEL")
 	viper.BindEnv("orchestrator.gitlab_token", "RECAC_GITLAB_TOKEN", "GITLAB_TOKEN")
 	viper.BindEnv("orchestrator.gitlab_project", "RECAC_GITLAB_PROJECT")
 	viper.BindEnv("orchestrator.gitlab_label", "RECAC_GITLAB_LABEL")
@@ -347,6 +358,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
+	case "linear":
+		token := viper.GetString("orchestrator.linear_token")
+		team := viper.GetString("orchestrator.linear_team")
+		lnLabel := viper.GetString("orchestrator.linear_label")
+		if lnLabel == "" {
+			lnLabel = label // Fallback to jira-label
+		}
+
+		if token == "" || team == "" {
+			return fmt.Errorf("Linear token and team must be specified in linear poller mode")
+		}
+		poller = orchestrator.NewLinearPoller(token, team, lnLabel)
+		logger.Info("Using Linear poller", "team", team, "label", lnLabel)
 	case "gitlab":
 		token := viper.GetString("orchestrator.gitlab_token")
 		project := viper.GetString("orchestrator.gitlab_project")
