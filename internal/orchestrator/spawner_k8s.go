@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kballard/go-shellquote"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -188,12 +187,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--task-max-iterations", fmt.Sprintf("%d", s.TaskMaxIterations),
 	}
 
-	cmd := fmt.Sprintf(`
-		if [ -n "$GITHUB_TOKEN" ]; then
-			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-		fi
-		%s
-	`, shellquote.Join(agentCmd...))
+	cmd := ConstructShellCommand(agentCmd)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -223,8 +217,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 							Name:            "agent",
 							Image:           s.Image,
 							ImagePullPolicy: s.PullPolicy,
-							Command:         []string{"/bin/sh", "-c"},
-							Args:            []string{cmd},
+							Command:         cmd,
+							Args:            nil,
 							Env:             envVars,
 							EnvFrom:         envFrom,
 							WorkingDir:      "/workspace",

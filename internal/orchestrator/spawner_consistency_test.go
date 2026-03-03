@@ -309,7 +309,7 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Check Command
-		cmd := job.Spec.Template.Spec.Containers[0].Args[0]
+		cmd := job.Spec.Template.Spec.Containers[0].Command[2]
 		assert.Contains(t, cmd, "--verbose", "K8s command should contain --verbose")
 		assert.Contains(t, cmd, "--allow-dirty", "K8s command should contain --allow-dirty")
 		assert.Contains(t, cmd, "recac-agent --jira", "K8s command should invoke recac-agent")
