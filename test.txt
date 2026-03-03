@@ -1,0 +1,2 @@
+Optimize command memory states:
+- The `recac optimize` command (`cmd/recac/optimize.go`) acts as the 'Bolt' persona to analyze and rewrite source code (via stdin or a file) to improve CPU and memory usage efficiency, supporting `--in-place` and `--diff` flags.
