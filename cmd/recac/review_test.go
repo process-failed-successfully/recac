@@ -131,6 +131,96 @@ func TestReviewCmd_Diff(t *testing.T) {
 	}
 }
 
+func TestReviewCmd_PR(t *testing.T) {
+	// Setup
+	spy := &SpyAgentReview{Response: "PR looks good."}
+
+	// Override factory
+	originalFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return spy, nil
+	}
+	defer func() { agentClientFactory = originalFactory }()
+
+	// Override lookPath
+	originalLookPath := lookPath
+	lookPath = func(file string) (string, error) {
+		if file == "gh" {
+			return "/usr/bin/gh", nil
+		}
+		return originalLookPath(file)
+	}
+	defer func() { lookPath = originalLookPath }()
+
+	// Override execCommand
+	originalExecCommand := execCommand
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		// Mock gh pr diff <url> to return a dummy diff
+		if name == "gh" && len(arg) > 0 && arg[0] == "pr" && arg[1] == "diff" {
+			return exec.Command("echo", "diff --git a/test b/test\n+var pr_diff = true")
+		}
+		return originalExecCommand(name, arg...)
+	}
+	defer func() { execCommand = originalExecCommand }()
+
+	// Execute
+	cmd := NewReviewCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+
+	// Set the --pr flag
+	err := cmd.Flags().Set("pr", "https://github.com/foo/bar/pull/123")
+	if err != nil {
+		t.Fatalf("failed to set pr flag: %v", err)
+	}
+
+	err = cmd.RunE(cmd, []string{})
+	if err != nil {
+		t.Fatalf("RunE failed: %v", err)
+	}
+
+	// Verify
+	if !strings.Contains(spy.LastPrompt, "var pr_diff = true") {
+		t.Errorf("Prompt should contain PR diff content. Got: %s", spy.LastPrompt)
+	}
+	if !strings.Contains(buf.String(), "PR looks good.") {
+		t.Errorf("Output should contain agent response. Got: %s", buf.String())
+	}
+}
+
+func TestReviewCmd_PR_NoGHCLI(t *testing.T) {
+	// Override lookPath to simulate 'gh' not installed
+	originalLookPath := lookPath
+	lookPath = func(file string) (string, error) {
+		if file == "gh" {
+			return "", os.ErrNotExist
+		}
+		return originalLookPath(file)
+	}
+	defer func() { lookPath = originalLookPath }()
+
+	cmd := NewReviewCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+
+	// Set the --pr flag
+	err := cmd.Flags().Set("pr", "123")
+	if err != nil {
+		t.Fatalf("failed to set pr flag: %v", err)
+	}
+
+	err = cmd.RunE(cmd, []string{})
+	if err == nil {
+		t.Fatal("Expected error when 'gh' is not installed, but got nil")
+	}
+
+	if !strings.Contains(err.Error(), "the 'gh' CLI is required") {
+		t.Errorf("Expected gh CLI missing error, got: %v", err)
+	}
+}
+
 func TestReviewCmd_NoChanges(t *testing.T) {
 	// Check for git
 	if _, err := exec.LookPath("git"); err != nil {

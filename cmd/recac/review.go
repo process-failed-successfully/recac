@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 
 	"recac/internal/utils"
 
@@ -17,6 +16,7 @@ import (
 )
 
 var reviewInteractive bool
+var reviewPR string
 
 // runReviewTUIFunc is a variable that allows mocking the TUI execution in tests.
 var runReviewTUIFunc = func(m tea.Model) error {
@@ -44,7 +44,7 @@ func NewReviewCmd() *cobra.Command {
 		Short: "Review code or changes using AI",
 		Long:  `Reviews a specific file or current git changes (diff) using the configured AI agent.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			content, sourceDescription, err := getReviewContent(args)
+			content, sourceDescription, err := getReviewContent(cmd, args)
 			if err != nil {
 				return err
 			}
@@ -61,6 +61,7 @@ func NewReviewCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&reviewInteractive, "interactive", "i", false, "Enable interactive TUI mode")
+	cmd.Flags().StringVar(&reviewPR, "pr", "", "Review a GitHub Pull Request by URL or number (requires 'gh' CLI)")
 	return cmd
 }
 
@@ -70,7 +71,30 @@ func init() {
 	rootCmd.AddCommand(reviewCmd)
 }
 
-func getReviewContent(args []string) (string, string, error) {
+func getReviewContent(cmd *cobra.Command, args []string) (string, string, error) {
+	if reviewPR != "" {
+		// Review a Pull Request via GitHub CLI
+		if _, err := lookPath("gh"); err != nil {
+			return "", "", errors.New("the 'gh' CLI is required to review pull requests (https://cli.github.com)")
+		}
+
+		fmt.Fprintf(cmd.ErrOrStderr(), "Fetching diff for PR %s...\n", reviewPR)
+		prCmd := execCommand("gh", "pr", "diff", reviewPR)
+		var out bytes.Buffer
+		var errOut bytes.Buffer
+		prCmd.Stdout = &out
+		prCmd.Stderr = &errOut
+		if err := prCmd.Run(); err != nil {
+			return "", "", fmt.Errorf("failed to fetch PR diff: %w\n%s", err, errOut.String())
+		}
+
+		content := out.String()
+		if len(content) == 0 {
+			return "", "", errors.New("PR diff is empty")
+		}
+		return content, fmt.Sprintf("Pull Request %s", reviewPR), nil
+	}
+
 	if len(args) > 0 {
 		// Review specific file
 		filePath := args[0]
@@ -82,12 +106,12 @@ func getReviewContent(args []string) (string, string, error) {
 	}
 
 	// Review git changes
-	diffCmd := exec.Command("git", "diff", "HEAD")
+	diffCmd := execCommand("git", "diff", "HEAD")
 	var out bytes.Buffer
 	diffCmd.Stdout = &out
 	if err := diffCmd.Run(); err != nil {
 		// Fallback for fresh repo or no HEAD
-		diffCmd = exec.Command("git", "diff")
+		diffCmd = execCommand("git", "diff")
 		out.Reset()
 		diffCmd.Stdout = &out
 		if err := diffCmd.Run(); err != nil {
