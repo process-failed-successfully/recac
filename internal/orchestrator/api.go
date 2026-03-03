@@ -103,6 +103,18 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s cancellation requested", id)
 	})
 
+	mux.HandleFunc("DELETE /jobs", func(w http.ResponseWriter, r *http.Request) {
+		count, err := orch.CancelAllJobs(r.Context())
+		if err != nil && count == 0 {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"canceled": %d}`, count)
+	})
+
 	mux.HandleFunc("POST /jobs", func(w http.ResponseWriter, r *http.Request) {
 		var item WorkItem
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {

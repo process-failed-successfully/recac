@@ -42,6 +42,7 @@ func main() {
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
+	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
@@ -124,6 +125,7 @@ func main() {
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
+	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
@@ -224,6 +226,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.cancel_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		cancelJob(host, jobID)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.cancel_all") {
+		host := viper.GetString("orchestrator.host")
+		cancelAllJobs(host)
 		return nil
 	}
 

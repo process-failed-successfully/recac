@@ -152,6 +152,30 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
+	// 6.5 Test Cancel All Jobs
+	t.Run("Cancel All Jobs", func(t *testing.T) {
+		// Mock Cancel to return nil for any job
+		mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
+
+		// Insert a dummy active job to be canceled
+		orch.mu.Lock()
+		orch.activeJobs["JOB-999"] = JobInfo{
+			ID: "JOB-999",
+			Status: "Running",
+		}
+		orch.mu.Unlock()
+
+		req, _ := http.NewRequest(http.MethodDelete, server.URL+"/jobs", nil)
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var result map[string]int
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, result["canceled"], 1)
+	})
+
 	// 7. Test Pause/Resume
 	t.Run("Pause Resume", func(t *testing.T) {
 		resp, err := http.Post(server.URL + "/pause", "", nil)

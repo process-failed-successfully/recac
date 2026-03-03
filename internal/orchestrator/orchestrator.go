@@ -152,6 +152,29 @@ func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
 	return o.Spawner.Cancel(ctx, jobID)
 }
 
+// CancelAllJobs cancels all running jobs.
+func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
+	// Get all active job IDs first to avoid holding the lock during cancellation
+	o.mu.RLock()
+	var jobIDs []string
+	for id := range o.activeJobs {
+		jobIDs = append(jobIDs, id)
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	var lastErr error
+	for _, id := range jobIDs {
+		if err := o.CancelJob(ctx, id); err != nil {
+			lastErr = err
+		} else {
+			count++
+		}
+	}
+
+	return count, lastErr
+}
+
 // GetLogs returns the logs for a specific job ID.
 func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	return o.Spawner.GetLogs(ctx, jobID)
