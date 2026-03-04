@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/agent"
+	"recac/internal/utils"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -91,7 +92,7 @@ func runChat(cmd *cobra.Command, args []string) error {
 
 		// Handle Commands
 		if strings.HasPrefix(input, "/") {
-			if handleChatCommand(cmd, session, input) {
+			if handleChatCommand(cmd, session, input, ag) {
 				continue // Command handled, skip sending to agent
 			}
 			// If handleChatCommand returns false (e.g. for /quit), we might want to break
@@ -128,7 +129,7 @@ func runChat(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string) bool {
+func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string, ag agent.Agent) bool {
 	parts := strings.Fields(input)
 	command := parts[0]
 
@@ -137,12 +138,68 @@ func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string) b
 		fmt.Fprintln(cmd.OutOrStdout(), "Available commands:")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /persona <name>  - Switch persona")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /add <file>      - Add file content to context")
+		fmt.Fprintln(cmd.OutOrStdout(), "  /edit <file> <instructions> - Edit a file using AI")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /context         - List current context files")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /clear           - Clear chat history (keeps context files)")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /save <file>     - Save chat session to a file")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /load <file>     - Load chat session from a file")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /exec <cmd>      - Execute a shell command and add output to context")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /quit, /exit     - End session")
+		return true
+
+	case "/edit":
+		if len(parts) < 3 {
+			fmt.Fprintln(cmd.OutOrStdout(), "Usage: /edit <file_path> <instructions>")
+			return true
+		}
+		path := parts[1]
+		instructions := strings.Join(parts[2:], " ")
+
+		info, err := os.Stat(path)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to stat file %s: %v\n", path, err)
+			return true
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to read file %s: %v\n", path, err)
+			return true
+		}
+
+		prompt := fmt.Sprintf(`You are an expert software engineer.
+Edit the following file based on these instructions: "%s"
+
+File: %s
+Current Content:
+%s
+
+Return ONLY the full modified file content wrapped in a Markdown code block. Do not include any explanations.`, instructions, path, string(content))
+
+		fmt.Fprintf(cmd.OutOrStdout(), "🤖 Editing %s...\n", path)
+
+		ctx := cmd.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+
+		resp, err := ag.SendStream(ctx, prompt, func(chunk string) {
+			fmt.Fprint(cmd.OutOrStdout(), chunk)
+		})
+		fmt.Fprintln(cmd.OutOrStdout(), "") // Newline
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to edit file: %v\n", err)
+			return true
+		}
+
+		newContent := utils.CleanCodeBlock(resp)
+		if err := os.WriteFile(path, []byte(newContent), info.Mode()); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to save edited file %s: %v\n", path, err)
+			return true
+		}
+
+		session.History += fmt.Sprintf("\n[System: Edited %s with instructions '%s']\n", path, instructions)
+		fmt.Fprintf(cmd.OutOrStdout(), "✅ File %s updated.\n", path)
 		return true
 
 	case "/quit", "/exit":
