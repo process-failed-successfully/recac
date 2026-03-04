@@ -13,6 +13,7 @@ import (
 
 var (
 	webPort int
+	webOpen bool
 )
 
 var webCmd = &cobra.Command{
@@ -74,6 +75,7 @@ var webCmd = &cobra.Command{
 		}
 
 		server := web.NewServer(store, webPort, projectID)
+		server.OpenBrowser = webOpen
 		return server.Start()
 	},
 }
@@ -81,4 +83,5 @@ var webCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(webCmd)
 	webCmd.Flags().IntVarP(&webPort, "port", "p", 8080, "Port to run the web server on")
+	webCmd.Flags().BoolVarP(&webOpen, "open", "o", false, "Automatically open the dashboard in the default browser")
 }
