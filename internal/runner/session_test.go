@@ -622,7 +622,9 @@ func TestSession_ProcessResponse_Blockers(t *testing.T) {
 	d := &MockDockerClient{}
 	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
 		// Simulate finding blocker file
-		if strings.Contains(cmd[2], "cat recac_blockers.txt") {
+		if len(cmd) == 5 && cmd[4] == "recac_blockers.txt" {
+			return "Critical API Issue", nil
+		} else if len(cmd) > 2 && strings.Contains(cmd[2], "cat") && strings.Contains(cmd[2], "recac_blockers.txt") {
 			return "Critical API Issue", nil
 		}
 		return "", nil

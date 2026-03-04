@@ -98,7 +98,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 	if s.Docker != nil {
 		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
 		for _, bf := range blockerFiles {
-			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
+			checkCmd := []string{"/bin/sh", "-c", `test -f "$1" && cat "$1"`, "--", bf}
 			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
 			trimmed := strings.TrimSpace(blockerContent)
 			if err == nil && len(trimmed) > 0 {

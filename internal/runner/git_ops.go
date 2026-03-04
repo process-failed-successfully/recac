@@ -87,7 +87,7 @@ yarn-error.log*
 
 	// 1b. Create Global Ignore File in container (redundancy/system-wide)
 	if !s.UseLocalAgent {
-		writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
+		writeCmd := []string{"/bin/sh", "-c", `printf "%s\n" "$1" > /etc/gitignore_global`, "--", ignoreContent}
 		if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", writeCmd); err != nil {
 			fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
 		}

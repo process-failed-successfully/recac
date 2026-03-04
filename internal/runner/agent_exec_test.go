@@ -35,7 +35,7 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 		return "", fmt.Errorf("simulated failure")
 	}
 	// Blocker checks should be empty unless we want to test blockers
-	if strings.Contains(fullCmd, "cat recac_blockers.txt") || strings.Contains(fullCmd, "cat blockers.txt") {
+	if strings.Contains(fullCmd, "recac_blockers.txt") || strings.Contains(fullCmd, "blockers.txt") {
 		return "", nil
 	}
 	return "Success: " + fullCmd, nil
