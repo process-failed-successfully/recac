@@ -9,6 +9,43 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GetDefaultConfig returns a map containing the default configuration values.
+func GetDefaultConfig() map[string]interface{} {
+	slackEnabled := false
+	if os.Getenv("SLACK_BOT_USER_TOKEN") != "" {
+		slackEnabled = true
+	}
+
+	defaults := map[string]interface{}{
+		"provider":                                         "gemini",
+		"model":                                            "gemini-pro",
+		"max_iterations":                                   20,
+		"manager_frequency":                                5,
+		"timeout":                                          300,
+		"docker_timeout":                                   600,
+		"bash_timeout":                                     600,
+		"agent_timeout":                                    300,
+		"metrics_port":                                     2112,
+		"verbose":                                          false,
+		"git_user_email":                                   "recac-agent@example.com",
+		"git_user_name":                                    "RECAC Agent",
+		"notifications.slack.enabled":                      slackEnabled,
+		"notifications.slack.channel":                      "#general",
+		"notifications.slack.events.on_start":              true,
+		"notifications.slack.events.on_success":            true,
+		"notifications.slack.events.on_failure":            true,
+		"notifications.slack.events.on_user_interaction":   true,
+		"notifications.slack.events.on_project_complete":   true,
+	}
+
+	// Check for standard JIRA_URL if RECAC_JIRA_URL is not set
+	if os.Getenv("RECAC_JIRA_URL") == "" && os.Getenv("JIRA_URL") != "" {
+		defaults["jira.url"] = os.Getenv("JIRA_URL")
+	}
+
+	return defaults
+}
+
 // Load initializes the configuration from file and environment variables.
 func Load(cfgFile string) {
 	// explicit .env loading
@@ -30,37 +67,11 @@ func Load(cfgFile string) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// Check for standard JIRA_URL if RECAC_JIRA_URL is not set
-	if os.Getenv("RECAC_JIRA_URL") == "" && os.Getenv("JIRA_URL") != "" {
-		viper.SetDefault("jira.url", os.Getenv("JIRA_URL"))
-	}
-
 	// Set defaults
-	viper.SetDefault("provider", "gemini")
-	viper.SetDefault("model", "gemini-pro")
-	viper.SetDefault("max_iterations", 20)
-	viper.SetDefault("manager_frequency", 5)
-	viper.SetDefault("timeout", 300)
-	viper.SetDefault("docker_timeout", 600)
-	viper.SetDefault("bash_timeout", 600)
-	viper.SetDefault("agent_timeout", 300)
-	viper.SetDefault("metrics_port", 2112)
-	viper.SetDefault("verbose", false)
-	viper.SetDefault("git_user_email", "recac-agent@example.com")
-	viper.SetDefault("git_user_name", "RECAC Agent")
-
-	// Notification Defaults
-	slackEnabled := false
-	if os.Getenv("SLACK_BOT_USER_TOKEN") != "" {
-		slackEnabled = true
+	defaults := GetDefaultConfig()
+	for k, v := range defaults {
+		viper.SetDefault(k, v)
 	}
-	viper.SetDefault("notifications.slack.enabled", slackEnabled)
-	viper.SetDefault("notifications.slack.channel", "#general")
-	viper.SetDefault("notifications.slack.events.on_start", true)
-	viper.SetDefault("notifications.slack.events.on_success", true)
-	viper.SetDefault("notifications.slack.events.on_failure", true)
-	viper.SetDefault("notifications.slack.events.on_user_interaction", true)
-	viper.SetDefault("notifications.slack.events.on_project_complete", true)
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
