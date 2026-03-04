@@ -45,7 +45,7 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 
 	// 1. Switch to existing persona
 	// "security" is a default persona
-	res := handleChatCommand(cmd, session, "/persona security")
+	res := handleChatCommand(cmd, session, "/persona security", nil)
 	if !res {
 		t.Error("Expected command to be handled")
 	}
@@ -58,7 +58,7 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 
 	// 2. Switch to unknown persona
 	out.Reset()
-	res = handleChatCommand(cmd, session, "/persona unknown")
+	res = handleChatCommand(cmd, session, "/persona unknown", nil)
 	if !res {
 		t.Error("Expected command to be handled")
 	}
@@ -71,7 +71,7 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 
 	// 3. No args
 	out.Reset()
-	res = handleChatCommand(cmd, session, "/persona")
+	res = handleChatCommand(cmd, session, "/persona", nil)
 	if !res {
 		t.Error("Expected command to be handled")
 	}
@@ -106,7 +106,7 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	tmpFile.Close()
 
 	// 1. Add file
-	handleChatCommand(cmd, session, "/add "+tmpFile.Name())
+	handleChatCommand(cmd, session, "/add "+tmpFile.Name(), nil)
 
 	if content, ok := session.ContextFiles[tmpFile.Name()]; !ok {
 		t.Error("File not added to context")
@@ -122,7 +122,7 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	// 3. Add non-existent file
 	out.Reset()
 	errOut.Reset()
-	handleChatCommand(cmd, session, "/add /nonexistent/file")
+	handleChatCommand(cmd, session, "/add /nonexistent/file", nil)
 	if strings.Contains(out.String(), "Added") {
 		t.Error("Should not add non-existent file")
 	}
@@ -132,7 +132,7 @@ func TestHandleChatCommand_Add(t *testing.T) {
 
 	// 4. No args
 	out.Reset()
-	handleChatCommand(cmd, session, "/add")
+	handleChatCommand(cmd, session, "/add", nil)
 	if !strings.Contains(out.String(), "Usage: /add") {
 		t.Errorf("Output mismatch: %s", out.String())
 	}
@@ -148,7 +148,7 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 		History: "User: Hi\nAgent: Hello\n",
 	}
 
-	handleChatCommand(cmd, session, "/clear")
+	handleChatCommand(cmd, session, "/clear", nil)
 	if session.History != "" {
 		t.Error("History not cleared")
 	}
@@ -164,7 +164,7 @@ func TestHandleChatCommand_Context(t *testing.T) {
 	session := &ChatSession{ContextFiles: make(map[string]string)}
 
 	// Empty
-	handleChatCommand(cmd, session, "/context")
+	handleChatCommand(cmd, session, "/context", nil)
 	if !strings.Contains(out.String(), "No files in context") {
 		t.Error("Expected no files message")
 	}
@@ -172,7 +172,7 @@ func TestHandleChatCommand_Context(t *testing.T) {
 	// With files
 	out.Reset()
 	session.ContextFiles["foo.txt"] = "bar"
-	handleChatCommand(cmd, session, "/context")
+	handleChatCommand(cmd, session, "/context", nil)
 	if !strings.Contains(out.String(), "foo.txt") {
 		t.Error("Expected file listing")
 	}
@@ -184,7 +184,7 @@ func TestHandleChatCommand_Help(t *testing.T) {
 	cmd.SetOut(&out)
 	session := &ChatSession{}
 
-	handleChatCommand(cmd, session, "/help")
+	handleChatCommand(cmd, session, "/help", nil)
 	if !strings.Contains(out.String(), "Available commands") {
 		t.Error("Expected help text")
 	}
@@ -193,10 +193,10 @@ func TestHandleChatCommand_Help(t *testing.T) {
 func TestHandleChatCommand_Quit(t *testing.T) {
 	cmd := chatCmd
 	session := &ChatSession{}
-	if handleChatCommand(cmd, session, "/quit") {
+	if handleChatCommand(cmd, session, "/quit", nil) {
 		t.Error("Expected false for quit")
 	}
-	if handleChatCommand(cmd, session, "/exit") {
+	if handleChatCommand(cmd, session, "/exit", nil) {
 		t.Error("Expected false for exit")
 	}
 }
@@ -225,7 +225,7 @@ func TestHandleChatCommand_SaveLoad(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 
 	// 1. Test /save
-	handleChatCommand(cmd, session, "/save "+tmpFile.Name())
+	handleChatCommand(cmd, session, "/save "+tmpFile.Name(), nil)
 	if !strings.Contains(out.String(), "Chat saved to") {
 		t.Errorf("Expected save success message, got: %s", out.String())
 	}
@@ -244,7 +244,7 @@ func TestHandleChatCommand_SaveLoad(t *testing.T) {
 	newSession := &ChatSession{
 		PM: pm,
 	}
-	handleChatCommand(cmd, newSession, "/load "+tmpFile.Name())
+	handleChatCommand(cmd, newSession, "/load "+tmpFile.Name(), nil)
 	if !strings.Contains(out.String(), "Chat loaded from") {
 		t.Errorf("Expected load success message, got: %s", out.String())
 	}
@@ -262,7 +262,7 @@ func TestHandleChatCommand_SaveLoad(t *testing.T) {
 
 	// 3. Test load non-existent
 	errOut.Reset()
-	handleChatCommand(cmd, newSession, "/load /nonexistent/file")
+	handleChatCommand(cmd, newSession, "/load /nonexistent/file", nil)
 	if !strings.Contains(errOut.String(), "Failed to read file") {
 		t.Errorf("Expected error message, got %s", errOut.String())
 	}
@@ -278,7 +278,7 @@ func TestHandleChatCommand_Exec(t *testing.T) {
 	}
 
 	// Execute a simple echo command
-	handleChatCommand(cmd, session, "/exec echo mock output")
+	handleChatCommand(cmd, session, "/exec echo mock output", nil)
 	if !strings.Contains(out.String(), "Executing: echo mock output") {
 		t.Errorf("Expected executing message, got %s", out.String())
 	}
@@ -299,7 +299,7 @@ func TestHandleChatCommand_Unknown(t *testing.T) {
 	cmd.SetOut(&out)
 	session := &ChatSession{}
 
-	handleChatCommand(cmd, session, "/unknown")
+	handleChatCommand(cmd, session, "/unknown", nil)
 	if !strings.Contains(out.String(), "Unknown command") {
 		t.Error("Expected unknown command message")
 	}
@@ -393,5 +393,40 @@ func TestBuildChatPrompt(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "User: Current Input") {
 		t.Error("Missing current input")
+	}
+}
+
+func TestHandleChatCommand_Edit(t *testing.T) {
+	cmd := chatCmd
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	session := &ChatSession{
+		History: "Initial\n",
+	}
+
+	tmpFile, err := os.CreateTemp("", "chat_edit_*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	tmpFile.WriteString("package main\n\nfunc old() {}\n")
+	tmpFile.Close()
+
+	mockAgent := &MockChatAgent{
+		Response: "\n```go\npackage main\n\nfunc new() {}\n```\n",
+	}
+
+	handleChatCommand(cmd, session, "/edit "+tmpFile.Name()+" make it new", mockAgent)
+
+	if !strings.Contains(out.String(), "updated") {
+		t.Errorf("Expected success message, got: %s", out.String())
+	}
+	content, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "package main\n\nfunc new() {}" {
+		t.Errorf("File content not updated correctly. Got:\n%s", string(content))
 	}
 }
