@@ -2,6 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -11,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -243,5 +247,138 @@ func TestRegisterAPI(t *testing.T) {
 		json.NewDecoder(resp.Body).Decode(&result)
 		// Should be at least 1 (JOB-FAIL-2)
 		assert.GreaterOrEqual(t, result["retried"], 1)
+	})
+
+	// 10. Test GitHub Webhook
+	t.Run("GitHub Webhook - Issues", func(t *testing.T) {
+		viper.Set("orchestrator.github_webhook_secret", "my-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{
+			"action": "opened",
+			"issue": map[string]interface{}{
+				"number": float64(42),
+				"title":  "Fix bug",
+				"body":   "The bug needs fixing",
+			},
+			"repository": map[string]interface{}{
+				"name":      "my-repo",
+				"clone_url": "https://github.com/my-org/my-repo.git",
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+			return i.ID == "gh-my-repo-42" &&
+				i.Summary == "Fix bug" &&
+				i.Description == "The bug needs fixing" &&
+				i.RepoURL == "https://github.com/my-org/my-repo.git" &&
+				i.EnvVars["GITHUB_ISSUE"] == "42" &&
+				i.EnvVars["GITHUB_REPO"] == "my-repo"
+		})).Return(nil)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
+		req.Header.Set("X-GitHub-Event", "issues")
+		req.Header.Set("Content-Type", "application/json")
+
+		mac := hmac.New(sha256.New, []byte("my-secret"))
+		mac.Write(body)
+		signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+		req.Header.Set("X-Hub-Signature-256", signature)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	})
+
+	t.Run("GitHub Webhook - Invalid Signature", func(t *testing.T) {
+		viper.Set("orchestrator.github_webhook_secret", "my-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{"action": "opened"}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
+		req.Header.Set("X-GitHub-Event", "issues")
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Hub-Signature-256", "sha256=invalid")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("GitHub Webhook - Missing Signature", func(t *testing.T) {
+		viper.Set("orchestrator.github_webhook_secret", "my-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{"action": "opened"}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
+		req.Header.Set("X-GitHub-Event", "issues")
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("GitHub Webhook - Issue Comment", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"action": "created",
+			"issue": map[string]interface{}{
+				"number": float64(43),
+				"title":  "Update feature",
+				"body":   "The original issue body",
+			},
+			"comment": map[string]interface{}{
+				"body": "Do this specific thing now",
+			},
+			"repository": map[string]interface{}{
+				"name":      "my-repo-2",
+				"clone_url": "https://github.com/my-org/my-repo-2.git",
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+			return i.ID == "gh-my-repo-2-43" &&
+				i.Summary == "Update feature" &&
+				strings.Contains(i.Description, "Do this specific thing now") &&
+				strings.Contains(i.Description, "The original issue body") &&
+				i.RepoURL == "https://github.com/my-org/my-repo-2.git"
+		})).Return(nil)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
+		req.Header.Set("X-GitHub-Event", "issue_comment")
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	})
+
+	t.Run("GitHub Webhook - Ignored Event", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader("{}"))
+		req.Header.Set("X-GitHub-Event", "push")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("GitHub Webhook - Ignored Action", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"action": "closed",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
+		req.Header.Set("X-GitHub-Event", "issues")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 }

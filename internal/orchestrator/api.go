@@ -1,13 +1,19 @@
 package orchestrator
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 // RegisterAPI registers the orchestrator API handlers on the provided ServeMux.
@@ -140,6 +146,110 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 		w.WriteHeader(http.StatusAccepted)
 		fmt.Fprintf(w, "Job %s submitted successfully", item.ID)
+	})
+
+	mux.HandleFunc("POST /webhook/github", func(w http.ResponseWriter, r *http.Request) {
+		event := r.Header.Get("X-GitHub-Event")
+		if event != "issues" && event != "issue_comment" {
+			// Ignore other events
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Read body for signature validation
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+		// Restore body for any subsequent reading if necessary
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		secret := viper.GetString("orchestrator.github_webhook_secret")
+		if secret != "" {
+			signature := r.Header.Get("X-Hub-Signature-256")
+			if signature == "" {
+				http.Error(w, "Missing X-Hub-Signature-256 header", http.StatusUnauthorized)
+				return
+			}
+			mac := hmac.New(sha256.New, []byte(secret))
+			mac.Write(bodyBytes)
+			expectedMAC := hex.EncodeToString(mac.Sum(nil))
+			if !hmac.Equal([]byte(signature), []byte("sha256="+expectedMAC)) {
+				http.Error(w, "Invalid X-Hub-Signature-256 signature", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		action, _ := payload["action"].(string)
+		if action != "opened" && action != "created" && action != "labeled" {
+			// We only care about specific actions
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Extract fields
+		issue, ok := payload["issue"].(map[string]interface{})
+		if !ok {
+			http.Error(w, "Missing issue in payload", http.StatusBadRequest)
+			return
+		}
+		repoMap, ok := payload["repository"].(map[string]interface{})
+		if !ok {
+			http.Error(w, "Missing repository in payload", http.StatusBadRequest)
+			return
+		}
+
+		repoURL, _ := repoMap["clone_url"].(string)
+		repoName, _ := repoMap["name"].(string)
+		issueNum, _ := issue["number"].(float64)
+		title, _ := issue["title"].(string)
+
+		description, _ := issue["body"].(string)
+
+		// If it's a comment, use the comment body and append to description
+		if event == "issue_comment" {
+			comment, _ := payload["comment"].(map[string]interface{})
+			if commentBody, ok := comment["body"].(string); ok {
+				description = fmt.Sprintf("Comment:\n%s\n\nIssue Context:\n%s", commentBody, description)
+			}
+		}
+
+		if repoURL == "" || issueNum == 0 {
+			http.Error(w, "Missing required fields (repository.clone_url or issue.number)", http.StatusBadRequest)
+			return
+		}
+
+		jobID := fmt.Sprintf("gh-%s-%d", repoName, int(issueNum))
+
+		item := WorkItem{
+			ID:          jobID,
+			Summary:     title,
+			Description: description,
+			RepoURL:     repoURL,
+			EnvVars: map[string]string{
+				"GITHUB_ISSUE": fmt.Sprintf("%d", int(issueNum)),
+				"GITHUB_REPO":  repoName,
+			},
+		}
+
+		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, "GitHub Webhook Job %s submitted successfully", jobID)
 	})
 
 	mux.HandleFunc("POST /pause", func(w http.ResponseWriter, r *http.Request) {
