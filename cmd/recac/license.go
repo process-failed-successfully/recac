@@ -63,17 +63,25 @@ func runLicenseCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// 1. Identify Dependencies
-	deps, err := parseGoMod(filepath.Join(root, "go.mod"))
-	if err != nil {
-		// Try to continue if go.mod is missing but maybe package.json exists?
-		// For now, fail if no go.mod, or just warn.
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to parse go.mod: %v\n", err)
+	var deps []string
+
+	// Check go.mod
+	if goDeps, err := parseGoMod(filepath.Join(root, "go.mod")); err == nil {
+		deps = append(deps, goDeps...)
 	}
 
-	// TODO: Add support for package.json or requirements.txt
+	// Check package.json
+	if npmDeps, err := parsePackageJson(filepath.Join(root, "package.json")); err == nil {
+		deps = append(deps, npmDeps...)
+	}
+
+	// Check requirements.txt
+	if pyDeps, err := parseRequirementsTxt(filepath.Join(root, "requirements.txt")); err == nil {
+		deps = append(deps, pyDeps...)
+	}
 
 	if len(deps) == 0 {
-		return fmt.Errorf("no dependencies found")
+		return fmt.Errorf("no dependencies found (checked go.mod, package.json, requirements.txt)")
 	}
 
 	// 2. Load Cache
@@ -197,6 +205,75 @@ Do not explain.`, pkg)
 	}
 
 	return nil
+}
+
+func parsePackageJson(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var pkg struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+
+	if err := json.NewDecoder(f).Decode(&pkg); err != nil {
+		return nil, err
+	}
+
+	var deps []string
+	for dep := range pkg.Dependencies {
+		deps = append(deps, dep)
+	}
+	for dep := range pkg.DevDependencies {
+		deps = append(deps, dep)
+	}
+
+	return deps, nil
+}
+
+func parseRequirementsTxt(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var deps []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Remove comments
+		if idx := strings.Index(line, "#"); idx != -1 {
+			line = strings.TrimSpace(line[:idx])
+		}
+
+		if line == "" {
+			continue
+		}
+
+		// Split by version specifiers
+		// e.g. pkg==1.0.0, pkg>=1.0.0, pkg~=1.0.0, pkg[extra]==1.0.0
+		// We just need the base package name
+		pkgName := line
+		for _, specifier := range []string{"==", ">=", "<=", "~=", ">", "<", "!==", "===", "[", ";", "@"} {
+			if idx := strings.Index(pkgName, specifier); idx != -1 {
+				pkgName = strings.TrimSpace(pkgName[:idx])
+			}
+		}
+
+		// Sometimes people have env markers, e.g. pkg ; python_version < "3.8"
+		// Handled by ';' above.
+
+		if pkgName != "" {
+			deps = append(deps, pkgName)
+		}
+	}
+
+	return deps, scanner.Err()
 }
 
 func parseGoMod(path string) ([]string, error) {

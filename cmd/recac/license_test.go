@@ -58,6 +58,55 @@ require github.com/baz/qux v2.0.0
 	assert.Contains(t, deps, "github.com/baz/qux")
 }
 
+func TestParsePackageJson(t *testing.T) {
+	content := `{
+		"name": "test",
+		"version": "1.0.0",
+		"dependencies": {
+			"react": "^18.2.0",
+			"lodash": "~4.17.21"
+		},
+		"devDependencies": {
+			"jest": "^29.5.0"
+		}
+	}`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "package.json")
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+
+	deps, err := parsePackageJson(path)
+	require.NoError(t, err)
+	assert.Len(t, deps, 3)
+	assert.Contains(t, deps, "react")
+	assert.Contains(t, deps, "lodash")
+	assert.Contains(t, deps, "jest")
+}
+
+func TestParseRequirementsTxt(t *testing.T) {
+	content := `
+# This is a comment
+requests==2.31.0
+urllib3>=1.26.16
+flask ~= 2.3.2
+jinja2[async] >= 3.0.0
+gunicorn; sys_platform != 'win32'
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "requirements.txt")
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+
+	deps, err := parseRequirementsTxt(path)
+	require.NoError(t, err)
+	assert.Len(t, deps, 5)
+	assert.Contains(t, deps, "requests")
+	assert.Contains(t, deps, "urllib3")
+	assert.Contains(t, deps, "flask")
+	assert.Contains(t, deps, "jinja2")
+	assert.Contains(t, deps, "gunicorn")
+}
+
 func TestLicenseCheckCmd(t *testing.T) {
 	// Setup temp dir
 	tmpDir := t.TempDir()
@@ -72,14 +121,26 @@ require (
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644))
 
+	// Create package.json
+	packageJson := `{
+		"dependencies": {
+			"react": "^18.0.0"
+		}
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte(packageJson), 0644))
+
+	// Create requirements.txt
+	requirementsTxt := `requests==2.0.0`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "requirements.txt"), []byte(requirementsTxt), 0644))
+
 	// Mock Agent
 	mockAgent := &LicenseTestMockAgent{
 		SendStreamFunc: func(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 			var resp string
 			// Simulate Agent responses
-			if strings.Contains(prompt, "github.com/safe/lib") {
+			if strings.Contains(prompt, "github.com/safe/lib") || strings.Contains(prompt, "react") {
 				resp = "MIT"
-			} else if strings.Contains(prompt, "github.com/risky/gpl") {
+			} else if strings.Contains(prompt, "github.com/risky/gpl") || strings.Contains(prompt, "requests") {
 				resp = "GPL-3.0"
 			} else {
 				resp = "Unknown"
@@ -110,6 +171,9 @@ require (
 		assert.Contains(t, output, `"package": "github.com/risky/gpl"`)
 		assert.Contains(t, output, `"license": "GPL-3.0"`)
 		assert.Contains(t, output, `"status": "denied"`)
+
+		assert.Contains(t, output, `"package": "react"`)
+		assert.Contains(t, output, `"package": "requests"`)
 	})
 
 	t.Run("Fail on Denied", func(t *testing.T) {
