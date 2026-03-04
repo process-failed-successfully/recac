@@ -37,7 +37,7 @@ func init() {
 }
 
 func runMagic(cmd *cobra.Command, args []string) error {
-	ignores := []string{}
+	var ignores []string
 	if magicIgnore != "" {
 		for _, s := range strings.Split(magicIgnore, ",") {
 			ignores = append(ignores, strings.TrimSpace(s))

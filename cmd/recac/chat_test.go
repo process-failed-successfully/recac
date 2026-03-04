@@ -201,6 +201,98 @@ func TestHandleChatCommand_Quit(t *testing.T) {
 	}
 }
 
+func TestHandleChatCommand_SaveLoad(t *testing.T) {
+	cmd := chatCmd
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+
+	session := &ChatSession{
+		CurrentPersona: p,
+		ContextFiles:   map[string]string{"foo.txt": "bar"},
+		History:        "User: Hello",
+		PM:             pm,
+	}
+
+	tmpFile, err := os.CreateTemp("", "chat_session_*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// 1. Test /save
+	handleChatCommand(cmd, session, "/save "+tmpFile.Name())
+	if !strings.Contains(out.String(), "Chat saved to") {
+		t.Errorf("Expected save success message, got: %s", out.String())
+	}
+
+	// Verify file content
+	data, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "User: Hello") {
+		t.Error("Saved JSON missing history")
+	}
+
+	// 2. Test /load
+	out.Reset()
+	newSession := &ChatSession{
+		PM: pm,
+	}
+	handleChatCommand(cmd, newSession, "/load "+tmpFile.Name())
+	if !strings.Contains(out.String(), "Chat loaded from") {
+		t.Errorf("Expected load success message, got: %s", out.String())
+	}
+
+	// Verify loaded session
+	if newSession.History != "User: Hello" {
+		t.Errorf("Expected history 'User: Hello', got %s", newSession.History)
+	}
+	if newSession.ContextFiles["foo.txt"] != "bar" {
+		t.Errorf("Expected context file 'foo.txt'='bar', got %v", newSession.ContextFiles)
+	}
+	if newSession.CurrentPersona.Name != "Default" {
+		t.Errorf("Expected persona 'Default', got %s", newSession.CurrentPersona.Name)
+	}
+
+	// 3. Test load non-existent
+	errOut.Reset()
+	handleChatCommand(cmd, newSession, "/load /nonexistent/file")
+	if !strings.Contains(errOut.String(), "Failed to read file") {
+		t.Errorf("Expected error message, got %s", errOut.String())
+	}
+}
+
+func TestHandleChatCommand_Exec(t *testing.T) {
+	cmd := chatCmd
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	session := &ChatSession{
+		History: "Initial",
+	}
+
+	// Execute a simple echo command
+	handleChatCommand(cmd, session, "/exec echo mock output")
+	if !strings.Contains(out.String(), "Executing: echo mock output") {
+		t.Errorf("Expected executing message, got %s", out.String())
+	}
+	if !strings.Contains(out.String(), "Output added to context") {
+		t.Errorf("Expected added message, got %s", out.String())
+	}
+	if !strings.Contains(session.History, "mock output") {
+		t.Errorf("Expected 'mock output' in history, got %s", session.History)
+	}
+	if !strings.Contains(session.History, "echo mock output") {
+		t.Errorf("Expected command 'echo mock output' in history, got %s", session.History)
+	}
+}
+
 func TestHandleChatCommand_Unknown(t *testing.T) {
 	cmd := chatCmd
 	var out bytes.Buffer
