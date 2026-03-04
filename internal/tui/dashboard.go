@@ -426,7 +426,7 @@ func (m DashboardModel) View() string {
 
 		contentView = containerStyle.Render(contentView)
 
-		helpView = statusStyle.Render("y: confirm | n/q/esc: cancel")
+		helpView = statusStyle.Render("y/enter: confirm | n/q/esc: cancel")
 	}
 
 	if m.err != nil {

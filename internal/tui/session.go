@@ -396,7 +396,7 @@ func (m SessionModel) View() string {
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	helpBar := helpStyle.Render(fmt.Sprintf("Persona: %s • Esc: quit • Enter: send • /help commands", m.persona.Name))
+	helpBar := helpStyle.Render(fmt.Sprintf("Persona: %s • Esc/Ctrl+C: quit • Enter: send • /help commands", m.persona.Name))
 
 	return fmt.Sprintf(
 		"%s\n%s\n%s",
