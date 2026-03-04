@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"recac/internal/agent"
@@ -138,6 +139,9 @@ func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string) b
 		fmt.Fprintln(cmd.OutOrStdout(), "  /add <file>      - Add file content to context")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /context         - List current context files")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /clear           - Clear chat history (keeps context files)")
+		fmt.Fprintln(cmd.OutOrStdout(), "  /save <file>     - Save chat session to a file")
+		fmt.Fprintln(cmd.OutOrStdout(), "  /load <file>     - Load chat session from a file")
+		fmt.Fprintln(cmd.OutOrStdout(), "  /exec <cmd>      - Execute a shell command and add output to context")
 		fmt.Fprintln(cmd.OutOrStdout(), "  /quit, /exit     - End session")
 		return true
 
@@ -194,6 +198,90 @@ func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string) b
 				fmt.Fprintf(cmd.OutOrStdout(), "  - %s (%d bytes)\n", path, len(content))
 			}
 		}
+		return true
+
+	case "/save":
+		if len(parts) < 2 {
+			fmt.Fprintln(cmd.OutOrStdout(), "Usage: /save <file_path>")
+			return true
+		}
+		path := parts[1]
+		export := map[string]interface{}{
+			"history":       session.History,
+			"persona":       session.CurrentPersona.Name, // We could save ID if we have it, but Name is fine, wait no, let's look at how get works
+			"context_files": session.ContextFiles,
+		}
+
+		// Map persona Name back to ID if possible, else save ID directly. Wait, PM maps ID -> Persona.
+		// Let's find the ID.
+		var personaID string
+		for id, p := range session.PM.ListPersonas() {
+			if p.Name == session.CurrentPersona.Name {
+				personaID = id
+				break
+			}
+		}
+		if personaID != "" {
+			export["persona"] = personaID
+		}
+
+		data, err := json.MarshalIndent(export, "", "  ")
+		if err == nil {
+			err = os.WriteFile(path, data, 0644)
+		}
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to save chat: %v\n", err)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "💾 Chat saved to %s\n", path)
+		}
+		return true
+
+	case "/load":
+		if len(parts) < 2 {
+			fmt.Fprintln(cmd.OutOrStdout(), "Usage: /load <file_path>")
+			return true
+		}
+		path := parts[1]
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to read file: %v\n", err)
+			return true
+		}
+		var export struct {
+			History      string            `json:"history"`
+			Persona      string            `json:"persona"`
+			ContextFiles map[string]string `json:"context_files"`
+		}
+		if err := json.Unmarshal(data, &export); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Failed to parse chat file: %v\n", err)
+			return true
+		}
+		session.History = export.History
+		if export.ContextFiles != nil {
+			session.ContextFiles = export.ContextFiles
+		} else {
+			session.ContextFiles = make(map[string]string)
+		}
+		if p, ok := session.PM.GetPersona(export.Persona); ok {
+			session.CurrentPersona = p
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "📂 Chat loaded from %s\n", path)
+		return true
+
+	case "/exec":
+		if len(parts) < 2 {
+			fmt.Fprintln(cmd.OutOrStdout(), "Usage: /exec <command>")
+			return true
+		}
+		cmdStr := strings.Join(parts[1:], " ")
+		fmt.Fprintf(cmd.OutOrStdout(), "⏳ Executing: %s\n", cmdStr)
+		out, err := execCommand("sh", "-c", cmdStr).CombinedOutput()
+		output := string(out)
+		if err != nil {
+			output += fmt.Sprintf("\nError: %v", err)
+		}
+		session.History += fmt.Sprintf("\n[System: Executed command '%s']\n%s\n", cmdStr, output)
+		fmt.Fprintf(cmd.OutOrStdout(), "✅ Output added to context (%d bytes).\n", len(output))
 		return true
 
 	default:
