@@ -202,11 +202,19 @@ func TestSpawnerConsistency_LabelsAndGitConfig(t *testing.T) {
 		// Check Job Labels
 		assert.Equal(t, "recac-orchestrator", job.Labels["created-by"], "K8s Job should have created-by label")
 		assert.Equal(t, "TASK-CONSISTENCY", job.Labels["work-item"], "K8s Job should have work-item label")
+		assert.NotEmpty(t, job.Annotations["created-at"], "K8s Job should have created-at annotation")
+		_, parseErr := time.Parse(time.RFC3339, job.Annotations["created-at"])
+		assert.NoError(t, parseErr, "K8s Job created-at annotation should be RFC3339 formatted")
 
 		// Check Pod Template Labels
 		podLabels := job.Spec.Template.ObjectMeta.Labels
 		assert.Equal(t, "recac-orchestrator", podLabels["created-by"], "K8s Pod should have created-by label")
 		assert.Equal(t, "TASK-CONSISTENCY", podLabels["work-item"], "K8s Pod should have work-item label")
+
+		podAnnotations := job.Spec.Template.ObjectMeta.Annotations
+		assert.NotEmpty(t, podAnnotations["created-at"], "K8s Pod should have created-at annotation")
+		_, parseErrPod := time.Parse(time.RFC3339, podAnnotations["created-at"])
+		assert.NoError(t, parseErrPod, "K8s Pod created-at annotation should be RFC3339 formatted")
 	})
 
 	// 2. Check Docker Spawner Git Config Injection
@@ -232,7 +240,11 @@ func TestSpawnerConsistency_LabelsAndGitConfig(t *testing.T) {
 			mock.Anything,
 			mock.Anything, // user
 			mock.MatchedBy(func(labels map[string]string) bool {
-				return labels["created-by"] == "recac-orchestrator" && labels["work-item"] == "TASK-CONSISTENCY"
+				if labels["created-by"] != "recac-orchestrator" || labels["work-item"] != "TASK-CONSISTENCY" {
+					return false
+				}
+				_, err := time.Parse(time.RFC3339, labels["created-at"])
+				return err == nil
 			}),
 		).Run(func(args mock.Arguments) {
 			capturedCmd := args.Get(5).([]string) // cmd=5
