@@ -189,12 +189,17 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	cmd := ConstructShellCommand(agentCmd)
 
+	createdAt := time.Now().Format(time.RFC3339)
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
 			Labels: map[string]string{
 				"created-by": "recac-orchestrator",
 				"work-item":  item.ID,
+			},
+			Annotations: map[string]string{
+				"created-at": createdAt,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -207,6 +212,9 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 						"ticket":     item.ID,
 						"created-by": "recac-orchestrator",
 						"work-item":  item.ID,
+					},
+					Annotations: map[string]string{
+						"created-at": createdAt,
 					},
 				},
 				Spec: corev1.PodSpec{
