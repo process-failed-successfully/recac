@@ -102,6 +102,9 @@ func main() {
 	pflag.String("trello-board", "", "Trello Board ID (for 'trello' poller)")
 	pflag.String("trello-list", "", "Trello List ID to poll for (for 'trello' poller)")
 
+	pflag.String("asana-token", "", "Asana API Token (for 'asana' poller)")
+	pflag.String("asana-project", "", "Asana Project ID (for 'asana' poller)")
+
 	pflag.Parse()
 
 	// Config
@@ -177,6 +180,9 @@ func main() {
 	viper.BindPFlag("orchestrator.trello_board", pflag.Lookup("trello-board"))
 	viper.BindPFlag("orchestrator.trello_list", pflag.Lookup("trello-list"))
 
+	viper.BindPFlag("orchestrator.asana_token", pflag.Lookup("asana-token"))
+	viper.BindPFlag("orchestrator.asana_project", pflag.Lookup("asana-project"))
+
 	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
 	// Explicitly bind cleaner env vars
@@ -200,6 +206,8 @@ func main() {
 	viper.BindEnv("orchestrator.trello_token", "RECAC_TRELLO_TOKEN")
 	viper.BindEnv("orchestrator.trello_board", "RECAC_TRELLO_BOARD")
 	viper.BindEnv("orchestrator.trello_list", "RECAC_TRELLO_LIST")
+	viper.BindEnv("orchestrator.asana_token", "RECAC_ASANA_TOKEN", "ASANA_TOKEN")
+	viper.BindEnv("orchestrator.asana_project", "RECAC_ASANA_PROJECT")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -422,6 +430,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		poller = orchestrator.NewTrelloPoller(key, token, board, list)
 		logger.Info("Using Trello poller", "board", board, "list", list)
+	case "asana":
+		token := viper.GetString("orchestrator.asana_token")
+		project := viper.GetString("orchestrator.asana_project")
+
+		if token == "" || project == "" {
+			return fmt.Errorf("Asana token and project must be specified in asana poller mode")
+		}
+		poller = orchestrator.NewAsanaPoller(token, project)
+		logger.Info("Using Asana poller", "project", project)
 	default:
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
