@@ -17,9 +17,15 @@ type MockDockerForBlocker struct {
 func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string) (string, error) {
 	// Simple mock for: test -f bf && cat bf
 	if len(cmd) > 2 && strings.Contains(cmd[2], "cat") {
-		// Extract filename
-		parts := strings.Split(cmd[2], " ")
-		filename := parts[len(parts)-1]
+		// Our new format is ["/bin/sh", "-c", `test -f "$1" && cat "$1"`, "--", bf]
+		var filename string
+		if len(cmd) == 5 && cmd[3] == "--" {
+			filename = cmd[4]
+		} else {
+			parts := strings.Split(cmd[2], " ")
+			filename = strings.Trim(parts[len(parts)-1], "\"")
+		}
+
 		if content, ok := m.Files[filename]; ok {
 			return content, nil
 		}
