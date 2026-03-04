@@ -87,6 +87,7 @@ func main() {
 	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+	pflag.String("github-webhook-secret", "", "GitHub Webhook Secret for validating incoming POST events")
 
 	pflag.String("linear-token", "", "Linear API Token (for 'linear' poller)")
 	pflag.String("linear-team", "", "Linear Team ID (for 'linear' poller)")
@@ -121,6 +122,7 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+	viper.BindPFlag("orchestrator.github_webhook_secret", pflag.Lookup("github-webhook-secret"))
 
 	viper.BindPFlag("orchestrator.linear_token", pflag.Lookup("linear-token"))
 	viper.BindPFlag("orchestrator.linear_team", pflag.Lookup("linear-team"))
@@ -195,6 +197,7 @@ func main() {
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.github_webhook_secret", "RECAC_GITHUB_WEBHOOK_SECRET")
 	viper.BindEnv("orchestrator.linear_token", "RECAC_LINEAR_TOKEN", "LINEAR_TOKEN")
 	viper.BindEnv("orchestrator.linear_team", "RECAC_LINEAR_TEAM")
 	viper.BindEnv("orchestrator.linear_label", "RECAC_LINEAR_LABEL")
