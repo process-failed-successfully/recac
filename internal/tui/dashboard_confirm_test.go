@@ -85,4 +85,26 @@ func TestDashboardModel_ConfirmationFlow(t *testing.T) {
 	m.pendingAction = "retry"
 	view := m.View()
 	assert.Contains(t, view, "Are you sure you want to retry job JOB-1?")
+
+	// 5. Cancel All flow
+	m.viewState = viewMain
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
+	m = updatedModel.(DashboardModel)
+
+	assert.Equal(t, viewConfirmation, m.viewState)
+	assert.Equal(t, "ALL", m.pendingJobId)
+	assert.Equal(t, "cancel all", m.pendingAction)
+
+	// Verify View contains Cancel All confirmation message
+	view = m.View()
+	assert.Contains(t, view, "Are you sure you want to cancel ALL active")
+
+	// Confirm Cancel All
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	m = updatedModel.(DashboardModel)
+
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Equal(t, "", m.pendingJobId)
+	assert.Equal(t, "", m.pendingAction)
+	assert.NotNil(t, cmd) // Should have returned the cancel all command
 }
