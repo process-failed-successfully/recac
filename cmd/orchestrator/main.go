@@ -97,6 +97,11 @@ func main() {
 	pflag.String("gitlab-label", "", "GitLab Label to poll for (defaults to jira-label if not set)")
 	pflag.String("gitlab-url", "", "GitLab URL (defaults to https://gitlab.com)")
 
+	pflag.String("trello-key", "", "Trello API Key (for 'trello' poller)")
+	pflag.String("trello-token", "", "Trello API Token (for 'trello' poller)")
+	pflag.String("trello-board", "", "Trello Board ID (for 'trello' poller)")
+	pflag.String("trello-list", "", "Trello List ID to poll for (for 'trello' poller)")
+
 	pflag.Parse()
 
 	// Config
@@ -166,6 +171,12 @@ func main() {
 	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
 	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
 	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+
+	viper.BindPFlag("orchestrator.trello_key", pflag.Lookup("trello-key"))
+	viper.BindPFlag("orchestrator.trello_token", pflag.Lookup("trello-token"))
+	viper.BindPFlag("orchestrator.trello_board", pflag.Lookup("trello-board"))
+	viper.BindPFlag("orchestrator.trello_list", pflag.Lookup("trello-list"))
+
 	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
 	// Explicitly bind cleaner env vars
@@ -185,6 +196,10 @@ func main() {
 	viper.BindEnv("orchestrator.gitlab_project", "RECAC_GITLAB_PROJECT")
 	viper.BindEnv("orchestrator.gitlab_label", "RECAC_GITLAB_LABEL")
 	viper.BindEnv("orchestrator.gitlab_url", "RECAC_GITLAB_URL")
+	viper.BindEnv("orchestrator.trello_key", "RECAC_TRELLO_KEY")
+	viper.BindEnv("orchestrator.trello_token", "RECAC_TRELLO_TOKEN")
+	viper.BindEnv("orchestrator.trello_board", "RECAC_TRELLO_BOARD")
+	viper.BindEnv("orchestrator.trello_list", "RECAC_TRELLO_LIST")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -396,6 +411,17 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		poller = orchestrator.NewGitLabPoller(url, token, project, glLabel)
 		logger.Info("Using GitLab poller", "project", project, "label", glLabel)
+	case "trello":
+		key := viper.GetString("orchestrator.trello_key")
+		token := viper.GetString("orchestrator.trello_token")
+		board := viper.GetString("orchestrator.trello_board")
+		list := viper.GetString("orchestrator.trello_list")
+
+		if key == "" || token == "" || (board == "" && list == "") {
+			return fmt.Errorf("Trello key, token, and either board or list must be specified in trello poller mode")
+		}
+		poller = orchestrator.NewTrelloPoller(key, token, board, list)
+		logger.Info("Using Trello poller", "board", board, "list", list)
 	default:
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils

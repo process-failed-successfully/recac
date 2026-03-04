@@ -66,6 +66,15 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--gitlab-label` | `RECAC_GITLAB_LABEL` | - | GitLab Label to poll for |
 | `--gitlab-url` | `RECAC_GITLAB_URL` | `https://gitlab.com` | GitLab instance URL |
 
+### Trello Poller Flags
+
+| Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--trello-key` | `RECAC_TRELLO_KEY` | - | Trello API Key |
+| `--trello-token` | `RECAC_TRELLO_TOKEN` | - | Trello API Token |
+| `--trello-board` | `RECAC_TRELLO_BOARD` | - | Trello Board ID |
+| `--trello-list` | `RECAC_TRELLO_LIST` | - | Trello List ID to poll for |
+
 ### File Poller Flags
 
 | Flag          | Env Var           | Default           | Description                      |

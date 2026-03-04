@@ -90,6 +90,19 @@ func TestRun_ConfigValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), "Failed to initialize Jira client")
 		}
 	})
+
+	t.Run("TrelloPoller_MissingConfig", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("orchestrator.mode", "local")
+		viper.Set("orchestrator.poller", "trello")
+		viper.Set("orchestrator.trello_key", "")
+
+		err := run(ctx, logger)
+		assert.Error(t, err)
+		if err != nil {
+			assert.Contains(t, err.Error(), "Trello key, token, and either board or list must be specified")
+		}
+	})
 }
 
 func TestRun_Commands(t *testing.T) {
