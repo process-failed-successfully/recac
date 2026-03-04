@@ -281,6 +281,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.viewState = viewConfirmation
 				return m, nil
 			}
+		case "C":
+			m.pendingJobId = "ALL"
+			m.pendingAction = "cancel all"
+			m.viewState = viewConfirmation
+			return m, nil
 		case "r":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -303,6 +308,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 			var cmd tea.Cmd
 			if m.pendingAction == "cancel" {
 				cmd = cancelJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "cancel all" {
+				cmd = cancelAllJobs(m.host)
 			} else if m.pendingAction == "retry" {
 				cmd = retryJob(m.host, m.pendingJobId)
 			}
@@ -387,7 +394,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | r: retry | q: quit")
+		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | C: cancel all | r: retry | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -399,7 +406,12 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.table.View())
 
 		// Create a modal dialog
-		dialogMsg := fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/n)", m.pendingAction, m.pendingJobId)
+		var dialogMsg string
+		if m.pendingAction == "cancel all" {
+			dialogMsg = "Are you sure you want to cancel ALL active jobs?\n\n(y/n)"
+		} else {
+			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/n)", m.pendingAction, m.pendingJobId)
+		}
 
 		dialogWidth := 50
 		dialogHeight := 7
@@ -539,6 +551,25 @@ func cancelJob(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Cancelled"}
+	}
+}
+
+func cancelAllJobs(host string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs", host), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Cancelled All Jobs"}
 	}
 }
 
