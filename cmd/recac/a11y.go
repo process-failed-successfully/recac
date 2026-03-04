@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,10 +15,19 @@ import (
 )
 
 var (
-	a11yJSON     bool
-	a11yFail     bool
-	a11yAI       bool
-	a11yIgnore   string
+	a11yJSON   bool
+	a11yFail   bool
+	a11yAI     bool
+	a11yIgnore string
+
+	// Hoisted regexes for performance
+	a11yMissingAltTextRe      = regexp.MustCompile("placeholder")
+	a11yPositiveTabindexRe    = regexp.MustCompile(`tabindex\s*=\s*["']([1-9][0-9]*)["']`)
+	a11yClickNonInteractiveRe = regexp.MustCompile(`<(div|span|p|section|article)[^>]*?onClick[^>]*?>`)
+	a11yEmptyButtonRe         = regexp.MustCompile(`<button[^>]*?>\s*</button>`)
+	a11yMouseEventsNoKeyRe    = regexp.MustCompile(`onMouse(Over|Out|Down|Up)[^>]*?>`)
+	a11yImgTagRe              = regexp.MustCompile(`<img[^>]+>`)
+	a11yATagRe                = regexp.MustCompile(`<\s*a\b[^>]*>`)
 )
 
 var a11yCmd = &cobra.Command{
@@ -70,12 +80,12 @@ func NewA11yScanner(ignoreList string) *A11yScanner {
 	// Common A11y Regex Patterns (Heuristic)
 	// Note: Regex is not a parser, so these are best-effort checks.
 	patterns := map[string]*regexp.Regexp{
-		"Missing Alt Text": regexp.MustCompile("placeholder"), // Handled specially
+		"Missing Alt Text": a11yMissingAltTextRe, // Handled specially
 
-		"Positive Tabindex":        regexp.MustCompile(`tabindex\s*=\s*["']([1-9][0-9]*)["']`),
-		"Click on Non-Interactive": regexp.MustCompile(`<(div|span|p|section|article)[^>]*?onClick[^>]*?>`),
-		"Empty Button":             regexp.MustCompile(`<button[^>]*?>\s*</button>`),        // Very basic empty button
-		"Mouse Events without Key": regexp.MustCompile(`onMouse(Over|Out|Down|Up)[^>]*?>`), // Warn if mouse events are used without keyboard equiv?
+		"Positive Tabindex":        a11yPositiveTabindexRe,
+		"Click on Non-Interactive": a11yClickNonInteractiveRe,
+		"Empty Button":             a11yEmptyButtonRe,      // Very basic empty button
+		"Mouse Events without Key": a11yMouseEventsNoKeyRe, // Warn if mouse events are used without keyboard equiv?
 	}
 
 	ignored := make(map[string]bool)
@@ -87,8 +97,8 @@ func NewA11yScanner(ignoreList string) *A11yScanner {
 
 	return &A11yScanner{
 		patterns: patterns,
-		imgRe:    regexp.MustCompile(`<img[^>]+>`),
-		aTagRe:   regexp.MustCompile(`<\s*a\b[^>]*>`),
+		imgRe:    a11yImgTagRe,
+		aTagRe:   a11yATagRe,
 		ignored:  ignored,
 	}
 }
@@ -202,12 +212,12 @@ func runA11y(cmd *cobra.Command, args []string) error {
 		".vue": true, ".svelte": true,
 	}
 
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			name := info.Name()
+		if d.IsDir() {
+			name := d.Name()
 			if name == "node_modules" || name == ".git" || name == "dist" || name == "build" {
 				return filepath.SkipDir
 			}
