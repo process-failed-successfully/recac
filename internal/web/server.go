@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"recac/internal/db"
 	"recac/internal/runner"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 	"time"
@@ -19,10 +20,11 @@ var staticFiles embed.FS
 
 // Server handles the web visualization
 type Server struct {
-	store     db.Store
-	port      int
-	projectID string
-	srv       *http.Server
+	store       db.Store
+	port        int
+	projectID   string
+	srv         *http.Server
+	OpenBrowser bool
 }
 
 // NewServer creates a new web server
@@ -67,7 +69,16 @@ func (s *Server) Start() error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	fmt.Printf("Starting dashboard at http://%s\n", addr)
+	dashboardURL := fmt.Sprintf("http://%s", addr)
+	fmt.Printf("Starting dashboard at %s\n", dashboardURL)
+
+	if s.OpenBrowser {
+		go func() {
+			time.Sleep(100 * time.Millisecond) // Give the server a tiny bit of time to bind
+			_ = utils.OpenBrowser(dashboardURL)
+		}()
+	}
+
 	return s.srv.ListenAndServe()
 }
 
