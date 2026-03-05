@@ -569,7 +569,17 @@ func cancelAllJobs(host string) tea.Cmd {
 		if resp.StatusCode != http.StatusOK {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
-		return actionMsg{Message: "Cancelled All Jobs"}
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return actionMsg{Err: fmt.Errorf("failed to parse response: %v", err)}
+		}
+		canceled, ok := result["canceled"].(float64)
+		if !ok {
+			return actionMsg{Err: fmt.Errorf("invalid response format")}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Cancelled %d Jobs", int(canceled))}
 	}
 }
 

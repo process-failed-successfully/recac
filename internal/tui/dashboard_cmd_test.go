@@ -219,3 +219,38 @@ func TestCmd_RetryJob_Error(t *testing.T) {
 	assert.NotNil(t, aMsg.Err)
 	assert.Contains(t, aMsg.Err.Error(), "status 500")
 }
+
+func TestCmd_CancelAllJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == "/jobs" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"canceled": 5}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cmd := cancelAllJobs(server.URL)
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Nil(t, aMsg.Err)
+	assert.Equal(t, "Cancelled 5 Jobs", aMsg.Message)
+}
+
+func TestCmd_CancelAllJobs_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Failed", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cmd := cancelAllJobs(server.URL)
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NotNil(t, aMsg.Err)
+	assert.Contains(t, aMsg.Err.Error(), "status 500")
+}

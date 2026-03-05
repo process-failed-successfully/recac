@@ -1,0 +1,41 @@
+<<<<<<< SEARCH
+func TestCmd_CancelAllJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == "/jobs" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"canceled": 5}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cmd := cancelAllJobs(server.URL)
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Nil(t, aMsg.Err)
+	assert.Equal(t, "Cancelled All Jobs", aMsg.Message)
+}
+=======
+func TestCmd_CancelAllJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == "/jobs" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"canceled": 5}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cmd := cancelAllJobs(server.URL)
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Nil(t, aMsg.Err)
+	assert.Equal(t, "Cancelled 5 Jobs", aMsg.Message)
+}
+>>>>>>> REPLACE
