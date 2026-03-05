@@ -381,4 +381,139 @@ func TestRegisterAPI(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
+
+	// 11. Test GitLab Webhook
+	t.Run("GitLab Webhook - Issue", func(t *testing.T) {
+		viper.Set("orchestrator.gitlab_webhook_secret", "my-gitlab-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{
+			"object_kind": "issue",
+			"object_attributes": map[string]interface{}{
+				"action": "open",
+				"iid":    float64(42),
+				"title":  "Test Issue",
+				"description": "This is a test issue",
+			},
+			"project": map[string]interface{}{
+				"web_url": "https://gitlab.example.com/owner/repo",
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		mac := hmac.New(sha256.New, []byte("my-gitlab-secret"))
+		mac.Write(body)
+
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+			return i.ID == "gl-42" &&
+				i.Summary == "Test Issue" &&
+				i.Description == "This is a test issue" &&
+				i.RepoURL == "https://gitlab.example.com/owner/repo" &&
+				i.EnvVars["GITLAB_ISSUE"] == "42"
+		})).Return(nil)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
+		req.Header.Set("X-Gitlab-Event", "Issue Hook")
+		req.Header.Set("X-Gitlab-Token", "my-gitlab-secret")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	})
+
+	t.Run("GitLab Webhook - Note on Issue", func(t *testing.T) {
+		viper.Set("orchestrator.gitlab_webhook_secret", "my-gitlab-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{
+			"object_kind": "note",
+			"object_attributes": map[string]interface{}{
+				"noteable_type": "Issue",
+				"note": "This is a comment",
+			},
+			"issue": map[string]interface{}{
+				"iid": float64(43),
+				"title": "Issue with comment",
+				"description": "Original description",
+			},
+			"project": map[string]interface{}{
+				"git_http_url": "https://gitlab.example.com/owner/repo.git",
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+			return i.ID == "gl-43" &&
+				i.Summary == "Issue with comment" &&
+				strings.Contains(i.Description, "This is a comment") &&
+				strings.Contains(i.Description, "Original description") &&
+				i.RepoURL == "https://gitlab.example.com/owner/repo.git" &&
+				i.EnvVars["GITLAB_ISSUE"] == "43"
+		})).Return(nil)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
+		req.Header.Set("X-Gitlab-Event", "Note Hook")
+		req.Header.Set("X-Gitlab-Token", "my-gitlab-secret")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	})
+
+	t.Run("GitLab Webhook - Invalid Token", func(t *testing.T) {
+		viper.Set("orchestrator.gitlab_webhook_secret", "my-gitlab-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{"object_kind": "issue"}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
+		req.Header.Set("X-Gitlab-Event", "Issue Hook")
+		req.Header.Set("X-Gitlab-Token", "wrong-secret")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("GitLab Webhook - Missing Token", func(t *testing.T) {
+		viper.Set("orchestrator.gitlab_webhook_secret", "my-gitlab-secret")
+		defer viper.Reset()
+
+		payload := map[string]interface{}{"object_kind": "issue"}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
+		req.Header.Set("X-Gitlab-Event", "Issue Hook")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("GitLab Webhook - Ignored Event", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader("{}"))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("GitLab Webhook - Ignored Action", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"object_kind": "issue",
+			"object_attributes": map[string]interface{}{
+				"action": "close",
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
+		req.Header.Set("X-Gitlab-Event", "Issue Hook")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
 }

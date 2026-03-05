@@ -252,6 +252,138 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "GitHub Webhook Job %s submitted successfully", jobID)
 	})
 
+	mux.HandleFunc("POST /webhook/gitlab", func(w http.ResponseWriter, r *http.Request) {
+		event := r.Header.Get("X-Gitlab-Event")
+		if event != "Issue Hook" && event != "Note Hook" {
+			// Ignore other events
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Read body for validation/parsing
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+		// Restore body for any subsequent reading if necessary
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		secret := viper.GetString("orchestrator.gitlab_webhook_secret")
+		if secret != "" {
+			token := r.Header.Get("X-Gitlab-Token")
+			if token == "" {
+				http.Error(w, "Missing X-Gitlab-Token header", http.StatusUnauthorized)
+				return
+			}
+			// Use constant-time comparison to prevent timing attacks
+			if !hmac.Equal([]byte(token), []byte(secret)) {
+				http.Error(w, "Invalid X-Gitlab-Token header", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		objectKind, _ := payload["object_kind"].(string)
+
+		// Check if it's an issue or note on an issue
+		if objectKind == "note" {
+			attr, _ := payload["object_attributes"].(map[string]interface{})
+			if noteableType, ok := attr["noteable_type"].(string); !ok || noteableType != "Issue" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+		} else if objectKind != "issue" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Extract action from object_attributes.action
+		attr, ok := payload["object_attributes"].(map[string]interface{})
+		if !ok {
+			http.Error(w, "Missing object_attributes in payload", http.StatusBadRequest)
+			return
+		}
+
+		action, _ := attr["action"].(string)
+		if objectKind == "issue" && action != "open" && action != "reopen" && action != "update" {
+			// We only care about specific actions for issues
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// For notes, the action might not be explicitly set, but object_kind == note means a comment was made
+		// We can proceed.
+
+		// Extract fields
+		var issue map[string]interface{}
+		if objectKind == "issue" {
+			issue = attr
+		} else if objectKind == "note" {
+			issue, ok = payload["issue"].(map[string]interface{})
+			if !ok {
+				http.Error(w, "Missing issue in note payload", http.StatusBadRequest)
+				return
+			}
+		}
+
+		projectMap, ok := payload["project"].(map[string]interface{})
+		if !ok {
+			http.Error(w, "Missing project in payload", http.StatusBadRequest)
+			return
+		}
+
+		repoURL, _ := projectMap["git_http_url"].(string)
+		if repoURL == "" {
+			repoURL, _ = projectMap["web_url"].(string) // Fallback
+		}
+
+		issueNum, _ := issue["iid"].(float64)
+		title, _ := issue["title"].(string)
+		description, _ := issue["description"].(string)
+
+		// If it's a comment, use the comment body and append to description
+		if objectKind == "note" {
+			if commentBody, ok := attr["note"].(string); ok {
+				description = fmt.Sprintf("Comment:\n%s\n\nIssue Context:\n%s", commentBody, description)
+			}
+		}
+
+		if repoURL == "" || issueNum == 0 {
+			http.Error(w, "Missing required fields (project.git_http_url or issue.iid)", http.StatusBadRequest)
+			return
+		}
+
+		jobID := fmt.Sprintf("gl-%d", int(issueNum))
+
+		item := WorkItem{
+			ID:          jobID,
+			Summary:     title,
+			Description: description,
+			RepoURL:     repoURL,
+			EnvVars: map[string]string{
+				"GITLAB_ISSUE": fmt.Sprintf("%d", int(issueNum)),
+			},
+		}
+
+		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, "GitLab Webhook Job %s submitted successfully", jobID)
+	})
+
 	mux.HandleFunc("POST /pause", func(w http.ResponseWriter, r *http.Request) {
 		orch.Pause()
 		w.WriteHeader(http.StatusOK)
