@@ -369,7 +369,7 @@ func (m DashboardModel) View() string {
 		if len(m.jobs) == 0 {
 			msg := "No active jobs found.\n\nPress 'h' to view history."
 			if m.showHistory {
-				msg = "No job history found."
+				msg = "No job history found.\n\nPress 'h' to view active jobs."
 			}
 
 			// Create a style that mimics the table's dimensions to prevent layout shifts
@@ -408,9 +408,9 @@ func (m DashboardModel) View() string {
 		// Create a modal dialog
 		var dialogMsg string
 		if m.pendingAction == "cancel all" {
-			dialogMsg = "Are you sure you want to cancel ALL active jobs?\n\n(y/n)"
+			dialogMsg = "Are you sure you want to cancel ALL active jobs?\n\n(y/Enter: confirm, n/Esc: cancel)"
 		} else {
-			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/n)", m.pendingAction, m.pendingJobId)
+			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
 
 		dialogWidth := 50
