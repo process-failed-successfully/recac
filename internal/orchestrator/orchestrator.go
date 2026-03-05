@@ -27,6 +27,7 @@ type Orchestrator struct {
 	maxHistory    int
 	paused        bool
 	Persistence   Persistence
+	forcePollCh   chan struct{}
 }
 
 type JobInfo struct {
@@ -56,6 +57,16 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		PollInterval: pollInterval,
 		activeJobs:   make(map[string]JobInfo),
 		maxHistory:   50, // Default history size
+		forcePollCh:  make(chan struct{}, 1),
+	}
+}
+
+// ForcePoll triggers an immediate poll cycle.
+func (o *Orchestrator) ForcePoll() {
+	select {
+	case o.forcePollCh <- struct{}{}:
+	default:
+		// Already a poll pending
 	}
 }
 
@@ -463,6 +474,17 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				poll()
 			} else {
 				logger.Debug("Orchestrator is paused, skipping poll")
+			}
+		case <-o.forcePollCh:
+			o.mu.RLock()
+			paused := o.paused
+			o.mu.RUnlock()
+
+			if !paused {
+				logger.Info("Force poll triggered")
+				poll()
+			} else {
+				logger.Debug("Orchestrator is paused, skipping force poll")
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -314,4 +315,52 @@ func TestOrchestrator_CancelAllJobs(t *testing.T) {
 	// Verify active jobs is now 0
 	activeJobs = orch.GetActiveJobs()
 	assert.Len(t, activeJobs, 0)
+}
+
+func TestOrchestrator_ForcePoll(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockSpawner := new(MockSpawner)
+
+	// Single item to be returned by Poll
+	item := WorkItem{ID: "TASK-1"}
+	mockPoller := newMockPoller([]WorkItem{item})
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	// Set a very long interval so it won't tick normally during the test.
+	orch := New(mockPoller, mockSpawner, 1*time.Hour)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// WaitGroup to track completion
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		_ = orch.Run(ctx, logger)
+	}()
+
+	// Wait for the initial poll (it happens before the loop).
+	time.Sleep(50 * time.Millisecond)
+
+	// Now add a new item and trigger a force poll
+	newItem := WorkItem{ID: "TASK-2"}
+	mockPoller.itemsMu.Lock()
+	mockPoller.items["TASK-2"] = newItem
+	mockPoller.itemsMu.Unlock()
+
+	orch.ForcePoll()
+
+	// Wait a moment for the poll to process
+	time.Sleep(50 * time.Millisecond)
+
+	// Check if TASK-2 was spawned
+	mockSpawner.AssertCalled(t, "Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+		return i.ID == "TASK-2"
+	}))
+
+	// Cleanup
+	cancel()
+	wg.Wait()
 }

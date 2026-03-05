@@ -121,6 +121,12 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"canceled": %d}`, count)
 	})
 
+	mux.HandleFunc("POST /poll", func(w http.ResponseWriter, r *http.Request) {
+		orch.ForcePoll()
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "Orchestrator poll triggered")
+	})
+
 	mux.HandleFunc("POST /jobs", func(w http.ResponseWriter, r *http.Request) {
 		var item WorkItem
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {

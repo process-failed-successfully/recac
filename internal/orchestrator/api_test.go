@@ -382,6 +382,17 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
+	// 10.5 Test Force Poll
+	t.Run("Force Poll Endpoint", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/poll", nil)
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		body, _ := io.ReadAll(resp.Body)
+		assert.Contains(t, string(body), "Orchestrator poll triggered")
+	})
+
 	// 11. Test GitLab Webhook
 	t.Run("GitLab Webhook - Issue", func(t *testing.T) {
 		viper.Set("orchestrator.gitlab_webhook_secret", "my-gitlab-secret")
