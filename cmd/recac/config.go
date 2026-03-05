@@ -32,6 +32,7 @@ func init() {
 	configCmd.AddCommand(setCmd)
 	configCmd.AddCommand(unsetCmd)
 	configCmd.AddCommand(configExportCmd)
+	configCmd.AddCommand(configSecretsCmd)
 	// configResetCmd is added in cmd/recac/config_reset.go init()
 	rootCmd.AddCommand(configCmd)
 }
