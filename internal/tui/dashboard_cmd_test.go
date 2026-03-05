@@ -58,6 +58,40 @@ func TestCmd_FetchStatus_Error(t *testing.T) {
 	assert.NotNil(t, sMsg.Err)
 }
 
+func TestCmd_RetryFailedJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/jobs/retry-failed" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"retried": 3}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cmd := retryFailedJobs(server.URL)
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Nil(t, aMsg.Err)
+	assert.Equal(t, "Retried 3 failed jobs", aMsg.Message)
+}
+
+func TestCmd_RetryFailedJobs_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Failed", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cmd := retryFailedJobs(server.URL)
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NotNil(t, aMsg.Err)
+}
+
 func TestCmd_FetchJobDetails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/jobs/JOB-1" {

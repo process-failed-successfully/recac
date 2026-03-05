@@ -68,6 +68,18 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "retry", m.pendingAction)
 	})
 
+	t.Run("Retry Failed Key (R)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "retry failed", m.pendingAction)
+		assert.Equal(t, "FAILED", m.pendingJobId)
+	})
+
 	t.Run("Quit Key (q)", func(t *testing.T) {
 		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 		m, ok := updatedModel.(DashboardModel)

@@ -107,4 +107,26 @@ func TestDashboardModel_ConfirmationFlow(t *testing.T) {
 	assert.Equal(t, "", m.pendingJobId)
 	assert.Equal(t, "", m.pendingAction)
 	assert.NotNil(t, cmd) // Should have returned the cancel all command
+
+	// 6. Retry Failed flow
+	m.viewState = viewMain
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	m = updatedModel.(DashboardModel)
+
+	assert.Equal(t, viewConfirmation, m.viewState)
+	assert.Equal(t, "FAILED", m.pendingJobId)
+	assert.Equal(t, "retry failed", m.pendingAction)
+
+	// Verify View contains Retry Failed confirmation message
+	view = m.View()
+	assert.Contains(t, view, "Are you sure you want to retry ALL failed")
+
+	// Confirm Retry Failed
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	m = updatedModel.(DashboardModel)
+
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Equal(t, "", m.pendingJobId)
+	assert.Equal(t, "", m.pendingAction)
+	assert.NotNil(t, cmd) // Should have returned the retry failed command
 }
