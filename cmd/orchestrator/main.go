@@ -108,6 +108,10 @@ func main() {
 	pflag.String("asana-token", "", "Asana API Token (for 'asana' poller)")
 	pflag.String("asana-project", "", "Asana Project ID (for 'asana' poller)")
 
+	pflag.String("notion-token", "", "Notion API Token (for 'notion' poller)")
+	pflag.String("notion-database-id", "", "Notion Database ID (for 'notion' poller)")
+	pflag.String("notion-label", "", "Notion Label/Tag to poll for (defaults to jira-label if not set)")
+
 	pflag.Parse()
 
 	// Config
@@ -189,6 +193,10 @@ func main() {
 	viper.BindPFlag("orchestrator.asana_token", pflag.Lookup("asana-token"))
 	viper.BindPFlag("orchestrator.asana_project", pflag.Lookup("asana-project"))
 
+	viper.BindPFlag("orchestrator.notion_token", pflag.Lookup("notion-token"))
+	viper.BindPFlag("orchestrator.notion_database_id", pflag.Lookup("notion-database-id"))
+	viper.BindPFlag("orchestrator.notion_label", pflag.Lookup("notion-label"))
+
 	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
 	// Explicitly bind cleaner env vars
@@ -216,6 +224,9 @@ func main() {
 	viper.BindEnv("orchestrator.trello_list", "RECAC_TRELLO_LIST")
 	viper.BindEnv("orchestrator.asana_token", "RECAC_ASANA_TOKEN", "ASANA_TOKEN")
 	viper.BindEnv("orchestrator.asana_project", "RECAC_ASANA_PROJECT")
+	viper.BindEnv("orchestrator.notion_token", "RECAC_NOTION_TOKEN", "NOTION_TOKEN")
+	viper.BindEnv("orchestrator.notion_database_id", "RECAC_NOTION_DATABASE_ID", "NOTION_DATABASE_ID")
+	viper.BindEnv("orchestrator.notion_label", "RECAC_NOTION_LABEL", "NOTION_LABEL")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -453,6 +464,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		poller = orchestrator.NewAsanaPoller(token, project)
 		logger.Info("Using Asana poller", "project", project)
+	case "notion":
+		token := viper.GetString("orchestrator.notion_token")
+		dbID := viper.GetString("orchestrator.notion_database_id")
+		ntLabel := viper.GetString("orchestrator.notion_label")
+		if ntLabel == "" {
+			ntLabel = label // Fallback to jira-label
+		}
+
+		if token == "" || dbID == "" {
+			return fmt.Errorf("Notion token and database ID must be specified in notion poller mode")
+		}
+		poller = orchestrator.NewNotionPoller(token, dbID, ntLabel)
+		logger.Info("Using Notion poller", "database_id", dbID, "label", ntLabel)
 	default:
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
