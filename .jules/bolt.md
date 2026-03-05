@@ -1,13 +1,3 @@
-## 2024-03-24 - File Traversal Performance
-**Learning:** `filepath.Walk` is significantly slower than `filepath.WalkDir` due to the overhead of `os.Lstat` calls for every file and directory visited.
-**Action:** Always prefer `filepath.WalkDir` when traversing directories in Go to improve performance, especially when there are many files.
-
-## 2026-03-02 - Package-level regex compilation in Go
-**Learning:** In Go, calling `regexp.MustCompile` inside a function that is frequently executed (like parsing HTML content in `cleanPageText` inside a loop) can severely degrade performance due to repetitive compilation overhead.
-**Action:** Always hoist regex compilations to package-level variables or compile them once during initialization to avoid this unnecessary bottleneck on hot paths.
-
-## 2024-05-20 - Implemented optimize command
-
-**Learning:** When reading from stdin and determining if it is piped or terminal data, checking `/dev/stdin` is not cross-platform and can panic. Instead, `cmd.InOrStdin().(*os.File).Stat()` should be used safely to avoid crashes. Similarly, for cross-platform unified diffs, the native go-difflib library is superior to external shell commands like `diff`.
-
-**Action:** I will use `cmd.InOrStdin().(*os.File).Stat()` for terminal checks and `go-difflib` for unified diffs in Go CLIs instead of assuming POSIX capabilities.
+## 2025-03-05 - Avoid repeatedly compiling regular expressions
+**Learning:** Compiling a regular expression is a relatively expensive operation because it parses the pattern and constructs a state machine. Compiling it inside a function means it gets re-compiled every single time the function is called.
+**Action:** Always hoist `regexp.MustCompile` to the package level as a global variable. This ensures it is compiled exactly once when the package is initialized, which is a classic and highly recommended Go performance optimization.

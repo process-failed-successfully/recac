@@ -145,19 +145,15 @@ func runBench(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+var benchOutputRegex = regexp.MustCompile(`^(Benchmark.*?)(?:-\d+)?\s+(\d+)\s+(\d+(?:\.\d+)?)\s+ns/op(?:\s+(\d+(?:\.\d+)?)\s+MB/s)?(?:\s+(\d+)\s+B/op)?(?:\s+(\d+)\s+allocs/op)?`)
+
 func parseBenchOutput(output string) ([]BenchResult, error) {
 	var results []BenchResult
 	scanner := bufio.NewScanner(strings.NewReader(output))
 
-	// Regex for standard go bench output
-	// BenchmarkName-8   	10000000	       123 ns/op	      10 B/op	       1 allocs/op
-	// Optional fields: MB/s
-	// We use (Benchmark.*?) to capture the name non-greedily until the optional -N suffix or whitespace
-	re := regexp.MustCompile(`^(Benchmark.*?)(?:-\d+)?\s+(\d+)\s+(\d+(?:\.\d+)?)\s+ns/op(?:\s+(\d+(?:\.\d+)?)\s+MB/s)?(?:\s+(\d+)\s+B/op)?(?:\s+(\d+)\s+allocs/op)?`)
-
 	for scanner.Scan() {
 		line := scanner.Text()
-		matches := re.FindStringSubmatch(line)
+		matches := benchOutputRegex.FindStringSubmatch(line)
 		if matches == nil {
 			continue
 		}
