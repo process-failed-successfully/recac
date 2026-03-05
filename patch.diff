@@ -1,0 +1,49 @@
+<<<<<<< SEARCH
+func cancelAllJobs(host string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs", host), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Cancelled All Jobs"}
+	}
+}
+=======
+func cancelAllJobs(host string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs", host), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return actionMsg{Err: fmt.Errorf("failed to parse response: %v", err)}
+		}
+		canceled, ok := result["canceled"].(float64)
+		if !ok {
+			return actionMsg{Err: fmt.Errorf("invalid response format")}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Cancelled %d Jobs", int(canceled))}
+	}
+}
+>>>>>>> REPLACE
