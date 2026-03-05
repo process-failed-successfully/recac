@@ -16,7 +16,6 @@ import (
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
 	"recac/internal/docker"
-	"recac/internal/git"
 	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
@@ -558,7 +557,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	repoURL := strings.TrimSuffix(matches[1], ".git")
 	logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 
-	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
+	if _, err := cmdutils.SetupWorkspace(ctx, gitClientFactory(), repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		exit(1)
 	}
@@ -686,7 +685,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 
 		// Get the starting commit SHA
 		var startSHA string
-		gitClient := git.NewClient()
+		gitClient := gitClientFactory()
 		sha, err := gitClient.CurrentCommitSHA(projectPath)
 		if err != nil {
 			fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
@@ -841,7 +840,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 
 	// Get the starting commit SHA for interactive sessions
 	var startSHA string
-	gitClient := git.NewClient()
+	gitClient := gitClientFactory()
 	if sha, err := gitClient.CurrentCommitSHA(projectPath); err == nil {
 		startSHA = sha
 	} else {
