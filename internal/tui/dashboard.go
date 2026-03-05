@@ -294,6 +294,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.viewState = viewConfirmation
 				return m, nil
 			}
+		case "R":
+			m.pendingJobId = "FAILED"
+			m.pendingAction = "retry failed"
+			m.viewState = viewConfirmation
+			return m, nil
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
@@ -312,6 +317,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = cancelAllJobs(m.host)
 			} else if m.pendingAction == "retry" {
 				cmd = retryJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "retry failed" {
+				cmd = retryFailedJobs(m.host)
 			}
 			m.pendingJobId = ""
 			m.pendingAction = ""
@@ -394,7 +401,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | C: cancel all | r: retry | q: quit")
+		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | C: cancel all | r: retry | R: retry failed | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -409,6 +416,8 @@ func (m DashboardModel) View() string {
 		var dialogMsg string
 		if m.pendingAction == "cancel all" {
 			dialogMsg = "Are you sure you want to cancel ALL active jobs?\n\n(y/Enter: confirm, n/Esc: cancel)"
+		} else if m.pendingAction == "retry failed" {
+			dialogMsg = "Are you sure you want to retry ALL failed jobs?\n\n(y/Enter: confirm, n/Esc: cancel)"
 		} else {
 			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
@@ -599,6 +608,35 @@ func retryJob(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Retried"}
+	}
+}
+
+func retryFailedJobs(host string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return actionMsg{Err: fmt.Errorf("failed to parse response: %v", err)}
+		}
+		retried, ok := result["retried"].(float64)
+		if !ok {
+			return actionMsg{Err: fmt.Errorf("invalid response format")}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Retried %d failed jobs", int(retried))}
 	}
 }
 
