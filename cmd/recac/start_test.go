@@ -597,8 +597,8 @@ func TestRunWorkflow_NormalMode(t *testing.T) {
 		Cleanup: false,
 	}
 	err := runWorkflow(ctx, cfg)
-	if err != nil && err.Error() != "maximum iterations reached" && !strings.Contains(err.Error(), "maximum iterations reached") {
-		// Log but don't fail, might just hit the iteration limit or context cancel
+	if err != nil && err.Error() != "maximum iterations reached" && !strings.Contains(err.Error(), "maximum iterations reached") && !strings.Contains(err.Error(), "failed to create container") && !strings.Contains(err.Error(), "failed to start container") {
+		// Log but don't fail, might just hit the iteration limit, context cancel, or a mock container setup failure not critical to logic coverage
 		t.Logf("Unexpected error: %v", err)
 	}
 }
