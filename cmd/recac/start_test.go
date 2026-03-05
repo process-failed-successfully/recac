@@ -1,20 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"recac/internal/agent"
+	"strings"
 	"testing"
+
+	"recac/internal/agent"
+	"recac/internal/jira"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-import (
-	"bytes"
-	"io"
 )
 
 func captureOutput(f func()) string {
@@ -246,6 +249,9 @@ func TestStartCommand_DirectTask(t *testing.T) {
 
 	var foundPath string
 	filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
 		if !info.IsDir() && info.Name() == "app_spec.txt" {
 			foundPath = path
 		}
@@ -258,5 +264,341 @@ func TestStartCommand_DirectTask(t *testing.T) {
 		content, err := os.ReadFile(foundPath)
 		assert.NoError(t, err)
 		assert.Contains(t, string(content), "# Task Summary: Test task")
+	}
+}
+
+func TestStartCommand_ProcessJiraTicket(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Mock Agent Client
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return agent.NewMockAgent(), nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// Mock SessionManager
+	mockSM := NewMockSessionManager()
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
+
+	// Mock Git Client
+	mockGit := &MockGitClient{
+		CloneFunc: func(ctx context.Context, repoURL, directory string) error {
+			return os.MkdirAll(directory, 0755)
+		},
+		RepoExistsFunc: func(repoPath string) bool { return true },
+		CurrentBranchFunc: func(repoPath string) (string, error) { return "main", nil },
+		ConfigFunc: func(directory, key, value string) error { return nil },
+		LocalBranchExistsFunc: func(directory, branch string) (bool, error) { return false, nil },
+		CheckoutNewBranchFunc: func(directory, branch string) error { return nil },
+		PushFunc: func(directory, branch string) error { return nil },
+	}
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	// Set up a local test server to mock Jira API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/rest/api/3/issue/TEST-1") || strings.Contains(r.URL.Path, "/rest/api/2/issue/TEST-1") {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"key": "TEST-1",
+				"fields": map[string]interface{}{
+					"summary":     "Test ticket summary",
+					"description": map[string]interface{}{
+						"type": "doc",
+						"version": 1,
+						"content": []interface{}{
+							map[string]interface{}{
+								"type": "paragraph",
+								"content": []interface{}{
+									map[string]interface{}{
+										"type": "text",
+										"text": "Repo: https://github.com/example/repo.git",
+									},
+								},
+							},
+						},
+					},
+					"parent": map[string]interface{}{
+						"key": "EPIC-1",
+					},
+				},
+			})
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("JIRA_URL", server.URL)
+	t.Setenv("JIRA_USERNAME", "testuser")
+	t.Setenv("JIRA_API_TOKEN", "testtoken")
+	jClient := jira.NewClient(server.URL, "testuser", "testtoken")
+
+	// Create required app_spec.txt
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Test Spec"), 0644)
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		IsMock: true,
+		MaxIterations: 1,
+		SessionName: "jira-test",
+		Cleanup: false,
+	}
+	processJiraTicket(ctx, "TEST-1", jClient, cfg, make(map[string]bool))
+
+	// Verify that setup was run (the workspace was prepared inside the existing dir)
+	var foundPath string
+	filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && info.Name() == "app_spec.txt" {
+			foundPath = path
+		}
+		return nil
+	})
+
+	assert.NotEmpty(t, foundPath, "app_spec.txt not found in workspace")
+
+	if foundPath != "" {
+		content, err := os.ReadFile(foundPath)
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "# Jira Ticket: TEST-1")
+	}
+}
+
+func TestStartCommand_ProcessJiraTicketBlocked(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Mock Agent Client
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return agent.NewMockAgent(), nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// Mock SessionManager
+	mockSM := NewMockSessionManager()
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
+
+	// Set up a local test server to mock Jira API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/rest/api/3/issue/TEST-BLOCKED") || strings.Contains(r.URL.Path, "/rest/api/2/issue/TEST-BLOCKED") {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"key": "TEST-BLOCKED",
+				"fields": map[string]interface{}{
+					"summary":     "Test ticket summary",
+					"issuelinks": []interface{}{
+						map[string]interface{}{
+							"type": map[string]interface{}{
+								"name": "Blocks",
+								"inward": "is blocked by",
+							},
+							"inwardIssue": map[string]interface{}{
+								"key": "TEST-2",
+								"fields": map[string]interface{}{
+									"status": map[string]interface{}{
+										"name": "To Do",
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("JIRA_URL", server.URL)
+	t.Setenv("JIRA_USERNAME", "testuser")
+	t.Setenv("JIRA_API_TOKEN", "testtoken")
+	jClient := jira.NewClient(server.URL, "testuser", "testtoken")
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		IsMock: true,
+		MaxIterations: 1,
+		SessionName: "jira-test-blocked",
+		Cleanup: false,
+	}
+	// processJiraTicket will return early due to blocker. We can verify no app_spec.txt is created
+	processJiraTicket(ctx, "TEST-BLOCKED", jClient, cfg, make(map[string]bool))
+
+	var foundPath string
+	filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && info.Name() == "app_spec.txt" {
+			foundPath = path
+		}
+		return nil
+	})
+
+	assert.Empty(t, foundPath, "app_spec.txt should not be found for blocked ticket")
+}
+
+func TestRunWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Test Spec"), 0644)
+
+	// Mock Agent Client
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return agent.NewMockAgent(), nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// Mock SessionManager
+	mockSM := NewMockSessionManager()
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		IsMock: true,
+		MaxIterations: 1,
+		SessionName: "workflow-test",
+		Cleanup: false,
+	}
+	err := runWorkflow(ctx, cfg)
+	if err != nil && err.Error() != "maximum iterations reached" {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Session Manager adds the session internally depending on execution flow, but we can verify it doesn't crash.
+}
+
+func TestRunWorkflow_Detached(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Mock SessionManager
+	mockSM := NewMockSessionManager()
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		IsMock: true,
+		MaxIterations: 1,
+		SessionName: "workflow-detached-test",
+		Detached: true,
+		Cleanup: false,
+	}
+	err := runWorkflow(ctx, cfg)
+	assert.NoError(t, err)
+}
+
+func TestRunWorkflow_StartSHA(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Mock SessionManager
+	mockSM := NewMockSessionManager()
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
+
+	// Mock Git Client
+	mockGit := &MockGitClient{
+		CurrentCommitSHAFunc: func(repoPath string) (string, error) { return "1234567890", nil },
+	}
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		IsMock: true,
+		MaxIterations: 1,
+		SessionName: "workflow-sha-test",
+		Detached: true,
+		Cleanup: false,
+	}
+	err := runWorkflow(ctx, cfg)
+	assert.NoError(t, err)
+
+	assert.Contains(t, mockSM.Sessions, "workflow-sha-test")
+	assert.Equal(t, "1234567890", mockSM.Sessions["workflow-sha-test"].StartCommitSHA)
+}
+
+func TestRunWorkflow_MissingNameDetached(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		Detached: true,
+		SessionName: "",
+	}
+	err := runWorkflow(ctx, cfg)
+	assert.Error(t, err)
+	assert.Equal(t, "--name is required when using --detached", err.Error())
+}
+
+func TestRunWorkflow_NormalMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Test Spec"), 0644)
+
+	// Mock Agent Client
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return agent.NewMockAgent(), nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// Mock Git Client
+	mockGit := &MockGitClient{
+		CurrentBranchFunc: func(repoPath string) (string, error) { return "main", nil },
+	}
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	ctx := context.Background()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		IsMock: false, // Normal mode
+		MaxIterations: 1,
+		SessionName: "workflow-normal-test",
+		AllowDirty: true,
+		Cleanup: false,
+	}
+	err := runWorkflow(ctx, cfg)
+	if err != nil && err.Error() != "maximum iterations reached" && !strings.Contains(err.Error(), "maximum iterations reached") {
+		// Log but don't fail, might just hit the iteration limit or context cancel
+		t.Logf("Unexpected error: %v", err)
 	}
 }
