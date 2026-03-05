@@ -528,3 +528,36 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 }
+
+func TestAPI_ClearHistory(t *testing.T) {
+	orch := New(&mockPoller{}, &mockSpawner{}, 0)
+	orch.completedJobs = []JobInfo{{ID: "1"}, {ID: "2"}} // add mock completed jobs
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	t.Run("DELETE /history", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, "/history", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		var res map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		count := res["cleared"].(float64)
+		assert.Equal(t, float64(2), count)
+		assert.Len(t, orch.GetCompletedJobs(), 0)
+	})
+
+	t.Run("GET /history returns 405", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/history", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+	})
+}

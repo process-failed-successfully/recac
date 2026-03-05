@@ -21,6 +21,9 @@ func (m *mockPersistenceError) GetJob(id string) (*JobInfo, error) {
 func (m *mockPersistenceError) GetJobs(limit int) ([]JobInfo, error) {
 	return nil, errors.New("list failed")
 }
+func (m *mockPersistenceError) ClearHistory() (int, error) {
+	return 0, errors.New("clear failed")
+}
 
 func TestOrchestrator_SpawnWorker_Failure(t *testing.T) {
 	// 1. Setup Poller with 1 item

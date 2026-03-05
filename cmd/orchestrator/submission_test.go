@@ -70,6 +70,33 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 	assert.Equal(t, "http://repo.com", item.RepoURL)
 }
 
+func TestClearHistory(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/history", r.URL.Path)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cleared": 5}`))
+	}))
+	defer server.Close()
+
+	// Redirect stdout to capture the output
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	clearHistory(server.URL)
+
+	w.Close()
+	out, _ := io.ReadAll(r)
+
+	assert.Contains(t, string(out), "Successfully cleared 5 jobs from history.")
+}
+
 func TestCancelAllJobs(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/jobs", r.URL.Path)
