@@ -411,6 +411,32 @@ func (o *Orchestrator) addToHistory(job JobInfo, logger *slog.Logger) {
 	}
 }
 
+// ClearHistory clears the in-memory history and the persistent history.
+func (o *Orchestrator) ClearHistory(logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := len(o.completedJobs)
+	o.completedJobs = nil
+
+	if o.Persistence != nil {
+		dbCount, err := o.Persistence.ClearHistory()
+		if err != nil {
+			return 0, fmt.Errorf("failed to clear persistent history: %w", err)
+		}
+		// If db has more, trust the db count
+		if dbCount > count {
+			count = dbCount
+		}
+	}
+
+	if logger != nil {
+		logger.Info("History cleared", "count", count)
+	}
+
+	return count, nil
+}
+
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	o.mu.Lock()

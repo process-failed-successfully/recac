@@ -7,8 +7,55 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+type mockPersistenceClear struct {
+	mock.Mock
+}
+
+func (m *mockPersistenceClear) Init() error                 { return nil }
+func (m *mockPersistenceClear) Close() error                { return nil }
+func (m *mockPersistenceClear) SaveJob(job JobInfo) error   { return nil }
+func (m *mockPersistenceClear) GetJob(id string) (*JobInfo, error) { return nil, nil }
+func (m *mockPersistenceClear) GetJobs(limit int) ([]JobInfo, error) { return nil, nil }
+func (m *mockPersistenceClear) ClearHistory() (int, error) {
+	args := m.Called()
+	return args.Int(0), args.Error(1)
+}
+
+func TestOrchestrator_ClearHistory(t *testing.T) {
+	// Setup orchestrator
+	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
+
+	// Add items to history
+	job1 := JobInfo{ID: "JOB-1", Status: "Completed"}
+	job2 := JobInfo{ID: "JOB-2", Status: "Failed"}
+
+	orch.completedJobs = append(orch.completedJobs, job1, job2)
+
+	assert.Len(t, orch.GetCompletedJobs(), 2)
+
+	// Clear memory history
+	count, err := orch.ClearHistory(silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+	assert.Len(t, orch.GetCompletedJobs(), 0)
+
+	// With Persistence
+	p := &mockPersistenceClear{}
+	p.On("ClearHistory").Return(3, nil) // Mock returning 3 cleared from DB
+	orch.SetPersistence(p)
+
+	orch.completedJobs = append(orch.completedJobs, job1)
+	count, err = orch.ClearHistory(silentLogger)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, count) // DB count overrides memory count if larger
+	assert.Len(t, orch.GetCompletedJobs(), 0)
+	p.AssertExpectations(t)
+}
 
 func TestOrchestrator_History_MoveToHistory(t *testing.T) {
 	poller := newMockPoller([]WorkItem{{ID: "JOB-1", Summary: "Job 1"}})

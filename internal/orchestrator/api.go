@@ -121,6 +121,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"canceled": %d}`, count)
 	})
 
+	mux.HandleFunc("DELETE /history", func(w http.ResponseWriter, r *http.Request) {
+		count, err := orch.ClearHistory(logger)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to clear history: %v", err), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]int{"cleared": count})
+	})
+
 	mux.HandleFunc("POST /poll", func(w http.ResponseWriter, r *http.Request) {
 		orch.ForcePoll()
 		w.WriteHeader(http.StatusOK)
