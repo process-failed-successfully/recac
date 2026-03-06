@@ -273,6 +273,10 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		case "h":
 			m.showHistory = !m.showHistory
 			return m, fetchStatus(m.host, m.showHistory)
+		case "p":
+			return m, togglePause(m.host, m.status.Paused)
+		case "f":
+			return m, forcePoll(m.host)
 		case "c":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -364,8 +368,14 @@ func (m DashboardModel) View() string {
 		return "Exiting dashboard...\n"
 	}
 
+	title := "Orchestrator Dashboard"
+	if m.status.Paused {
+		title += " [PAUSED]"
+	}
+
 	header := fmt.Sprintf(
-		"Orchestrator Dashboard\nHost: %s | Uptime: %s | Poll Interval: %s | Active Jobs: %d | Total Spawns: %d\nLast Poll: %s (%d items)",
+		"%s\nHost: %s | Uptime: %s | Poll Interval: %s | Active Jobs: %d | Total Spawns: %d\nLast Poll: %s (%d items)",
+		title,
 		m.host,
 		m.status.Uptime,
 		m.status.PollInterval,
@@ -408,7 +418,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | h: history | enter: details | l: logs | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -550,6 +560,52 @@ func waitForLogChunk(r io.Reader) tea.Cmd {
 		buf := make([]byte, 4096) // 4KB chunks
 		n, err := r.Read(buf)
 		return logChunkMsg{Chunk: string(buf[:n]), Err: err}
+	}
+}
+
+func togglePause(host string, isPaused bool) tea.Cmd {
+	return func() tea.Msg {
+		endpoint := "/pause"
+		if isPaused {
+			endpoint = "/resume"
+		}
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", host, endpoint), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		action := "Paused"
+		if isPaused {
+			action = "Resumed"
+		}
+		return actionMsg{Message: action}
+	}
+}
+
+func forcePoll(host string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/poll", host), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Poll triggered"}
 	}
 }
 
