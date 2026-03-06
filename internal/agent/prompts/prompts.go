@@ -48,6 +48,11 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 	var content []byte
 	var err error
 
+	// Prevent path traversal if the user supplies malicious names like "../../../etc/passwd"
+	// We only want the base file name.
+	// 🛡️ Sentinel: Mitigates Path Traversal (CWE-22)
+	name = filepath.Base(name)
+
 	// 1. Check override directory (Env)
 	if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != "" {
 		localPath := filepath.Join(overrideDir, name+".md")
