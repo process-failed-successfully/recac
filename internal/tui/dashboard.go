@@ -12,6 +12,8 @@ import (
 
 	"recac/internal/orchestrator"
 
+	"recac/internal/utils"
+
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -281,6 +283,19 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				id := selected[0]
 				return m, streamJobLogs(m.host, id)
 			}
+		case "o":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				for _, job := range m.jobs {
+					if job.ID == id {
+						if job.WorkItem.RepoURL != "" {
+							return m, openBrowserCmd(job.WorkItem.RepoURL)
+						}
+						return m, func() tea.Msg { return actionMsg{Err: fmt.Errorf("no repo url for job %s", id)} }
+					}
+				}
+			}
 		case "h":
 			m.showHistory = !m.showHistory
 			return m, fetchStatus(m.host, m.showHistory)
@@ -521,7 +536,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | h: history | enter: details | l: logs | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -819,6 +834,19 @@ func clearHistory(host string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Cleared %d jobs", int(cleared))}
+	}
+}
+
+// Allow mocking in tests
+var utilsOpenBrowser = utils.OpenBrowser
+
+func openBrowserCmd(url string) tea.Cmd {
+	return func() tea.Msg {
+		err := utilsOpenBrowser(url)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		return actionMsg{Message: "Opened browser"}
 	}
 }
 
