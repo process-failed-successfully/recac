@@ -275,6 +275,13 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// 3. Wait for Job completion
 	waitErr := s.waitForJob(ctx, jobName)
 
+	if waitErr != nil && ctx.Err() == context.DeadlineExceeded {
+		s.Logger.Warn("Job timeout exceeded, canceling K8s Job", "jobName", jobName)
+		if cancelErr := s.Cancel(context.Background(), item.ID); cancelErr != nil {
+			s.Logger.Error("failed to cancel timed out job", "jobName", jobName, "error", cancelErr)
+		}
+	}
+
 	// 4. Update session
 	finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
 
