@@ -24,6 +24,7 @@ type Orchestrator struct {
 	totalSpawns   int
 	activeJobs        map[string]JobInfo
 	completedJobs     []JobInfo
+	pendingJobs       map[string]JobInfo
 	maxHistory        int
 	paused            bool
 	Persistence       Persistence
@@ -61,6 +62,7 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		Spawner:      spawner,
 		PollInterval: pollInterval,
 		activeJobs:   make(map[string]JobInfo),
+		pendingJobs:  make(map[string]JobInfo),
 		maxHistory:   50, // Default history size
 		forcePollCh:  make(chan struct{}, 1),
 	}
@@ -113,8 +115,11 @@ func (o *Orchestrator) GetActiveJobs() []JobInfo {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	jobs := make([]JobInfo, 0, len(o.activeJobs))
+	jobs := make([]JobInfo, 0, len(o.activeJobs)+len(o.pendingJobs))
 	for _, job := range o.activeJobs {
+		jobs = append(jobs, job)
+	}
+	for _, job := range o.pendingJobs {
 		jobs = append(jobs, job)
 	}
 	return jobs
@@ -126,6 +131,11 @@ func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
 	defer o.mu.RUnlock()
 
 	job, exists := o.activeJobs[id]
+	if exists {
+		return job, nil
+	}
+
+	job, exists = o.pendingJobs[id]
 	if exists {
 		return job, nil
 	}
@@ -161,6 +171,17 @@ func (o *Orchestrator) GetCompletedJobs() []JobInfo {
 
 // CancelJob cancels a running job.
 func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
+	o.mu.Lock()
+	if job, exists := o.pendingJobs[jobID]; exists {
+		delete(o.pendingJobs, jobID)
+		job.Status = "Canceled"
+		job.EndTime = time.Now()
+		job.Error = "Canceled by user"
+		o.addToHistory(job, nil)
+		o.mu.Unlock()
+		return nil
+	}
+	o.mu.Unlock()
 	// Attempt to cancel via Spawner.
 	// We don't need to manually remove from activeJobs map because the Spawner.Spawn()
 	// call in Run()'s goroutine will return an error (or finish) upon cancellation,
@@ -170,13 +191,16 @@ func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
 
 // CancelAllJobs cancels all running jobs.
 func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
-	// Get all active job IDs first to avoid holding the lock during cancellation
-	o.mu.RLock()
+	// Get all active and pending job IDs first to avoid holding the lock during cancellation
+	o.mu.Lock()
 	var jobIDs []string
 	for id := range o.activeJobs {
 		jobIDs = append(jobIDs, id)
 	}
-	o.mu.RUnlock()
+	for id := range o.pendingJobs {
+		jobIDs = append(jobIDs, id)
+	}
+	o.mu.Unlock()
 
 	count := 0
 	var lastErr error
@@ -339,11 +363,96 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger
 	return count, nil
 }
 
+func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, string) {
+	for _, dep := range dependsOn {
+		met := false
+
+		if _, ok := o.activeJobs[dep]; ok {
+			return false, "" // Active, not met yet
+		}
+		if _, ok := o.pendingJobs[dep]; ok {
+			return false, "" // Pending, not met yet
+		}
+
+		// Check memory history (newest first)
+		for i := len(o.completedJobs) - 1; i >= 0; i-- {
+			completed := o.completedJobs[i]
+			if completed.ID == dep {
+				if completed.Status == "Completed" {
+					met = true
+				} else if completed.Status == "Failed" || completed.Status == "Canceled" {
+					return false, dep // dependency failed
+				}
+				break
+			}
+		}
+
+		// Check persistence if not found in memory history
+		if !met && o.Persistence != nil {
+			job, err := o.Persistence.GetJob(dep)
+			if err == nil {
+				if job.Status == "Completed" {
+					met = true
+				} else if job.Status == "Failed" || job.Status == "Canceled" {
+					return false, dep
+				}
+			}
+		}
+
+		if !met {
+			return false, ""
+		}
+	}
+	return true, ""
+}
+
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
 		o.mu.Unlock()
 		return fmt.Errorf("job %s is already active", item.ID)
+	}
+	if _, exists := o.pendingJobs[item.ID]; exists {
+		o.mu.Unlock()
+		return fmt.Errorf("job %s is already pending dependencies", item.ID)
+	}
+
+	if len(item.DependsOn) > 0 {
+		met, failedDep := o.checkDependenciesMetLocked(item.DependsOn)
+		if !met {
+			if failedDep != "" {
+				// Dependency failed, immediately fail this job
+				job := JobInfo{
+					ID:        item.ID,
+					Summary:   item.Summary,
+					StartTime: time.Now(),
+					EndTime:   time.Now(),
+					Status:    "Failed",
+					Error:     fmt.Sprintf("Dependency %s failed", failedDep),
+					WorkItem:  item,
+				}
+				o.addToHistory(job, logger)
+				o.mu.Unlock()
+				if logger != nil {
+					logger.Error("Job failed due to failed dependency", "id", item.ID, "dependency", failedDep)
+				}
+				return fmt.Errorf("dependency %s failed", failedDep)
+			}
+			// Valid dependencies but not yet completed
+			job := JobInfo{
+				ID:        item.ID,
+				Summary:   item.Summary,
+				StartTime: time.Now(),
+				Status:    "Pending",
+				WorkItem:  item,
+			}
+			o.pendingJobs[item.ID] = job
+			o.mu.Unlock()
+			if logger != nil {
+				logger.Info("Job pending dependencies", "id", item.ID, "depends_on", item.DependsOn)
+			}
+			return nil
+		}
 	}
 
 	if o.MaxConcurrentJobs > 0 && o.activeSpawns >= o.MaxConcurrentJobs {
@@ -396,6 +505,8 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		o.activeSpawns--
 		delete(o.activeJobs, item.ID)
 		o.mu.Unlock()
+
+		o.evaluatePendingJobs(ctx, logger)
 	}()
 
 	logger.Info("Spawning agent for item", "id", item.ID)
@@ -415,6 +526,53 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		// but status updates might happen asynchronously.
 		// For now, Spawn() implies "Started".
 		logger.Info("Agent spawned successfully", "id", item.ID)
+	}
+}
+
+func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Logger) {
+	o.mu.Lock()
+	var toProcess []WorkItem
+	for id, jobInfo := range o.pendingJobs {
+		item := jobInfo.WorkItem
+		met, failedDep := o.checkDependenciesMetLocked(item.DependsOn)
+		if met {
+			toProcess = append(toProcess, item)
+			delete(o.pendingJobs, id)
+		} else if failedDep != "" {
+			// Dependency failed, fail this job too
+			delete(o.pendingJobs, id)
+			job := JobInfo{
+				ID:        item.ID,
+				Summary:   item.Summary,
+				StartTime: time.Now(),
+				EndTime:   time.Now(),
+				Status:    "Failed",
+				Error:     fmt.Sprintf("Dependency %s failed", failedDep),
+				WorkItem:  item,
+			}
+			o.addToHistory(job, logger)
+		}
+	}
+	o.mu.Unlock()
+
+	for _, item := range toProcess {
+		if err := o.processWorkItem(ctx, item, logger); err != nil {
+			if logger != nil {
+				logger.Error("Failed to start pending job", "id", item.ID, "error", err)
+			}
+			if err == ErrAtCapacity {
+				// Put it back in pendingJobs
+				o.mu.Lock()
+				o.pendingJobs[item.ID] = JobInfo{
+					ID:        item.ID,
+					Summary:   item.Summary,
+					StartTime: time.Now(),
+					Status:    "Pending",
+					WorkItem:  item,
+				}
+				o.mu.Unlock()
+			}
+		}
 	}
 }
 
@@ -507,6 +665,9 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				}
 			}
 		}
+
+		// Also evaluate pending jobs in case capacity freed up but no jobs completed recently
+		o.evaluatePendingJobs(ctx, logger)
 	}
 
 	// Initial poll
