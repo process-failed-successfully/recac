@@ -34,6 +34,20 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.NotNil(t, cmd) // Should return fetchJobLogs
 	})
 
+	t.Run("Pause Key (p)", func(t *testing.T) {
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd) // Should return togglePause
+	})
+
+	t.Run("Force Poll Key (f)", func(t *testing.T) {
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd) // Should return fetchJobLogs
+	})
+
 	t.Run("Cancel Key (c)", func(t *testing.T) {
 		// Reset state
 		model.viewState = viewMain
