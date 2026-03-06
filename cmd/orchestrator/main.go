@@ -82,9 +82,12 @@ func main() {
 	pflag.Bool("cleanup-dry-run", false, "Janitor dry run (log only)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
-	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'gitlab', 'file', or 'file-dir'")
+	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'gitlab', 'file', 'file-dir', or 'cron'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
 	pflag.String("watch-dir", "", "Directory to watch for work item files (for 'file-dir' poller)")
+
+	pflag.String("cron-schedule", "", "Cron schedule expression (e.g. '0 0 * * *') (for 'cron' poller)")
+	pflag.String("cron-template", "cron_template.json", "Path to WorkItem JSON template (for 'cron' poller)")
 
 	pflag.String("github-token", "", "GitHub API Token (for 'github' poller)")
 	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
@@ -125,6 +128,9 @@ func main() {
 	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
 	viper.BindPFlag("orchestrator.watch_dir", pflag.Lookup("watch-dir"))
+
+	viper.BindPFlag("orchestrator.cron_schedule", pflag.Lookup("cron-schedule"))
+	viper.BindPFlag("orchestrator.cron_template", pflag.Lookup("cron-template"))
 
 	viper.BindPFlag("orchestrator.github_token", pflag.Lookup("github-token"))
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
@@ -209,6 +215,8 @@ func main() {
 	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
 	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
 	viper.BindEnv("orchestrator.watch_dir", "RECAC_WATCH_DIR")
+	viper.BindEnv("orchestrator.cron_schedule", "RECAC_CRON_SCHEDULE")
+	viper.BindEnv("orchestrator.cron_template", "RECAC_CRON_TEMPLATE")
 	viper.BindEnv("orchestrator.github_token", "RECAC_GITHUB_TOKEN", "GITHUB_TOKEN")
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
@@ -396,6 +404,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	pollerType := viper.GetString("orchestrator.poller")
 
 	switch pollerType {
+	case "cron":
+		schedule := viper.GetString("orchestrator.cron_schedule")
+		templatePath := viper.GetString("orchestrator.cron_template")
+		if schedule == "" || templatePath == "" {
+			return fmt.Errorf("cron-schedule and cron-template must be specified in cron poller mode")
+		}
+		var err error
+		poller, err = orchestrator.NewCronPoller(schedule, templatePath)
+		if err != nil {
+			return fmt.Errorf("Failed to initialize cron poller: %w", err)
+		}
+		logger.Info("Using cron poller", "schedule", schedule, "template", templatePath)
 	case "file-dir":
 		watchDir := viper.GetString("orchestrator.watch_dir")
 		if watchDir == "" {
