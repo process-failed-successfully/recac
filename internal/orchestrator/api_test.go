@@ -579,3 +579,69 @@ func TestAPI_ClearHistory(t *testing.T) {
 		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 	})
 }
+
+func TestAPI_ExportJobs(t *testing.T) {
+	poller := new(MockPoller)
+	spawner := new(MockSpawner)
+	spawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	orch := New(poller, spawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	// Add dummy jobs
+	item := WorkItem{
+		ID:          "EXPORT-1",
+		Summary:     "Summary 1",
+		Description: "Desc 1",
+		RepoURL:     "url1",
+	}
+	orch.SubmitJob(ctx, item, logger)
+
+	// It's tricky to directly inject completed jobs because we need to add to history.
+	orch.mu.Lock()
+	orch.completedJobs = []JobInfo{
+		{
+			ID:      "COMPLETED-1",
+			Summary: "A completed job, with a comma",
+			Status:  "Completed",
+			WorkItem: WorkItem{
+				RepoURL: "url2",
+			},
+		},
+	}
+	orch.mu.Unlock()
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, ctx)
+
+	t.Run("Export JSON", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/jobs/export?format=json", nil)
+		rec := httptest.NewRecorder()
+
+		mux.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		var jobs []JobInfo
+		err := json.Unmarshal(rec.Body.Bytes(), &jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 2)
+	})
+
+	t.Run("Export CSV", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/jobs/export?format=csv", nil)
+		rec := httptest.NewRecorder()
+
+		mux.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "text/csv", rec.Header().Get("Content-Type"))
+
+		body := rec.Body.String()
+		assert.Contains(t, body, "ID,Summary,Status,StartTime,EndTime,RepoURL")
+		assert.Contains(t, body, "EXPORT-1,Summary 1")
+		assert.Contains(t, body, "COMPLETED-1,\"A completed job, with a comma\"")
+	})
+}

@@ -59,6 +59,9 @@ func main() {
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
+	pflag.String("export-jobs", "", "Export all jobs to a file (use '-' for stdout)")
+	pflag.String("export-format", "json", "Format for exported jobs ('json' or 'csv')")
+
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
@@ -175,6 +178,9 @@ func main() {
 	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
+
+	viper.BindPFlag("orchestrator.export_jobs", pflag.Lookup("export-jobs"))
+	viper.BindPFlag("orchestrator.export_format", pflag.Lookup("export-format"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -377,6 +383,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		submitAdHocJob(host, submitURL, task, id, wait, envMap)
+		return nil
+	}
+
+	if exportFile := viper.GetString("orchestrator.export_jobs"); exportFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_format")
+		exportJobs(host, exportFile, format)
 		return nil
 	}
 
