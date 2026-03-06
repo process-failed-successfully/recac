@@ -13,6 +13,8 @@ import (
 	"recac/internal/orchestrator"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -43,6 +45,7 @@ const (
 	viewDetails
 	viewLogs
 	viewConfirmation
+	viewSubmit
 )
 
 type DashboardModel struct {
@@ -60,6 +63,11 @@ type DashboardModel struct {
 	showHistory   bool
 	pendingJobId  string
 	pendingAction string
+
+	// Submission form fields
+	inputs       []textinput.Model
+	textarea     textarea.Model
+	focusedInput int
 }
 
 type tickMsg time.Time
@@ -220,6 +228,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewConfirmation:
 		m, cmd = m.updateConfirmation(msg)
 		cmds = append(cmds, cmd)
+	case viewSubmit:
+		m, cmd = m.updateSubmit(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -308,6 +319,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "clear history"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "s":
+			m.viewState = viewSubmit
+			m.focusedInput = 0
+			// Reset form
+			for i := range m.inputs {
+				m.inputs[i].SetValue("")
+				m.inputs[i].Blur()
+			}
+			m.textarea.SetValue("")
+			m.textarea.Blur()
+
+			// Focus first input
+			m.inputs[0].Focus()
+			return m, textinput.Blink
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
@@ -343,6 +368,84 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 		}
 	}
 	return m, nil
+}
+
+func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEsc:
+			m.viewState = viewMain
+			return m, nil
+		case tea.KeyCtrlS:
+			// Submit form
+			summary := m.inputs[0].Value()
+			repoUrl := m.inputs[1].Value()
+			description := m.textarea.Value()
+			if summary != "" && repoUrl != "" {
+				m.viewState = viewMain
+				return m, submitJobCmd(m.host, summary, repoUrl, description)
+			}
+		case tea.KeyTab, tea.KeyShiftTab, tea.KeyEnter, tea.KeyUp, tea.KeyDown:
+			s := msg.String()
+
+			// Ignore Up, Down, and Enter for focus navigation if we are in the textarea
+			if m.focusedInput == len(m.inputs) && (s == "up" || s == "down" || s == "enter") {
+				// Let the textarea handle these keys
+				break
+			}
+
+			if s == "enter" && m.focusedInput < len(m.inputs) {
+				m.focusedInput++
+			} else if s == "up" || s == "shift+tab" {
+				m.focusedInput--
+			} else if s == "down" || s == "tab" {
+				m.focusedInput++
+			}
+
+			if m.focusedInput < 0 {
+				m.focusedInput = len(m.inputs) // focus textarea
+			} else if m.focusedInput > len(m.inputs) {
+				m.focusedInput = 0 // loop back
+			}
+
+			cmds = append(cmds, m.updateFocus()...)
+			return m, tea.Batch(cmds...)
+		}
+	}
+
+	// Route msg to the focused component
+	var cmd tea.Cmd
+	if m.focusedInput < len(m.inputs) {
+		m.inputs[m.focusedInput], cmd = m.inputs[m.focusedInput].Update(msg)
+	} else {
+		m.textarea, cmd = m.textarea.Update(msg)
+	}
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
+}
+
+func (m *DashboardModel) updateFocus() []tea.Cmd {
+	var cmds []tea.Cmd
+	for i := 0; i < len(m.inputs); i++ {
+		if i == m.focusedInput {
+			cmds = append(cmds, m.inputs[i].Focus())
+			m.inputs[i].PromptStyle = titleStyle
+			m.inputs[i].TextStyle = titleStyle
+		} else {
+			m.inputs[i].Blur()
+			m.inputs[i].PromptStyle = lipgloss.NewStyle()
+			m.inputs[i].TextStyle = lipgloss.NewStyle()
+		}
+	}
+	if m.focusedInput == len(m.inputs) {
+		cmds = append(cmds, m.textarea.Focus())
+	} else {
+		m.textarea.Blur()
+	}
+	return cmds
 }
 
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
@@ -467,6 +570,20 @@ func (m DashboardModel) View() string {
 		contentView = containerStyle.Render(contentView)
 
 		helpView = statusStyle.Render("y/enter: confirm | n/q/esc: cancel")
+	case viewSubmit:
+		var sb strings.Builder
+		sb.WriteString("Submit Ad-hoc Job\n\n")
+
+		for i := range m.inputs {
+			sb.WriteString(m.inputs[i].View())
+			sb.WriteString("\n\n")
+		}
+
+		sb.WriteString("Description:\n")
+		sb.WriteString(m.textarea.View())
+
+		contentView = baseStyle.Render(sb.String())
+		helpView = statusStyle.Render("tab/shift+tab/up/down: focus | ctrl+s: submit | esc: cancel")
 	}
 
 	if m.err != nil {
@@ -705,6 +822,45 @@ func clearHistory(host string) tea.Cmd {
 	}
 }
 
+func submitJobCmd(host, summary, repoUrl, description string) tea.Cmd {
+	return func() tea.Msg {
+		// Use a timestamp-based ID or a unique ID.
+		// For simplicity, generating an ad-hoc ID
+		jobID := fmt.Sprintf("adhoc-%d", time.Now().Unix())
+
+		item := orchestrator.WorkItem{
+			ID:          jobID,
+			Summary:     summary,
+			RepoURL:     repoUrl,
+			Description: description,
+		}
+
+		bodyBytes, err := json.Marshal(item)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs", host), strings.NewReader(string(bodyBytes)))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusAccepted {
+			respBody, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(respBody))}
+		}
+
+		return actionMsg{Message: "Job submitted successfully"}
+	}
+}
+
 func retryFailedJobs(host string) tea.Cmd {
 	return func() tea.Msg {
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
@@ -736,6 +892,25 @@ func retryFailedJobs(host string) tea.Cmd {
 
 // NewDashboardModel initializes a new DashboardModel with default styles
 func NewDashboardModel(host string) DashboardModel {
+	// Initialize inputs for submission form
+	inputs := make([]textinput.Model, 2)
+
+	inputs[0] = textinput.New()
+	inputs[0].Placeholder = "Fix login issue"
+	inputs[0].Prompt = "Summary: "
+	inputs[0].Focus() // Default focus
+	inputs[0].Width = 50
+
+	inputs[1] = textinput.New()
+	inputs[1].Placeholder = "https://github.com/org/repo"
+	inputs[1].Prompt = "Repo URL: "
+	inputs[1].Width = 50
+
+	ta := textarea.New()
+	ta.Placeholder = "Detailed description of the issue..."
+	ta.SetHeight(10)
+	ta.SetWidth(60)
+
 	columns := []table.Column{
 		{Title: "ID", Width: 15},
 		{Title: "Summary", Width: 40},
@@ -770,6 +945,8 @@ func NewDashboardModel(host string) DashboardModel {
 		table:     t,
 		viewport:  vp,
 		viewState: viewMain,
+		inputs:    inputs,
+		textarea:  ta,
 	}
 }
 
