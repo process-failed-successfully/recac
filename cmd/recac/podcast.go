@@ -15,6 +15,10 @@ var (
 	podcastSince  string
 	podcastOutput string
 	podcastSpeak  bool
+
+	// Pre-compile regular expressions for TTS cleanup to avoid recompilation
+	ttsRemoveMarkupRe = regexp.MustCompile(`[\*\_]{1,2}`)
+	ttsRemoveHeaderRe = regexp.MustCompile(`(?m)^#+.*$`)
 )
 
 var podcastCmd = &cobra.Command{
@@ -172,12 +176,10 @@ func speakScript(script string) error {
 
 func cleanForTTS(text string) string {
 	// Remove markdown bold/italic (** or __ or *)
-	re := regexp.MustCompile(`[\*\_]{1,2}`)
-	text = re.ReplaceAllString(text, "")
+	text = ttsRemoveMarkupRe.ReplaceAllString(text, "")
 
 	// Remove Headers (#) at start of line (entire line)
-	reHead := regexp.MustCompile(`(?m)^#+.*$`)
-	text = reHead.ReplaceAllString(text, "")
+	text = ttsRemoveHeaderRe.ReplaceAllString(text, "")
 
 	return text
 }
