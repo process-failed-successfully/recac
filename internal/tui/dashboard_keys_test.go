@@ -27,6 +27,55 @@ func TestDashboardModel_Keys(t *testing.T) {
 		},
 	}
 
+	t.Run("Open Repo Key (o)", func(t *testing.T) {
+		// Store original util function and restore it later to mock browser opening
+		originalOpenBrowser := utilsOpenBrowser
+		defer func() { utilsOpenBrowser = originalOpenBrowser }()
+
+		browserOpened := false
+		openedUrl := ""
+		utilsOpenBrowser = func(url string) error {
+			browserOpened = true
+			openedUrl = url
+			return nil
+		}
+
+		// Ensure job has a RepoURL
+		if len(model.jobs) > 0 {
+			model.jobs[0].WorkItem.RepoURL = "https://github.com/org/test-repo"
+		}
+
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd) // Should return openBrowserCmd
+
+		msg := cmd()
+		action, isAction := msg.(actionMsg)
+		assert.True(t, isAction)
+		assert.Equal(t, "Opened browser", action.Message)
+		assert.True(t, browserOpened)
+		assert.Equal(t, "https://github.com/org/test-repo", openedUrl)
+	})
+
+	t.Run("Open Repo Key (o) - No URL", func(t *testing.T) {
+		// Ensure job has no RepoURL
+		if len(model.jobs) > 0 {
+			model.jobs[0].WorkItem.RepoURL = ""
+		}
+
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd)
+
+		msg := cmd()
+		action, isAction := msg.(actionMsg)
+		assert.True(t, isAction)
+		assert.Error(t, action.Err)
+		assert.Contains(t, action.Err.Error(), "no repo url")
+	})
+
 	t.Run("Logs Key (l)", func(t *testing.T) {
 		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
 		_, ok := updatedModel.(DashboardModel)
