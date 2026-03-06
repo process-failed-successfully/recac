@@ -2,11 +2,14 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // TestOrchestrator_JobTracking tests that active jobs are correctly tracked
@@ -100,3 +103,203 @@ func (s *timeoutSpawner) Cleanup(ctx context.Context, item WorkItem) error { ret
 func (s *timeoutSpawner) Cancel(ctx context.Context, jobID string) error { return nil }
 func (s *timeoutSpawner) Ping(ctx context.Context) error { return nil }
 func (s *timeoutSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) { return nil, nil }
+
+func TestOrchestrator_JobDependencies(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+
+	mockPoller.On("Poll", mock.Anything, mock.Anything).Return([]WorkItem{}, nil)
+
+	orch := New(mockPoller, mockSpawner, 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 1. Submit Job A and Job B (B depends on A)
+	jobA := WorkItem{ID: "JOB-A"}
+	jobB := WorkItem{ID: "JOB-B", DependsOn: []string{"JOB-A"}}
+
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-A"
+	})).Return(nil).Run(func(args mock.Arguments) {
+		// Simulate Job A taking some time, then finishing
+		time.Sleep(50 * time.Millisecond)
+	}).Once()
+
+	// B should only be spawned AFTER A finishes
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-B"
+	})).Return(nil).Run(func(args mock.Arguments) {
+	}).Once()
+
+	go orch.Run(ctx, logger)
+	time.Sleep(10 * time.Millisecond) // Let it start
+
+	err := orch.SubmitJob(ctx, jobA, logger)
+	assert.NoError(t, err)
+
+	err = orch.SubmitJob(ctx, jobB, logger)
+	assert.NoError(t, err)
+
+	// B should be pending initially
+	jobBInfo, err := orch.GetJob("JOB-B")
+	assert.NoError(t, err)
+	assert.Equal(t, "Pending", jobBInfo.Status)
+
+	// Wait for B to complete
+	time.Sleep(200 * time.Millisecond)
+
+	jobBInfo, err = orch.GetJob("JOB-B")
+	assert.NoError(t, err)
+	assert.Equal(t, "Completed", jobBInfo.Status)
+
+	mockSpawner.AssertExpectations(t)
+}
+
+func TestOrchestrator_JobDependenciesFailed(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+
+	mockPoller.On("Poll", mock.Anything, mock.Anything).Return([]WorkItem{}, nil)
+
+	orch := New(mockPoller, mockSpawner, 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 1. Submit Job A and Job B (B depends on A)
+	jobA := WorkItem{ID: "JOB-A-FAIL"}
+	jobB := WorkItem{ID: "JOB-B-FAIL", DependsOn: []string{"JOB-A-FAIL"}}
+
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Return(nil).Once()
+
+	// A fails
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-A-FAIL"
+	})).Return(fmt.Errorf("fatal error")).Once()
+
+	// B should NEVER be spawned
+
+	go orch.Run(ctx, logger)
+	time.Sleep(10 * time.Millisecond) // Let it start
+
+	err := orch.SubmitJob(ctx, jobA, logger)
+	assert.NoError(t, err)
+
+	err = orch.SubmitJob(ctx, jobB, logger)
+	assert.NoError(t, err)
+
+	// Wait for processing
+	time.Sleep(150 * time.Millisecond)
+
+	jobAInfo, err := orch.GetJob("JOB-A-FAIL")
+	assert.NoError(t, err)
+	assert.Equal(t, "Failed", jobAInfo.Status)
+
+	jobBInfo, err := orch.GetJob("JOB-B-FAIL")
+	assert.NoError(t, err)
+	assert.Equal(t, "Failed", jobBInfo.Status)
+	assert.Contains(t, jobBInfo.Error, "Dependency JOB-A-FAIL failed")
+
+	mockSpawner.AssertExpectations(t)
+}
+
+func TestOrchestrator_CancelPendingJob(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+
+	mockPoller.On("Poll", mock.Anything, mock.Anything).Return([]WorkItem{}, nil)
+
+	orch := New(mockPoller, mockSpawner, 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Submit Job A and Job B (B depends on A)
+	jobA := WorkItem{ID: "JOB-A"}
+	jobB := WorkItem{ID: "JOB-B", DependsOn: []string{"JOB-A"}}
+
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-A"
+	})).Return(nil).Run(func(args mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+	}).Once()
+
+	go orch.Run(ctx, logger)
+	time.Sleep(10 * time.Millisecond)
+
+	err := orch.SubmitJob(ctx, jobA, logger)
+	assert.NoError(t, err)
+
+	err = orch.SubmitJob(ctx, jobB, logger)
+	assert.NoError(t, err)
+
+	jobBInfo, err := orch.GetJob("JOB-B")
+	assert.NoError(t, err)
+	assert.Equal(t, "Pending", jobBInfo.Status)
+
+	// Cancel JOB-B while it's pending
+	err = orch.CancelJob(ctx, "JOB-B")
+	assert.NoError(t, err)
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Verify JOB-B is now Canceled
+	jobBInfo, err = orch.GetJob("JOB-B")
+	assert.NoError(t, err)
+	assert.Equal(t, "Canceled", jobBInfo.Status)
+
+	mockSpawner.AssertExpectations(t)
+}
+
+func TestOrchestrator_CancelAllPendingJobs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+
+	mockPoller.On("Poll", mock.Anything, mock.Anything).Return([]WorkItem{}, nil)
+
+	orch := New(mockPoller, mockSpawner, 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Submit Job A and Job B (B depends on A)
+	jobA := WorkItem{ID: "JOB-A"}
+	jobB := WorkItem{ID: "JOB-B", DependsOn: []string{"JOB-A"}}
+
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-A"
+	})).Return(nil).Run(func(args mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+	}).Once()
+
+	// mockSpawner.Cancel for JOB-A
+	mockSpawner.On("Cancel", mock.Anything, "JOB-A").Return(nil).Once()
+
+	go orch.Run(ctx, logger)
+	time.Sleep(10 * time.Millisecond)
+
+	err := orch.SubmitJob(ctx, jobA, logger)
+	assert.NoError(t, err)
+
+	err = orch.SubmitJob(ctx, jobB, logger)
+	assert.NoError(t, err)
+
+	jobBInfo, err := orch.GetJob("JOB-B")
+	assert.NoError(t, err)
+	assert.Equal(t, "Pending", jobBInfo.Status)
+
+	// Cancel all jobs
+	count, err := orch.CancelAllJobs(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Verify JOB-B is now Canceled
+	jobBInfo, err = orch.GetJob("JOB-B")
+	assert.NoError(t, err)
+	assert.Equal(t, "Canceled", jobBInfo.Status)
+
+	mockSpawner.AssertExpectations(t)
+}
