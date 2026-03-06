@@ -29,6 +29,7 @@ type Orchestrator struct {
 	Persistence       Persistence
 	forcePollCh       chan struct{}
 	MaxConcurrentJobs int
+	JobTimeout        time.Duration
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
@@ -370,6 +371,13 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logge
 func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *slog.Logger) {
 	defer o.wg.Done()
 
+	spawnCtx := ctx
+	var cancel context.CancelFunc
+	if o.JobTimeout > 0 {
+		spawnCtx, cancel = context.WithTimeout(ctx, o.JobTimeout)
+		defer cancel()
+	}
+
 	var spawnErr error
 	defer func() {
 		o.mu.Lock()
@@ -392,11 +400,16 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 
 	logger.Info("Spawning agent for item", "id", item.ID)
 
-	if err := o.Spawner.Spawn(ctx, item); err != nil {
+	if err := o.Spawner.Spawn(spawnCtx, item); err != nil {
 		spawnErr = err
-		logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
-		// Update status to Failed
-		_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
+		if spawnCtx.Err() == context.DeadlineExceeded {
+			logger.Error("Job timeout exceeded", "id", item.ID, "error", err)
+			_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Job timeout exceeded: %v", err))
+		} else {
+			logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
+			// Update status to Failed
+			_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
+		}
 	} else {
 		// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
 		// but status updates might happen asynchronously.

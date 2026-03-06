@@ -77,6 +77,7 @@ func main() {
 	pflag.Int("manager-frequency", 5, "Frequency of manager reviews")
 	pflag.Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
 	pflag.Int("max-concurrent-jobs", 0, "Maximum number of concurrent agent jobs allowed (0 = unlimited)")
+	pflag.Duration("job-timeout", 0, "Maximum execution time for a job (0 = unlimited)")
 
 	// Janitor Flags
 	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
@@ -196,6 +197,7 @@ func main() {
 	viper.BindPFlag("orchestrator.manager_frequency", pflag.Lookup("manager-frequency"))
 	viper.BindPFlag("orchestrator.task_max_iterations", pflag.Lookup("task-max-iterations"))
 	viper.BindPFlag("orchestrator.max_concurrent_jobs", pflag.Lookup("max-concurrent-jobs"))
+	viper.BindPFlag("orchestrator.job_timeout", pflag.Lookup("job-timeout"))
 
 	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
 	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
@@ -257,6 +259,7 @@ func main() {
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.max_concurrent_jobs", "RECAC_MAX_CONCURRENT_JOBS")
+	viper.BindEnv("orchestrator.job_timeout", "RECAC_JOB_TIMEOUT")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -592,6 +595,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
 	orch.MaxConcurrentJobs = viper.GetInt("orchestrator.max_concurrent_jobs")
+	orch.JobTimeout = viper.GetDuration("orchestrator.job_timeout")
 
 	// Persistence
 	if dbPath := viper.GetString("orchestrator.db_file"); dbPath != "" {

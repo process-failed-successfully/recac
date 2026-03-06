@@ -169,6 +169,13 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	s.Logger.Info("Waiting for agent completion", "item", item.ID)
 	exitCode, waitErr := s.Client.WaitContainer(ctx, containerID)
 
+	if waitErr != nil && ctx.Err() == context.DeadlineExceeded {
+		s.Logger.Warn("Job timeout exceeded, stopping container", "container", containerID)
+		if stopErr := s.Client.StopContainer(context.Background(), containerID); stopErr != nil {
+			s.Logger.Error("failed to stop timed out container", "container", containerID, "error", stopErr)
+		}
+	}
+
 	var output string
 	var execErr error
 	if waitErr != nil {
