@@ -432,13 +432,13 @@ func (m DashboardModel) View() string {
 		// Create a modal dialog
 		var dialogMsg string
 		if m.pendingAction == "cancel all" {
-			dialogMsg = "Are you sure you want to cancel ALL active jobs?\n\n(y/Enter: confirm, n/Esc: cancel)"
+			dialogMsg = "Are you sure you want to cancel ALL active jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "retry failed" {
-			dialogMsg = "Are you sure you want to retry ALL failed jobs?\n\n(y/Enter: confirm, n/Esc: cancel)"
+			dialogMsg = "Are you sure you want to retry ALL failed jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "clear history" {
-			dialogMsg = "Are you sure you want to clear ALL job history?\n\n(y/Enter: confirm, n/Esc: cancel)"
+			dialogMsg = "Are you sure you want to clear ALL job history?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else {
-			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/Esc: cancel)", m.pendingAction, m.pendingJobId)
+			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
 
 		dialogWidth := 50

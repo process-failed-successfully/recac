@@ -176,8 +176,11 @@ func (m FlashcardsModel) View() string {
 		content += lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("Press Space or Enter to flip...")
 	}
 
+	// Footer
+	help := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("q/esc/ctrl+c: quit")
+
 	// Center usage
-	return fmt.Sprintf("%s\n\n%s", header, content)
+	return fmt.Sprintf("%s\n\n%s\n\n%s", header, content, help)
 }
 
 func (m FlashcardsModel) finishedView() string {
