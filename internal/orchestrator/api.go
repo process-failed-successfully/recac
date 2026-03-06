@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	encoding_csv "encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -42,6 +44,50 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(jobs); err != nil {
 			logger.Error("Failed to encode jobs", "error", err)
+		}
+	})
+
+	mux.HandleFunc("GET /jobs/export", func(w http.ResponseWriter, r *http.Request) {
+		format := r.URL.Query().Get("format")
+		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+
+		if format == "csv" {
+			w.Header().Set("Content-Type", "text/csv")
+			w.Header().Set("Content-Disposition", "attachment; filename=jobs_export.csv")
+
+			writer := encoding_csv.NewWriter(w)
+			defer writer.Flush()
+
+			// Header
+			writer.Write([]string{"ID", "Summary", "Status", "StartTime", "EndTime", "RepoURL"})
+
+			for _, job := range jobs {
+				startTime := ""
+				if !job.StartTime.IsZero() {
+					startTime = job.StartTime.Format(time.RFC3339)
+				}
+
+				endTime := ""
+				if !job.EndTime.IsZero() {
+					endTime = job.EndTime.Format(time.RFC3339)
+				}
+
+				writer.Write([]string{
+					job.ID,
+					job.Summary,
+					job.Status,
+					startTime,
+					endTime,
+					job.WorkItem.RepoURL,
+				})
+			}
+		} else {
+			// Default to JSON
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Disposition", "attachment; filename=jobs_export.json")
+			if err := json.NewEncoder(w).Encode(jobs); err != nil {
+				logger.Error("Failed to encode jobs for export", "error", err)
+			}
 		}
 	})
 
