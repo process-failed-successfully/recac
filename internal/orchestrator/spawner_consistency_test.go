@@ -321,10 +321,19 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Check Command
-		cmd := job.Spec.Template.Spec.Containers[0].Command[2]
+		cmd := job.Spec.Template.Spec.Containers[0].Command
 		assert.Contains(t, cmd, "--verbose", "K8s command should contain --verbose")
 		assert.Contains(t, cmd, "--allow-dirty", "K8s command should contain --allow-dirty")
-		assert.Contains(t, cmd, "recac-agent --jira", "K8s command should invoke recac-agent")
+		assert.Contains(t, cmd, "recac-agent", "K8s command should invoke recac-agent")
+
+		jiraIdx := -1
+		for i, c := range cmd {
+			if c == "--jira" {
+				jiraIdx = i
+				break
+			}
+		}
+		assert.True(t, jiraIdx >= 0 && jiraIdx < len(cmd)-1, "K8s command should contain --jira flag")
 	})
 
 	// 2. Check Docker Spawner Args
@@ -361,11 +370,18 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 			t.Fatal("Timeout waiting for RunContainerWithLabels")
 		}
 
-		cmdStr := capturedCmd[2]
-
 		// Assertions
-		assert.Contains(t, cmdStr, "--verbose", "Docker command should contain --verbose")
-		assert.Contains(t, cmdStr, "--allow-dirty", "Docker command should contain --allow-dirty")
-		assert.Contains(t, cmdStr, "recac-agent --jira", "Docker command should invoke recac-agent without absolute path")
+		assert.Contains(t, capturedCmd, "--verbose", "Docker command should contain --verbose")
+		assert.Contains(t, capturedCmd, "--allow-dirty", "Docker command should contain --allow-dirty")
+		assert.Contains(t, capturedCmd, "recac-agent", "Docker command should invoke recac-agent without absolute path")
+
+		jiraIdx := -1
+		for i, c := range capturedCmd {
+			if c == "--jira" {
+				jiraIdx = i
+				break
+			}
+		}
+		assert.True(t, jiraIdx >= 0 && jiraIdx < len(capturedCmd)-1, "Docker command should contain --jira flag")
 	})
 }

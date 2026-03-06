@@ -294,14 +294,22 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	assert.NoError(t, err)
 
 	// The command should be stringified and passed to sh -c.
-	// We want to ensure the ID is quoted.
-	assert.Len(t, capturedCmd, 3)
+	// We want to ensure the ID is passed securely.
+	assert.True(t, len(capturedCmd) >= 4)
 	assert.Equal(t, "/bin/sh", capturedCmd[0])
 	assert.Equal(t, "-c", capturedCmd[1])
+	assert.Equal(t, "--", capturedCmd[3])
 
-	// Check if the ID is quoted in the command string
-	// New implementation uses shellquote
-	assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
+	// Check if the ID is passed correctly
+	// New implementation uses "$@" and passes them securely as trailing arguments
+	foundJiraFlag := false
+	for i, arg := range capturedCmd {
+		if arg == "--jira" && i+1 < len(capturedCmd) {
+			assert.Equal(t, "TASK-1\"; echo \"injected", capturedCmd[i+1])
+			foundJiraFlag = true
+		}
+	}
+	assert.True(t, foundJiraFlag, "Should find --jira flag with correct value in args")
 }
 
 func TestDockerSpawner_EnvPropagation(t *testing.T) {
@@ -460,10 +468,26 @@ func TestDockerSpawner_FlagsPropagation(t *testing.T) {
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
 
-	cmdStr := capturedCmd[2]
-	assert.Contains(t, cmdStr, "--max-iterations 55")
-	assert.Contains(t, cmdStr, "--manager-frequency 7")
-	assert.Contains(t, cmdStr, "--task-max-iterations 15")
+	// Since we construct the arguments as a slice, we look for individual argument entries
+	foundMaxIter := false
+	foundManagerFreq := false
+	foundTaskMaxIter := false
+
+	for i, arg := range capturedCmd {
+		if arg == "--max-iterations" && i+1 < len(capturedCmd) && capturedCmd[i+1] == "55" {
+			foundMaxIter = true
+		}
+		if arg == "--manager-frequency" && i+1 < len(capturedCmd) && capturedCmd[i+1] == "7" {
+			foundManagerFreq = true
+		}
+		if arg == "--task-max-iterations" && i+1 < len(capturedCmd) && capturedCmd[i+1] == "15" {
+			foundTaskMaxIter = true
+		}
+	}
+
+	assert.True(t, foundMaxIter, "Command should contain --max-iterations 55")
+	assert.True(t, foundManagerFreq, "Command should contain --manager-frequency 7")
+	assert.True(t, foundTaskMaxIter, "Command should contain --task-max-iterations 15")
 }
 
 func TestDockerSpawner_PullPolicy(t *testing.T) {

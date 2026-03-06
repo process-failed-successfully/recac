@@ -2,8 +2,6 @@ package orchestrator
 
 import (
 	"os"
-
-	"github.com/kballard/go-shellquote"
 )
 
 // collectAgentEnvVars gathers common environment variables for the agent.
@@ -78,8 +76,10 @@ func collectAgentEnvVars(item WorkItem, provider, model string) map[string]strin
 func ConstructShellCommand(agentCmd []string) []string {
 	// Inject Git Config for GITHUB_TOKEN if present
 	cmdStr := "if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
-	cmdStr += " && " + shellquote.Join(agentCmd...)
+	cmdStr += " && \"$@\""
 	cmdStr += " && echo 'Recac Finished'"
 
-	return []string{"/bin/sh", "-c", cmdStr}
+	res := []string{"/bin/sh", "-c", cmdStr, "--"}
+	res = append(res, agentCmd...)
+	return res
 }
