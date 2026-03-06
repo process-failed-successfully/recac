@@ -119,6 +119,24 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, "JOB-123", jobs[0].ID)
 	})
 
+	// 3.5 Test Submit Job Too Many Requests
+	t.Run("Submit Job Too Many Requests", func(t *testing.T) {
+		orch.MaxConcurrentJobs = 1
+		// First fill the capacity
+		orch.activeSpawns = 1
+
+		item2 := WorkItem{ID: "JOB-456", Summary: "Test Job Too Many"}
+		body2, _ := json.Marshal(item2)
+
+		resp, err := http.Post(server.URL + "/jobs", "application/json", strings.NewReader(string(body2)))
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+
+		// Reset for other tests
+		orch.activeSpawns = 0
+		orch.MaxConcurrentJobs = 0
+	})
+
 	// 4. Test Get Job Details
 	t.Run("Get Job Details", func(t *testing.T) {
 		resp, err := http.Get(server.URL + "/jobs/JOB-123")

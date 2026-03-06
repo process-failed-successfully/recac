@@ -22,13 +22,16 @@ type Orchestrator struct {
 	lastPollItems int
 	activeSpawns  int
 	totalSpawns   int
-	activeJobs    map[string]JobInfo
-	completedJobs []JobInfo
-	maxHistory    int
-	paused        bool
-	Persistence   Persistence
-	forcePollCh   chan struct{}
+	activeJobs        map[string]JobInfo
+	completedJobs     []JobInfo
+	maxHistory        int
+	paused            bool
+	Persistence       Persistence
+	forcePollCh       chan struct{}
+	MaxConcurrentJobs int
 }
+
+var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
 
 type JobInfo struct {
 	ID        string    `json:"id"`
@@ -41,13 +44,14 @@ type JobInfo struct {
 }
 
 type Status struct {
-	PollInterval  string    `json:"poll_interval"`
-	Uptime        string    `json:"uptime"`
-	LastPoll      time.Time `json:"last_poll"`
-	LastPollItems int       `json:"last_poll_items"`
-	ActiveSpawns  int       `json:"active_spawns"`
-	TotalSpawns   int       `json:"total_spawns"`
-	Paused        bool      `json:"paused"`
+	PollInterval      string    `json:"poll_interval"`
+	Uptime            string    `json:"uptime"`
+	LastPoll          time.Time `json:"last_poll"`
+	LastPollItems     int       `json:"last_poll_items"`
+	ActiveSpawns      int       `json:"active_spawns"`
+	TotalSpawns       int       `json:"total_spawns"`
+	Paused            bool      `json:"paused"`
+	MaxConcurrentJobs int       `json:"max_concurrent_jobs"`
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -202,13 +206,14 @@ func (o *Orchestrator) GetStatus() Status {
 	}
 
 	return Status{
-		PollInterval:  o.PollInterval.String(),
-		Uptime:        uptime,
-		LastPoll:      o.lastPoll,
-		LastPollItems: o.lastPollItems,
-		ActiveSpawns:  o.activeSpawns,
-		TotalSpawns:   o.totalSpawns,
-		Paused:        o.paused,
+		PollInterval:      o.PollInterval.String(),
+		Uptime:            uptime,
+		LastPoll:          o.lastPoll,
+		LastPollItems:     o.lastPollItems,
+		ActiveSpawns:      o.activeSpawns,
+		TotalSpawns:       o.totalSpawns,
+		Paused:            o.paused,
+		MaxConcurrentJobs: o.MaxConcurrentJobs,
 	}
 }
 
@@ -338,6 +343,11 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logge
 	if _, exists := o.activeJobs[item.ID]; exists {
 		o.mu.Unlock()
 		return fmt.Errorf("job %s is already active", item.ID)
+	}
+
+	if o.MaxConcurrentJobs > 0 && o.activeSpawns >= o.MaxConcurrentJobs {
+		o.mu.Unlock()
+		return ErrAtCapacity
 	}
 
 	o.activeSpawns++
@@ -472,6 +482,10 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 
 		for _, item := range items {
 			if err := o.processWorkItem(ctx, item, logger); err != nil {
+				if err == ErrAtCapacity {
+					logger.Info("Orchestrator at max capacity, deferring remaining items", "max", o.MaxConcurrentJobs)
+					break // Stop processing this batch
+				}
 				// Log duplication as info, but real errors as errors
 				if err.Error() == fmt.Sprintf("job %s is already active", item.ID) {
 					logger.Info("Job already active, skipping", "id", item.ID)

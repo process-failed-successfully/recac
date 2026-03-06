@@ -152,7 +152,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		// Use the baseCtx (captured from main) to ensure job runs independently of the request context
 		// but respects orchestrator shutdown.
 		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
-			if strings.Contains(err.Error(), "already active") {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
 				http.Error(w, err.Error(), http.StatusConflict)
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -256,7 +258,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
-			if strings.Contains(err.Error(), "already active") {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
 				http.Error(w, err.Error(), http.StatusConflict)
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -388,7 +392,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
-			if strings.Contains(err.Error(), "already active") {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
 				http.Error(w, err.Error(), http.StatusConflict)
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

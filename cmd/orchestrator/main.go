@@ -73,6 +73,7 @@ func main() {
 	pflag.Int("max-iterations", 30, "Maximum number of iterations")
 	pflag.Int("manager-frequency", 5, "Frequency of manager reviews")
 	pflag.Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
+	pflag.Int("max-concurrent-jobs", 0, "Maximum number of concurrent agent jobs allowed (0 = unlimited)")
 
 	// Janitor Flags
 	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
@@ -182,6 +183,7 @@ func main() {
 	viper.BindPFlag("orchestrator.max_iterations", pflag.Lookup("max-iterations"))
 	viper.BindPFlag("orchestrator.manager_frequency", pflag.Lookup("manager-frequency"))
 	viper.BindPFlag("orchestrator.task_max_iterations", pflag.Lookup("task-max-iterations"))
+	viper.BindPFlag("orchestrator.max_concurrent_jobs", pflag.Lookup("max-concurrent-jobs"))
 
 	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
 	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
@@ -240,6 +242,7 @@ func main() {
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	viper.BindEnv("orchestrator.max_concurrent_jobs", "RECAC_MAX_CONCURRENT_JOBS")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -555,6 +558,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+	orch.MaxConcurrentJobs = viper.GetInt("orchestrator.max_concurrent_jobs")
 
 	// Persistence
 	if dbPath := viper.GetString("orchestrator.db_file"); dbPath != "" {
@@ -710,6 +714,11 @@ func printStatus(host string) {
 	printField("Active Spawns", fmt.Sprintf("%d", status.ActiveSpawns))
 	printField("Total Spawns", fmt.Sprintf("%d", status.TotalSpawns))
 	printField("Paused", fmt.Sprintf("%t", status.Paused))
+	if status.MaxConcurrentJobs > 0 {
+		printField("Max Concurrent Jobs", fmt.Sprintf("%d", status.MaxConcurrentJobs))
+	} else {
+		printField("Max Concurrent Jobs", "Unlimited")
+	}
 	fmt.Fprintln(stdout, "")
 }
 
