@@ -39,60 +39,76 @@ func runTestWrapper(t *testing.T, setup func(), expected string) {
 
 func TestRun_Status(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.status", true)
+	}, "Failed to connect to orchestrator")
+}
+
+func TestRun_Scale(t *testing.T) {
+	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", 5)
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_Logs(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.logs", "JOB-123")
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_InspectJob(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.inspect_job", "JOB-123")
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_CancelJob(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.cancel_job", "JOB-123")
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_CancelAll(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.cancel_all", true)
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_RetryJob(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.retry_job", "JOB-123")
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_RetryFailed(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.retry_failed", true)
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_Pause(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.pause", true)
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_Resume(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.resume", true)
 	}, "Failed to connect to orchestrator")
 }
 
 func TestRun_ForcePoll(t *testing.T) {
 	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.force_poll", true)
 	}, "Failed to connect to orchestrator")
 }

@@ -25,7 +25,9 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("InvalidMode", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.poller", "file")
+		viper.Set("orchestrator.scale", -1)
 		tmpFile, _ := os.CreateTemp("", "work.json")
 		defer os.Remove(tmpFile.Name())
 		os.WriteFile(tmpFile.Name(), []byte("[]"), 0644)
@@ -42,6 +44,7 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("FileDirPoller_MissingDir", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "file-dir")
 		viper.Set("orchestrator.watch_dir", "")
@@ -55,6 +58,7 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("FilePoller_MissingFile", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "file")
 		viper.Set("orchestrator.work_file", "")
@@ -68,6 +72,7 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("GitHubPoller_MissingConfig", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "github")
 		viper.Set("orchestrator.github_token", "")
@@ -81,6 +86,7 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("JiraPoller_Default_MissingConfig", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "jira")
 
@@ -93,6 +99,7 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("TrelloPoller_MissingConfig", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "trello")
 		viper.Set("orchestrator.trello_key", "")
@@ -115,6 +122,7 @@ func TestRun_Commands(t *testing.T) {
 
 	t.Run("ListJobs_Flag", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.list_jobs", true)
 
 		err := run(ctx, logger)
@@ -123,6 +131,7 @@ func TestRun_Commands(t *testing.T) {
 
 	t.Run("Status_Flag", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.status", true)
 
 		// Set up a mock server
@@ -158,6 +167,7 @@ func TestRun_Commands(t *testing.T) {
 
 	t.Run("Verify_Success", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.verify", true)
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
@@ -176,6 +186,7 @@ func TestRun_DryRun(t *testing.T) {
 
 	t.Run("Success_NoItems", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.dry_run", true)
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
@@ -190,6 +201,7 @@ func TestRun_DryRun(t *testing.T) {
 
 	t.Run("Fail_InvalidJSON", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.dry_run", true)
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
@@ -227,6 +239,7 @@ func TestRun_Misc_Flags(t *testing.T) {
 	for _, flag := range flags {
 		t.Run(flag, func(t *testing.T) {
 			viper.Reset()
+			viper.Set("orchestrator.scale", -1)
 			if flag == "orchestrator.retry_failed" || flag == "orchestrator.pause" || flag == "orchestrator.resume" {
 				viper.Set(flag, true)
 			} else {
@@ -243,6 +256,7 @@ func TestRun_SubmitUrl_Error(t *testing.T) {
 	ctx := context.Background()
 
 	viper.Reset()
+	viper.Set("orchestrator.scale", -1)
 	viper.Set("orchestrator.submit_url", "http://repo")
 	viper.Set("orchestrator.submit_task", "") // Missing task
 
@@ -259,6 +273,7 @@ func TestRun_AdditionalPaths(t *testing.T) {
 
 	t.Run("K8sMode_Fail", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "k8s")
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
@@ -272,6 +287,7 @@ func TestRun_AdditionalPaths(t *testing.T) {
 
 	t.Run("Janitor_Enable", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
@@ -290,6 +306,7 @@ func TestRun_AdditionalPaths(t *testing.T) {
 
 	t.Run("Persistence_Enable", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.mode", "local")
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
@@ -315,6 +332,7 @@ func TestRun_MetricsServer(t *testing.T) {
 		cancel()
 
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
 		defer os.Remove(tmpFile.Name())
@@ -338,6 +356,7 @@ func TestRun_MetricsServer(t *testing.T) {
 		defer cancel()
 
 		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.poller", "file")
 		tmpFile, _ := os.CreateTemp("", "work.json")
 		defer os.Remove(tmpFile.Name())

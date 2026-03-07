@@ -348,6 +348,15 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			// Focus first input
 			m.inputs[0].Focus()
 			return m, textinput.Blink
+		case "+", "]":
+			newMax := m.status.MaxConcurrentJobs + 1
+			return m, scaleConcurrencyCmd(m.host, newMax)
+		case "-", "[":
+			if m.status.MaxConcurrentJobs > 0 {
+				newMax := m.status.MaxConcurrentJobs - 1
+				return m, scaleConcurrencyCmd(m.host, newMax)
+			}
+			return m, nil
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
@@ -536,7 +545,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | +/-: scale limit | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -738,6 +747,26 @@ func forcePoll(host string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Poll triggered"}
+	}
+}
+
+func scaleConcurrencyCmd(host string, max int) tea.Cmd {
+	return func() tea.Msg {
+		reqBody := fmt.Sprintf(`{"max_concurrent_jobs": %d}`, max)
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/scale", host), strings.NewReader(reqBody))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: fmt.Sprintf("Scaled concurrency to %d", max)}
 	}
 }
 
