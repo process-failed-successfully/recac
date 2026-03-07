@@ -179,22 +179,51 @@ func TestLinearPoller_UpdateStatus(t *testing.T) {
 }
 
 func TestLinearPoller_UpdateStatus_Done(t *testing.T) {
+	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		assert.Contains(t, string(body), "commentCreate")
-		assert.Contains(t, string(body), "internal-id-1")
-		assert.Contains(t, string(body), "Status changed to: Done")
+		bodyStr := string(body)
 
-		response := `{
-			"data": {
-				"commentCreate": {
-					"success": true
+		if requestCount == 0 {
+			// First request: workflowStates query
+			assert.Contains(t, bodyStr, "workflowStates")
+			assert.Contains(t, bodyStr, "team_id")
+			assert.Contains(t, bodyStr, "completed")
+
+			response := `{
+				"data": {
+					"workflowStates": {
+						"nodes": [
+							{
+								"id": "state-completed-123"
+							}
+						]
+					}
 				}
-			}
-		}`
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
+			}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(response))
+		} else if requestCount == 1 {
+			// Second request: issueUpdate mutation
+			assert.Contains(t, bodyStr, "issueUpdate")
+			assert.Contains(t, bodyStr, "internal-id-1")
+			assert.Contains(t, bodyStr, "state-completed-123")
+
+			response := `{
+				"data": {
+					"issueUpdate": {
+						"success": true
+					}
+				}
+			}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(response))
+		} else {
+			t.Fatalf("Unexpected request %d", requestCount)
+		}
+		requestCount++
 	}))
 	defer server.Close()
 
@@ -211,6 +240,7 @@ func TestLinearPoller_UpdateStatus_Done(t *testing.T) {
 
 	err := poller.UpdateStatus(context.Background(), item, "Done", "")
 	require.NoError(t, err)
+	assert.Equal(t, 2, requestCount)
 }
 
 func TestLinearPoller_UpdateStatus_NoInternalID(t *testing.T) {
