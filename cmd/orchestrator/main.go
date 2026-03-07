@@ -39,6 +39,7 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
+	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
@@ -161,6 +162,7 @@ func main() {
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
@@ -292,6 +294,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.status") {
 		host := viper.GetString("orchestrator.host")
 		printStatus(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.tree") {
+		host := viper.GetString("orchestrator.host")
+		printTree(host)
 		return nil
 	}
 
