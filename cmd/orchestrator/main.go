@@ -61,6 +61,7 @@ func main() {
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
 	pflag.Int("submit-priority", 0, "Priority for ad-hoc job submission (higher is more important)")
 	pflag.StringSlice("env", []string{}, "Environment variables to pass to the ad-hoc job (e.g., --env KEY=VALUE)")
+	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -186,6 +187,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
 	viper.BindPFlag("orchestrator.submit_priority", pflag.Lookup("submit-priority"))
 	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
+	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -402,6 +404,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		priority := viper.GetInt("orchestrator.submit_priority")
 		wait := viper.GetBool("orchestrator.wait")
 		envPairs := viper.GetStringSlice("orchestrator.env")
+		submitDeps := viper.GetStringSlice("orchestrator.submit_deps")
 
 		envMap := make(map[string]string)
 		for _, pair := range envPairs {
@@ -413,7 +416,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 		}
 
-		submitAdHocJob(host, submitURL, task, id, priority, wait, envMap)
+		submitAdHocJob(host, submitURL, task, id, priority, wait, envMap, submitDeps)
 		return nil
 	}
 
