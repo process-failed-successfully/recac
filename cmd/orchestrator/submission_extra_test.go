@@ -204,6 +204,187 @@ func TestSubmitJob_WithWait(t *testing.T) {
 	assert.Contains(t, out.String(), "Job already completed")
 }
 
+func TestSubmitBatchJob(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/batch", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted":["BATCH-1", "BATCH-2"],"errors":[]}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	file, err := os.CreateTemp("", "batch-job-*.json")
+	assert.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString(`[{"id":"BATCH-1","summary":"Test"},{"id":"BATCH-2","summary":"Test"}]`)
+	assert.NoError(t, err)
+	file.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	submitBatchJob(server.URL, file.Name(), false)
+
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, out.String(), "Batch submission completed.")
+	assert.Contains(t, out.String(), "BATCH-1")
+	assert.Contains(t, out.String(), "BATCH-2")
+}
+
+func TestSubmitBatchJob_PartialFailure(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/batch", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted":["BATCH-1"],"errors":["BATCH-2: already active"]}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	file, err := os.CreateTemp("", "batch-job-*.json")
+	assert.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString(`[{"id":"BATCH-1","summary":"Test"},{"id":"BATCH-2","summary":"Test"}]`)
+	assert.NoError(t, err)
+	file.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	submitBatchJob(server.URL, file.Name(), false)
+
+	assert.Equal(t, 0, exitCode) // still exits 0 if at least 1 job submitted
+	assert.Contains(t, out.String(), "Batch submission completed.")
+	assert.Contains(t, out.String(), "BATCH-1")
+	assert.Contains(t, out.String(), "BATCH-2: already active")
+}
+
+func TestSubmitBatchJob_Wait(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/batch", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted":["BATCH-1"],"errors":[]}`))
+	})
+
+	mux.HandleFunc("/jobs/BATCH-1", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"BATCH-1","status":"Completed"}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	file, err := os.CreateTemp("", "batch-job-*.json")
+	assert.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString(`[{"id":"BATCH-1","summary":"Test"}]`)
+	assert.NoError(t, err)
+	file.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	submitBatchJob(server.URL, file.Name(), true)
+
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, out.String(), "Batch submission completed.")
+	assert.Contains(t, out.String(), "Waiting for job BATCH-1 to start")
+	assert.Contains(t, out.String(), "Job already completed")
+}
+
+func TestSubmitBatchJob_AllFailed(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/batch", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted":[],"errors":["BATCH-1: invalid"]}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	file, err := os.CreateTemp("", "batch-job-*.json")
+	assert.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString(`[{"id":"BATCH-1","summary":"Test"}]`)
+	assert.NoError(t, err)
+	file.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	submitBatchJob(server.URL, file.Name(), false)
+
+	assert.Equal(t, 1, exitCode) // all failed should exit 1
+	assert.Contains(t, out.String(), "BATCH-1: invalid")
+}
+
+func TestSubmitBatchJob_InvalidJSON(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/batch", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`Invalid JSON array body`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	file, err := os.CreateTemp("", "batch-job-*.json")
+	assert.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString(`{"id":"BATCH-1","summary":"Test"}`) // not an array
+	assert.NoError(t, err)
+	file.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	submitBatchJob(server.URL, file.Name(), false)
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to submit batch job:")
+}
+
 func TestSubmitAdHocJob_WithWait(t *testing.T) {
 	// Mock Exit and Stdout
 	var exitCode int

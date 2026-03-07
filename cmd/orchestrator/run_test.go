@@ -234,6 +234,7 @@ func TestRun_Misc_Flags(t *testing.T) {
 		"orchestrator.pause",
 		"orchestrator.resume",
 		"orchestrator.submit",
+		"orchestrator.submit_batch",
 	}
 
 	for _, flag := range flags {

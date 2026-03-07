@@ -220,6 +220,47 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s submitted successfully", item.ID)
 	})
 
+	mux.HandleFunc("POST /jobs/batch", func(w http.ResponseWriter, r *http.Request) {
+		var items []WorkItem
+		if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
+			http.Error(w, "Invalid JSON array body", http.StatusBadRequest)
+			return
+		}
+
+		for _, item := range items {
+			if item.ID == "" {
+				http.Error(w, "Job ID is required for all jobs in batch", http.StatusBadRequest)
+				return
+			}
+		}
+
+		var submitted []string
+		var errors []string
+
+		for _, item := range items {
+			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+				if err == ErrAtCapacity {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "at capacity"))
+				} else if strings.Contains(err.Error(), "already active") {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "already active"))
+				} else {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, err.Error()))
+				}
+			} else {
+				submitted = append(submitted, item.ID)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"submitted": submitted,
+			"errors":    errors,
+		}); err != nil {
+			logger.Error("Failed to encode batch submission response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("POST /webhook/github", func(w http.ResponseWriter, r *http.Request) {
 		event := r.Header.Get("X-GitHub-Event")
 		if event != "issues" && event != "issue_comment" {

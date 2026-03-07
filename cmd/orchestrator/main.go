@@ -56,6 +56,7 @@ func main() {
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
+	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
@@ -182,6 +183,7 @@ func main() {
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
+	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
@@ -391,6 +393,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		wait := viper.GetBool("orchestrator.wait")
 		submitJob(host, submitFile, wait)
+		return nil
+	}
+
+	if submitBatchFile := viper.GetString("orchestrator.submit_batch"); submitBatchFile != "" {
+		host := viper.GetString("orchestrator.host")
+		wait := viper.GetBool("orchestrator.wait")
+		submitBatchJob(host, submitBatchFile, wait)
 		return nil
 	}
 

@@ -119,7 +119,75 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, "JOB-123", jobs[0].ID)
 	})
 
-	// 3.5 Test Submit Job Too Many Requests
+	// 3.5 Test Submit Job Batch
+	t.Run("Submit Job Batch", func(t *testing.T) {
+		items := []WorkItem{
+			{ID: "BATCH-1", Summary: "Batch 1"},
+			{ID: "BATCH-2", Summary: "Batch 2"},
+		}
+		body, _ := json.Marshal(items)
+
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+			return i.ID == "BATCH-1" || i.ID == "BATCH-2"
+		})).Return(nil)
+
+		resp, err := http.Post(server.URL+"/jobs/batch", "application/json", strings.NewReader(string(body)))
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
+
+		submitted, _ := result["submitted"].([]interface{})
+		assert.Len(t, submitted, 2)
+		assert.Contains(t, submitted, "BATCH-1")
+		assert.Contains(t, submitted, "BATCH-2")
+
+		errors, _ := result["errors"].([]interface{})
+		assert.Empty(t, errors)
+	})
+
+	t.Run("Submit Job Batch Partial Failure", func(t *testing.T) {
+		items := []WorkItem{
+			{ID: "BATCH-3", Summary: "Batch 3"},
+			{ID: "BATCH-ALREADY-ACTIVE", Summary: "Batch Already Active"},
+		}
+		body, _ := json.Marshal(items)
+
+		// Use a unique ID so previous test's goroutines don't clear it
+		orch.mu.Lock()
+		orch.activeJobs["BATCH-ALREADY-ACTIVE"] = JobInfo{ID: "BATCH-ALREADY-ACTIVE", Status: "Running"}
+		orch.mu.Unlock()
+
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
+			return i.ID == "BATCH-3"
+		})).Return(nil)
+
+		resp, err := http.Post(server.URL+"/jobs/batch", "application/json", strings.NewReader(string(body)))
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
+
+		submitted, _ := result["submitted"].([]interface{})
+		assert.Len(t, submitted, 1)
+		assert.Contains(t, submitted, "BATCH-3")
+
+		errors, _ := result["errors"].([]interface{})
+		if assert.Len(t, errors, 1) {
+			errStr := errors[0].(string)
+			assert.Contains(t, errStr, "BATCH-ALREADY-ACTIVE: already active")
+		}
+	})
+
+	t.Run("Submit Job Batch Invalid Body", func(t *testing.T) {
+		resp, err := http.Post(server.URL+"/jobs/batch", "application/json", strings.NewReader(`{"not": "an array"}`))
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	// 3.6 Test Submit Job Too Many Requests
 	t.Run("Submit Job Too Many Requests", func(t *testing.T) {
 		orch.MaxConcurrentJobs = 1
 		// First fill the capacity
