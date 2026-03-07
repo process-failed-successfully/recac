@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
@@ -324,6 +325,59 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		_, err = clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
 		assert.Error(t, err) // Should be deleted in fake clientset immediately usually
 	})
+
+	t.Run("Wait For Job Timeout Error", func(t *testing.T) {
+		// Clean up from previous run if any
+		clientset.BatchV1().Jobs("test-ns").Delete(context.Background(), "recac-agent-task-123", metav1.DeleteOptions{})
+
+		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "running"
+		})).Return(nil)
+		sm.On("LoadSession", "TASK-123").Return(&runner.SessionState{Name: "TASK-123", Status: "running"}, nil)
+		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "error" && strings.Contains(s.Error, "context deadline exceeded")
+		})).Return(nil)
+
+		// Create a context with a very short timeout so waitErr will be context deadline exceeded
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		err := spawner.Spawn(ctx, item)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+
+		// Job should be deleted (canceled)
+		_, err = clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+		assert.Error(t, err)
+	})
+
+	t.Run("Wait For Job Failed Error", func(t *testing.T) {
+		// Clean up from previous run if any
+		clientset.BatchV1().Jobs("test-ns").Delete(context.Background(), "recac-agent-task-123", metav1.DeleteOptions{})
+
+		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "running"
+		})).Return(nil)
+		sm.On("LoadSession", "TASK-123").Return(&runner.SessionState{Name: "TASK-123", Status: "running"}, nil)
+		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "error" && strings.Contains(s.Error, "job failed with 1 failed pods")
+		})).Return(nil)
+
+		go func() {
+			for {
+				job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+				if err == nil {
+					job.Status.Failed = 1
+					clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}()
+
+		err := spawner.Spawn(context.Background(), item)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "job failed with 1 failed pods")
+	})
 }
 
 func TestSanitizeK8sName(t *testing.T) {
@@ -377,6 +431,11 @@ func TestK8sSpawner_Cancel(t *testing.T) {
 	assert.Error(t, err)
 	// Usually returns "jobs.batch "recac-agent-job-1" not found"
 	// But let's just check it's an error.
+
+	// Test Cancel NotFound
+	err = spawner.Cancel(ctx, "NON-EXISTENT")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestK8sSpawner_GetLogs(t *testing.T) {

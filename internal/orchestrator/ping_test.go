@@ -69,3 +69,7 @@ func TestK8sSpawner_Ping(t *testing.T) {
 
 	assert.NoError(t, s.Ping(context.Background()))
 }
+
+// Cannot easily test Ping failure since fake clientset doesn't allow easy error
+// injection into ServerVersion() without modifying the fake clientset internals,
+// but the success case provides some coverage.
