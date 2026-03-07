@@ -329,6 +329,14 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "retry failed"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "x":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = selected[0]
+				m.pendingAction = "purge"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "X":
 			m.pendingJobId = "HISTORY"
 			m.pendingAction = "clear history"
@@ -396,6 +404,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 			var cmd tea.Cmd
 			if m.pendingAction == "cancel" {
 				cmd = cancelJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "purge" {
+				cmd = purgeJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "cancel all" {
 				cmd = cancelAllJobs(m.host)
 			} else if m.pendingAction == "retry" {
@@ -572,7 +582,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -591,6 +601,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = "Are you sure you want to retry ALL failed jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "clear history" {
 			dialogMsg = "Are you sure you want to clear ALL job history?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
+		} else if m.pendingAction == "purge" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE job %s entirely?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "clear pending" {
 			dialogMsg = "Are you sure you want to clear ALL pending jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else {
@@ -821,6 +833,25 @@ func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Updated priority for job %s to %d", id, newPriority)}
+	}
+}
+
+func purgeJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/history/%s", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Purged"}
 	}
 }
 
