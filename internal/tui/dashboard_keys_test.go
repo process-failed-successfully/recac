@@ -143,6 +143,18 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "FAILED", m.pendingJobId)
 	})
 
+	t.Run("Clear Pending Key (P)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("P")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "clear pending", m.pendingAction)
+		assert.Equal(t, "PENDING", m.pendingJobId)
+	})
+
 	t.Run("Quit Key (q)", func(t *testing.T) {
 		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 		m, ok := updatedModel.(DashboardModel)
