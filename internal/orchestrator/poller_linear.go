@@ -167,13 +167,143 @@ func (p *LinearPoller) UpdateStatus(ctx context.Context, item WorkItem, status s
 	}
 
 	if strings.EqualFold(status, "Done") || strings.EqualFold(status, "Closed") {
-		// Moving to completed requires knowing the state ID, which is complex via GraphQL without extra queries.
-		// For MVP, we just post a comment that it's done.
-		if comment == "" {
-			if err := p.postComment(ctx, issueID, "Status changed to: " + status); err != nil {
-				return err
+		if err := p.closeIssue(ctx, issueID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *LinearPoller) closeIssue(ctx context.Context, issueID string) error {
+	// 1. Fetch completed state ID for the team
+	query := `
+	query {
+		workflowStates(
+			filter: {
+				team: { id: { eq: "` + p.Team + `" } }
+				type: { eq: "completed" }
+			}
+		) {
+			nodes {
+				id
 			}
 		}
+	}`
+
+	payload := map[string]interface{}{
+		"query": query,
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal workflow state query: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", p.BaseURL, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return err
+	}
+	p.setHeaders(req)
+
+	resp, err := p.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to fetch workflow states: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to fetch workflow states: %d %s", resp.StatusCode, string(respBody))
+	}
+
+	var stateResult struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+		Data struct {
+			WorkflowStates struct {
+				Nodes []struct {
+					ID string `json:"id"`
+				} `json:"nodes"`
+			} `json:"workflowStates"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&stateResult); err != nil {
+		return fmt.Errorf("failed to decode workflow states response: %w", err)
+	}
+
+	if len(stateResult.Errors) > 0 {
+		return fmt.Errorf("linear workflow states error: %s", stateResult.Errors[0].Message)
+	}
+
+	if len(stateResult.Data.WorkflowStates.Nodes) == 0 {
+		return fmt.Errorf("no completed workflow state found for team %s", p.Team)
+	}
+
+	stateID := stateResult.Data.WorkflowStates.Nodes[0].ID
+
+	// 2. Update issue state
+	mutation := `
+	mutation {
+		issueUpdate(
+			id: "` + issueID + `",
+			input: {
+				stateId: "` + stateID + `"
+			}
+		) {
+			success
+		}
+	}`
+
+	updatePayload := map[string]interface{}{
+		"query": mutation,
+	}
+
+	updateJsonPayload, err := json.Marshal(updatePayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal issue update mutation: %w", err)
+	}
+
+	updateReq, err := http.NewRequestWithContext(ctx, "POST", p.BaseURL, bytes.NewBuffer(updateJsonPayload))
+	if err != nil {
+		return err
+	}
+	p.setHeaders(updateReq)
+
+	updateResp, err := p.Client.Do(updateReq)
+	if err != nil {
+		return fmt.Errorf("failed to post issue update: %w", err)
+	}
+	defer updateResp.Body.Close()
+
+	if updateResp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(updateResp.Body)
+		return fmt.Errorf("failed to post issue update: %d %s", updateResp.StatusCode, string(respBody))
+	}
+
+	var updateResult struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+		Data struct {
+			IssueUpdate struct {
+				Success bool `json:"success"`
+			} `json:"issueUpdate"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(updateResp.Body).Decode(&updateResult); err != nil {
+		return fmt.Errorf("failed to decode issue update response: %w", err)
+	}
+
+	if len(updateResult.Errors) > 0 {
+		return fmt.Errorf("linear issue update error: %s", updateResult.Errors[0].Message)
+	}
+
+	if !updateResult.Data.IssueUpdate.Success {
+		return fmt.Errorf("linear issue update failed")
 	}
 
 	return nil
