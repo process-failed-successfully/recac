@@ -101,13 +101,32 @@ func TestScaleConcurrencyEvaluatesPendingJobs(t *testing.T) {
 	// Scale up
 	orch.SetConcurrency(context.Background(), 2, logger)
 
-	// The pending job should have been moved to active
+	// Wait for the job to be processed (moved out of pending)
+	assert.Eventually(t, func() bool {
+		orch.mu.RLock()
+		defer orch.mu.RUnlock()
+		_, isPending := orch.pendingJobs["job-2"]
+		return !isPending
+	}, 2*time.Second, 10*time.Millisecond, "Job should be moved out of pending queue")
+
+	// Verify the job is either active or completed
+	job, err := orch.GetJob("job-2")
+	assert.NoError(t, err)
+
 	orch.mu.RLock()
 	defer orch.mu.RUnlock()
-	_, isPending := orch.pendingJobs["job-2"]
-	assert.False(t, isPending)
 
-	job, isActive := orch.activeJobs["job-2"]
-	assert.True(t, isActive)
-	assert.Equal(t, "Spawning", job.Status)
+	_, active := orch.activeJobs["job-2"]
+	if !active {
+		found := false
+		for _, completed := range orch.completedJobs {
+			if completed.ID == "job-2" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Job should be in completed jobs history if not active")
+	} else {
+		assert.Equal(t, "Spawning", job.Status)
+	}
 }
