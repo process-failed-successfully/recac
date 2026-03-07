@@ -32,18 +32,20 @@ type Orchestrator struct {
 	forcePollCh       chan struct{}
 	MaxConcurrentJobs int
 	JobTimeout        time.Duration
+	notifier          Notifier
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
 
 type JobInfo struct {
-	ID        string    `json:"id"`
-	Summary   string    `json:"summary"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time,omitempty"`
-	Status    string    `json:"status"`
-	Error     string    `json:"error,omitempty"`
-	WorkItem  WorkItem  `json:"work_item"`
+	ID          string    `json:"id"`
+	Summary     string    `json:"summary"`
+	StartTime   time.Time `json:"start_time"`
+	EndTime     time.Time `json:"end_time,omitempty"`
+	Status      string    `json:"status"`
+	Error       string    `json:"error,omitempty"`
+	WorkItem    WorkItem  `json:"work_item"`
+	ThreadState string    `json:"thread_state,omitempty"`
 }
 
 type Status struct {
@@ -81,6 +83,11 @@ func (o *Orchestrator) ForcePoll() {
 // SetPersistence sets the persistence layer for the orchestrator.
 func (o *Orchestrator) SetPersistence(p Persistence) {
 	o.Persistence = p
+}
+
+// SetNotifier sets the notification manager for the orchestrator.
+func (o *Orchestrator) SetNotifier(n Notifier) {
+	o.notifier = n
 }
 
 // LoadHistory loads the job history from the persistence layer.
@@ -511,11 +518,23 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 	}
 
 	var spawnErr error
+	var threadState string
+
+	if o.notifier != nil {
+		ts, err := o.notifier.Notify(ctx, "on_start", fmt.Sprintf("Started job %s: %s", item.ID, item.Summary), "")
+		if err != nil {
+			logger.Warn("Failed to send start notification", "id", item.ID, "error", err)
+		} else {
+			threadState = ts
+		}
+	}
+
 	defer func() {
 		o.mu.Lock()
 		// Move to history
 		if job, ok := o.activeJobs[item.ID]; ok {
 			job.EndTime = time.Now()
+			job.ThreadState = threadState
 			if spawnErr != nil {
 				job.Status = "Failed"
 				job.Error = spawnErr.Error()
@@ -528,6 +547,14 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		o.activeSpawns--
 		delete(o.activeJobs, item.ID)
 		o.mu.Unlock()
+
+		if o.notifier != nil {
+			if spawnErr != nil {
+				_, _ = o.notifier.Notify(ctx, "on_failure", fmt.Sprintf("Job %s failed: %v", item.ID, spawnErr), threadState)
+			} else {
+				_, _ = o.notifier.Notify(ctx, "on_success", fmt.Sprintf("Job %s completed successfully", item.ID), threadState)
+			}
+		}
 
 		o.evaluatePendingJobs(ctx, logger)
 	}()

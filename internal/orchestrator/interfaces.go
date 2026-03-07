@@ -38,6 +38,11 @@ type Spawner interface {
 	Ping(ctx context.Context) error
 }
 
+// Notifier defines the interface for sending notifications.
+type Notifier interface {
+	Notify(ctx context.Context, eventType string, message string, threadStateStr string) (string, error)
+}
+
 // JiraClient defines the interface for a Jira client, created for mocking purposes.
 // It mirrors the methods of jira.Client used by JiraPoller.
 type JiraClient interface {

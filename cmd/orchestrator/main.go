@@ -21,6 +21,7 @@ import (
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 	"recac/internal/tui"
+	"recac/internal/notify"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/pflag"
@@ -607,6 +608,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	orch := orchestrator.New(poller, spawner, interval)
 	orch.MaxConcurrentJobs = viper.GetInt("orchestrator.max_concurrent_jobs")
 	orch.JobTimeout = viper.GetDuration("orchestrator.job_timeout")
+
+	// 5. Notifications
+	notifyManager := notify.NewManager(func(msg string, args ...interface{}) {
+		logger.Info(fmt.Sprintf(msg, args...))
+	})
+	notifyManager.Start(ctx)
+	orch.SetNotifier(notifyManager)
 
 	// Persistence
 	if dbPath := viper.GetString("orchestrator.db_file"); dbPath != "" {
