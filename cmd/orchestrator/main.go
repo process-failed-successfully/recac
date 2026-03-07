@@ -130,6 +130,10 @@ func main() {
 	pflag.String("notion-database-id", "", "Notion Database ID (for 'notion' poller)")
 	pflag.String("notion-label", "", "Notion Label/Tag to poll for (defaults to jira-label if not set)")
 
+	pflag.Bool("webhook-enabled", false, "Enable generic webhook notifications")
+	pflag.String("webhook-url", "", "URL for generic webhook notifications")
+	pflag.String("webhook-secret", "", "Secret for generic webhook HMAC signature")
+
 	pflag.Parse()
 
 	// Config
@@ -234,6 +238,10 @@ func main() {
 
 	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
+	viper.BindPFlag("notifications.webhook.enabled", pflag.Lookup("webhook-enabled"))
+	viper.BindPFlag("notifications.webhook.url", pflag.Lookup("webhook-url"))
+	viper.BindPFlag("notifications.webhook.secret", pflag.Lookup("webhook-secret"))
+
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
@@ -264,6 +272,9 @@ func main() {
 	viper.BindEnv("orchestrator.notion_token", "RECAC_NOTION_TOKEN", "NOTION_TOKEN")
 	viper.BindEnv("orchestrator.notion_database_id", "RECAC_NOTION_DATABASE_ID", "NOTION_DATABASE_ID")
 	viper.BindEnv("orchestrator.notion_label", "RECAC_NOTION_LABEL", "NOTION_LABEL")
+	viper.BindEnv("notifications.webhook.enabled", "RECAC_WEBHOOK_ENABLED")
+	viper.BindEnv("notifications.webhook.url", "RECAC_WEBHOOK_URL")
+	viper.BindEnv("notifications.webhook.secret", "RECAC_WEBHOOK_SECRET")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")

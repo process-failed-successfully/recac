@@ -44,6 +44,9 @@ type Manager struct {
 	// Discord
 	discordNotifier DiscordPoster
 
+	// Webhook
+	webhookNotifier *WebhookNotifier
+
 	logger func(string, ...interface{})
 }
 
@@ -64,6 +67,9 @@ func NewManager(logger func(string, ...interface{})) *Manager {
 
 	// Initialize Discord
 	m.initDiscord()
+
+	// Initialize Webhook
+	m.initWebhook()
 
 	return m
 }
@@ -116,6 +122,29 @@ func (m *Manager) initDiscord() {
 		// For now we prioritize Bot for "parity".
 		if m.logger != nil {
 			m.logger("Warning: DISCORD_BOT_TOKEN or DISCORD_CHANNEL_ID not set, discord notifications disabled")
+		}
+	}
+}
+
+func (m *Manager) initWebhook() {
+	if !viper.GetBool("notifications.webhook.enabled") {
+		return
+	}
+
+	url := viper.GetString("notifications.webhook.url")
+	if url == "" {
+		url = os.Getenv("RECAC_WEBHOOK_URL")
+	}
+	secret := viper.GetString("notifications.webhook.secret")
+	if secret == "" {
+		secret = os.Getenv("RECAC_WEBHOOK_SECRET")
+	}
+
+	if url != "" {
+		m.webhookNotifier = NewWebhookNotifier(url, secret)
+	} else {
+		if m.logger != nil {
+			m.logger("Warning: Webhook URL not set, webhook notifications disabled")
 		}
 	}
 }
@@ -176,6 +205,16 @@ func (m *Manager) Notify(ctx context.Context, eventType string, message string, 
 			}
 		} else {
 			ts.DiscordID = newID
+		}
+	}
+
+	// Send via Generic Webhook
+	if m.webhookNotifier != nil && m.isProviderEnabled("webhook") {
+		err := m.webhookNotifier.Send(ctx, eventType, message)
+		if err != nil {
+			if m.logger != nil {
+				m.logger("Failed to send Webhook notification: %v", err)
+			}
 		}
 	}
 
@@ -247,8 +286,9 @@ func (m *Manager) isEnabled(eventType string) bool {
 	// Check global enabled (if any provider is enabled)
 	slackEnabled := m.isProviderEnabled("slack")
 	discordEnabled := m.isProviderEnabled("discord")
+	webhookEnabled := m.isProviderEnabled("webhook")
 
-	if !slackEnabled && !discordEnabled {
+	if !slackEnabled && !discordEnabled && !webhookEnabled {
 		return false
 	}
 
