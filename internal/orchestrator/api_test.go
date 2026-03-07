@@ -150,13 +150,13 @@ func TestRegisterAPI(t *testing.T) {
 	t.Run("Submit Job Batch Partial Failure", func(t *testing.T) {
 		items := []WorkItem{
 			{ID: "BATCH-3", Summary: "Batch 3"},
-			{ID: "BATCH-1", Summary: "Batch 1"}, // Already active from previous test
+			{ID: "BATCH-ALREADY-ACTIVE", Summary: "Batch Already Active"},
 		}
 		body, _ := json.Marshal(items)
 
-		// Let's make BATCH-1 active so the next submit returns error
+		// Use a unique ID so previous test's goroutines don't clear it
 		orch.mu.Lock()
-		orch.activeJobs["BATCH-1"] = JobInfo{ID: "BATCH-1", Status: "Running"}
+		orch.activeJobs["BATCH-ALREADY-ACTIVE"] = JobInfo{ID: "BATCH-ALREADY-ACTIVE", Status: "Running"}
 		orch.mu.Unlock()
 
 		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
@@ -175,9 +175,10 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Contains(t, submitted, "BATCH-3")
 
 		errors, _ := result["errors"].([]interface{})
-		assert.Len(t, errors, 1)
-		errStr := errors[0].(string)
-		assert.Contains(t, errStr, "BATCH-1: already active")
+		if assert.Len(t, errors, 1) {
+			errStr := errors[0].(string)
+			assert.Contains(t, errStr, "BATCH-ALREADY-ACTIVE: already active")
+		}
 	})
 
 	t.Run("Submit Job Batch Invalid Body", func(t *testing.T) {
