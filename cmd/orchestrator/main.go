@@ -56,6 +56,7 @@ func main() {
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
+	pflag.Int("submit-priority", 0, "Priority for ad-hoc job submission (higher is more important)")
 	pflag.StringSlice("env", []string{}, "Environment variables to pass to the ad-hoc job (e.g., --env KEY=VALUE)")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
@@ -178,6 +179,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
+	viper.BindPFlag("orchestrator.submit_priority", pflag.Lookup("submit-priority"))
 	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
@@ -380,6 +382,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return fmt.Errorf("Error: --submit-task is required when using --submit-url")
 		}
 		id := viper.GetString("orchestrator.submit_id")
+		priority := viper.GetInt("orchestrator.submit_priority")
 		wait := viper.GetBool("orchestrator.wait")
 		envPairs := viper.GetStringSlice("orchestrator.env")
 
@@ -393,7 +396,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 		}
 
-		submitAdHocJob(host, submitURL, task, id, wait, envMap)
+		submitAdHocJob(host, submitURL, task, id, priority, wait, envMap)
 		return nil
 	}
 
