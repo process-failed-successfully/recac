@@ -70,6 +70,33 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 	assert.Equal(t, "http://repo.com", item.RepoURL)
 }
 
+func TestClearPending(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/pending", r.URL.Path)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cleared": 3}`))
+	}))
+	defer server.Close()
+
+	// Redirect stdout to capture the output
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	clearPending(server.URL)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully cleared 3 jobs from pending queue.")
+}
+
 func TestClearHistory(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/history", r.URL.Path)
