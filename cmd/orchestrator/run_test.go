@@ -340,7 +340,7 @@ func TestRun_MetricsServer(t *testing.T) {
 		os.WriteFile(tmpFile.Name(), []byte("[]"), 0644)
 		viper.Set("orchestrator.work_file", tmpFile.Name())
 		viper.Set("orchestrator.mode", "local")
-		viper.Set("orchestrator.interval", 1 * time.Minute)
+		viper.Set("orchestrator.interval", 1*time.Minute)
 		viper.Set("orchestrator.metrics_port", 0)
 
 		err := run(ctx, logger)
@@ -364,7 +364,7 @@ func TestRun_MetricsServer(t *testing.T) {
 		os.WriteFile(tmpFile.Name(), []byte("[]"), 0644)
 		viper.Set("orchestrator.work_file", tmpFile.Name())
 		viper.Set("orchestrator.mode", "local")
-		viper.Set("orchestrator.interval", 1 * time.Minute)
+		viper.Set("orchestrator.interval", 1*time.Minute)
 		viper.Set("orchestrator.metrics_port", 0)
 
 		errChan := make(chan error)
@@ -403,25 +403,27 @@ func TestRun_MetricsServer(t *testing.T) {
 			"/jobs",
 			"/jobs?state=completed",
 			"/jobs?state=all",
-			"/jobs/job-1", // Not found
+			"/jobs/job-1",      // Not found
 			"/jobs/job-1/logs", // Not found
 		}
 		for _, ep := range gets {
 			resp, _ := http.Get(baseURL + ep)
-			if resp != nil { resp.Body.Close() }
+			if resp != nil {
+				resp.Body.Close()
+			}
 		}
 
 		// POST/DELETE requests
-		http.Post(baseURL + "/pause", "application/json", nil)
-		http.Post(baseURL + "/resume", "application/json", nil)
-		http.Post(baseURL + "/jobs/job-1/retry", "application/json", nil)
-		http.Post(baseURL + "/jobs/retry-failed", "application/json", nil)
+		http.Post(baseURL+"/pause", "application/json", nil)
+		http.Post(baseURL+"/resume", "application/json", nil)
+		http.Post(baseURL+"/jobs/job-1/retry", "application/json", nil)
+		http.Post(baseURL+"/jobs/retry-failed", "application/json", nil)
 
-		req, _ := http.NewRequest(http.MethodDelete, baseURL + "/jobs/job-1", nil)
+		req, _ := http.NewRequest(http.MethodDelete, baseURL+"/jobs/job-1", nil)
 		http.DefaultClient.Do(req)
 
 		// Post Job
-		http.Post(baseURL + "/jobs", "application/json", strings.NewReader(`{"id":"job-new"}`))
+		http.Post(baseURL+"/jobs", "application/json", strings.NewReader(`{"id":"job-new"}`))
 
 		cancel()
 		<-errChan

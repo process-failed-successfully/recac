@@ -17,11 +17,11 @@ import (
 	"recac/internal/cmdutils"
 	"recac/internal/config"
 	"recac/internal/docker"
+	"recac/internal/notify"
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 	"recac/internal/tui"
-	"recac/internal/notify"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/pflag"

@@ -80,3 +80,56 @@ func TestExportJobs_InvalidFormat(t *testing.T) {
 	assert.True(t, exited)
 	assert.Contains(t, buf.String(), "Invalid format")
 }
+
+func TestExportJobs_Errors(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		exportJobs("http://invalid-host", "out.json", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		exportJobs(server.URL, "out.json", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to export jobs")
+	})
+
+	t.Run("LocalFileCreationFailure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`[{"id":"job-1"}]`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+
+		// Use a path that is guaranteed to fail creation (e.g., directory that doesn't exist)
+		badPath := filepath.Join("non-existent-dir", "out.json")
+		exportJobs(server.URL, badPath, "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create output file")
+	})
+}

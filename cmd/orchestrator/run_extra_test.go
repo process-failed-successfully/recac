@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
-	"log/slog"
-	"testing"
-	"io"
 	"bytes"
+	"context"
+	"io"
+	"log/slog"
 	"os"
+	"testing"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
