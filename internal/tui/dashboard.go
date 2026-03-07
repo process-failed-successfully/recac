@@ -536,7 +536,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | h: history | enter: details | l: logs | o: open repo | s: submit | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -598,7 +598,7 @@ func (m DashboardModel) View() string {
 		sb.WriteString(m.textarea.View())
 
 		contentView = baseStyle.Render(sb.String())
-		helpView = statusStyle.Render("tab/shift+tab/up/down: focus | ctrl+s: submit | esc: cancel")
+		helpView = statusStyle.Render("tab/shift+tab/up/down/enter: focus | ctrl+s: submit | esc: cancel")
 	}
 
 	if m.err != nil {

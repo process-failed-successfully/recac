@@ -8,3 +8,7 @@
 ## 2026-03-05 - Reciprocal Actions in Empty States
 **Learning:** When users toggle a view (e.g., showing history) and arrive at an empty state, the UI must provide a clear call-to-action to return to the previous state to avoid getting stuck.
 **Action:** Always include the reverse keybinding hint (like "Press 'h' to return") in empty state messages for toggled views.
+
+## 2026-03-05 - Missing Keybindings in TUI Help Text
+**Learning:** Significant feature-triggering keybindings (like opening a submission form) or alternative navigation keys (like 'enter' for focus) are often implemented in the update loop but missed in the user-facing help text, making the feature undiscoverable.
+**Action:** Always ensure every actionable keybinding in the `Update` loop has a corresponding hint in the `View` function's help text, particularly for features that users cannot intuitively guess.
