@@ -20,6 +20,11 @@ import (
 
 // RegisterAPI registers the orchestrator API handlers on the provided ServeMux.
 func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, baseCtx context.Context) {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		status := orch.GetStatus()
 		w.Header().Set("Content-Type", "application/json")

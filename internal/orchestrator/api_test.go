@@ -66,6 +66,17 @@ func TestRegisterAPI(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
+	// Test /healthz
+	t.Run("Healthz Endpoint", func(t *testing.T) {
+		resp, err := http.Get(server.URL + "/healthz")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, "OK", string(body))
+	})
+
 	// 1. Test /status
 	t.Run("Status Endpoint", func(t *testing.T) {
 		resp, err := http.Get(server.URL + "/status")
