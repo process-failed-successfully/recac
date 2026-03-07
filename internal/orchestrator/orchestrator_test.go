@@ -282,6 +282,41 @@ func TestOrchestrator_SubmitJob(t *testing.T) {
 	spawner.mu.Unlock()
 }
 
+func TestOrchestrator_ClearPendingJobs(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	ctx := context.Background()
+
+	// Add a pending job that depends on a non-existent job
+	err := orch.SubmitJob(ctx, WorkItem{ID: "JOB-PENDING", DependsOn: []string{"JOB-UNKNOWN"}}, silentLogger)
+	require.NoError(t, err)
+
+	// Verify it is pending
+	orch.mu.Lock()
+	_, isPending := orch.pendingJobs["JOB-PENDING"]
+	orch.mu.Unlock()
+	assert.True(t, isPending, "Job should be pending")
+
+	// Clear pending jobs
+	count := orch.ClearPendingJobs(ctx, silentLogger)
+	assert.Equal(t, 1, count)
+
+	// Verify pending jobs is empty
+	orch.mu.Lock()
+	pendingCount := len(orch.pendingJobs)
+	orch.mu.Unlock()
+	assert.Equal(t, 0, pendingCount)
+
+	// Verify the job was recorded as canceled in history
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 1)
+	assert.Equal(t, "JOB-PENDING", completed[0].ID)
+	assert.Equal(t, "Canceled", completed[0].Status)
+	assert.Equal(t, "Canceled from pending queue", completed[0].Error)
+}
+
 func TestOrchestrator_CancelAllJobs(t *testing.T) {
 	poller := newMockPoller(nil)
 	blockCh := make(chan struct{})

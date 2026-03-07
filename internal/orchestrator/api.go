@@ -167,6 +167,14 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"canceled": %d}`, count)
 	})
 
+	mux.HandleFunc("DELETE /pending", func(w http.ResponseWriter, r *http.Request) {
+		count := orch.ClearPendingJobs(r.Context(), logger)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"cleared": %d}`, count)
+	})
+
 	mux.HandleFunc("DELETE /history", func(w http.ResponseWriter, r *http.Request) {
 		count, err := orch.ClearHistory(logger)
 		if err != nil {

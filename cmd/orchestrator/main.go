@@ -44,6 +44,7 @@ func main() {
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
+	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
@@ -165,6 +166,7 @@ func main() {
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
+	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
@@ -315,6 +317,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.clear_history") {
 		host := viper.GetString("orchestrator.host")
 		clearHistory(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.clear_pending") {
+		host := viper.GetString("orchestrator.host")
+		clearPending(host)
 		return nil
 	}
 

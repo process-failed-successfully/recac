@@ -189,6 +189,28 @@ func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
 	return o.Spawner.Cancel(ctx, jobID)
 }
 
+// ClearPendingJobs cancels all jobs currently waiting for dependencies.
+func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger) int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	for id, job := range o.pendingJobs {
+		delete(o.pendingJobs, id)
+		job.Status = "Canceled"
+		job.EndTime = time.Now()
+		job.Error = "Canceled from pending queue"
+		o.addToHistory(job, logger)
+		count++
+	}
+
+	if count > 0 && logger != nil {
+		logger.Info("Cleared pending jobs", "count", count)
+	}
+
+	return count
+}
+
 // CancelAllJobs cancels all running jobs.
 func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
 	// Get all active and pending job IDs first to avoid holding the lock during cancellation
