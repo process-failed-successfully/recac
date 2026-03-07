@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"net/http/httptest"
+	"net/http"
+	"encoding/json"
 	"errors"
 	"recac/internal/orchestrator"
 	"testing"
@@ -134,4 +137,189 @@ func TestDashboardModel_View_EmptyState(t *testing.T) {
 
 	// Assert
 	assert.Contains(t, view, "No active jobs found")
+}
+
+
+func setupMockServer(handler http.HandlerFunc) *httptest.Server {
+	return httptest.NewServer(handler)
+}
+
+func TestDashboardModel_TogglePause(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/pause" {
+			w.WriteHeader(http.StatusOK)
+		} else if r.URL.Path == "/resume" {
+			w.WriteHeader(http.StatusOK)
+		}
+	})
+	defer server.Close()
+
+	cmd := togglePause(server.URL, false)
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Paused", action.Message)
+
+	cmd = togglePause(server.URL, true)
+	msg = cmd()
+	action, ok = msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Resumed", action.Message)
+}
+
+func TestDashboardModel_ForcePoll(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/poll" {
+			w.WriteHeader(http.StatusOK)
+		}
+	})
+	defer server.Close()
+
+	cmd := forcePoll(server.URL)
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Poll triggered", action.Message)
+}
+
+func TestDashboardModel_ClearHistory(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/history" && r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{"cleared": 5})
+		}
+	})
+	defer server.Close()
+
+	cmd := clearHistory(server.URL)
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Cleared 5 jobs", action.Message)
+}
+
+func TestDashboardModel_SubmitJob(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+		}
+	})
+	defer server.Close()
+
+	cmd := submitJobCmd(server.URL, "summary", "repo", "desc")
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Job submitted successfully", action.Message)
+}
+
+func TestDashboardModel_CancelAllJobs(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs" && r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{"canceled": 2})
+		}
+	})
+	defer server.Close()
+
+	cmd := cancelAllJobs(server.URL)
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Cancelled 2 Jobs", action.Message)
+}
+
+func TestDashboardModel_RetryFailedJobs(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/retry-failed" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{"retried": 3})
+		}
+	})
+	defer server.Close()
+
+	cmd := retryFailedJobs(server.URL)
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Retried 3 failed jobs", action.Message)
+}
+
+func TestDashboardModel_CancelJob(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/123" && r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusOK)
+		}
+	})
+	defer server.Close()
+
+	cmd := cancelJob(server.URL, "123")
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Cancelled", action.Message)
+}
+
+func TestDashboardModel_RetryJob(t *testing.T) {
+	server := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/123/retry" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+		}
+	})
+	defer server.Close()
+
+	cmd := retryJob(server.URL, "123")
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Retried", action.Message)
+}
+
+func TestDashboardModel_OpenBrowser(t *testing.T) {
+	oldOpenBrowser := utilsOpenBrowser
+	utilsOpenBrowser = func(url string) error {
+		return nil
+	}
+	defer func() { utilsOpenBrowser = oldOpenBrowser }()
+
+	cmd := openBrowserCmd("http://example.com")
+	msg := cmd()
+	action, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Opened browser", action.Message)
+}
+
+
+func TestDashboardModel_Tick(t *testing.T) {
+	cmd := tick()
+	msg := cmd()
+	_, ok := msg.(tickMsg)
+	assert.True(t, ok)
+}
+
+func TestStartDashboard(t *testing.T) {
+	// similar to explorer
+	m := NewDashboardModel("http://localhost")
+	assert.NotNil(t, m.table)
+}
+
+func TestDashboardModel_UpdateFocus(t *testing.T) {
+	m := NewDashboardModel("http://localhost")
+
+	// initially input 0 is focused
+	assert.True(t, m.inputs[0].Focused())
+	assert.False(t, m.inputs[1].Focused())
+	assert.False(t, m.textarea.Focused())
+
+	m.focusedInput = 1
+	m.updateFocus()
+
+	assert.False(t, m.inputs[0].Focused())
+	assert.True(t, m.inputs[1].Focused())
+
+	m.focusedInput = 2
+	m.updateFocus()
+
+	assert.False(t, m.inputs[1].Focused())
+	assert.True(t, m.textarea.Focused())
 }

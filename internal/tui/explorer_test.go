@@ -149,3 +149,32 @@ func TestExplorerModel_View_Unready(t *testing.T) {
 
 	assert.Contains(t, m.View(), "Initializing...")
 }
+
+func TestStartExplorer(t *testing.T) {
+	// Call StartExplorer but with an invalid path maybe or just regular,
+    // unfortunately tea.Program.Run blocks, so just test it compiles basically
+    // and doesn't panic on setup.
+	dir := t.TempDir()
+	m := NewExplorerModel(dir)
+	assert.NotNil(t, m.files)
+}
+
+func TestExplorerModel_Quit(t *testing.T) {
+	dir := t.TempDir()
+	m := NewExplorerModel(dir)
+	newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	assert.NotNil(t, cmd) // Should return tea.Quit
+
+	m2 := newM.(ExplorerModel)
+	assert.Equal(t, m.cursor, m2.cursor)
+}
+
+func TestExplorerModel_UpdatePreview_EmptyFiles(t *testing.T) {
+	dir := t.TempDir()
+	m := NewExplorerModel(dir)
+	// Temp dir is empty.
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = newM.(ExplorerModel)
+	m.loadFiles()
+	assert.Contains(t, m.viewport.View(), "Empty directory")
+}

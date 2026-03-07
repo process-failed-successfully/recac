@@ -4,6 +4,8 @@ import (
 	"recac/internal/tui"
 	"strings"
 	"testing"
+	"github.com/stretchr/testify/assert"
+	tea "github.com/charmbracelet/bubbletea"
 	"time"
 )
 
@@ -41,4 +43,22 @@ func TestHomeModel_View(t *testing.T) {
 	if !strings.Contains(view, "session-1") {
 		t.Error("View missing session name")
 	}
+}
+
+func TestHomeModel_Init(t *testing.T) {
+	m := tui.NewHomeModel(tui.GitStatus{}, tui.TodoSummary{}, nil, tui.SystemInfo{})
+	assert.Nil(t, m.Init())
+}
+
+func TestHomeModel_Update(t *testing.T) {
+	m := tui.NewHomeModel(tui.GitStatus{}, tui.TodoSummary{}, nil, tui.SystemInfo{})
+
+	newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	assert.NotNil(t, cmd)
+
+	newM, cmd = m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	assert.Nil(t, cmd)
+	m2 := newM.(tui.HomeModel)
+	assert.Equal(t, 100, m2.Width)
+	assert.Equal(t, 50, m2.Height)
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
@@ -92,4 +93,47 @@ func TestRenderHelpers(t *testing.T) {
 	bar := renderInstabilityBar(0.5, 20)
 	assert.Contains(t, bar, "█")
 	assert.Contains(t, bar, "░")
+}
+
+func TestDepsItem_FilterValue(t *testing.T) {
+	item := depsItem{metric: PackageMetric{Name: "test-pkg"}}
+	assert.Equal(t, "test-pkg", item.FilterValue())
+	assert.Equal(t, "test-pkg", item.Title())
+	assert.Contains(t, item.Description(), "Ca:")
+}
+
+func TestStartDeps(t *testing.T) {
+	outgoing := map[string][]string{
+		"pkgA": {"pkgB"},
+	}
+	// We can't really test tea.Program.Run() easily without an active terminal,
+	// but we can ensure it doesn't panic immediately.
+	// We'll run it in a goroutine and cancel it if possible, or just skip full Run testing
+	// and trust bubbletea.
+	// Actually, Bubbletea programs can be run with input, but since StartDeps sets AltScreen,
+	// it's tricky. Let's just test that calling NewDepsModel doesn't panic.
+	m := NewDepsModel(outgoing)
+	assert.NotNil(t, m.list)
+}
+
+func TestDepsModel_UpdateViewportEmptyMetrics(t *testing.T) {
+	m := NewDepsModel(nil)
+	m.viewport = viewport.New(100, 20)
+	m.selectedPkg = "non-existent"
+	m.updateViewport()
+	assert.Contains(t, m.viewport.View(), "Package metrics not found")
+}
+
+func TestDepsModel_UpdateViewportNoSelected(t *testing.T) {
+	m := NewDepsModel(nil)
+	m.viewport = viewport.New(100, 20)
+	m.selectedPkg = ""
+	m.updateViewport()
+	assert.Contains(t, m.viewport.View(), "Select a package")
+}
+
+func TestDepsModel_RenderInstabilityBar(t *testing.T) {
+	assert.Contains(t, renderInstabilityBar(0.2, 5), "█") // Low width defaults to 10
+	assert.Contains(t, renderInstabilityBar(0.8, 10), "█")
+	assert.Contains(t, renderInstabilityBar(0.4, 10), "█")
 }
