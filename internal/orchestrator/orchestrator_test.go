@@ -120,9 +120,12 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 	orch := New(poller, spawner, 10*time.Millisecond)
 
 	var notifications []string
+	var notificationsMu sync.Mutex
 	notifier := &mockNotifier{
 		notifyFunc: func(ctx context.Context, eventType string, message string, threadStateStr string) (string, error) {
+			notificationsMu.Lock()
 			notifications = append(notifications, eventType)
+			notificationsMu.Unlock()
 			return "ts123", nil
 		},
 	}
@@ -152,6 +155,8 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 	assert.Empty(t, polledItems)
 
 	// Check that notifications were sent (2 starts + 2 successes = 4 total)
+	notificationsMu.Lock()
+	defer notificationsMu.Unlock()
 	assert.Len(t, notifications, 4)
 	startCount := 0
 	successCount := 0
