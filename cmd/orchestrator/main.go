@@ -54,6 +54,8 @@ func main() {
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("force-poll", false, "Force an immediate poll cycle")
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
+	pflag.String("update-priority", "", "Update the priority of a specific pending job")
+	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
@@ -181,6 +183,8 @@ func main() {
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.force_poll", pflag.Lookup("force-poll"))
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
+	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
+	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
@@ -377,6 +381,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if scaleVal := viper.GetInt("orchestrator.scale"); scaleVal >= 0 {
 		host := viper.GetString("orchestrator.host")
 		scaleConcurrency(host, scaleVal)
+		return nil
+	}
+
+	if updateJob := viper.GetString("orchestrator.update_priority"); updateJob != "" {
+		host := viper.GetString("orchestrator.host")
+		priorityVal := viper.GetInt("orchestrator.priority_val")
+		updatePriority(host, updateJob, priorityVal)
 		return nil
 	}
 

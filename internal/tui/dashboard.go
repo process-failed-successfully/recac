@@ -362,6 +362,26 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				return m, scaleConcurrencyCmd(m.host, newMax)
 			}
 			return m, nil
+		case ">":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				for _, job := range m.jobs {
+					if job.ID == id {
+						return m, updatePriorityCmd(m.host, id, job.WorkItem.Priority+1)
+					}
+				}
+			}
+		case "<":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				for _, job := range m.jobs {
+					if job.ID == id {
+						return m, updatePriorityCmd(m.host, id, job.WorkItem.Priority-1)
+					}
+				}
+			}
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
@@ -552,7 +572,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -776,6 +796,31 @@ func scaleConcurrencyCmd(host string, max int) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: fmt.Sprintf("Scaled concurrency to %d", max)}
+	}
+}
+
+func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/priority", host, id)
+		reqBody := fmt.Sprintf(`{"priority": %d}`, newPriority)
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, strings.NewReader(reqBody))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated priority for job %s to %d", id, newPriority)}
 	}
 }
 

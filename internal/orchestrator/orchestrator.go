@@ -342,6 +342,40 @@ func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slo
 	return o.processWorkItem(ctx, item, logger)
 }
 
+// UpdateJobPriority updates the priority of a job in the pending queue.
+func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newPriority int, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have priority updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	job.WorkItem.Priority = newPriority
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+
+	if logger != nil {
+		logger.Info("Updated job priority", "jobID", jobID, "newPriority", newPriority)
+	}
+
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // RetryJob resubmits a completed job from history.
 func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.Logger) error {
 	o.mu.RLock()
