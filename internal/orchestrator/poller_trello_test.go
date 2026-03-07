@@ -193,3 +193,33 @@ func TestTrelloPoller_Ping(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestTrelloPoller_postComment_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewTrelloPoller("key", "token", "board_id", "")
+	poller.BaseURL = server.URL
+
+	err := poller.postComment(context.Background(), "card_id", "comment text")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post trello comment")
+}
+
+func TestTrelloPoller_closeCard_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewTrelloPoller("key", "token", "board_id", "")
+	poller.BaseURL = server.URL
+
+	err := poller.closeCard(context.Background(), "card_id")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close trello card")
+}

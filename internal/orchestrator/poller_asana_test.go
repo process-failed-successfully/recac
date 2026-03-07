@@ -182,3 +182,33 @@ func TestAsanaPoller_Ping(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestAsanaPoller_completeTask_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewAsanaPoller("token", "project")
+	poller.BaseURL = server.URL
+
+	err := poller.completeTask(context.Background(), "task123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to complete asana task")
+}
+
+func TestAsanaPoller_postComment_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewAsanaPoller("token", "project")
+	poller.BaseURL = server.URL
+
+	err := poller.postComment(context.Background(), "task123", "comment")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post asana comment")
+}
