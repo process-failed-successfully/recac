@@ -14,6 +14,7 @@ type Persistence interface {
 	GetJob(id string) (*JobInfo, error)
 	GetJobs(limit int) ([]JobInfo, error)
 	ClearHistory() (int, error)
+	PurgeJob(id string) error
 	Close() error
 }
 
@@ -127,6 +128,28 @@ func (p *SQLitePersistence) GetJobs(limit int) ([]JobInfo, error) {
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
+}
+
+func (p *SQLitePersistence) PurgeJob(id string) error {
+	if p.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	res, err := p.db.Exec("DELETE FROM jobs WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to purge job: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("job %s not found", id)
+	}
+
+	return nil
 }
 
 func (p *SQLitePersistence) ClearHistory() (int, error) {

@@ -626,6 +626,44 @@ func TestRegisterAPI(t *testing.T) {
 	})
 }
 
+func TestAPI_PurgeJob(t *testing.T) {
+	orch := New(&mockPoller{}, &mockSpawner{}, 0)
+	orch.completedJobs = []JobInfo{{ID: "JOB-1"}}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	t.Run("DELETE /history/{id} success", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, "/history/JOB-1", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), "Job JOB-1 purged successfully")
+		assert.Empty(t, orch.completedJobs)
+	})
+
+	t.Run("DELETE /history/{id} not found", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, "/history/JOB-99", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		assert.Contains(t, rr.Body.String(), "not found")
+	})
+
+	t.Run("DELETE /history/{id} active", func(t *testing.T) {
+		orch.activeJobs["ACTIVE-1"] = JobInfo{ID: "ACTIVE-1"}
+		req, _ := http.NewRequest(http.MethodDelete, "/history/ACTIVE-1", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusConflict, rr.Code)
+		assert.Contains(t, rr.Body.String(), "cannot purge")
+	})
+}
+
 func TestAPI_ClearHistory(t *testing.T) {
 	orch := New(&mockPoller{}, &mockSpawner{}, 0)
 	orch.completedJobs = []JobInfo{{ID: "1"}, {ID: "2"}} // add mock completed jobs

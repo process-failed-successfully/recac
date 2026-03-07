@@ -24,6 +24,9 @@ func (m *mockPersistenceError) GetJobs(limit int) ([]JobInfo, error) {
 func (m *mockPersistenceError) ClearHistory() (int, error) {
 	return 0, errors.New("clear failed")
 }
+func (m *mockPersistenceError) PurgeJob(id string) error {
+	return errors.New("purge failed")
+}
 
 func TestOrchestrator_SpawnWorker_Failure(t *testing.T) {
 	// 1. Setup Poller with 1 item

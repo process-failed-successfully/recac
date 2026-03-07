@@ -701,6 +701,52 @@ func (o *Orchestrator) addToHistory(job JobInfo, logger *slog.Logger) {
 	}
 }
 
+// PurgeJob removes a specific job from history (both in-memory and persistent storage).
+// It returns an error if the job is currently active or pending.
+func (o *Orchestrator) PurgeJob(id string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if _, exists := o.activeJobs[id]; exists {
+		return fmt.Errorf("job %s is active, cannot purge", id)
+	}
+	if _, exists := o.pendingJobs[id]; exists {
+		return fmt.Errorf("job %s is pending, cannot purge", id)
+	}
+
+	// Remove from in-memory history
+	foundInMemory := false
+	for i, job := range o.completedJobs {
+		if job.ID == id {
+			foundInMemory = true
+			// Remove element
+			o.completedJobs = append(o.completedJobs[:i], o.completedJobs[i+1:]...)
+			break
+		}
+	}
+
+	// Remove from persistence
+	dbPurged := false
+	if o.Persistence != nil {
+		err := o.Persistence.PurgeJob(id)
+		if err == nil {
+			dbPurged = true
+		} else if err.Error() != fmt.Sprintf("job %s not found", id) {
+			return fmt.Errorf("failed to purge job from persistence: %w", err)
+		}
+	}
+
+	if !foundInMemory && !dbPurged {
+		return fmt.Errorf("job %s not found in history", id)
+	}
+
+	if logger != nil {
+		logger.Info("Job purged from history", "id", id)
+	}
+
+	return nil
+}
+
 // ClearHistory clears the in-memory history and the persistent history.
 func (o *Orchestrator) ClearHistory(logger *slog.Logger) (int, error) {
 	o.mu.Lock()

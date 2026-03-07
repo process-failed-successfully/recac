@@ -205,6 +205,22 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"cleared": %d}`, count)
 	})
 
+	mux.HandleFunc("DELETE /history/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.PurgeJob(id, logger); err != nil {
+			if strings.Contains(err.Error(), "cannot purge") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s purged successfully", id)
+	})
+
 	mux.HandleFunc("DELETE /history", func(w http.ResponseWriter, r *http.Request) {
 		count, err := orch.ClearHistory(logger)
 		if err != nil {

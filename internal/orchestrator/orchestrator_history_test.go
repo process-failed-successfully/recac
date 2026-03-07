@@ -20,9 +20,58 @@ func (m *mockPersistenceClear) Close() error                { return nil }
 func (m *mockPersistenceClear) SaveJob(job JobInfo) error   { return nil }
 func (m *mockPersistenceClear) GetJob(id string) (*JobInfo, error) { return nil, nil }
 func (m *mockPersistenceClear) GetJobs(limit int) ([]JobInfo, error) { return nil, nil }
+func (m *mockPersistenceClear) PurgeJob(id string) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
 func (m *mockPersistenceClear) ClearHistory() (int, error) {
 	args := m.Called()
 	return args.Int(0), args.Error(1)
+}
+
+func TestOrchestrator_PurgeJob(t *testing.T) {
+	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
+
+	job1 := JobInfo{ID: "JOB-1", Status: "Completed"}
+	job2 := JobInfo{ID: "JOB-2", Status: "Failed"}
+
+	orch.completedJobs = append(orch.completedJobs, job1, job2)
+	assert.Len(t, orch.GetCompletedJobs(), 2)
+
+	// Test purge job from memory only
+	err := orch.PurgeJob("JOB-1", silentLogger)
+	assert.NoError(t, err)
+
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 1)
+	assert.Equal(t, "JOB-2", completed[0].ID)
+
+	// Test purge job not found
+	err = orch.PurgeJob("MISSING", silentLogger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+
+	// Test purge job active
+	orch.activeJobs["ACTIVE-1"] = JobInfo{ID: "ACTIVE-1", Status: "Running"}
+	err = orch.PurgeJob("ACTIVE-1", silentLogger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "active, cannot purge")
+
+	// Test purge job pending
+	orch.pendingJobs["PENDING-1"] = JobInfo{ID: "PENDING-1", Status: "Pending"}
+	err = orch.PurgeJob("PENDING-1", silentLogger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pending, cannot purge")
+
+	// Test with DB
+	p := &mockPersistenceClear{}
+	p.On("PurgeJob", "JOB-2").Return(nil)
+	orch.SetPersistence(p)
+
+	err = orch.PurgeJob("JOB-2", silentLogger)
+	assert.NoError(t, err)
+	assert.Len(t, orch.GetCompletedJobs(), 0)
+	p.AssertExpectations(t)
 }
 
 func TestOrchestrator_ClearHistory(t *testing.T) {

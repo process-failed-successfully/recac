@@ -45,6 +45,7 @@ func main() {
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
+	pflag.String("purge-job", "", "Purge a specific job from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
@@ -178,6 +179,7 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
+	viper.BindPFlag("orchestrator.purge_job", pflag.Lookup("purge-job"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
@@ -343,6 +345,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.cancel_all") {
 		host := viper.GetString("orchestrator.host")
 		cancelAllJobs(host)
+		return nil
+	}
+
+	if jobID := viper.GetString("orchestrator.purge_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		purgeJob(host, jobID)
 		return nil
 	}
 
@@ -1000,6 +1008,32 @@ func inspectJob(host, jobID string) {
 			fmt.Fprintf(stdout, "  %s=%s\n", k, v)
 		}
 	}
+}
+
+func purgeJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/history/%s", host, jobID), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to purge job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s purged successfully.\n", jobID)
 }
 
 func cancelJob(host, jobID string) {
