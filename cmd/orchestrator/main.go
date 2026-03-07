@@ -52,6 +52,7 @@ func main() {
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("force-poll", false, "Force an immediate poll cycle")
+	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
@@ -175,6 +176,7 @@ func main() {
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.force_poll", pflag.Lookup("force-poll"))
+	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
@@ -357,6 +359,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.force_poll") {
 		host := viper.GetString("orchestrator.host")
 		forcePoll(host)
+		return nil
+	}
+
+	if scaleVal := viper.GetInt("orchestrator.scale"); scaleVal >= 0 {
+		host := viper.GetString("orchestrator.host")
+		scaleConcurrency(host, scaleVal)
 		return nil
 	}
 
@@ -1054,6 +1062,33 @@ func forcePoll(host string) {
 	}
 
 	fmt.Fprintln(stdout, "Orchestrator poll triggered.")
+}
+
+func scaleConcurrency(host string, max int) {
+	reqBody := fmt.Sprintf(`{"max_concurrent_jobs": %d}`, max)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/scale", host), strings.NewReader(reqBody))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to scale orchestrator: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Orchestrator concurrency limit scaled to %d.\n", max)
 }
 
 func retryJob(host, jobID string) {

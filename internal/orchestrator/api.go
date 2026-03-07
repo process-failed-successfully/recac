@@ -471,4 +471,26 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Orchestrator resumed")
 	})
+
+	mux.HandleFunc("POST /scale", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			MaxConcurrentJobs int `json:"max_concurrent_jobs"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		// Prevent negative numbers
+		if req.MaxConcurrentJobs < 0 {
+			http.Error(w, "max_concurrent_jobs cannot be negative", http.StatusBadRequest)
+			return
+		}
+
+		orch.SetConcurrency(baseCtx, req.MaxConcurrentJobs, logger)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"max_concurrent_jobs": %d}`, req.MaxConcurrentJobs)
+	})
 }

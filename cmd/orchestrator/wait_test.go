@@ -40,10 +40,12 @@ func TestWaitJobCommand(t *testing.T) {
 	}()
 
 	// Configure viper
+	viper.Reset()
 	viper.Set("orchestrator.wait_job", "JOB-123")
 	viper.Set("orchestrator.host", server.URL)
 
 	// Temporarily disable other bool flags that could be set by other tests
+	viper.Set("orchestrator.scale", -1)
 	viper.Set("orchestrator.list_jobs", false)
 	viper.Set("orchestrator.status", false)
 	viper.Set("orchestrator.cancel_all", false)

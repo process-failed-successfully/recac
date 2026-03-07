@@ -250,6 +250,23 @@ func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser
 	return o.Spawner.GetLogs(ctx, jobID)
 }
 
+// SetConcurrency sets the maximum number of concurrent jobs allowed.
+func (o *Orchestrator) SetConcurrency(ctx context.Context, max int, logger *slog.Logger) {
+	o.mu.Lock()
+	oldMax := o.MaxConcurrentJobs
+	o.MaxConcurrentJobs = max
+	o.mu.Unlock()
+
+	if logger != nil {
+		logger.Info("Concurrency limit updated", "old", oldMax, "new", max)
+	}
+
+	// If we increased the limit or set to unlimited, we might have pending jobs that can now run
+	if max == 0 || max > oldMax {
+		o.evaluatePendingJobs(ctx, logger)
+	}
+}
+
 // GetStatus returns the current status of the orchestrator.
 func (o *Orchestrator) GetStatus() Status {
 	o.mu.RLock()
