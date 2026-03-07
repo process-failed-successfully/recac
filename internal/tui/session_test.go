@@ -262,3 +262,48 @@ func TestSessionModel_FocusTransition(t *testing.T) {
 	assert.False(t, sessM.isLoading, "Should not be loading")
 	assert.True(t, sessM.input.Focused(), "Input should be focused after completion")
 }
+
+func TestSessionModel_HandleCommand_ContextEmpty(t *testing.T) {
+	m := NewSessionModel(nil, "default")
+	m.input.SetValue("/context")
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM := newM.(SessionModel)
+	assert.Contains(t, sessM.history, "No files in context")
+}
+
+func TestSessionModel_HandleCommand_AddEmpty(t *testing.T) {
+	m := NewSessionModel(nil, "default")
+	m.input.SetValue("/add")
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM := newM.(SessionModel)
+	assert.Contains(t, sessM.history, "Usage: /add <file_path>")
+}
+
+func TestSessionModel_HandleCommand_AddInvalid(t *testing.T) {
+	m := NewSessionModel(nil, "default")
+	m.input.SetValue("/add invalid_file.txt")
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	sessM := newM.(SessionModel)
+	assert.Contains(t, sessM.history, "Failed to read file")
+}
+
+func TestSessionModel_ClearCtrlL(t *testing.T) {
+	m := NewSessionModel(nil, "default")
+	m.history = "test history"
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	sessM := newM.(SessionModel)
+	assert.Empty(t, sessM.history)
+}
+
+func TestSessionModel_Error(t *testing.T) {
+	m := NewSessionModel(nil, "default")
+	newM, _ := m.Update(errMsg(os.ErrNotExist))
+	sessM := newM.(SessionModel)
+	assert.Contains(t, sessM.history, "**Error**:")
+}
+
+func TestSessionModel_StartSession(t *testing.T) {
+	// similar to explorer
+	m := NewSessionModel(nil, "default")
+	assert.NotNil(t, m.input)
+}
