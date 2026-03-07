@@ -68,7 +68,7 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, wait bool, envVars map[string]string) {
+func submitAdHocJob(host, repo, task, id string, priority int, wait bool, envVars map[string]string) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -79,6 +79,7 @@ func submitAdHocJob(host, repo, task, id string, wait bool, envVars map[string]s
 		Description: task,
 		RepoURL:     repo,
 		EnvVars:     envVars,
+		Priority:    priority,
 	}
 
 	payload, err := json.Marshal(item)

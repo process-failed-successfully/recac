@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"regexp"
+	"sort"
 	"sync"
 	"time"
 )
@@ -576,6 +577,14 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		}
 	}
 	o.mu.Unlock()
+
+	// Sort pending jobs by Priority (descending) and ID (ascending) to ensure stable processing order
+	sort.SliceStable(toProcess, func(i, j int) bool {
+		if toProcess[i].Priority != toProcess[j].Priority {
+			return toProcess[i].Priority > toProcess[j].Priority
+		}
+		return toProcess[i].ID < toProcess[j].ID
+	})
 
 	for _, item := range toProcess {
 		if err := o.processWorkItem(ctx, item, logger); err != nil {

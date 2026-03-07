@@ -28,7 +28,7 @@ func TestSubmitAdHocJob_SuccessNoWait(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	submitAdHocJob(server.URL, "repo", "task", "id", false, nil)
+	submitAdHocJob(server.URL, "repo", "task", "id", 0, false, nil)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -62,7 +62,7 @@ func TestSubmitAdHocJob_SuccessWait(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	submitAdHocJob(server.URL, "repo", "task", "id", true, nil)
+	submitAdHocJob(server.URL, "repo", "task", "id", 0, true, nil)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -97,7 +97,7 @@ func TestSubmitAdHocJob_WaitFailure(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	submitAdHocJob(server.URL, "repo", "task", "id", true, nil)
+	submitAdHocJob(server.URL, "repo", "task", "id", 0, true, nil)
 
 	w.Close()
 	var buf bytes.Buffer
