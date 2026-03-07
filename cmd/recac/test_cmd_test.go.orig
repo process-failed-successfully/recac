@@ -5,12 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"testing"
-	"path/filepath"
-	"time"
 
 	"recac/internal/agent"
-
-	"github.com/fsnotify/fsnotify"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -345,91 +341,4 @@ func TestShouldIgnoreFile(t *testing.T) {
 			assert.Equal(t, tt.expected, shouldIgnoreFile(tt.path))
 		})
 	}
-}
-
-func TestAddRecursiveWatch(t *testing.T) {
-	tmpDir := t.TempDir()
-	subDir1 := filepath.Join(tmpDir, "subDir1")
-	subDir2 := filepath.Join(tmpDir, "subDir2")
-	ignoredDir := filepath.Join(tmpDir, "node_modules")
-
-	err := os.MkdirAll(subDir1, 0755)
-	assert.NoError(t, err)
-	err = os.MkdirAll(subDir2, 0755)
-	assert.NoError(t, err)
-	err = os.MkdirAll(ignoredDir, 0755)
-	assert.NoError(t, err)
-
-	watcher, err := fsnotify.NewWatcher()
-	assert.NoError(t, err)
-	defer watcher.Close()
-
-	err = addRecursiveWatch(watcher, tmpDir)
-	assert.NoError(t, err)
-}
-
-func TestRunTestWatch(t *testing.T) {
-	cmd := rootCmd
-	resetFlags(cmd)
-	testWatch = true
-
-	originalExec := execCommand
-	execCommand = func(name string, arg ...string) *exec.Cmd {
-		if name == "go" && arg[0] == "test" {
-			return exec.Command("echo", "PASS")
-		}
-		return exec.Command("echo", "unexpected")
-	}
-	defer func() { execCommand = originalExec }()
-
-	originalDebounce := testWatchDebounceDuration
-	testWatchDebounceDuration = 10 * time.Millisecond
-	defer func() { testWatchDebounceDuration = originalDebounce }()
-
-	tmpDir := t.TempDir()
-
-	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
-
-	watcher, err := fsnotify.NewWatcher()
-	assert.NoError(t, err)
-
-	originalNewWatcher := fsnotifyNewWatcher
-	fsnotifyNewWatcher = func() (*fsnotify.Watcher, error) {
-		return watcher, nil
-	}
-	defer func() { fsnotifyNewWatcher = originalNewWatcher }()
-
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- runTestWatch(cmd, []string{"pkg/a"})
-	}()
-
-	time.Sleep(50 * time.Millisecond)
-
-	testFile := filepath.Join(tmpDir, "foo.go")
-	os.WriteFile(testFile, []byte("package foo"), 0644)
-
-	time.Sleep(100 * time.Millisecond)
-
-	watcher.Close()
-
-	err = <-errCh
-	assert.NoError(t, err)
-}
-
-func TestRunTestWatch_WatcherInitError(t *testing.T) {
-	cmd := rootCmd
-	resetFlags(cmd)
-
-	originalNewWatcher := fsnotifyNewWatcher
-	fsnotifyNewWatcher = func() (*fsnotify.Watcher, error) {
-		return nil, assert.AnError
-	}
-	defer func() { fsnotifyNewWatcher = originalNewWatcher }()
-
-	err := runTestWatch(cmd, []string{"pkg/a"})
-	assert.Error(t, err)
-	assert.Equal(t, assert.AnError, err)
 }
