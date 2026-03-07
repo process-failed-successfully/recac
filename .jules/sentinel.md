@@ -11,3 +11,8 @@
 **Vulnerability:** Found a Path Traversal vulnerability (CWE-22) in `internal/agent/prompts/prompts.go` where `GetPrompt(name string, vars map[string]string)` concatenated the `name` parameter with `.md` directly into a `filepath.Join` without sanitization.
 **Learning:** Functions like `filepath.Join` resolve path sequences, but do not prevent escaping the intended base directory if the untrusted input contains enough `../` sequences (e.g. `filepath.Join("/var/prompts", "../../../etc/passwd")` resolves to `/etc/passwd`).
 **Prevention:** Always sanitize filename or path inputs using `filepath.Base()` when the input is intended to reference a file within a specific directory, ensuring it cannot traverse outside the intended directory.
+
+## 2026-03-08 - [Fix Path Traversal in Snapshot CLI Commands]
+**Vulnerability:** Found a Path Traversal vulnerability (CWE-22) in `cmd/recac/snapshot.go` where snapshot names passed via CLI arguments were joined without validation using `filepath.Join`.
+**Learning:** Even CLI tools executing locally can be susceptible to path traversal if they manage files in a designated directory but accept path separators in inputs. This could inadvertently overwrite or delete unintended files.
+**Prevention:** Introduce validation functions (e.g., `validateSnapshotName`) that assert `filepath.Base(name) == name` to strictly enforce that the input is merely a filename and not a directory path.

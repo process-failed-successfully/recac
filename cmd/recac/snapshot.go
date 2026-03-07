@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -52,8 +53,24 @@ func init() {
 	snapshotCmd.AddCommand(snapshotDeleteCmd)
 }
 
+func validateSnapshotName(name string) error {
+	if name == "" {
+		return fmt.Errorf("snapshot name cannot be empty")
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid snapshot name '%s': path traversal characters detected", name)
+	}
+	if filepath.Base(name) != name {
+		return fmt.Errorf("invalid snapshot name '%s': path traversal characters detected", name)
+	}
+	return nil
+}
+
 func runSnapshotCreate(cmd *cobra.Command, args []string) error {
 	name := args[0]
+	if err := validateSnapshotName(name); err != nil {
+		return err
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -129,6 +146,9 @@ func runSnapshotList(cmd *cobra.Command, args []string) error {
 
 func runSnapshotRestore(cmd *cobra.Command, args []string) error {
 	name := args[0]
+	if err := validateSnapshotName(name); err != nil {
+		return err
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -171,6 +191,9 @@ func runSnapshotRestore(cmd *cobra.Command, args []string) error {
 
 func runSnapshotDelete(cmd *cobra.Command, args []string) error {
 	name := args[0]
+	if err := validateSnapshotName(name); err != nil {
+		return err
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
