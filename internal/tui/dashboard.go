@@ -334,6 +334,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "clear history"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "P":
+			m.pendingJobId = "PENDING"
+			m.pendingAction = "clear pending"
+			m.viewState = viewConfirmation
+			return m, nil
 		case "s":
 			m.viewState = viewSubmit
 			m.focusedInput = 0
@@ -379,6 +384,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = retryFailedJobs(m.host)
 			} else if m.pendingAction == "clear history" {
 				cmd = clearHistory(m.host)
+			} else if m.pendingAction == "clear pending" {
+				cmd = clearPending(m.host)
 			}
 			m.pendingJobId = ""
 			m.pendingAction = ""
@@ -545,7 +552,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | +/-: scale limit | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | X: clear history | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -564,6 +571,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = "Are you sure you want to retry ALL failed jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "clear history" {
 			dialogMsg = "Are you sure you want to clear ALL job history?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
+		} else if m.pendingAction == "clear pending" {
+			dialogMsg = "Are you sure you want to clear ALL pending jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else {
 			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
@@ -863,6 +872,35 @@ func clearHistory(host string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Cleared %d jobs", int(cleared))}
+	}
+}
+
+func clearPending(host string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/pending", host), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return actionMsg{Err: fmt.Errorf("failed to parse response: %v", err)}
+		}
+		cleared, ok := result["cleared"].(float64)
+		if !ok {
+			return actionMsg{Err: fmt.Errorf("invalid response format")}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Cleared %d pending jobs", int(cleared))}
 	}
 }
 
