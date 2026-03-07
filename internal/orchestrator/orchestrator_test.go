@@ -96,6 +96,18 @@ func (m *mockSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser,
 	return io.NopCloser(strings.NewReader("mock logs")), nil
 }
 
+// MockNotifier for testing notifications
+type mockNotifier struct {
+	notifyFunc func(ctx context.Context, eventType string, message string, threadStateStr string) (string, error)
+}
+
+func (m *mockNotifier) Notify(ctx context.Context, eventType string, message string, threadStateStr string) (string, error) {
+	if m.notifyFunc != nil {
+		return m.notifyFunc(ctx, eventType, message, threadStateStr)
+	}
+	return "", nil
+}
+
 // A silent logger for cleaner test output
 var silentLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -106,6 +118,15 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 	})
 	spawner := &mockSpawner{}
 	orch := New(poller, spawner, 10*time.Millisecond)
+
+	var notifications []string
+	notifier := &mockNotifier{
+		notifyFunc: func(ctx context.Context, eventType string, message string, threadStateStr string) (string, error) {
+			notifications = append(notifications, eventType)
+			return "ts123", nil
+		},
+	}
+	orch.SetNotifier(notifier)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -129,6 +150,20 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 	// Check that poller has no more items
 	polledItems, _ := poller.Poll(context.Background(), silentLogger)
 	assert.Empty(t, polledItems)
+
+	// Check that notifications were sent (2 starts + 2 successes = 4 total)
+	assert.Len(t, notifications, 4)
+	startCount := 0
+	successCount := 0
+	for _, n := range notifications {
+		if n == "on_start" {
+			startCount++
+		} else if n == "on_success" {
+			successCount++
+		}
+	}
+	assert.Equal(t, 2, startCount)
+	assert.Equal(t, 2, successCount)
 }
 
 func TestOrchestrator_Run_PollError(t *testing.T) {
