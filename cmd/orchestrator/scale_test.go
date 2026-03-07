@@ -66,3 +66,40 @@ func TestScaleCommand(t *testing.T) {
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, out.String(), "Orchestrator concurrency limit scaled to 5.")
 }
+
+func TestScaleConcurrency_Errors(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		scaleConcurrency("http://invalid-host", 5)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		scaleConcurrency(server.URL, 5)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to scale orchestrator")
+	})
+
+}

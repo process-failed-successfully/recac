@@ -81,7 +81,7 @@ func TestWaitForJob(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/JOB-123", func(w http.ResponseWriter, r *http.Request) {
 		job := orchestrator.JobInfo{
-			ID: "JOB-123",
+			ID:     "JOB-123",
 			Status: states[currentStateIdx],
 		}
 		json.NewEncoder(w).Encode(job)
@@ -139,9 +139,9 @@ func TestWaitForJob_Failed(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/JOB-FAIL", func(w http.ResponseWriter, r *http.Request) {
 		job := orchestrator.JobInfo{
-			ID: "JOB-FAIL",
+			ID:     "JOB-FAIL",
 			Status: "Failed",
-			Error: "Something went wrong",
+			Error:  "Something went wrong",
 		}
 		json.NewEncoder(w).Encode(job)
 	})

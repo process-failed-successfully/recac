@@ -137,3 +137,131 @@ func TestWaitForJob_Errors(t *testing.T) {
 		assert.Contains(t, buf.String(), "--- Log Stream End ---")
 	})
 }
+
+func TestClearPending_Errors(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		clearPending("http://invalid-host")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		clearPending(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to clear pending jobs")
+	})
+
+	t.Run("BadJSONFormat", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"cleared": "not-a-number"}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		clearPending(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Unexpected response format")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid-json`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		clearPending(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+}
+
+func TestClearHistory_Errors(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		clearHistory("http://invalid-host")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		clearHistory(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to clear history")
+	})
+
+	t.Run("BadJSONFormat", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"cleared": "not-a-number"}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		clearHistory(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Unexpected response format")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid-json`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		clearHistory(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+}
