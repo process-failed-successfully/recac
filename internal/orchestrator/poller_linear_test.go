@@ -320,3 +320,107 @@ func TestLinearPoller_Ping_Error(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "linear ping failed: 401")
 }
+
+func TestLinearPoller_closeIssue_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = server.URL
+	poller.Client = server.Client()
+
+	err := poller.closeIssue(context.Background(), "issue_id")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch workflow states")
+}
+
+func TestLinearPoller_postComment_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = server.URL
+	poller.Client = server.Client()
+
+	err := poller.postComment(context.Background(), "issue_id", "comment text")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post linear comment")
+}
+
+func TestLinearPoller_postComment_GraphQL_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := `{
+			"errors": [
+				{
+					"message": "GraphQL mutation error"
+				}
+			]
+		}`
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = server.URL
+	poller.Client = server.Client()
+
+	err := poller.postComment(context.Background(), "issue_id", "comment text")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "linear comment error: GraphQL mutation error")
+}
+
+func TestLinearPoller_closeIssue_GraphQL_Error(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		bodyStr := string(body)
+
+		if requestCount == 0 {
+			assert.Contains(t, bodyStr, "workflowStates")
+			response := `{
+				"data": {
+					"workflowStates": {
+						"nodes": [
+							{
+								"id": "state-completed-123"
+							}
+						]
+					}
+				}
+			}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(response))
+		} else if requestCount == 1 {
+			assert.Contains(t, bodyStr, "issueUpdate")
+			response := `{
+				"errors": [
+					{
+						"message": "Update failed"
+					}
+				]
+			}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(response))
+		}
+		requestCount++
+	}))
+	defer server.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = server.URL
+	poller.Client = server.Client()
+
+	err := poller.closeIssue(context.Background(), "issue_id")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "linear issue update error: Update failed")
+}

@@ -119,3 +119,45 @@ func TestGitLabPoller_Ping(t *testing.T) {
 	err := p.Ping(context.Background())
 	assert.NoError(t, err)
 }
+
+func TestGitLabPoller_closeIssue_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewGitLabPoller(server.URL, "token", "owner%2Frepo", "label")
+
+	err := poller.closeIssue(context.Background(), "123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close issue")
+}
+
+func TestGitLabPoller_postComment_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewGitLabPoller(server.URL, "token", "owner%2Frepo", "label")
+
+	err := poller.postComment(context.Background(), "123", "comment")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post comment")
+}
+
+func TestGitLabPoller_Ping_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewGitLabPoller(server.URL, "token", "owner%2Frepo", "label")
+
+	err := poller.Ping(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "gitlab ping failed")
+}

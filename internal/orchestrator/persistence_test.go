@@ -96,4 +96,51 @@ func TestSQLitePersistence(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "Failed", got.Status)
 	})
+
+	t.Run("ClearHistory", func(t *testing.T) {
+		job3 := JobInfo{
+			ID:        "JOB-3",
+			Summary:   "Test Job 3",
+			StartTime: time.Now(),
+			Status:    "error",
+			WorkItem: WorkItem{
+				ID: "JOB-3", Description: "Desc 3",
+			},
+		}
+		err := p.SaveJob(job3)
+		require.NoError(t, err)
+
+		count, err := p.ClearHistory()
+		require.NoError(t, err)
+		assert.Equal(t, 2, count) // JOB-1 and JOB-3
+
+		jobs, err := p.GetJobs(10)
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+		assert.Equal(t, "JOB-2", jobs[0].ID)
+	})
+
+	t.Run("ErrorCases", func(t *testing.T) {
+		// Create a persistence object with no database to trigger the "not initialized" errors
+		pNoDb := &SQLitePersistence{dbPath: "dummy.db"}
+
+		err := pNoDb.SaveJob(job1)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "database not initialized")
+
+		_, err = pNoDb.GetJob("JOB-1")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "database not initialized")
+
+		_, err = pNoDb.GetJobs(10)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "database not initialized")
+
+		_, err = pNoDb.ClearHistory()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "database not initialized")
+
+		err = pNoDb.Close()
+		assert.NoError(t, err)
+	})
 }

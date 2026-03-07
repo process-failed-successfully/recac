@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGitHubPoller_Poll(t *testing.T) {
@@ -150,4 +151,49 @@ func TestGitHubPoller_Ping(t *testing.T) {
 
 	err := p.Ping(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestGitHubPoller_closeIssue_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewGitHubPoller("token", "owner", "repo", "label")
+	poller.BaseURL = server.URL
+
+	err := poller.closeIssue(context.Background(), "123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close issue")
+}
+
+func TestGitHubPoller_postComment_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewGitHubPoller("token", "owner", "repo", "label")
+	poller.BaseURL = server.URL
+
+	err := poller.postComment(context.Background(), "123", "comment")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post comment")
+}
+
+func TestGitHubPoller_Ping_API_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal error"))
+	}))
+	defer server.Close()
+
+	poller := NewGitHubPoller("token", "owner", "repo", "label")
+	poller.BaseURL = server.URL
+
+	err := poller.Ping(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "github ping failed")
 }
