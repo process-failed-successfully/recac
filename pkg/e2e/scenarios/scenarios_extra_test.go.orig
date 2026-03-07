@@ -59,8 +59,6 @@ func TestHTTPProxyScenario_Verify(t *testing.T) {
 }
 
 func TestLoadBalancerScenario_Verify(t *testing.T) {
-	t.Skip("Flaky test")
-
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found")
 	}

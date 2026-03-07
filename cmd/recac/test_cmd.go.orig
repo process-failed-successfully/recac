@@ -337,13 +337,8 @@ func diagnoseFailure(cmd *cobra.Command, output string) error {
 	return fmt.Errorf("tests failed (diagnosis complete)")
 }
 
-// For testing
-var fsnotifyNewWatcher = fsnotify.NewWatcher
-
-var testWatchDebounceDuration = 500 * time.Millisecond
-
 func runTestWatch(cmd *cobra.Command, args []string) error {
-	watcher, err := fsnotifyNewWatcher()
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
@@ -362,6 +357,7 @@ func runTestWatch(cmd *cobra.Command, args []string) error {
 
 	// Debounce logic
 	var debounceTimer *time.Timer
+	debounceDuration := 500 * time.Millisecond
 
 	for {
 		select {
@@ -381,7 +377,7 @@ func runTestWatch(cmd *cobra.Command, args []string) error {
 			if debounceTimer != nil {
 				debounceTimer.Stop()
 			}
-			debounceTimer = time.AfterFunc(testWatchDebounceDuration, func() {
+			debounceTimer = time.AfterFunc(debounceDuration, func() {
 				fmt.Fprintln(cmd.OutOrStdout(), "\n🔄 File changed, re-running tests...")
 				// Re-run
 				// We need to run this in main goroutine? No, separate is fine, but output might interleave?
