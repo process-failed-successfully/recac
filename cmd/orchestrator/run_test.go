@@ -25,6 +25,7 @@ func TestRun_ConfigValidation(t *testing.T) {
 
 	t.Run("InvalidMode", func(t *testing.T) {
 		viper.Reset()
+		viper.Set("orchestrator.require_approval", false)
 		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.poller", "file")
 		viper.Set("orchestrator.scale", -1)

@@ -54,6 +54,8 @@ func main() {
 	pflag.String("clone-job", "", "Clone an existing job by ID")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
+	pflag.Bool("require-approval", false, "Require human approval before starting any job")
+	pflag.String("approve-job", "", "Approve a job that is pending approval")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("force-poll", false, "Force an immediate poll cycle")
@@ -194,6 +196,8 @@ func main() {
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
+	viper.BindPFlag("orchestrator.require_approval", pflag.Lookup("require-approval"))
+	viper.BindPFlag("orchestrator.approve_job", pflag.Lookup("approve-job"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.force_poll", pflag.Lookup("force-poll"))
@@ -305,6 +309,7 @@ func main() {
 	viper.BindEnv("orchestrator.max_retries", "RECAC_MAX_RETRIES")
 	viper.BindEnv("orchestrator.log_dir", "RECAC_LOG_DIR")
 	viper.BindEnv("orchestrator.retry_delay", "RECAC_RETRY_DELAY")
+	viper.BindEnv("orchestrator.require_approval", "RECAC_REQUIRE_APPROVAL")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -438,6 +443,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.retry_failed") || retryMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		retryFailedJobs(host, retryMatch)
+		return nil
+	}
+
+	if approveJobId := viper.GetString("orchestrator.approve_job"); approveJobId != "" {
+		host := viper.GetString("orchestrator.host")
+		approveJob(host, approveJobId)
 		return nil
 	}
 
@@ -731,6 +742,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	orch.MaxRetries = viper.GetInt("orchestrator.max_retries")
 	orch.LogDir = viper.GetString("orchestrator.log_dir")
 	orch.RetryDelay = viper.GetDuration("orchestrator.retry_delay")
+	orch.RequireApproval = viper.GetBool("orchestrator.require_approval")
 
 	// 5. Notifications
 	notifyManager := notify.NewManager(func(msg string, args ...interface{}) {
@@ -1362,4 +1374,30 @@ func retryFailedJobs(host, match string) {
 	}
 
 	fmt.Fprintf(stdout, "Successfully retried %d failed jobs.\n", result.Retried)
+}
+
+func approveJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/approve", host, jobID), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to approve job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s approved successfully.\n", jobID)
 }
