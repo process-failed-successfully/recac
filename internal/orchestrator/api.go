@@ -43,6 +43,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
 		state := r.URL.Query().Get("state")
+		statusFilter := r.URL.Query().Get("status")
 		var jobs []JobInfo
 
 		switch state {
@@ -52,6 +53,17 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			jobs = append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
 		default:
 			jobs = orch.GetActiveJobs()
+		}
+
+		if statusFilter != "" {
+			var filtered []JobInfo
+			lowerStatusFilter := strings.ToLower(statusFilter)
+			for _, job := range jobs {
+				if strings.ToLower(job.Status) == lowerStatusFilter {
+					filtered = append(filtered, job)
+				}
+			}
+			jobs = filtered
 		}
 
 		w.Header().Set("Content-Type", "application/json")
