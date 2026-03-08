@@ -171,6 +171,22 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s retry submitted", id)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/approve", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.ApproveJob(r.Context(), id, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if strings.Contains(err.Error(), "not pending approval") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s approved", id)
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/clone", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

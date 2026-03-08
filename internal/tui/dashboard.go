@@ -353,6 +353,12 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, togglePause(m.host, m.status.Paused)
 		case "f":
 			return m, forcePoll(m.host)
+		case "a":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				return m, approveJobCmd(m.host, id)
+			}
 		case "c":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -673,7 +679,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -899,6 +905,26 @@ func scaleConcurrencyCmd(host string, max int) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: fmt.Sprintf("Scaled concurrency to %d", max)}
+	}
+}
+
+func approveJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/approve", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+		return actionMsg{Message: "Approved"}
 	}
 }
 

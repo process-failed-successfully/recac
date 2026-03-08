@@ -106,6 +106,13 @@ func TestRun_Resume(t *testing.T) {
 	}, "Failed to connect to orchestrator")
 }
 
+func TestRun_ApproveJob(t *testing.T) {
+	runTestWrapper(t, func() {
+		viper.Set("orchestrator.scale", -1)
+		viper.Set("orchestrator.approve_job", "JOB-123")
+	}, "Failed to connect to orchestrator")
+}
+
 func TestRun_ForcePoll(t *testing.T) {
 	runTestWrapper(t, func() {
 		viper.Set("orchestrator.scale", -1)

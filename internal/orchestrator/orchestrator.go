@@ -40,6 +40,7 @@ type Orchestrator struct {
 	MaxRetries        int
 	RetryDelay        time.Duration
 	LogDir            string
+	RequireApproval   bool
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
@@ -55,6 +56,7 @@ type JobInfo struct {
 	ThreadState string    `json:"thread_state,omitempty"`
 	RetryCount  int       `json:"retry_count,omitempty"`
 	RetryAfter  time.Time `json:"retry_after,omitempty"`
+	Approved    bool      `json:"approved,omitempty"`
 }
 
 type Status struct {
@@ -440,6 +442,48 @@ func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slo
 	return o.processWorkItem(ctx, item, 0, logger)
 }
 
+// ApproveJob approves a job in the 'Pending Approval' state so it can be scheduled.
+func (o *Orchestrator) ApproveJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is active and not pending approval", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed and not pending approval", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found", jobID)
+	}
+
+	if job.Status != "Pending Approval" {
+		o.mu.Unlock()
+		return fmt.Errorf("job %s is not pending approval", jobID)
+	}
+
+	job.Status = "Pending"
+	job.Approved = true
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+
+	if logger != nil {
+		logger.Info("Job approved", "id", jobID)
+	}
+
+	// Now that it's approved, evaluate pending jobs without the lock to avoid deadlock
+	// We run it synchronously so tests see it schedule immediately.
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // UpdateJobPriority updates the priority of a job in the pending queue.
 func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newPriority int, logger *slog.Logger) error {
 	o.mu.Lock()
@@ -586,14 +630,40 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 }
 
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retryCount int, logger *slog.Logger) error {
+	return o.processWorkItemInternal(ctx, item, retryCount, false, logger)
+}
+
+func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkItem, retryCount int, bypassApproval bool, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
 		o.mu.Unlock()
 		return fmt.Errorf("job %s is already active", item.ID)
 	}
-	if _, exists := o.pendingJobs[item.ID]; exists {
+	if jobInfo, exists := o.pendingJobs[item.ID]; exists {
+		if jobInfo.Status == "Pending Approval" {
+			o.mu.Unlock()
+			return fmt.Errorf("job %s is already pending approval", item.ID)
+		}
 		o.mu.Unlock()
 		return fmt.Errorf("job %s is already pending dependencies", item.ID)
+	}
+
+	if o.RequireApproval && !bypassApproval {
+		job := JobInfo{
+			ID:         item.ID,
+			Summary:    item.Summary,
+			StartTime:  time.Now(),
+			Status:     "Pending Approval",
+			WorkItem:   item,
+			RetryCount: retryCount,
+			Approved:   false,
+		}
+		o.pendingJobs[item.ID] = job
+		o.mu.Unlock()
+		if logger != nil {
+			logger.Info("Job pending approval", "id", item.ID)
+		}
+		return nil
 	}
 
 	if len(item.DependsOn) > 0 {
@@ -649,6 +719,7 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retry
 		Status:     "Spawning",
 		WorkItem:   item,
 		RetryCount: retryCount,
+		Approved:   bypassApproval,
 	}
 	o.activeJobs[item.ID] = job
 	o.mu.Unlock()
@@ -789,16 +860,24 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 	type pendingJob struct {
 		item       WorkItem
 		retryCount int
+		approved   bool
 	}
 	var toProcess []pendingJob
 	for id, jobInfo := range o.pendingJobs {
 		if !jobInfo.RetryAfter.IsZero() && time.Now().Before(jobInfo.RetryAfter) {
 			continue
 		}
+
+		// If require approval is true, and it hasn't been approved, skip it.
+		// If it has been approved, we process it normally (check dependencies, spawn)
+		if o.RequireApproval && !jobInfo.Approved {
+			continue
+		}
+
 		item := jobInfo.WorkItem
 		met, failedDep := o.checkDependenciesMetLocked(item.DependsOn)
 		if met {
-			toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount})
+			toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount, approved: jobInfo.Approved})
 			delete(o.pendingJobs, id)
 		} else if failedDep != "" {
 			// Dependency failed, fail this job too
@@ -827,7 +906,7 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 
 	for _, pJob := range toProcess {
 		item := pJob.item
-		if err := o.processWorkItem(ctx, item, pJob.retryCount, logger); err != nil {
+		if err := o.processWorkItemInternal(ctx, item, pJob.retryCount, pJob.approved, logger); err != nil {
 			if logger != nil {
 				logger.Error("Failed to start pending job", "id", item.ID, "error", err)
 			}
@@ -841,6 +920,7 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 					Status:     "Pending",
 					WorkItem:   item,
 					RetryCount: pJob.retryCount,
+					Approved:   pJob.approved,
 				}
 				o.mu.Unlock()
 			}
