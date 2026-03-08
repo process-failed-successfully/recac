@@ -91,6 +91,7 @@ func main() {
 	pflag.Int("max-concurrent-jobs", 0, "Maximum number of concurrent agent jobs allowed (0 = unlimited)")
 	pflag.Duration("job-timeout", 0, "Maximum execution time for a job (0 = unlimited)")
 	pflag.Int("max-retries", 0, "Maximum number of automatic retries for failed jobs")
+	pflag.String("log-dir", "", "Directory to store persistent compressed job logs")
 	pflag.Duration("retry-delay", 5*time.Second, "Delay between automatic retries")
 
 	// Janitor Flags
@@ -228,6 +229,7 @@ func main() {
 	viper.BindPFlag("orchestrator.max_concurrent_jobs", pflag.Lookup("max-concurrent-jobs"))
 	viper.BindPFlag("orchestrator.job_timeout", pflag.Lookup("job-timeout"))
 	viper.BindPFlag("orchestrator.max_retries", pflag.Lookup("max-retries"))
+	viper.BindPFlag("orchestrator.log_dir", pflag.Lookup("log-dir"))
 	viper.BindPFlag("orchestrator.retry_delay", pflag.Lookup("retry-delay"))
 
 	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
@@ -299,6 +301,7 @@ func main() {
 	viper.BindEnv("orchestrator.max_concurrent_jobs", "RECAC_MAX_CONCURRENT_JOBS")
 	viper.BindEnv("orchestrator.job_timeout", "RECAC_JOB_TIMEOUT")
 	viper.BindEnv("orchestrator.max_retries", "RECAC_MAX_RETRIES")
+	viper.BindEnv("orchestrator.log_dir", "RECAC_LOG_DIR")
 	viper.BindEnv("orchestrator.retry_delay", "RECAC_RETRY_DELAY")
 
 	// Logger
@@ -715,6 +718,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	orch.MaxConcurrentJobs = viper.GetInt("orchestrator.max_concurrent_jobs")
 	orch.JobTimeout = viper.GetDuration("orchestrator.job_timeout")
 	orch.MaxRetries = viper.GetInt("orchestrator.max_retries")
+	orch.LogDir = viper.GetString("orchestrator.log_dir")
 	orch.RetryDelay = viper.GetDuration("orchestrator.retry_delay")
 
 	// 5. Notifications
