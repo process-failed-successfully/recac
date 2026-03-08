@@ -279,6 +279,53 @@ func TestOrchestrator_Run_GracefulShutdown(t *testing.T) {
 	wg.Wait()
 }
 
+func TestOrchestrator_GetAnalytics(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	now := time.Now()
+
+	// Inject completed jobs into history
+	orch.mu.Lock()
+	orch.completedJobs = []JobInfo{
+		{
+			ID:        "JOB-1",
+			Status:    "Completed",
+			StartTime: now.Add(-5 * time.Minute),
+			EndTime:   now.Add(-3 * time.Minute), // 2 min duration
+		},
+		{
+			ID:        "JOB-2",
+			Status:    "Completed",
+			StartTime: now.Add(-10 * time.Minute),
+			EndTime:   now.Add(-6 * time.Minute), // 4 min duration
+		},
+		{
+			ID:        "JOB-3",
+			Status:    "Failed",
+			StartTime: now.Add(-2 * time.Minute),
+			EndTime:   now.Add(-1 * time.Minute),
+		},
+		{
+			ID:        "JOB-4",
+			Status:    "Canceled",
+			StartTime: now.Add(-1 * time.Minute),
+			EndTime:   now.Add(-30 * time.Second),
+		},
+	}
+	orch.mu.Unlock()
+
+	analytics := orch.GetAnalytics()
+
+	assert.Equal(t, 4, analytics.TotalJobs)
+	assert.Equal(t, 2, analytics.SuccessfulJobs)
+	assert.Equal(t, 1, analytics.FailedJobs)
+	assert.Equal(t, 1, analytics.CanceledJobs)
+	assert.Equal(t, 50.0, analytics.SuccessRate)
+	assert.Equal(t, 3*time.Minute, analytics.AverageDuration) // (2 + 4) / 2 = 3
+}
+
 func TestOrchestrator_SubmitJob(t *testing.T) {
 	poller := newMockPoller(nil)
 	blockCh := make(chan struct{})

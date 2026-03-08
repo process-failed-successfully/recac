@@ -89,6 +89,19 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, "1m0s", status.PollInterval)
 	})
 
+	// 1.5 Test /analytics
+	t.Run("Analytics Endpoint", func(t *testing.T) {
+		resp, err := http.Get(server.URL + "/analytics")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var analytics Analytics
+		err = json.NewDecoder(resp.Body).Decode(&analytics)
+		assert.NoError(t, err)
+		// Should have 0 total jobs initially
+		assert.Equal(t, 0, analytics.TotalJobs)
+	})
+
 	// 2. Test /jobs (empty)
 	t.Run("Jobs Endpoint Empty", func(t *testing.T) {
 		resp, err := http.Get(server.URL + "/jobs")
@@ -200,9 +213,11 @@ func TestRegisterAPI(t *testing.T) {
 
 	// 3.6 Test Submit Job Too Many Requests
 	t.Run("Submit Job Too Many Requests", func(t *testing.T) {
+		orch.mu.Lock()
 		orch.MaxConcurrentJobs = 1
 		// First fill the capacity
 		orch.activeSpawns = 1
+		orch.mu.Unlock()
 
 		item2 := WorkItem{ID: "JOB-456", Summary: "Test Job Too Many"}
 		body2, _ := json.Marshal(item2)
@@ -212,8 +227,10 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 
 		// Reset for other tests
+		orch.mu.Lock()
 		orch.activeSpawns = 0
 		orch.MaxConcurrentJobs = 0
+		orch.mu.Unlock()
 	})
 
 	// 4. Test Get Job Details

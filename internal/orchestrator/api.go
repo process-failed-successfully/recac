@@ -33,6 +33,14 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("/analytics", func(w http.ResponseWriter, r *http.Request) {
+		analytics := orch.GetAnalytics()
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(analytics); err != nil {
+			logger.Error("Failed to encode analytics", "error", err)
+		}
+	})
+
 	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
 		state := r.URL.Query().Get("state")
 		var jobs []JobInfo
