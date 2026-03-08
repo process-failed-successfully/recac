@@ -63,6 +63,7 @@ type Status struct {
 	LastPoll          time.Time `json:"last_poll"`
 	LastPollItems     int       `json:"last_poll_items"`
 	ActiveSpawns      int       `json:"active_spawns"`
+	PendingJobs       int       `json:"pending_jobs"`
 	TotalSpawns       int       `json:"total_spawns"`
 	Paused            bool      `json:"paused"`
 	MaxConcurrentJobs int       `json:"max_concurrent_jobs"`
@@ -379,6 +380,7 @@ func (o *Orchestrator) GetStatus() Status {
 		LastPoll:          o.lastPoll,
 		LastPollItems:     o.lastPollItems,
 		ActiveSpawns:      o.activeSpawns,
+		PendingJobs:       len(o.pendingJobs),
 		TotalSpawns:       o.totalSpawns,
 		Paused:            o.paused,
 		MaxConcurrentJobs: o.MaxConcurrentJobs,

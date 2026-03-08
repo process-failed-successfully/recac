@@ -39,6 +39,7 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
+	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
@@ -179,6 +180,7 @@ func main() {
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
+	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
@@ -328,6 +330,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.status") {
 		host := viper.GetString("orchestrator.host")
 		printStatus(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.tail_active") {
+		host := viper.GetString("orchestrator.host")
+		if err := tailActiveJobs(ctx, host); err != nil {
+			fmt.Fprintf(stdout, "Tail failed: %v\n", err)
+			exitFunc(1)
+		}
 		return nil
 	}
 
@@ -937,6 +948,7 @@ func printStatus(host string) {
 	}
 	printField("Last Poll Items", fmt.Sprintf("%d", status.LastPollItems))
 	printField("Active Spawns", fmt.Sprintf("%d", status.ActiveSpawns))
+	printField("Pending Jobs", fmt.Sprintf("%d", status.PendingJobs))
 	printField("Total Spawns", fmt.Sprintf("%d", status.TotalSpawns))
 	printField("Paused", fmt.Sprintf("%t", status.Paused))
 	if status.MaxConcurrentJobs > 0 {
