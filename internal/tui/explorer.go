@@ -188,7 +188,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.updatePreview() // Need to update preview for new list
 				}
 			}
-		case "backspace", "h":
+		case "backspace", "h", "esc":
 			parent := filepath.Dir(m.path)
 			if parent != m.path {
 				m.path = parent
@@ -293,7 +293,7 @@ func (m ExplorerModel) View() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, previewView)
 
 	// Footer
-	helpText := "↑/k: up • ↓/j: down • Enter/l: open • Backspace/h: back • q/Ctrl+C: quit"
+	helpText := "↑/k: up • ↓/j: down • Enter/l: open • Esc/Bksp/h: back • q/Ctrl+C: quit"
 	footer := explorerFooterStyle.Render(helpText)
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
