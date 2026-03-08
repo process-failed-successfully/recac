@@ -1,12 +1,15 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/quick"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -132,8 +135,23 @@ func (m *ExplorerModel) updatePreview() {
 		return
 	}
 
-	// TODO: Syntax highlighting could be added here
-	m.viewport.SetContent(string(content))
+	var buf bytes.Buffer
+
+	// Determine the lexer based on the filename
+	lexer := lexers.Match(selected.Name())
+	lexerName := ""
+	if lexer != nil {
+		lexerName = lexer.Config().Name
+	}
+
+	// Try to highlight the content
+	err = quick.Highlight(&buf, string(content), lexerName, "terminal256", "monokai")
+	if err != nil {
+		// Fallback to plain text if highlighting fails
+		m.viewport.SetContent(string(content))
+	} else {
+		m.viewport.SetContent(buf.String())
+	}
 }
 
 func (m ExplorerModel) Init() tea.Cmd {

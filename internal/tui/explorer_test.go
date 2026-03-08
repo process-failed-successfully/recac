@@ -178,3 +178,42 @@ func TestExplorerModel_UpdatePreview_EmptyFiles(t *testing.T) {
 	m.loadFiles()
 	assert.Contains(t, m.viewport.View(), "Empty directory")
 }
+
+func TestExplorerModel_SyntaxHighlighting(t *testing.T) {
+	dir := t.TempDir()
+	goFileContent := `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello")
+}`
+	os.WriteFile(filepath.Join(dir, "main.go"), []byte(goFileContent), 0644)
+
+	m := NewExplorerModel(dir)
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = newM.(ExplorerModel)
+
+	view := m.viewport.View()
+	// Check for ANSI escape codes indicating syntax highlighting worked
+	assert.Contains(t, view, "\x1b[")
+	assert.Contains(t, view, "func")
+	assert.Contains(t, view, "main")
+}
+
+func TestExplorerModel_SyntaxHighlightingFallback(t *testing.T) {
+	dir := t.TempDir()
+	// Fallback lexer is basically plain text
+	txtFileContent := `Just a plain text file`
+	os.WriteFile(filepath.Join(dir, "plain.txt"), []byte(txtFileContent), 0644)
+
+	m := NewExplorerModel(dir)
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = newM.(ExplorerModel)
+
+	view := m.viewport.View()
+	// Fallback plain text should still contain the content.
+	// Note: chroma with 'terminal256' might still output some reset sequences,
+	// but it shouldn't fail or lose content.
+	assert.Contains(t, view, "Just a plain text file")
+}
