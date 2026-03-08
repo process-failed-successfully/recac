@@ -38,6 +38,7 @@ func main() {
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
+	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
@@ -181,6 +182,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
+	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
@@ -328,7 +330,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.list_jobs") {
 		host := viper.GetString("orchestrator.host")
 		history := viper.GetBool("orchestrator.history")
-		listJobs(host, history)
+		statusFilter := viper.GetString("orchestrator.list_jobs_status")
+		listJobs(host, history, statusFilter)
 		return nil
 	}
 
@@ -971,13 +974,24 @@ func printStatus(host string) {
 	fmt.Fprintln(stdout, "")
 }
 
-func listJobs(host string, history bool) {
-	url := fmt.Sprintf("%s/jobs", host)
-	if history {
-		url += "?state=all"
+func listJobs(host string, history bool, status string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
-	resp, err := http.Get(url)
+	q := u.Query()
+	if history {
+		q.Set("state", "all")
+	}
+	if status != "" {
+		q.Set("status", status)
+	}
+	u.RawQuery = q.Encode()
+
+	resp, err := http.Get(u.String())
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)

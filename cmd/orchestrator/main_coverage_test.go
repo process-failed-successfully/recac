@@ -46,7 +46,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false)
+		listJobs(server.URL, false, "")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "job-1")
@@ -63,16 +63,39 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, true)
+		listJobs(server.URL, true, "")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "No active jobs")
 	})
 
+	t.Run("Status Filter", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "Failed", r.URL.Query().Get("status"))
+			jobs := []orchestrator.JobInfo{
+				{
+					ID:      "job-2",
+					Summary: "Failed Job",
+					Status:  "Failed",
+				},
+			}
+			json.NewEncoder(w).Encode(jobs)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		listJobs(server.URL, false, "Failed")
+
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "job-2")
+		assert.Contains(t, buf.String(), "Failed Job")
+	})
+
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		listJobs("http://invalid-host", false)
+		listJobs("http://invalid-host", false, "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})
@@ -85,7 +108,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false)
+		listJobs(server.URL, false, "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to fetch jobs")
 	})
@@ -98,7 +121,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false)
+		listJobs(server.URL, false, "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})

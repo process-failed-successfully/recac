@@ -114,6 +114,46 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Empty(t, jobs)
 	})
 
+	t.Run("Jobs Endpoint Filtered", func(t *testing.T) {
+		orch.mu.Lock()
+		orch.activeJobs["job-1"] = JobInfo{ID: "job-1", Status: "Running"}
+		orch.activeJobs["job-2"] = JobInfo{ID: "job-2", Status: "Pending"}
+		orch.completedJobs = []JobInfo{
+			{ID: "job-3", Status: "Failed"},
+			{ID: "job-4", Status: "Completed"},
+			{ID: "job-5", Status: "FAILED"}, // test case insensitivity
+		}
+		orch.mu.Unlock()
+
+		// Filter active jobs by status Running
+		resp, err := http.Get(server.URL + "/jobs?status=Running")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var jobs []JobInfo
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 1)
+		assert.Equal(t, "job-1", jobs[0].ID)
+
+		// Filter all jobs by status failed (case insensitive)
+		resp, err = http.Get(server.URL + "/jobs?state=all&status=failed")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 2)
+		assert.ElementsMatch(t, []string{"job-3", "job-5"}, []string{jobs[0].ID, jobs[1].ID})
+
+		// Cleanup
+		orch.mu.Lock()
+		delete(orch.activeJobs, "job-1")
+		delete(orch.activeJobs, "job-2")
+		orch.completedJobs = nil
+		orch.mu.Unlock()
+	})
+
 	// 3. Test Submit Job
 	item := WorkItem{ID: "JOB-123", Summary: "Test Job"}
 	t.Run("Submit Job", func(t *testing.T) {
