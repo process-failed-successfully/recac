@@ -24,20 +24,20 @@ import (
 
 var (
 	baseStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240"))
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240"))
 
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		Padding(0, 1)
+			Bold(true).
+			Foreground(lipgloss.Color("205")).
+			Padding(0, 1)
 
 	statusStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Margin(1, 0)
+			Foreground(lipgloss.Color("241")).
+			Margin(1, 0)
 
 	detailsStyle = lipgloss.NewStyle().
-		Padding(1, 2)
+			Padding(1, 2)
 )
 
 type viewState int
@@ -48,6 +48,7 @@ const (
 	viewLogs
 	viewConfirmation
 	viewSubmit
+	viewAnalytics
 )
 
 type DashboardModel struct {
@@ -57,6 +58,7 @@ type DashboardModel struct {
 	status        orchestrator.Status
 	jobs          []orchestrator.JobInfo
 	details       orchestrator.JobInfo
+	analytics     orchestrator.Analytics
 	logs          string
 	logStream     io.ReadCloser
 	err           error
@@ -72,8 +74,8 @@ type DashboardModel struct {
 	focusedInput int
 
 	// Filter fields
-	filterInput  textinput.Model
-	isFiltering  bool
+	filterInput textinput.Model
+	isFiltering bool
 }
 
 type tickMsg time.Time
@@ -149,6 +151,17 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateTableContent()
 		}
 		// Continue to update view specific models if needed, but table update is handled via m.updateTableContent
+		return m, nil
+
+	case analyticsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.analytics = msg.Analytics
+			m.viewState = viewAnalytics
+			m.viewport.SetContent(renderAnalytics(m.analytics))
+			m.viewport.GotoTop()
+		}
 		return m, nil
 
 	case detailsMsg:
@@ -259,7 +272,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs:
+	case viewDetails, viewLogs, viewAnalytics:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -346,6 +359,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.isFiltering = true
 			m.filterInput.Focus()
 			return m, textinput.Blink
+		case "A":
+			return m, fetchAnalytics(m.host)
 		case "h":
 			m.showHistory = !m.showHistory
 			return m, fetchStatus(m.host, m.showHistory)
@@ -679,8 +694,11 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | A: analytics | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewAnalytics:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewLogs:
@@ -726,7 +744,7 @@ func (m DashboardModel) View() string {
 		// but standard center alignment in the container usually works.
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
-			Height(m.viewport.Height + 5). // approximate table height
+			Height(m.viewport.Height+5). // approximate table height
 			Align(lipgloss.Center, lipgloss.Center)
 
 		contentView = containerStyle.Render(contentView)
@@ -1268,6 +1286,51 @@ func limitString(s string, max int) string {
 		return s[:max] + "..."
 	}
 	return s
+}
+
+type analyticsMsg struct {
+	Analytics orchestrator.Analytics
+	Err       error
+}
+
+func fetchAnalytics(host string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/analytics", host))
+		if err != nil {
+			return analyticsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return analyticsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var analytics orchestrator.Analytics
+		if err := json.NewDecoder(resp.Body).Decode(&analytics); err != nil {
+			return analyticsMsg{Err: err}
+		}
+
+		return analyticsMsg{Analytics: analytics}
+	}
+}
+
+func renderAnalytics(a orchestrator.Analytics) string {
+	s := strings.Builder{}
+	h1 := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Render
+	kv := func(k, v string) string {
+		return fmt.Sprintf("%s: %s\n", h1(k), v)
+	}
+
+	s.WriteString(h1("Orchestrator Analytics") + "\n\n")
+	s.WriteString(kv("Total Jobs", fmt.Sprintf("%d", a.TotalJobs)))
+	s.WriteString(kv("Successful Jobs", fmt.Sprintf("%d", a.SuccessfulJobs)))
+	s.WriteString(kv("Failed Jobs", fmt.Sprintf("%d", a.FailedJobs)))
+	s.WriteString(kv("Canceled Jobs", fmt.Sprintf("%d", a.CanceledJobs)))
+	s.WriteString(kv("Success Rate", fmt.Sprintf("%.2f%%", a.SuccessRate)))
+	s.WriteString(kv("Average Duration", a.AverageDuration.Round(time.Second).String()))
+
+	return s.String()
 }
 
 func renderDetails(job orchestrator.JobInfo) string {
