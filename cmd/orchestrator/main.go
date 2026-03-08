@@ -39,6 +39,7 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
+	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
@@ -177,6 +178,7 @@ func main() {
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
+	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
@@ -323,6 +325,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.status") {
 		host := viper.GetString("orchestrator.host")
 		printStatus(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analytics") {
+		host := viper.GetString("orchestrator.host")
+		printAnalytics(host)
 		return nil
 	}
 
@@ -812,6 +820,63 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 	return nil
+}
+
+func printAnalytics(host string) {
+	url := fmt.Sprintf("%s/analytics", host)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(stdout, "Failed to fetch analytics: status %s\n", resp.Status)
+		exitFunc(1)
+		return
+	}
+
+	var analytics orchestrator.Analytics
+	if err := json.NewDecoder(resp.Body).Decode(&analytics); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// Styles
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(20)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	fmt.Fprintln(stdout, titleStyle.Render("Orchestrator Analytics"))
+	fmt.Fprintln(stdout, "")
+
+	printField := func(label, value string) {
+		fmt.Fprintf(stdout, "%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value))
+	}
+
+	printField("Total Jobs", fmt.Sprintf("%d", analytics.TotalJobs))
+	printField("Successful Jobs", fmt.Sprintf("%d", analytics.SuccessfulJobs))
+	printField("Failed Jobs", fmt.Sprintf("%d", analytics.FailedJobs))
+	printField("Canceled Jobs", fmt.Sprintf("%d", analytics.CanceledJobs))
+	printField("Success Rate", fmt.Sprintf("%.2f%%", analytics.SuccessRate))
+
+	// Convert ns to a more readable format, like 1h2m3s
+	avgDuration := analytics.AverageDuration.Round(time.Second).String()
+	printField("Average Duration", avgDuration)
+	fmt.Fprintln(stdout, "")
 }
 
 func printStatus(host string) {

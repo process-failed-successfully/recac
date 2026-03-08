@@ -63,6 +63,15 @@ type Status struct {
 	MaxConcurrentJobs int       `json:"max_concurrent_jobs"`
 }
 
+type Analytics struct {
+	TotalJobs       int           `json:"total_jobs"`
+	SuccessfulJobs  int           `json:"successful_jobs"`
+	FailedJobs      int           `json:"failed_jobs"`
+	CanceledJobs    int           `json:"canceled_jobs"`
+	SuccessRate     float64       `json:"success_rate"`
+	AverageDuration time.Duration `json:"average_duration"`
+}
+
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
 	return &Orchestrator{
 		Poller:       poller,
@@ -269,6 +278,53 @@ func (o *Orchestrator) SetConcurrency(ctx context.Context, max int, logger *slog
 	if max == 0 || max > oldMax {
 		o.evaluatePendingJobs(ctx, logger)
 	}
+}
+
+// GetAnalytics calculates and returns analytics for the orchestrator's job history.
+func (o *Orchestrator) GetAnalytics() Analytics {
+	o.mu.RLock()
+	var jobs []JobInfo
+	if o.Persistence != nil {
+		// Fetch up to 10,000 jobs from persistence to calculate stats
+		if pJobs, err := o.Persistence.GetJobs(10000); err == nil {
+			jobs = pJobs
+		} else {
+			jobs = o.completedJobs
+		}
+	} else {
+		jobs = make([]JobInfo, len(o.completedJobs))
+		copy(jobs, o.completedJobs)
+	}
+	o.mu.RUnlock()
+
+	var stats Analytics
+	var totalDuration time.Duration
+	var durationCount int
+
+	for _, job := range jobs {
+		stats.TotalJobs++
+		if job.Status == "Completed" {
+			stats.SuccessfulJobs++
+			if !job.EndTime.IsZero() && !job.StartTime.IsZero() {
+				totalDuration += job.EndTime.Sub(job.StartTime)
+				durationCount++
+			}
+		} else if job.Status == "Failed" || job.Status == "error" {
+			stats.FailedJobs++
+		} else if job.Status == "Canceled" {
+			stats.CanceledJobs++
+		}
+	}
+
+	if stats.TotalJobs > 0 {
+		stats.SuccessRate = float64(stats.SuccessfulJobs) / float64(stats.TotalJobs) * 100.0
+	}
+
+	if durationCount > 0 {
+		stats.AverageDuration = totalDuration / time.Duration(durationCount)
+	}
+
+	return stats
 }
 
 // GetStatus returns the current status of the orchestrator.
