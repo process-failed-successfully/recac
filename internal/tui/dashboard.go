@@ -70,6 +70,10 @@ type DashboardModel struct {
 	inputs       []textinput.Model
 	textarea     textarea.Model
 	focusedInput int
+
+	// Filter fields
+	filterInput  textinput.Model
+	isFiltering  bool
 }
 
 type tickMsg time.Time
@@ -222,6 +226,37 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.viewState {
 	case viewMain:
+		if m.isFiltering {
+			switch msg := msg.(type) {
+			case tea.KeyMsg:
+				switch msg.String() {
+				case "esc":
+					m.isFiltering = false
+					m.filterInput.SetValue("")
+					m.filterInput.Blur()
+					m.updateTableContent()
+					return m, tea.Batch(cmds...)
+				case "enter":
+					m.isFiltering = false
+					m.filterInput.Blur()
+					return m, tea.Batch(cmds...)
+				}
+				var filterCmd tea.Cmd
+				m.filterInput, filterCmd = m.filterInput.Update(msg)
+				cmds = append(cmds, filterCmd)
+				m.updateTableContent() // Re-filter on every keystroke
+				return m, tea.Batch(cmds...)
+			}
+			// Let other messages (tick, status, etc) fall through
+		}
+
+		// Always update filter input so blink commands work
+		if m.isFiltering {
+			var filterCmd tea.Cmd
+			m.filterInput, filterCmd = m.filterInput.Update(msg)
+			cmds = append(cmds, filterCmd)
+		}
+
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
 	case viewDetails, viewLogs:
@@ -240,12 +275,23 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *DashboardModel) updateTableContent() {
 	rows := []table.Row{}
+
+	filterText := strings.ToLower(m.filterInput.Value())
+
 	// Sort jobs by start time (newest first)
 	sort.Slice(m.jobs, func(i, j int) bool {
 		return m.jobs[i].StartTime.After(m.jobs[j].StartTime)
 	})
 
 	for _, job := range m.jobs {
+		if filterText != "" {
+			idMatch := strings.Contains(strings.ToLower(job.ID), filterText)
+			summaryMatch := strings.Contains(strings.ToLower(job.Summary), filterText)
+			if !idMatch && !summaryMatch {
+				continue
+			}
+		}
+
 		duration := time.Since(job.StartTime).Round(time.Second).String()
 		if !job.EndTime.IsZero() {
 			duration = job.EndTime.Sub(job.StartTime).Round(time.Second).String()
@@ -296,6 +342,10 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 					}
 				}
 			}
+		case "/":
+			m.isFiltering = true
+			m.filterInput.Focus()
+			return m, textinput.Blink
 		case "h":
 			m.showHistory = !m.showHistory
 			return m, fetchStatus(m.host, m.showHistory)
@@ -615,7 +665,15 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | q: quit")
+
+		if m.isFiltering || m.filterInput.Value() != "" {
+			filterView := lipgloss.NewStyle().
+				MarginBottom(1).
+				Render(m.filterInput.View())
+			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
+		}
+
+		helpView = statusStyle.Render("/: filter | p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1150,13 +1208,20 @@ func NewDashboardModel(host string) DashboardModel {
 	vp.Style = lipgloss.NewStyle().
 		Padding(1, 2)
 
+	fi := textinput.New()
+	fi.Placeholder = "Filter jobs by ID or Summary..."
+	fi.Prompt = "/"
+	fi.Width = 40
+
 	return DashboardModel{
-		host:      host,
-		table:     t,
-		viewport:  vp,
-		viewState: viewMain,
-		inputs:    inputs,
-		textarea:  ta,
+		host:        host,
+		table:       t,
+		viewport:    vp,
+		viewState:   viewMain,
+		inputs:      inputs,
+		textarea:    ta,
+		filterInput: fi,
+		isFiltering: false,
 	}
 }
 
