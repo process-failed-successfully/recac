@@ -17,12 +17,12 @@ type Orchestrator struct {
 	PollInterval time.Duration
 	wg           sync.WaitGroup
 
-	mu            sync.RWMutex
-	startTime     time.Time
-	lastPoll      time.Time
-	lastPollItems int
-	activeSpawns  int
-	totalSpawns   int
+	mu                sync.RWMutex
+	startTime         time.Time
+	lastPoll          time.Time
+	lastPollItems     int
+	activeSpawns      int
+	totalSpawns       int
 	activeJobs        map[string]JobInfo
 	completedJobs     []JobInfo
 	pendingJobs       map[string]JobInfo
@@ -33,6 +33,8 @@ type Orchestrator struct {
 	MaxConcurrentJobs int
 	JobTimeout        time.Duration
 	notifier          Notifier
+	MaxRetries        int
+	RetryDelay        time.Duration
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
@@ -46,6 +48,8 @@ type JobInfo struct {
 	Error       string    `json:"error,omitempty"`
 	WorkItem    WorkItem  `json:"work_item"`
 	ThreadState string    `json:"thread_state,omitempty"`
+	RetryCount  int       `json:"retry_count,omitempty"`
+	RetryAfter  time.Time `json:"retry_after,omitempty"`
 }
 
 type Status struct {
@@ -339,7 +343,7 @@ func (o *Orchestrator) Verify(ctx context.Context, logger *slog.Logger) error {
 
 // SubmitJob manually submits a work item to the orchestrator.
 func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slog.Logger) error {
-	return o.processWorkItem(ctx, item, logger)
+	return o.processWorkItem(ctx, item, 0, logger)
 }
 
 // UpdateJobPriority updates the priority of a job in the pending queue.
@@ -403,7 +407,7 @@ func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.
 
 	// 3. Resubmit
 	logger.Info("Retrying job", "id", jobID)
-	return o.processWorkItem(ctx, workItem, logger)
+	return o.processWorkItem(ctx, workItem, 0, logger)
 }
 
 // RetryFailedJobs resubmits all failed jobs from history.
@@ -435,7 +439,7 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger
 	count := 0
 	for _, item := range toRetry {
 		logger.Info("Retrying failed job", "id", item.ID)
-		if err := o.processWorkItem(ctx, item, logger); err == nil {
+		if err := o.processWorkItem(ctx, item, 0, logger); err == nil {
 			count++
 		} else {
 			logger.Error("Failed to retry job", "id", item.ID, "error", err)
@@ -487,7 +491,7 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 	return true, ""
 }
 
-func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logger *slog.Logger) error {
+func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retryCount int, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
 		o.mu.Unlock()
@@ -521,11 +525,12 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logge
 			}
 			// Valid dependencies but not yet completed
 			job := JobInfo{
-				ID:        item.ID,
-				Summary:   item.Summary,
-				StartTime: time.Now(),
-				Status:    "Pending",
-				WorkItem:  item,
+				ID:         item.ID,
+				Summary:    item.Summary,
+				StartTime:  time.Now(),
+				Status:     "Pending",
+				WorkItem:   item,
+				RetryCount: retryCount,
 			}
 			o.pendingJobs[item.ID] = job
 			o.mu.Unlock()
@@ -544,11 +549,12 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logge
 	o.activeSpawns++
 	o.totalSpawns++
 	job := JobInfo{
-		ID:        item.ID,
-		Summary:   item.Summary,
-		StartTime: time.Now(),
-		Status:    "Spawning",
-		WorkItem:  item,
+		ID:         item.ID,
+		Summary:    item.Summary,
+		StartTime:  time.Now(),
+		Status:     "Spawning",
+		WorkItem:   item,
+		RetryCount: retryCount,
 	}
 	o.activeJobs[item.ID] = job
 	o.mu.Unlock()
@@ -584,15 +590,35 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		o.mu.Lock()
 		// Move to history
 		if job, ok := o.activeJobs[item.ID]; ok {
-			job.EndTime = time.Now()
 			job.ThreadState = threadState
 			if spawnErr != nil {
-				job.Status = "Failed"
-				job.Error = spawnErr.Error()
+				if o.MaxRetries > 0 && job.RetryCount < o.MaxRetries && spawnCtx.Err() != context.DeadlineExceeded && spawnCtx.Err() != context.Canceled {
+					job.RetryCount++
+					job.Status = "Retrying"
+					job.Error = spawnErr.Error()
+					job.RetryAfter = time.Now().Add(o.RetryDelay)
+					o.pendingJobs[item.ID] = job
+
+					if logger != nil {
+						logger.Info("Job failed, scheduling auto-retry", "id", item.ID, "attempt", job.RetryCount, "max", o.MaxRetries, "delay", o.RetryDelay)
+					}
+
+					// Trigger re-evaluation when delay expires
+					delay := o.RetryDelay
+					time.AfterFunc(delay, func() {
+						o.evaluatePendingJobs(context.Background(), logger)
+					})
+				} else {
+					job.EndTime = time.Now()
+					job.Status = "Failed"
+					job.Error = spawnErr.Error()
+					o.addToHistory(job, logger)
+				}
 			} else {
+				job.EndTime = time.Now()
 				job.Status = "Completed"
+				o.addToHistory(job, logger)
 			}
-			o.addToHistory(job, logger)
 		}
 
 		o.activeSpawns--
@@ -632,12 +658,19 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 
 func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Logger) {
 	o.mu.Lock()
-	var toProcess []WorkItem
+	type pendingJob struct {
+		item       WorkItem
+		retryCount int
+	}
+	var toProcess []pendingJob
 	for id, jobInfo := range o.pendingJobs {
+		if !jobInfo.RetryAfter.IsZero() && time.Now().Before(jobInfo.RetryAfter) {
+			continue
+		}
 		item := jobInfo.WorkItem
 		met, failedDep := o.checkDependenciesMetLocked(item.DependsOn)
 		if met {
-			toProcess = append(toProcess, item)
+			toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount})
 			delete(o.pendingJobs, id)
 		} else if failedDep != "" {
 			// Dependency failed, fail this job too
@@ -658,14 +691,15 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 
 	// Sort pending jobs by Priority (descending) and ID (ascending) to ensure stable processing order
 	sort.SliceStable(toProcess, func(i, j int) bool {
-		if toProcess[i].Priority != toProcess[j].Priority {
-			return toProcess[i].Priority > toProcess[j].Priority
+		if toProcess[i].item.Priority != toProcess[j].item.Priority {
+			return toProcess[i].item.Priority > toProcess[j].item.Priority
 		}
-		return toProcess[i].ID < toProcess[j].ID
+		return toProcess[i].item.ID < toProcess[j].item.ID
 	})
 
-	for _, item := range toProcess {
-		if err := o.processWorkItem(ctx, item, logger); err != nil {
+	for _, pJob := range toProcess {
+		item := pJob.item
+		if err := o.processWorkItem(ctx, item, pJob.retryCount, logger); err != nil {
 			if logger != nil {
 				logger.Error("Failed to start pending job", "id", item.ID, "error", err)
 			}
@@ -673,11 +707,12 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 				// Put it back in pendingJobs
 				o.mu.Lock()
 				o.pendingJobs[item.ID] = JobInfo{
-					ID:        item.ID,
-					Summary:   item.Summary,
-					StartTime: time.Now(),
-					Status:    "Pending",
-					WorkItem:  item,
+					ID:         item.ID,
+					Summary:    item.Summary,
+					StartTime:  time.Now(),
+					Status:     "Pending",
+					WorkItem:   item,
+					RetryCount: pJob.retryCount,
 				}
 				o.mu.Unlock()
 			}
@@ -807,7 +842,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		logger.Info("Found work items", "count", len(items))
 
 		for _, item := range items {
-			if err := o.processWorkItem(ctx, item, logger); err != nil {
+			if err := o.processWorkItem(ctx, item, 0, logger); err != nil {
 				if err == ErrAtCapacity {
 					logger.Info("Orchestrator at max capacity, deferring remaining items", "max", o.MaxConcurrentJobs)
 					break // Stop processing this batch

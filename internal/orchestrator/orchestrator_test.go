@@ -54,6 +54,9 @@ func (m *mockPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 func (m *mockPoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {
 	m.updateStatusMu.Lock()
 	defer m.updateStatusMu.Unlock()
+	if m.updateStatus == nil {
+		m.updateStatus = make(map[string]string)
+	}
 	m.updateStatus[item.ID] = status
 	return nil
 }
