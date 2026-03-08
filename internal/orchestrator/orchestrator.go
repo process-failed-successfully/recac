@@ -1,12 +1,16 @@
 package orchestrator
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -35,6 +39,7 @@ type Orchestrator struct {
 	notifier          Notifier
 	MaxRetries        int
 	RetryDelay        time.Duration
+	LogDir            string
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
@@ -260,7 +265,38 @@ func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
 
 // GetLogs returns the logs for a specific job ID.
 func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	if o.LogDir != "" {
+		safeID := filepath.Base(jobID)
+		if safeID != "." && safeID != ".." && safeID != "/" && safeID != "\\" && !strings.Contains(safeID, "/") && !strings.Contains(safeID, "\\") {
+			logPath := filepath.Join(o.LogDir, fmt.Sprintf("%s.log.gz", safeID))
+			f, err := os.Open(logPath)
+			if err == nil {
+				gzReader, err := gzip.NewReader(f)
+				if err == nil {
+					return &gzipReadCloser{gzReader: gzReader, file: f}, nil
+				}
+				f.Close()
+			}
+		}
+	}
 	return o.Spawner.GetLogs(ctx, jobID)
+}
+
+type gzipReadCloser struct {
+	gzReader *gzip.Reader
+	file     *os.File
+}
+
+func (g *gzipReadCloser) Read(p []byte) (n int, err error) {
+	return g.gzReader.Read(p)
+}
+
+func (g *gzipReadCloser) Close() error {
+	err := g.gzReader.Close()
+	if err2 := g.file.Close(); err == nil {
+		err = err2
+	}
+	return err
 }
 
 // SetConcurrency sets the maximum number of concurrent jobs allowed.
@@ -686,6 +722,40 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 				_, _ = o.notifier.Notify(ctx, "on_failure", fmt.Sprintf("Job %s failed: %v", item.ID, spawnErr), threadState)
 			} else {
 				_, _ = o.notifier.Notify(ctx, "on_success", fmt.Sprintf("Job %s completed successfully", item.ID), threadState)
+			}
+		}
+
+		if o.LogDir != "" {
+			safeID := filepath.Base(item.ID)
+			if safeID != "." && safeID != ".." && safeID != "/" && safeID != "\\" && !strings.Contains(safeID, "/") && !strings.Contains(safeID, "\\") {
+				// Don't impose an arbitrary timeout, let it stream until EOF
+				logsReader, err := o.Spawner.GetLogs(context.Background(), item.ID)
+				if err == nil && logsReader != nil {
+					if err := os.MkdirAll(o.LogDir, 0755); err == nil {
+						logPath := filepath.Join(o.LogDir, fmt.Sprintf("%s.log.gz", safeID))
+						tmpPath := logPath + ".tmp"
+						f, err := os.Create(tmpPath)
+						if err == nil {
+							gzWriter := gzip.NewWriter(f)
+							_, ioErr := io.Copy(gzWriter, logsReader)
+							gzWriter.Close()
+							f.Close()
+							if ioErr != nil && logger != nil {
+								logger.Warn("Failed to copy logs to persistent storage", "id", item.ID, "error", ioErr)
+							} else {
+								// Only move to final path after writing completely
+								os.Rename(tmpPath, logPath)
+							}
+						} else if logger != nil {
+							logger.Warn("Failed to create temp log file", "path", tmpPath, "error", err)
+						}
+					} else if logger != nil {
+						logger.Warn("Failed to create log directory", "path", o.LogDir, "error", err)
+					}
+					logsReader.Close()
+				} else if logger != nil {
+					logger.Warn("Failed to retrieve logs from spawner for persistence", "id", item.ID, "error", err)
+				}
 			}
 		}
 
