@@ -155,6 +155,46 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "PENDING", m.pendingJobId)
 	})
 
+	t.Run("Edit/Clone Key (e)", func(t *testing.T) {
+		// Ensure job has details
+		if len(model.jobs) > 0 {
+			model.jobs[0].Summary = "Test Summary"
+			model.jobs[0].WorkItem.RepoURL = "https://github.com/org/test"
+			model.jobs[0].WorkItem.DependsOn = []string{"dep-1", "dep-2"}
+			model.jobs[0].WorkItem.Description = "Test Description"
+		}
+
+		// Initialize inputs and textarea if not already present
+		if len(model.inputs) == 0 {
+			model = NewDashboardModel("http://localhost")
+			model.table = tModel
+			model.jobs = []orchestrator.JobInfo{
+				{
+					ID:        "JOB-1",
+					StartTime: time.Now(),
+					Summary:   "Test Summary",
+					WorkItem: orchestrator.WorkItem{
+						RepoURL:     "https://github.com/org/test",
+						DependsOn:   []string{"dep-1", "dep-2"},
+						Description: "Test Description",
+					},
+				},
+			}
+		}
+
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewSubmit, m.viewState)
+
+		// Verify fields are pre-filled
+		assert.Equal(t, "Test Summary", m.inputs[0].Value())
+		assert.Equal(t, "https://github.com/org/test", m.inputs[1].Value())
+		assert.Equal(t, "dep-1,dep-2", m.inputs[2].Value())
+		assert.Equal(t, "Test Description", m.textarea.Value())
+	})
+
 	t.Run("Quit Key (q)", func(t *testing.T) {
 		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 		m, ok := updatedModel.(DashboardModel)

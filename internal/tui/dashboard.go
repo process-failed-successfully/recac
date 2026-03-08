@@ -347,6 +347,26 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "clear pending"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "e":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.viewState = viewSubmit
+						m.focusedInput = 0
+						m.inputs[0].SetValue(job.Summary)
+						m.inputs[1].SetValue(job.WorkItem.RepoURL)
+						m.inputs[2].SetValue(strings.Join(job.WorkItem.DependsOn, ","))
+						m.textarea.SetValue(job.WorkItem.Description)
+						for i := 1; i < len(m.inputs); i++ {
+							m.inputs[i].Blur()
+						}
+						m.textarea.Blur()
+						return m, m.inputs[0].Focus()
+					}
+				}
+			}
 		case "s":
 			m.viewState = viewSubmit
 			m.focusedInput = 0
@@ -595,7 +615,7 @@ func (m DashboardModel) View() string {
 		} else {
 			contentView = baseStyle.Render(m.table.View())
 		}
-		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | q: quit")
+		helpView = statusStyle.Render("p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | enter: details | l: logs | o: open repo | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
