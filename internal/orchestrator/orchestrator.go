@@ -633,6 +633,52 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retry
 	return o.processWorkItemInternal(ctx, item, retryCount, false, logger)
 }
 
+func (o *Orchestrator) checkCircularDependencyLocked(newItem WorkItem) error {
+	if len(newItem.DependsOn) == 0 {
+		return nil
+	}
+
+	adj := make(map[string][]string)
+	for id, job := range o.pendingJobs {
+		adj[id] = job.WorkItem.DependsOn
+	}
+	adj[newItem.ID] = newItem.DependsOn
+
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+	var path []string
+
+	var dfs func(node string) error
+	dfs = func(node string) error {
+		visited[node] = true
+		recStack[node] = true
+		path = append(path, node)
+
+		for _, dep := range adj[node] {
+			if !visited[dep] {
+				if err := dfs(dep); err != nil {
+					return err
+				}
+			} else if recStack[dep] {
+				cycleStr := dep
+				for i := len(path) - 1; i >= 0; i-- {
+					cycleStr = path[i] + " -> " + cycleStr
+					if path[i] == dep {
+						break
+					}
+				}
+				return fmt.Errorf("circular dependency detected: %s", cycleStr)
+			}
+		}
+
+		recStack[node] = false
+		path = path[:len(path)-1]
+		return nil
+	}
+
+	return dfs(newItem.ID)
+}
+
 func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkItem, retryCount int, bypassApproval bool, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
@@ -646,6 +692,11 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		}
 		o.mu.Unlock()
 		return fmt.Errorf("job %s is already pending dependencies", item.ID)
+	}
+
+	if err := o.checkCircularDependencyLocked(item); err != nil {
+		o.mu.Unlock()
+		return err
 	}
 
 	if o.RequireApproval && !bypassApproval {
@@ -835,15 +886,21 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		o.evaluatePendingJobs(ctx, logger)
 	}()
 
-	logger.Info("Spawning agent for item", "id", item.ID)
+	if logger != nil {
+		logger.Info("Spawning agent for item", "id", item.ID)
+	}
 
 	if err := o.Spawner.Spawn(spawnCtx, item); err != nil {
 		spawnErr = err
 		if spawnCtx.Err() == context.DeadlineExceeded {
-			logger.Error("Job timeout exceeded", "id", item.ID, "error", err)
+			if logger != nil {
+				logger.Error("Job timeout exceeded", "id", item.ID, "error", err)
+			}
 			_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Job timeout exceeded: %v", err))
 		} else {
-			logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
+			if logger != nil {
+				logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
+			}
 			// Update status to Failed
 			_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
 		}
@@ -851,7 +908,9 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
 		// but status updates might happen asynchronously.
 		// For now, Spawn() implies "Started".
-		logger.Info("Agent spawned successfully", "id", item.ID)
+		if logger != nil {
+			logger.Info("Agent spawned successfully", "id", item.ID)
+		}
 	}
 }
 
