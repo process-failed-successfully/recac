@@ -58,6 +58,41 @@ func TestRunCleanerAgent_PathTraversal(t *testing.T) {
     assert.FileExists(t, targetFile, "Target file should not be deleted")
 }
 
+func TestRunCleanerAgent_LegitimateDotDotPrefix(t *testing.T) {
+	// Setup
+	tmpDir, err := os.MkdirTemp("", "recac-cleaner-test-legit")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	workspace := filepath.Join(tmpDir, "workspace")
+	err = os.Mkdir(workspace, 0755)
+	require.NoError(t, err)
+
+	// Create a legitimate file that starts with ".." but is inside the workspace
+	targetFile := filepath.Join(workspace, "..legit_file.txt")
+	err = os.WriteFile(targetFile, []byte("secret"), 0644)
+	require.NoError(t, err)
+
+	tempFilesList := filepath.Join(workspace, "temp_files.txt")
+	err = os.WriteFile(tempFilesList, []byte("..legit_file.txt\n"), 0644)
+	require.NoError(t, err)
+
+	// Setup Session
+	logger := telemetry.NewLogger(true, "", false)
+	session := &Session{
+		Workspace: workspace,
+		Logger:    logger,
+	}
+
+	// Execute
+	err = session.runCleanerAgent(context.Background())
+	require.NoError(t, err)
+
+	// Verify
+	_, err = os.Stat(targetFile)
+	assert.True(t, os.IsNotExist(err), "Legitimate file starting with .. should be deleted")
+}
+
 func TestRunCleanerAgent_AbsolutePath(t *testing.T) {
 	// Setup
 	tmpDir, err := os.MkdirTemp("", "recac-cleaner-test-abs")
