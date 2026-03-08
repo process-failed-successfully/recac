@@ -163,6 +163,83 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s retry submitted", id)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/clone", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var overrides struct {
+			NewID     string            `json:"new_id"`
+			EnvVars   map[string]string `json:"env_vars"`
+			Priority  *int              `json:"priority"`
+			DependsOn []string          `json:"depends_on"`
+		}
+
+		if r.Body != nil {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err == nil && len(bodyBytes) > 0 {
+				if err := json.Unmarshal(bodyBytes, &overrides); err != nil {
+					http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+					return
+				}
+			}
+		}
+
+		job, err := orch.GetJob(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		newItem := job.WorkItem
+
+		if overrides.NewID != "" {
+			newItem.ID = overrides.NewID
+		} else {
+			newItem.ID = fmt.Sprintf("%s-clone-%d", newItem.ID, time.Now().UnixNano())
+		}
+
+		if job.WorkItem.EnvVars != nil {
+			newItem.EnvVars = make(map[string]string)
+			for k, v := range job.WorkItem.EnvVars {
+				newItem.EnvVars[k] = v
+			}
+		}
+		if overrides.EnvVars != nil {
+			if newItem.EnvVars == nil {
+				newItem.EnvVars = make(map[string]string)
+			}
+			for k, v := range overrides.EnvVars {
+				newItem.EnvVars[k] = v
+			}
+		}
+
+		if overrides.Priority != nil {
+			newItem.Priority = *overrides.Priority
+		}
+
+		if overrides.DependsOn != nil {
+			newItem.DependsOn = make([]string, len(overrides.DependsOn))
+			copy(newItem.DependsOn, overrides.DependsOn)
+		} else if job.WorkItem.DependsOn != nil {
+			newItem.DependsOn = make([]string, len(job.WorkItem.DependsOn))
+			copy(newItem.DependsOn, job.WorkItem.DependsOn)
+		}
+
+		if err := orch.SubmitJob(baseCtx, newItem, logger); err != nil {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, `{"cloned_job_id": "%s"}`, newItem.ID)
+	})
+
 	mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
 		match := r.URL.Query().Get("match")
 		count, err := orch.RetryFailedJobs(r.Context(), match, logger)

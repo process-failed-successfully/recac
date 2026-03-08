@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -126,6 +127,62 @@ func submitBatchJob(host, filePath string, wait bool) {
 				exitFunc(1)
 				return
 			}
+		}
+	}
+}
+
+func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars map[string]string, dependsOn []string) {
+	overrides := struct {
+		NewID     string            `json:"new_id,omitempty"`
+		EnvVars   map[string]string `json:"env_vars,omitempty"`
+		Priority  *int              `json:"priority,omitempty"`
+		DependsOn []string          `json:"depends_on,omitempty"`
+	}{
+		NewID:     newID,
+		EnvVars:   envVars,
+		Priority:  priority,
+		DependsOn: dependsOn,
+	}
+
+	payload, err := json.Marshal(overrides)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal overrides: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	cloneURL := fmt.Sprintf("%s/jobs/%s/clone", host, url.PathEscape(originalID))
+	resp, err := http.Post(cloneURL, "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		fmt.Fprintf(stdout, "Failed to clone job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		ClonedJobID string `json:"cloned_job_id"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s cloned successfully as %s\n", originalID, result.ClonedJobID)
+
+	if wait {
+		if err := waitForJob(host, result.ClonedJobID, stdout); err != nil {
+			fmt.Fprintf(stdout, "Job failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
