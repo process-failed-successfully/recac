@@ -37,10 +37,20 @@ func TestDashboard_SubmitState(t *testing.T) {
 	model = newM.(DashboardModel)
 	assert.Equal(t, "repo", model.inputs[1].Value(), "Expected second input to contain typed text")
 
+	// Press Tab to focus third input (Depends On)
+	newM, _ = model.Update(tea.KeyMsg{Type: tea.KeyTab})
+	model = newM.(DashboardModel)
+	assert.Equal(t, 2, model.focusedInput, "Expected third input to be focused after Tab")
+
+	// Type in the third input
+	newM, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'J', 'O', 'B', '-', '1'}})
+	model = newM.(DashboardModel)
+	assert.Equal(t, "JOB-1", model.inputs[2].Value(), "Expected third input to contain typed text")
+
 	// Press Down to focus textarea
 	newM, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
 	model = newM.(DashboardModel)
-	assert.Equal(t, 2, model.focusedInput, "Expected textarea to be focused after Down")
+	assert.Equal(t, 3, model.focusedInput, "Expected textarea to be focused after Down")
 
 	// Type in textarea
 	newM, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d', 'e', 's', 'c'}})

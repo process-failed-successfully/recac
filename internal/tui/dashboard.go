@@ -444,10 +444,23 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			// Submit form
 			summary := m.inputs[0].Value()
 			repoUrl := m.inputs[1].Value()
+			dependsOnStr := m.inputs[2].Value()
 			description := m.textarea.Value()
+
+			var dependsOn []string
+			if dependsOnStr != "" {
+				parts := strings.Split(dependsOnStr, ",")
+				for _, p := range parts {
+					trimmed := strings.TrimSpace(p)
+					if trimmed != "" {
+						dependsOn = append(dependsOn, trimmed)
+					}
+				}
+			}
+
 			if summary != "" && repoUrl != "" {
 				m.viewState = viewMain
-				return m, submitJobCmd(m.host, summary, repoUrl, description)
+				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn)
 			}
 		case tea.KeyTab, tea.KeyShiftTab, tea.KeyEnter, tea.KeyUp, tea.KeyDown:
 			s := msg.String()
@@ -993,7 +1006,7 @@ func openBrowserCmd(url string) tea.Cmd {
 	}
 }
 
-func submitJobCmd(host, summary, repoUrl, description string) tea.Cmd {
+func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string) tea.Cmd {
 	return func() tea.Msg {
 		// Use a timestamp-based ID or a unique ID.
 		// For simplicity, generating an ad-hoc ID
@@ -1004,6 +1017,7 @@ func submitJobCmd(host, summary, repoUrl, description string) tea.Cmd {
 			Summary:     summary,
 			RepoURL:     repoUrl,
 			Description: description,
+			DependsOn:   dependsOn,
 		}
 
 		bodyBytes, err := json.Marshal(item)
@@ -1064,7 +1078,7 @@ func retryFailedJobs(host string) tea.Cmd {
 // NewDashboardModel initializes a new DashboardModel with default styles
 func NewDashboardModel(host string) DashboardModel {
 	// Initialize inputs for submission form
-	inputs := make([]textinput.Model, 2)
+	inputs := make([]textinput.Model, 3)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Fix login issue"
@@ -1076,6 +1090,11 @@ func NewDashboardModel(host string) DashboardModel {
 	inputs[1].Placeholder = "https://github.com/org/repo"
 	inputs[1].Prompt = "Repo URL: "
 	inputs[1].Width = 50
+
+	inputs[2] = textinput.New()
+	inputs[2].Placeholder = "JOB-1,JOB-2"
+	inputs[2].Prompt = "Depends On (comma-separated IDs): "
+	inputs[2].Width = 50
 
 	ta := textarea.New()
 	ta.Placeholder = "Detailed description of the issue..."
