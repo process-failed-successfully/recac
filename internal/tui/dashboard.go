@@ -366,6 +366,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, fetchStatus(m.host, m.showHistory)
 		case "p":
 			return m, togglePause(m.host, m.status.Paused)
+		case "d":
+			return m, toggleDrain(m.host, m.status.Draining)
 		case "f":
 			return m, forcePoll(m.host)
 		case "a":
@@ -640,6 +642,9 @@ func (m DashboardModel) View() string {
 	if m.status.Paused {
 		title += " [PAUSED]"
 	}
+	if m.status.Draining {
+		title += " [DRAINING]"
+	}
 
 	header := fmt.Sprintf(
 		"%s\nHost: %s | Uptime: %s | Poll Interval: %s | Active Jobs: %d | Total Spawns: %d\nLast Poll: %s (%d items)",
@@ -694,7 +699,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | A: analytics | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | A: analytics | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -882,6 +887,33 @@ func togglePause(host string, isPaused bool) tea.Cmd {
 		action := "Paused"
 		if isPaused {
 			action = "Resumed"
+		}
+		return actionMsg{Message: action}
+	}
+}
+
+func toggleDrain(host string, isDraining bool) tea.Cmd {
+	return func() tea.Msg {
+		endpoint := "/drain"
+		if isDraining {
+			endpoint = "/undrain"
+		}
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", host, endpoint), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		action := "Draining"
+		if isDraining {
+			action = "Undrained"
 		}
 		return actionMsg{Message: action}
 	}

@@ -32,6 +32,7 @@ type Orchestrator struct {
 	pendingJobs       map[string]JobInfo
 	maxHistory        int
 	paused            bool
+	draining          bool
 	Persistence       Persistence
 	forcePollCh       chan struct{}
 	MaxConcurrentJobs int
@@ -44,6 +45,7 @@ type Orchestrator struct {
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
+var ErrDraining = fmt.Errorf("orchestrator is draining and cannot accept new jobs")
 
 type JobInfo struct {
 	ID          string    `json:"id"`
@@ -68,6 +70,7 @@ type Status struct {
 	PendingJobs       int       `json:"pending_jobs"`
 	TotalSpawns       int       `json:"total_spawns"`
 	Paused            bool      `json:"paused"`
+	Draining          bool      `json:"draining"`
 	MaxConcurrentJobs int       `json:"max_concurrent_jobs"`
 }
 
@@ -426,7 +429,28 @@ func (o *Orchestrator) GetStatus() Status {
 		PendingJobs:       len(o.pendingJobs),
 		TotalSpawns:       o.totalSpawns,
 		Paused:            o.paused,
+		Draining:          o.draining,
 		MaxConcurrentJobs: o.MaxConcurrentJobs,
+	}
+}
+
+// Drain sets the orchestrator to drain mode, stopping it from accepting new jobs.
+func (o *Orchestrator) Drain(logger *slog.Logger) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.draining = true
+	if logger != nil {
+		logger.Info("Orchestrator is now draining")
+	}
+}
+
+// Undrain removes the orchestrator from drain mode.
+func (o *Orchestrator) Undrain(logger *slog.Logger) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.draining = false
+	if logger != nil {
+		logger.Info("Orchestrator has stopped draining")
 	}
 }
 
@@ -722,6 +746,14 @@ func (o *Orchestrator) checkCircularDependencyLocked(newItem WorkItem) error {
 
 func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkItem, retryCount int, bypassApproval bool, logger *slog.Logger) error {
 	o.mu.Lock()
+
+	// If draining, do not accept any new submissions unless they are retries of existing jobs.
+	// We allow retryCount > 0 because those are already internally scheduled auto-retries.
+	if o.draining && retryCount == 0 && !bypassApproval {
+		o.mu.Unlock()
+		return ErrDraining
+	}
+
 	if _, exists := o.activeJobs[item.ID]; exists {
 		o.mu.Unlock()
 		return fmt.Errorf("job %s is already active", item.ID)
@@ -1180,21 +1212,27 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		case <-ticker.C:
 			o.mu.RLock()
 			paused := o.paused
+			draining := o.draining
 			o.mu.RUnlock()
 
-			if !paused {
+			if !paused && !draining {
 				poll()
+			} else if draining {
+				logger.Debug("Orchestrator is draining, skipping poll")
 			} else {
 				logger.Debug("Orchestrator is paused, skipping poll")
 			}
 		case <-o.forcePollCh:
 			o.mu.RLock()
 			paused := o.paused
+			draining := o.draining
 			o.mu.RUnlock()
 
-			if !paused {
+			if !paused && !draining {
 				logger.Info("Force poll triggered")
 				poll()
+			} else if draining {
+				logger.Debug("Orchestrator is draining, skipping force poll")
 			} else {
 				logger.Debug("Orchestrator is paused, skipping force poll")
 			}

@@ -82,3 +82,47 @@ func TestOrchestrator_PauseResume(t *testing.T) {
 	cancel()
 	wg.Wait()
 }
+
+func TestOrchestrator_DrainUndrain(t *testing.T) {
+	poller := newMockPoller([]WorkItem{})
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := orch.Run(ctx, silentLogger)
+		if err != nil && err != context.Canceled {
+			t.Errorf("Orchestrator failed: %v", err)
+		}
+	}()
+
+	// Drain!
+	orch.Drain(silentLogger)
+
+	// Check status
+	status := orch.GetStatus()
+	assert.True(t, status.Draining, "Orchestrator should be draining")
+
+	// Try to submit job while draining
+	err := orch.SubmitJob(ctx, WorkItem{ID: "NEW-JOB-1", Summary: "New Task"}, silentLogger)
+	assert.ErrorIs(t, err, ErrDraining, "Should reject new jobs while draining")
+
+	// Undrain!
+	orch.Undrain(silentLogger)
+
+	// Check status
+	status = orch.GetStatus()
+	assert.False(t, status.Draining, "Orchestrator should not be draining")
+
+	// Try to submit job while undrained
+	err = orch.SubmitJob(ctx, WorkItem{ID: "NEW-JOB-2", Summary: "New Task"}, silentLogger)
+	assert.NoError(t, err, "Should accept new jobs while not draining")
+
+	cancel()
+	wg.Wait()
+}
