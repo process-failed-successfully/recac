@@ -49,6 +49,7 @@ const (
 	viewConfirmation
 	viewSubmit
 	viewAnalytics
+	viewTree
 )
 
 type DashboardModel struct {
@@ -272,7 +273,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics:
+	case viewDetails, viewLogs, viewAnalytics, viewTree:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -361,6 +362,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, textinput.Blink
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "t":
+			m.viewState = viewTree
+			m.viewport.SetContent(renderTree(m.jobs))
+			m.viewport.GotoTop()
+			return m, nil
 		case "h":
 			m.showHistory = !m.showHistory
 			return m, fetchStatus(m.host, m.showHistory)
@@ -699,11 +705,14 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | A: analytics | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalytics:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewTree:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewLogs:
@@ -1363,6 +1372,105 @@ func renderAnalytics(a orchestrator.Analytics) string {
 	s.WriteString(kv("Average Duration", a.AverageDuration.Round(time.Second).String()))
 
 	return s.String()
+}
+
+func renderTree(jobs []orchestrator.JobInfo) string {
+	if len(jobs) == 0 {
+		return "No jobs found."
+	}
+
+	jobMap := make(map[string]orchestrator.JobInfo)
+	childrenMap := make(map[string][]string)
+
+	for _, job := range jobs {
+		jobMap[job.ID] = job
+		for _, dep := range job.WorkItem.DependsOn {
+			childrenMap[dep] = append(childrenMap[dep], job.ID)
+		}
+	}
+
+	var rootJobs []string
+	for _, job := range jobs {
+		if len(job.WorkItem.DependsOn) == 0 {
+			rootJobs = append(rootJobs, job.ID)
+		} else {
+			allDepsMissing := true
+			for _, dep := range job.WorkItem.DependsOn {
+				if _, exists := jobMap[dep]; exists {
+					allDepsMissing = false
+					break
+				}
+			}
+			if allDepsMissing {
+				rootJobs = append(rootJobs, job.ID)
+			}
+		}
+	}
+
+	var sb strings.Builder
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Job Dependency Tree (%d Jobs)", len(jobs))))
+	sb.WriteString("\n\n")
+
+	for _, root := range rootJobs {
+		renderNode(root, jobMap, childrenMap, "", true, &sb)
+	}
+
+	return sb.String()
+}
+
+func renderNode(nodeID string, jobMap map[string]orchestrator.JobInfo, childrenMap map[string][]string, prefix string, isLast bool, sb *strings.Builder) {
+	job, exists := jobMap[nodeID]
+	if !exists {
+		return
+	}
+
+	branch := "├── "
+	if isLast {
+		branch = "└── "
+	}
+
+	idStyle := lipgloss.NewStyle().Bold(true)
+
+	statusColor := "252"
+	switch job.Status {
+	case "Completed":
+		statusColor = "42" // Green
+	case "Failed":
+		statusColor = "196" // Red
+	case "Pending":
+		statusColor = "214" // Orange
+	case "Spawning", "Running", "Active":
+		statusColor = "39" // Blue
+	}
+
+	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColor))
+	summaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+	nodeStr := fmt.Sprintf("%s (%s) %s",
+		idStyle.Render(job.ID),
+		statusStyle.Render(job.Status),
+		summaryStyle.Render(limitString(job.Summary, 40)),
+	)
+
+	sb.WriteString(fmt.Sprintf("%s%s%s\n", prefix, branch, nodeStr))
+
+	childPrefix := prefix
+	if isLast {
+		childPrefix += "    "
+	} else {
+		childPrefix += "│   "
+	}
+
+	children := childrenMap[nodeID]
+	for i, child := range children {
+		renderNode(child, jobMap, childrenMap, childPrefix, i == len(children)-1, sb)
+	}
 }
 
 func renderDetails(job orchestrator.JobInfo) string {
