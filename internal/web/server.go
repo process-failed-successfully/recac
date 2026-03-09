@@ -12,6 +12,7 @@ import (
 	"recac/internal/utils"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,6 +25,7 @@ type Server struct {
 	port        int
 	projectID   string
 	srv         *http.Server
+	mu          sync.Mutex
 	OpenBrowser bool
 }
 
@@ -60,6 +62,7 @@ func (s *Server) Start() error {
 
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	s.mu.Lock()
 	s.srv = &http.Server{
 		Addr:              addr,
 		Handler:           mux,
@@ -68,6 +71,7 @@ func (s *Server) Start() error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
+	s.mu.Unlock()
 
 	dashboardURL := fmt.Sprintf("http://%s", addr)
 	fmt.Printf("Starting dashboard at %s\n", dashboardURL)
@@ -79,13 +83,19 @@ func (s *Server) Start() error {
 		}()
 	}
 
-	return s.srv.ListenAndServe()
+	s.mu.Lock()
+	srv := s.srv
+	s.mu.Unlock()
+	return srv.ListenAndServe()
 }
 
 // Stop stops the HTTP server
 func (s *Server) Stop(ctx context.Context) error {
-	if s.srv != nil {
-		return s.srv.Shutdown(ctx)
+	s.mu.Lock()
+	srv := s.srv
+	s.mu.Unlock()
+	if srv != nil {
+		return srv.Shutdown(ctx)
 	}
 	return nil
 }
