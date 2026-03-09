@@ -2,7 +2,8 @@ package main
 
 import (
 	"testing"
-
+	"os"
+	"path/filepath"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
@@ -94,4 +95,101 @@ func TestReviewModel_Update_FilteringIgnore(t *testing.T) {
 
 	// Assert no issue was selected
 	assert.Nil(t, newM.(ReviewModel).selectedIssue)
+}
+
+func TestReviewModel_TableDriven(t *testing.T) {
+    tests := []struct {
+		name         string
+		setupFunc    func(t *testing.T) (ReviewModel, tea.Msg)
+		wantReady    bool
+        wantQuit     bool
+	}{
+        {
+			name: "ReviewModel Update Enter Table",
+			setupFunc: func(t *testing.T) (ReviewModel, tea.Msg) {
+                issues := []ReviewIssue{
+                    {Title: "Issue 1", Description: "Desc 1", File: "file1.go"},
+                }
+                m := initialReviewModel(issues)
+                newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+                return newM.(ReviewModel), tea.KeyMsg{Type: tea.KeyEnter}
+            },
+			wantReady: true,
+            wantQuit: false,
+		},
+        {
+            name: "ReviewModel Update Quit Table",
+			setupFunc: func(t *testing.T) (ReviewModel, tea.Msg) {
+                m := initialReviewModel([]ReviewIssue{})
+                return m, tea.KeyMsg{Type: tea.KeyCtrlC}
+            },
+			wantReady: false,
+            wantQuit: true,
+        },
+    }
+
+    for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+            m, msg := tc.setupFunc(t)
+            newM, cmd := m.Update(msg)
+
+            updatedM := newM.(ReviewModel)
+
+            assert.Equal(t, tc.wantReady, updatedM.ready)
+
+            if tc.wantQuit {
+                msgCmd := cmd()
+	            assert.IsType(t, tea.QuitMsg{}, msgCmd)
+            }
+        })
+    }
+}
+
+func TestReviewModel_ItemMethods(t *testing.T) {
+	issue := ReviewIssue{
+		Title:       "Test Issue",
+		File:        "test.go",
+		Line:        10,
+		Severity:    "High",
+	}
+	itm := item{issue: issue}
+
+	assert.Equal(t, "Test Issue", itm.Title())
+	assert.Equal(t, "test.go:10 [High]", itm.Description())
+	assert.Equal(t, "Test Issue", itm.FilterValue())
+}
+
+func TestReviewModel_InitView(t *testing.T) {
+	m := initialReviewModel([]ReviewIssue{})
+	cmd := m.Init()
+	assert.Nil(t, cmd)
+
+    view := m.View()
+	assert.Contains(t, view, "Initializing...")
+
+	// Make it ready
+	m.ready = true
+	m.statusMessage = "Test Status"
+	view = m.View()
+	assert.Contains(t, view, "Test Status")
+}
+
+func TestReviewModel_ApplyFixCmd(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "test.go")
+	os.WriteFile(tmpFile, []byte("package main\n\nfunc main() {}\n"), 0644)
+
+	issue := &ReviewIssue{
+		Title:       "Test Fix",
+		File:        tmpFile,
+		Line:        3,
+		Replacement: "func main() {\n\t// test\n}\n",
+	}
+
+	cmd := applyFixCmd(issue)
+	msg := cmd()
+
+	assert.IsType(t, fixMsg{}, msg)
+
+	content, _ := os.ReadFile(tmpFile)
+	assert.Contains(t, string(content), "// test")
 }
