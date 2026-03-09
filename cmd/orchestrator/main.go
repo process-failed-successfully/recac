@@ -61,6 +61,8 @@ func main() {
 	pflag.String("approve-job", "", "Approve a job that is pending approval")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
+	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
+	pflag.Bool("undrain", false, "Remove the orchestrator from drain mode")
 	pflag.Bool("force-poll", false, "Force an immediate poll cycle")
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
@@ -207,6 +209,8 @@ func main() {
 	viper.BindPFlag("orchestrator.approve_job", pflag.Lookup("approve-job"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
+	viper.BindPFlag("orchestrator.drain", pflag.Lookup("drain"))
+	viper.BindPFlag("orchestrator.undrain", pflag.Lookup("undrain"))
 	viper.BindPFlag("orchestrator.force_poll", pflag.Lookup("force-poll"))
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
@@ -477,6 +481,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.resume") {
 		host := viper.GetString("orchestrator.host")
 		resumeOrchestrator(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.drain") {
+		host := viper.GetString("orchestrator.host")
+		drainOrchestrator(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.undrain") {
+		host := viper.GetString("orchestrator.host")
+		undrainOrchestrator(host)
 		return nil
 	}
 
@@ -1285,6 +1301,58 @@ func resumeOrchestrator(host string) {
 	}
 
 	fmt.Fprintln(stdout, "Orchestrator resumed.")
+}
+
+func drainOrchestrator(host string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/drain", host), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to set orchestrator to drain mode: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintln(stdout, "Orchestrator is now draining.")
+}
+
+func undrainOrchestrator(host string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/undrain", host), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to remove orchestrator from drain mode: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintln(stdout, "Orchestrator is no longer draining.")
 }
 
 func forcePoll(host string) {

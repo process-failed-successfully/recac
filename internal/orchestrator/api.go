@@ -395,6 +395,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
 			if err == ErrAtCapacity {
 				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if err == ErrDraining {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			} else if strings.Contains(err.Error(), "already active") {
 				http.Error(w, err.Error(), http.StatusConflict)
 			} else {
@@ -428,6 +430,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
 				if err == ErrAtCapacity {
 					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "at capacity"))
+				} else if err == ErrDraining {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "draining"))
 				} else if strings.Contains(err.Error(), "already active") {
 					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "already active"))
 				} else {
@@ -698,6 +702,18 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		orch.Resume()
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Orchestrator resumed")
+	})
+
+	mux.HandleFunc("POST /drain", func(w http.ResponseWriter, r *http.Request) {
+		orch.Drain(logger)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "Orchestrator draining")
+	})
+
+	mux.HandleFunc("POST /undrain", func(w http.ResponseWriter, r *http.Request) {
+		orch.Undrain(logger)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "Orchestrator undraining")
 	})
 
 	mux.HandleFunc("POST /scale", func(w http.ResponseWriter, r *http.Request) {

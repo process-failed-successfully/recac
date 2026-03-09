@@ -438,6 +438,27 @@ func TestRegisterAPI(t *testing.T) {
 		assert.False(t, paused)
 	})
 
+	// 7.5 Test Drain/Undrain
+	t.Run("Drain Undrain", func(t *testing.T) {
+		resp, err := http.Post(server.URL + "/drain", "", nil)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		orch.mu.Lock()
+		draining := orch.draining
+		orch.mu.Unlock()
+		assert.True(t, draining)
+
+		resp, err = http.Post(server.URL + "/undrain", "", nil)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		orch.mu.Lock()
+		draining = orch.draining
+		orch.mu.Unlock()
+		assert.False(t, draining)
+	})
+
 	// 8. Test Retry
 	t.Run("Retry Failed", func(t *testing.T) {
 		// Manually insert a failed job into history
