@@ -324,6 +324,9 @@ func waitForJob(host, jobID string, out io.Writer) error {
 		if job.Status == "Failed" {
 			return fmt.Errorf("job failed with error: %s", job.Error)
 		}
+		if job.Status == "Canceled" {
+			return fmt.Errorf("job canceled with error: %s", job.Error)
+		}
 
 		// If job is in a state where it might have logs (Running, Spawning which often implies running in Docker)
 		// We try to stream logs.
@@ -344,6 +347,9 @@ func waitForJob(host, jobID string, out io.Writer) error {
 					if err := json.NewDecoder(finalResp.Body).Decode(&finalJob); err == nil {
 						if finalJob.Status == "Failed" {
 							return fmt.Errorf("job failed with error: %s", finalJob.Error)
+						}
+						if finalJob.Status == "Canceled" {
+							return fmt.Errorf("job canceled with error: %s", finalJob.Error)
 						}
 						// If logs finished, assume success unless failed?
 						// But if status is still Spawning, it might be weird.
