@@ -110,7 +110,7 @@ func TestSubmitAdHocJob_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(nil))
 	server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, false, nil, nil)
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, false, nil, nil, nil)
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to connect")
@@ -133,7 +133,7 @@ func TestSubmitAdHocJob_ErrorResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, false, nil, nil)
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, false, nil, nil, nil)
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to submit job")
@@ -416,7 +416,7 @@ func TestSubmitAdHocJob_WithWait(t *testing.T) {
 	defer server.Close()
 
 	// Execute
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "JOB-ADHOC-WAIT", 0, true, nil, nil)
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "JOB-ADHOC-WAIT", 0, true, nil, nil, nil)
 
 	// Verify
 	assert.Equal(t, 0, exitCode)
