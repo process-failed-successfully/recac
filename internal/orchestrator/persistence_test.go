@@ -144,3 +144,45 @@ func TestSQLitePersistence(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestSQLitePersistence_PurgeJob(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "recac-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	dbPath := filepath.Join(tempDir, "test.db")
+	p := NewSQLitePersistence(dbPath)
+	defer p.Close()
+	err = p.Init()
+	require.NoError(t, err)
+
+	job1 := JobInfo{
+		ID:        "JOB-1",
+		Summary:   "Test Job 1",
+		StartTime: time.Now().Add(-1 * time.Hour),
+		Status:    "Completed",
+		WorkItem: WorkItem{
+			ID: "JOB-1", Description: "Desc 1",
+		},
+	}
+	err = p.SaveJob(job1)
+	require.NoError(t, err)
+
+	jobs, err := p.GetJobs(10)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 1)
+
+	err = p.PurgeJob("JOB-1")
+	assert.NoError(t, err)
+
+	jobs, err = p.GetJobs(10)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 0)
+
+	err = p.PurgeJob("NON-EXISTENT")
+	assert.ErrorContains(t, err, "not found")
+
+	pNoDb := &SQLitePersistence{dbPath: "dummy.db"}
+	err = pNoDb.PurgeJob("JOB-1")
+	assert.ErrorContains(t, err, "database not initialized")
+}
