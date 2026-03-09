@@ -135,9 +135,21 @@ func TestManager_GetStyle(t *testing.T) {
 	assert.NotEmpty(t, title)
 	assert.Equal(t, "#3498db", color)
 
+	title, color = getStyle(EventSuccess)
+	assert.NotEmpty(t, title)
+	assert.Equal(t, "#2eb886", color)
+
 	title, color = getStyle(EventFailure)
 	assert.NotEmpty(t, title)
 	assert.Equal(t, "#a30200", color)
+
+	title, color = getStyle(EventUserInteraction)
+	assert.NotEmpty(t, title)
+	assert.Equal(t, "#f1c40f", color)
+
+	title, color = getStyle(EventProjectComplete)
+	assert.NotEmpty(t, title)
+	assert.Equal(t, "#2eb886", color)
 
 	title, color = getStyle("unknown_event")
 	assert.Equal(t, "📢 Notification", title)
