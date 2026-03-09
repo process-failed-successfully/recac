@@ -70,7 +70,9 @@ func TestSquashCmd(t *testing.T) {
 	t.Run("Generate Squash Message (Dry Run)", func(t *testing.T) {
 		mockGit.RepoExistsFunc = func(dir string) bool { return true }
 		mockGit.MergeBaseFunc = func(dir, ref1, ref2 string) (string, error) { return "abcdef", nil }
-		mockGit.LogFunc = func(dir string, args ...string) ([]string, error) { return []string{"12345: WIP", "67890: Fix typos"}, nil }
+		mockGit.LogFunc = func(dir string, args ...string) ([]string, error) {
+			return []string{"12345: WIP", "67890: Fix typos"}, nil
+		}
 		mockGit.DiffFunc = func(dir, start, end string) (string, error) { return "diff --git a/foo b/foo", nil }
 
 		generatedMsg := "feat: squash feature updates"

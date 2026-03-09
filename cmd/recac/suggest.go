@@ -24,8 +24,8 @@ var (
 var suggestCmd = &cobra.Command{
 	Use:   "suggest",
 	Short: "Proactively suggest improvements using AI",
-	Long: `Analyzes the codebase and suggests actionable improvements, bugs to fix, or refactoring opportunities.`,
-	RunE: runSuggest,
+	Long:  `Analyzes the codebase and suggests actionable improvements, bugs to fix, or refactoring opportunities.`,
+	RunE:  runSuggest,
 }
 
 func init() {

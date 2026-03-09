@@ -275,10 +275,10 @@ type mockHandler struct {
 	slog.Handler
 }
 
-func (m *mockHandler) Enabled(context.Context, slog.Level) bool { return m.enabled }
+func (m *mockHandler) Enabled(context.Context, slog.Level) bool  { return m.enabled }
 func (m *mockHandler) Handle(context.Context, slog.Record) error { return m.err }
-func (m *mockHandler) WithAttrs([]slog.Attr) slog.Handler { return m }
-func (m *mockHandler) WithGroup(string) slog.Handler { return m }
+func (m *mockHandler) WithAttrs([]slog.Attr) slog.Handler        { return m }
+func (m *mockHandler) WithGroup(string) slog.Handler             { return m }
 
 func TestMultiHandler_EdgeCases(t *testing.T) {
 	ctx := context.Background()

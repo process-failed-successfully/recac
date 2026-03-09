@@ -142,58 +142,68 @@ type MockTimesheetGitClient struct {
 }
 
 func (m *MockTimesheetGitClient) Checkout(repoPath, commitOrBranch string) error { return nil }
-func (m *MockTimesheetGitClient) Diff(repoPath, commitA, commitB string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) Diff(repoPath, commitA, commitB string) (string, error) {
+	return "", nil
+}
 func (m *MockTimesheetGitClient) DiffStaged(repoPath string) (string, error) { return "", nil }
-func (m *MockTimesheetGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) {
+	return "", nil
+}
 func (m *MockTimesheetGitClient) CurrentCommitSHA(repoPath string) (string, error) { return "", nil }
-func (m *MockTimesheetGitClient) RepoExists(repoPath string) bool { return true }
-func (m *MockTimesheetGitClient) Commit(repoPath, message string) error { return nil }
+func (m *MockTimesheetGitClient) RepoExists(repoPath string) bool                  { return true }
+func (m *MockTimesheetGitClient) Commit(repoPath, message string) error            { return nil }
 func (m *MockTimesheetGitClient) Log(repoPath string, args ...string) ([]string, error) {
 	return m.LogOutput, nil
 }
-func (m *MockTimesheetGitClient) Fetch(repoPath, remote, branch string) error { return nil }
-func (m *MockTimesheetGitClient) CurrentBranch(repoPath string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) Fetch(repoPath, remote, branch string) error     { return nil }
+func (m *MockTimesheetGitClient) CurrentBranch(repoPath string) (string, error)   { return "", nil }
 func (m *MockTimesheetGitClient) CheckoutNewBranch(repoPath, branch string) error { return nil }
-func (m *MockTimesheetGitClient) BisectStart(repoPath, bad, good string) error { return nil }
-func (m *MockTimesheetGitClient) BisectGood(repoPath, rev string) error { return nil }
-func (m *MockTimesheetGitClient) BisectBad(repoPath, rev string) error { return nil }
-func (m *MockTimesheetGitClient) BisectReset(repoPath string) error { return nil }
-func (m *MockTimesheetGitClient) BisectLog(repoPath string) ([]string, error) { return nil, nil }
-func (m *MockTimesheetGitClient) Tag(repoPath, version string) error { return nil }
-func (m *MockTimesheetGitClient) DeleteTag(repoPath, version string) error { return nil }
-func (m *MockTimesheetGitClient) PushTags(repoPath string) error { return nil }
-func (m *MockTimesheetGitClient) LatestTag(repoPath string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) BisectStart(repoPath, bad, good string) error    { return nil }
+func (m *MockTimesheetGitClient) BisectGood(repoPath, rev string) error           { return nil }
+func (m *MockTimesheetGitClient) BisectBad(repoPath, rev string) error            { return nil }
+func (m *MockTimesheetGitClient) BisectReset(repoPath string) error               { return nil }
+func (m *MockTimesheetGitClient) BisectLog(repoPath string) ([]string, error)     { return nil, nil }
+func (m *MockTimesheetGitClient) Tag(repoPath, version string) error              { return nil }
+func (m *MockTimesheetGitClient) DeleteTag(repoPath, version string) error        { return nil }
+func (m *MockTimesheetGitClient) PushTags(repoPath string) error                  { return nil }
+func (m *MockTimesheetGitClient) LatestTag(repoPath string) (string, error)       { return "", nil }
 func (m *MockTimesheetGitClient) Run(repoPath string, args ...string) (string, error) {
 	return m.RunOutput, nil
 }
 func (m *MockTimesheetGitClient) DeleteLocalBranch(repoPath, branch string) error { return nil }
-func (m *MockTimesheetGitClient) CreatePR(repoPath, title, body, base string) (string, error) { return "", nil }
+func (m *MockTimesheetGitClient) CreatePR(repoPath, title, body, base string) (string, error) {
+	return "", nil
+}
 
-func (m *MockTimesheetGitClient) StashPush(d, msg string) error { return nil }
-func (m *MockTimesheetGitClient) StashList(d string) ([]string, error) { return nil, nil }
+func (m *MockTimesheetGitClient) StashPush(d, msg string) error          { return nil }
+func (m *MockTimesheetGitClient) StashList(d string) ([]string, error)   { return nil, nil }
 func (m *MockTimesheetGitClient) StashShow(d, id string) (string, error) { return "", nil }
-func (m *MockTimesheetGitClient) StashApply(d, id string) error { return nil }
-func (m *MockTimesheetGitClient) StashDrop(d, id string) error { return nil }
-func (m *MockTimesheetGitClient) StashClear(d string) error { return nil }
-func (m *MockTimesheetGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
-func (m *MockTimesheetGitClient) ResetSoft(directory, target string) error       { return nil }
-func (m *MockTimesheetGitClient) AbortMerge(d string) error { return nil }
-func (m *MockTimesheetGitClient) Recover(d string) error { return nil }
-func (m *MockTimesheetGitClient) Clean(d string) error { return nil }
-func (m *MockTimesheetGitClient) ResetHard(d, remote, branch string) error { return nil }
-func (m *MockTimesheetGitClient) StashPop(d string) error { return nil }
+func (m *MockTimesheetGitClient) StashApply(d, id string) error          { return nil }
+func (m *MockTimesheetGitClient) StashDrop(d, id string) error           { return nil }
+func (m *MockTimesheetGitClient) StashClear(d string) error              { return nil }
+func (m *MockTimesheetGitClient) MergeBase(directory, ref1, ref2 string) (string, error) {
+	return "", nil
+}
+func (m *MockTimesheetGitClient) ResetSoft(directory, target string) error          { return nil }
+func (m *MockTimesheetGitClient) AbortMerge(d string) error                         { return nil }
+func (m *MockTimesheetGitClient) Recover(d string) error                            { return nil }
+func (m *MockTimesheetGitClient) Clean(d string) error                              { return nil }
+func (m *MockTimesheetGitClient) ResetHard(d, remote, branch string) error          { return nil }
+func (m *MockTimesheetGitClient) StashPop(d string) error                           { return nil }
 func (m *MockTimesheetGitClient) DeleteRemoteBranch(d, remote, branch string) error { return nil }
-func (m *MockTimesheetGitClient) SetRemoteURL(d, name, url string) error { return nil }
-func (m *MockTimesheetGitClient) LocalBranchExists(d, branch string) (bool, error) { return false, nil }
-func (m *MockTimesheetGitClient) Config(d, key, value string) error { return nil }
-func (m *MockTimesheetGitClient) ConfigGlobal(key, value string) error { return nil }
-func (m *MockTimesheetGitClient) ConfigAddGlobal(key, value string) error { return nil }
-func (m *MockTimesheetGitClient) RemoteBranchExists(d, remote, branch string) (bool, error) { return false, nil }
+func (m *MockTimesheetGitClient) SetRemoteURL(d, name, url string) error            { return nil }
+func (m *MockTimesheetGitClient) LocalBranchExists(d, branch string) (bool, error)  { return false, nil }
+func (m *MockTimesheetGitClient) Config(d, key, value string) error                 { return nil }
+func (m *MockTimesheetGitClient) ConfigGlobal(key, value string) error              { return nil }
+func (m *MockTimesheetGitClient) ConfigAddGlobal(key, value string) error           { return nil }
+func (m *MockTimesheetGitClient) RemoteBranchExists(d, remote, branch string) (bool, error) {
+	return false, nil
+}
 func (m *MockTimesheetGitClient) Clone(ctx context.Context, repoURL, d string) error { return nil }
-func (m *MockTimesheetGitClient) Push(d, branch string) error { return nil }
-func (m *MockTimesheetGitClient) Pull(d, remote, branch string) error { return nil }
-func (m *MockTimesheetGitClient) Stash(d string) error { return nil }
-func (m *MockTimesheetGitClient) Merge(d, branchName string) error { return nil }
+func (m *MockTimesheetGitClient) Push(d, branch string) error                        { return nil }
+func (m *MockTimesheetGitClient) Pull(d, remote, branch string) error                { return nil }
+func (m *MockTimesheetGitClient) Stash(d string) error                               { return nil }
+func (m *MockTimesheetGitClient) Merge(d, branchName string) error                   { return nil }
 
 func TestRunTimesheet(t *testing.T) {
 	origFactory := gitClientFactory

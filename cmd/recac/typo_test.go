@@ -140,7 +140,7 @@ func TestRunTypo(t *testing.T) {
 
 	// 3. Setup Command
 	cmd := &cobra.Command{
-		Use: "typo",
+		Use:  "typo",
 		RunE: runTypo,
 	}
 	var buf bytes.Buffer

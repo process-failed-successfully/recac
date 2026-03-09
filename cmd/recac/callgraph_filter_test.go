@@ -35,7 +35,7 @@ func Other() {}
 
 	// 2. Setup Command
 	cmd := &cobra.Command{
-		Use: "callgraph",
+		Use:  "callgraph",
 		RunE: runCallGraph,
 	}
 	var buf bytes.Buffer
@@ -74,7 +74,7 @@ func Other() {}
 
 func TestCallGraph_InvalidDir(t *testing.T) {
 	cmd := &cobra.Command{
-		Use: "callgraph",
+		Use:  "callgraph",
 		RunE: runCallGraph,
 	}
 

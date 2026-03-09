@@ -50,7 +50,7 @@ func TestInfoCmd(t *testing.T) {
 	}()
 
 	mockGit := &MockGitClient{
-		RepoExistsFunc: func(repoPath string) bool { return true },
+		RepoExistsFunc:    func(repoPath string) bool { return true },
 		CurrentBranchFunc: func(repoPath string) (string, error) { return "feature/test-branch", nil },
 		RunFunc: func(repoPath string, args ...string) (string, error) {
 			if len(args) > 0 {

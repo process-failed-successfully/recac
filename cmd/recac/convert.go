@@ -17,7 +17,7 @@ func NewConvertCmd() *cobra.Command {
 		Short: "Convert a file from one format to another using AI",
 		Long: `Converts the contents of an input file into a specified target format (e.g. JSON to YAML, CSV to JSON) using the configured AI agent.
 If [output-file] is not provided, the result will be printed to stdout.`,
-		Args:  cobra.RangeArgs(2, 3),
+		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inputFile := args[0]
 			targetFormat := args[1]

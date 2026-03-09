@@ -36,7 +36,7 @@ func Helper() {
 
 	// 2. Setup Command
 	cmd := &cobra.Command{
-		Use: "callgraph",
+		Use:  "callgraph",
 		RunE: runCallGraph,
 	}
 	var buf bytes.Buffer

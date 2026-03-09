@@ -309,9 +309,9 @@ func fetchIssuesCmd(client *jira.Client, projectKey string) tea.Cmd {
 				}
 
 				tasks = append(tasks, Task{
-					id:      key,
-					title:   summary,
-					status:  finalStatus,
+					id:     key,
+					title:  summary,
+					status: finalStatus,
 				})
 			}
 		}

@@ -5,9 +5,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"recac/internal/agent"
 	"strings"
 	"testing"
-	"recac/internal/agent"
 )
 
 // SpyAgentTransform captures prompts for verification

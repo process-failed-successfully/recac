@@ -35,7 +35,7 @@ func TestLoadTest_Requests(t *testing.T) {
 
 	ltRequests = 100
 	ltConcurrency = 10
-	ltDuration = 0 // Request based
+	ltDuration = 0    // Request based
 	ltAnalyze = false // Don't call agent
 
 	// Run Test

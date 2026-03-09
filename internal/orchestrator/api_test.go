@@ -218,7 +218,7 @@ func TestRegisterAPI(t *testing.T) {
 			return i.ID == "JOB-123"
 		})).Return(nil).Maybe()
 
-		resp, err := http.Post(server.URL + "/jobs", "application/json", strings.NewReader(string(body)))
+		resp, err := http.Post(server.URL+"/jobs", "application/json", strings.NewReader(string(body)))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 
@@ -311,7 +311,7 @@ func TestRegisterAPI(t *testing.T) {
 		item2 := WorkItem{ID: "JOB-456", Summary: "Test Job Too Many"}
 		body2, _ := json.Marshal(item2)
 
-		resp, err := http.Post(server.URL + "/jobs", "application/json", strings.NewReader(string(body2)))
+		resp, err := http.Post(server.URL+"/jobs", "application/json", strings.NewReader(string(body2)))
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 
@@ -353,7 +353,7 @@ func TestRegisterAPI(t *testing.T) {
 		// Expect Cancel call
 		mockSpawner.On("Cancel", mock.Anything, "JOB-123").Return(nil)
 
-		req, _ := http.NewRequest(http.MethodDelete, server.URL + "/jobs/JOB-123", nil)
+		req, _ := http.NewRequest(http.MethodDelete, server.URL+"/jobs/JOB-123", nil)
 		resp, err := http.DefaultClient.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -367,18 +367,18 @@ func TestRegisterAPI(t *testing.T) {
 		// Insert dummy active and pending jobs with specific tags
 		orch.mu.Lock()
 		orch.activeJobs["TAGJOB-1"] = JobInfo{
-			ID: "TAGJOB-1",
-			Status: "Running",
+			ID:       "TAGJOB-1",
+			Status:   "Running",
 			WorkItem: WorkItem{Tags: []string{"release-1"}},
 		}
 		orch.pendingJobs["TAGJOB-2"] = JobInfo{
-			ID: "TAGJOB-2",
-			Status: "Pending",
+			ID:       "TAGJOB-2",
+			Status:   "Pending",
 			WorkItem: WorkItem{Tags: []string{"release-1"}},
 		}
 		orch.activeJobs["TAGJOB-3"] = JobInfo{
-			ID: "TAGJOB-3",
-			Status: "Running",
+			ID:       "TAGJOB-3",
+			Status:   "Running",
 			WorkItem: WorkItem{Tags: []string{"other"}},
 		}
 		orch.mu.Unlock()
@@ -419,7 +419,7 @@ func TestRegisterAPI(t *testing.T) {
 		// Insert a dummy active job to be canceled
 		orch.mu.Lock()
 		orch.activeJobs["JOB-999"] = JobInfo{
-			ID: "JOB-999",
+			ID:     "JOB-999",
 			Status: "Running",
 		}
 		orch.mu.Unlock()
@@ -437,7 +437,7 @@ func TestRegisterAPI(t *testing.T) {
 
 	// 7. Test Pause/Resume
 	t.Run("Pause Resume", func(t *testing.T) {
-		resp, err := http.Post(server.URL + "/pause", "", nil)
+		resp, err := http.Post(server.URL+"/pause", "", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -446,7 +446,7 @@ func TestRegisterAPI(t *testing.T) {
 		orch.mu.Unlock()
 		assert.True(t, paused)
 
-		resp, err = http.Post(server.URL + "/resume", "", nil)
+		resp, err = http.Post(server.URL+"/resume", "", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -458,7 +458,7 @@ func TestRegisterAPI(t *testing.T) {
 
 	// 7.5 Test Drain/Undrain
 	t.Run("Drain Undrain", func(t *testing.T) {
-		resp, err := http.Post(server.URL + "/drain", "", nil)
+		resp, err := http.Post(server.URL+"/drain", "", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -467,7 +467,7 @@ func TestRegisterAPI(t *testing.T) {
 		orch.mu.Unlock()
 		assert.True(t, draining)
 
-		resp, err = http.Post(server.URL + "/undrain", "", nil)
+		resp, err = http.Post(server.URL+"/undrain", "", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -482,8 +482,8 @@ func TestRegisterAPI(t *testing.T) {
 		// Manually insert a failed job into history
 		orch.mu.Lock()
 		orch.completedJobs = append(orch.completedJobs, JobInfo{
-			ID: "JOB-FAIL",
-			Status: "Failed",
+			ID:       "JOB-FAIL",
+			Status:   "Failed",
 			WorkItem: WorkItem{ID: "JOB-FAIL"},
 		})
 		orch.mu.Unlock()
@@ -493,7 +493,7 @@ func TestRegisterAPI(t *testing.T) {
 			return i.ID == "JOB-FAIL"
 		})).Return(nil)
 
-		resp, err := http.Post(server.URL + "/jobs/JOB-FAIL/retry", "", nil)
+		resp, err := http.Post(server.URL+"/jobs/JOB-FAIL/retry", "", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	})
@@ -503,8 +503,8 @@ func TestRegisterAPI(t *testing.T) {
 		// Manually insert another failed job
 		orch.mu.Lock()
 		orch.completedJobs = append(orch.completedJobs, JobInfo{
-			ID: "JOB-FAIL-2",
-			Status: "Failed",
+			ID:       "JOB-FAIL-2",
+			Status:   "Failed",
 			WorkItem: WorkItem{ID: "JOB-FAIL-2"},
 		})
 		orch.mu.Unlock()
@@ -514,7 +514,7 @@ func TestRegisterAPI(t *testing.T) {
 			return i.ID == "JOB-FAIL-2"
 		})).Return(nil)
 
-		resp, err := http.Post(server.URL + "/jobs/retry-failed", "", nil)
+		resp, err := http.Post(server.URL+"/jobs/retry-failed", "", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -677,9 +677,9 @@ func TestRegisterAPI(t *testing.T) {
 		payload := map[string]interface{}{
 			"object_kind": "issue",
 			"object_attributes": map[string]interface{}{
-				"action": "open",
-				"iid":    float64(42),
-				"title":  "Test Issue",
+				"action":      "open",
+				"iid":         float64(42),
+				"title":       "Test Issue",
 				"description": "This is a test issue",
 			},
 			"project": map[string]interface{}{
@@ -716,11 +716,11 @@ func TestRegisterAPI(t *testing.T) {
 			"object_kind": "note",
 			"object_attributes": map[string]interface{}{
 				"noteable_type": "Issue",
-				"note": "This is a comment",
+				"note":          "This is a comment",
 			},
 			"issue": map[string]interface{}{
-				"iid": float64(43),
-				"title": "Issue with comment",
+				"iid":         float64(43),
+				"title":       "Issue with comment",
 				"description": "Original description",
 			},
 			"project": map[string]interface{}{

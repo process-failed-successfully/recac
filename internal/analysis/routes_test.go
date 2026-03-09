@@ -76,12 +76,12 @@ func main() {
 
 	// Expectations
 	expected := map[string]string{
-		"GET /ping":        "pingHandler",
-		"POST /users":      "createUser",
+		"GET /ping":         "pingHandler",
+		"POST /users":       "createUser",
 		"DELETE /users/:id": "deleteUser",
-		"ANY /health":      "healthCheck",   // HandleFunc -> ANY
-		"ANY /metrics":     "metricsHandler", // Handle -> ANY
-		"GET /":            "(anonymous)",
+		"ANY /health":       "healthCheck",    // HandleFunc -> ANY
+		"ANY /metrics":      "metricsHandler", // Handle -> ANY
+		"GET /":             "(anonymous)",
 	}
 
 	found := make(map[string]string)

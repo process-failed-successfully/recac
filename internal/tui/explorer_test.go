@@ -152,8 +152,8 @@ func TestExplorerModel_View_Unready(t *testing.T) {
 
 func TestStartExplorer(t *testing.T) {
 	// Call StartExplorer but with an invalid path maybe or just regular,
-    // unfortunately tea.Program.Run blocks, so just test it compiles basically
-    // and doesn't panic on setup.
+	// unfortunately tea.Program.Run blocks, so just test it compiles basically
+	// and doesn't panic on setup.
 	dir := t.TempDir()
 	m := NewExplorerModel(dir)
 	assert.NotNil(t, m.files)

@@ -13,7 +13,7 @@ import (
 var directiveCmd = &cobra.Command{
 	Use:   "directive",
 	Short: "Manage global project directives for the AI agent",
-	Long:  `Set, show, or clear the global directive (instruction) that is prepended to every AI agent prompt.
+	Long: `Set, show, or clear the global directive (instruction) that is prepended to every AI agent prompt.
 This is useful for enforcing project-wide rules like "Use TypeScript", "Prefer functional programming", or "Do not remove comments".
 The directive is stored in .recac/directive file in the current working directory.`,
 }

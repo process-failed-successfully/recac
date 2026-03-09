@@ -48,7 +48,7 @@ func TestSimplifyCmd_Stdout(t *testing.T) {
 	simplifiedCode := "func SimpleFunction() { /* simple */ }"
 	mockAgent.On("Send", mock.Anything, mock.MatchedBy(func(prompt string) bool {
 		return true
-	})).Return("```go\n" + simplifiedCode + "\n```", nil)
+	})).Return("```go\n"+simplifiedCode+"\n```", nil)
 
 	// Override factory
 	oldFactory := agentClientFactory

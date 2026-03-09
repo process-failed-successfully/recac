@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-
 func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 	s := &Session{
 		Docker:   &MockDockerClient{},

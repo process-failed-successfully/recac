@@ -157,10 +157,10 @@ type interviewModel struct {
 	currentQuestion *InterviewQuestion
 	lastEvaluation  *InterviewEvaluation
 
-	textarea    textarea.Model
-	viewport    viewport.Model
-	renderer    *glamour.TermRenderer
-	err         error
+	textarea textarea.Model
+	viewport viewport.Model
+	renderer *glamour.TermRenderer
+	err      error
 
 	width, height int
 }

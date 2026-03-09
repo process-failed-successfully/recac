@@ -25,7 +25,7 @@ Examples:
   recac add-tags my_structs.go --tags json,yaml
   recac add-tags my_structs.go --tags json,db --case snake
   cat models.go | recac add-tags --tags json --case camel`,
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tagsFlag, _ := cmd.Flags().GetString("tags")
 			caseFlag, _ := cmd.Flags().GetString("case")
