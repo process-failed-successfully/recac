@@ -22,8 +22,8 @@ func NewMockStore() *MockStore {
 	}
 }
 
-func (s *MockStore) Load() error                { return nil }
-func (s *MockStore) Save() error                { return nil }
+func (s *MockStore) Load() error           { return nil }
+func (s *MockStore) Save() error           { return nil }
 func (s *MockStore) Add(c flashcards.Flashcard) { s.cards[c.ID] = c }
 func (s *MockStore) List() []flashcards.Flashcard {
 	var list []flashcards.Flashcard

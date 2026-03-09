@@ -125,28 +125,3 @@ func TestGetSpecificAgentBranch_GitError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to list branches")
 }
-
-func TestCheckAgentBranchExists_GitError(t *testing.T) {
-	// Not a git repo
-	dir := t.TempDir()
-	err := checkAgentBranchExists(dir)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to list branches")
-}
-
-func TestGetAgentBranch_GitError(t *testing.T) {
-	dir := t.TempDir()
-	_, err := getAgentBranch(dir)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to list branches")
-}
-
-func TestGetAgentBranch_NotFound(t *testing.T) {
-	dir := setupGitRepo(t)
-	_, err := getAgentBranch(dir)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no agent branch found")
-}
-
-func TestGetSpecificAgentBranch_GitError(t *testing.T) {
-	dir := t.TempDir()

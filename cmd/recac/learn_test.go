@@ -43,59 +43,53 @@ func (m *MockLearnGitClient) Log(repoPath string, args ...string) ([]string, err
 }
 
 // Implement other interface methods as no-ops
-func (m *MockLearnGitClient) RepoExists(repoPath string) bool                        { return true }
-func (m *MockLearnGitClient) Checkout(repoPath, commitOrBranch string) error         { return nil }
+func (m *MockLearnGitClient) RepoExists(repoPath string) bool { return true }
+func (m *MockLearnGitClient) Checkout(repoPath, commitOrBranch string) error { return nil }
 func (m *MockLearnGitClient) Diff(repoPath, commitA, commitB string) (string, error) { return "", nil }
-func (m *MockLearnGitClient) DiffStaged(repoPath string) (string, error)             { return "", nil }
-func (m *MockLearnGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) {
-	return "", nil
-}
-func (m *MockLearnGitClient) CurrentCommitSHA(repoPath string) (string, error)    { return "sha", nil }
-func (m *MockLearnGitClient) Commit(repoPath, message string) error               { return nil }
-func (m *MockLearnGitClient) Fetch(repoPath, remote, branch string) error         { return nil }
-func (m *MockLearnGitClient) CurrentBranch(repoPath string) (string, error)       { return "main", nil }
-func (m *MockLearnGitClient) CheckoutNewBranch(repoPath, branch string) error     { return nil }
-func (m *MockLearnGitClient) BisectStart(repoPath, bad, good string) error        { return nil }
-func (m *MockLearnGitClient) BisectGood(repoPath, rev string) error               { return nil }
-func (m *MockLearnGitClient) BisectBad(repoPath, rev string) error                { return nil }
-func (m *MockLearnGitClient) BisectReset(repoPath string) error                   { return nil }
-func (m *MockLearnGitClient) BisectLog(repoPath string) ([]string, error)         { return nil, nil }
-func (m *MockLearnGitClient) Tag(repoPath, version string) error                  { return nil }
-func (m *MockLearnGitClient) DeleteTag(repoPath, version string) error            { return nil }
-func (m *MockLearnGitClient) PushTags(repoPath string) error                      { return nil }
-func (m *MockLearnGitClient) LatestTag(repoPath string) (string, error)           { return "", nil }
+func (m *MockLearnGitClient) DiffStaged(repoPath string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) CurrentCommitSHA(repoPath string) (string, error) { return "sha", nil }
+func (m *MockLearnGitClient) Commit(repoPath, message string) error { return nil }
+func (m *MockLearnGitClient) Fetch(repoPath, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) CurrentBranch(repoPath string) (string, error) { return "main", nil }
+func (m *MockLearnGitClient) CheckoutNewBranch(repoPath, branch string) error { return nil }
+func (m *MockLearnGitClient) BisectStart(repoPath, bad, good string) error { return nil }
+func (m *MockLearnGitClient) BisectGood(repoPath, rev string) error { return nil }
+func (m *MockLearnGitClient) BisectBad(repoPath, rev string) error { return nil }
+func (m *MockLearnGitClient) BisectReset(repoPath string) error { return nil }
+func (m *MockLearnGitClient) BisectLog(repoPath string) ([]string, error) { return nil, nil }
+func (m *MockLearnGitClient) Tag(repoPath, version string) error { return nil }
+func (m *MockLearnGitClient) DeleteTag(repoPath, version string) error { return nil }
+func (m *MockLearnGitClient) PushTags(repoPath string) error { return nil }
+func (m *MockLearnGitClient) LatestTag(repoPath string) (string, error) { return "", nil }
 func (m *MockLearnGitClient) Run(repoPath string, args ...string) (string, error) { return "", nil }
-func (m *MockLearnGitClient) DeleteLocalBranch(repoPath, branch string) error     { return nil }
-func (m *MockLearnGitClient) CreatePR(repoPath, title, body, base string) (string, error) {
-	return "", nil
-}
-func (m *MockLearnGitClient) StashPush(d, msg string) error                          { return nil }
-func (m *MockLearnGitClient) StashList(d string) ([]string, error)                   { return nil, nil }
-func (m *MockLearnGitClient) StashShow(d, id string) (string, error)                 { return "", nil }
-func (m *MockLearnGitClient) StashApply(d, id string) error                          { return nil }
-func (m *MockLearnGitClient) StashDrop(d, id string) error                           { return nil }
-func (m *MockLearnGitClient) StashClear(d string) error                              { return nil }
+func (m *MockLearnGitClient) DeleteLocalBranch(repoPath, branch string) error { return nil }
+func (m *MockLearnGitClient) CreatePR(repoPath, title, body, base string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) StashPush(d, msg string) error { return nil }
+func (m *MockLearnGitClient) StashList(d string) ([]string, error) { return nil, nil }
+func (m *MockLearnGitClient) StashShow(d, id string) (string, error) { return "", nil }
+func (m *MockLearnGitClient) StashApply(d, id string) error { return nil }
+func (m *MockLearnGitClient) StashDrop(d, id string) error { return nil }
+func (m *MockLearnGitClient) StashClear(d string) error { return nil }
 func (m *MockLearnGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
-func (m *MockLearnGitClient) ResetSoft(directory, target string) error               { return nil }
-func (m *MockLearnGitClient) AbortMerge(dir string) error                            { return nil }
-func (m *MockLearnGitClient) Recover(dir string) error                               { return nil }
-func (m *MockLearnGitClient) Clean(dir string) error                                 { return nil }
-func (m *MockLearnGitClient) ResetHard(dir, remote, branch string) error             { return nil }
-func (m *MockLearnGitClient) StashPop(dir string) error                              { return nil }
-func (m *MockLearnGitClient) DeleteRemoteBranch(dir, remote, branch string) error    { return nil }
-func (m *MockLearnGitClient) SetRemoteURL(dir, name, url string) error               { return nil }
-func (m *MockLearnGitClient) LocalBranchExists(dir, branch string) (bool, error)     { return false, nil }
-func (m *MockLearnGitClient) Config(dir, key, value string) error                    { return nil }
-func (m *MockLearnGitClient) ConfigGlobal(key, value string) error                   { return nil }
-func (m *MockLearnGitClient) ConfigAddGlobal(key, value string) error                { return nil }
-func (m *MockLearnGitClient) RemoteBranchExists(dir, remote, branch string) (bool, error) {
-	return false, nil
-}
+func (m *MockLearnGitClient) ResetSoft(directory, target string) error       { return nil }
+func (m *MockLearnGitClient) AbortMerge(dir string) error { return nil }
+func (m *MockLearnGitClient) Recover(dir string) error { return nil }
+func (m *MockLearnGitClient) Clean(dir string) error { return nil }
+func (m *MockLearnGitClient) ResetHard(dir, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) StashPop(dir string) error { return nil }
+func (m *MockLearnGitClient) DeleteRemoteBranch(dir, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) SetRemoteURL(dir, name, url string) error { return nil }
+func (m *MockLearnGitClient) LocalBranchExists(dir, branch string) (bool, error) { return false, nil }
+func (m *MockLearnGitClient) Config(dir, key, value string) error { return nil }
+func (m *MockLearnGitClient) ConfigGlobal(key, value string) error { return nil }
+func (m *MockLearnGitClient) ConfigAddGlobal(key, value string) error { return nil }
+func (m *MockLearnGitClient) RemoteBranchExists(dir, remote, branch string) (bool, error) { return false, nil }
 func (m *MockLearnGitClient) Clone(ctx context.Context, repoURL, dir string) error { return nil }
-func (m *MockLearnGitClient) Push(dir, branch string) error                        { return nil }
-func (m *MockLearnGitClient) Pull(dir, remote, branch string) error                { return nil }
-func (m *MockLearnGitClient) Stash(dir string) error                               { return nil }
-func (m *MockLearnGitClient) Merge(dir, branchName string) error                   { return nil }
+func (m *MockLearnGitClient) Push(dir, branch string) error { return nil }
+func (m *MockLearnGitClient) Pull(dir, remote, branch string) error { return nil }
+func (m *MockLearnGitClient) Stash(dir string) error { return nil }
+func (m *MockLearnGitClient) Merge(dir, branchName string) error { return nil }
 
 func TestRunLearn(t *testing.T) {
 	// Setup temporary directory

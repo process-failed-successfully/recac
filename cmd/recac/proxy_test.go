@@ -167,7 +167,7 @@ func TestRecordingTransport_ReadBodyError(t *testing.T) {
 
 	rt := &recordingTransport{
 		transport: http.DefaultTransport, // Doesn't matter, we just need to hit the read body path
-		onRecord:  func(i Interaction) {},
+		onRecord: func(i Interaction) {},
 	}
 
 	// We only want to test the body reading part for coverage, we expect this request to fail in Transport
@@ -175,7 +175,6 @@ func TestRecordingTransport_ReadBodyError(t *testing.T) {
 }
 
 type errReader struct{}
-
 func (e *errReader) Read(p []byte) (n int, err error) {
 	return 0, fmt.Errorf("read error")
 }
@@ -189,7 +188,7 @@ func TestRecordingTransport_ResponseReadBodyError(t *testing.T) {
 
 	rt := &recordingTransport{
 		transport: &mockResponseTransport{},
-		onRecord:  func(i Interaction) {},
+		onRecord: func(i Interaction) {},
 	}
 
 	rt.RoundTrip(req)

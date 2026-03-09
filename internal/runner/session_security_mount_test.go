@@ -3,9 +3,9 @@ package runner
 import (
 	"context"
 	"os"
-	"recac/internal/docker"
 	"strings"
 	"testing"
+	"recac/internal/docker"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -16,13 +16,9 @@ import (
 
 // MockAgentForSecurity implements agent.Agent
 type MockAgentForSecurity struct{}
+func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
+func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
 
-func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) {
-	return "", nil
-}
-func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return "", nil
-}
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Skip if no home dir

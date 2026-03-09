@@ -55,7 +55,7 @@ type depsItem struct {
 	metric PackageMetric
 }
 
-func (i depsItem) Title() string { return i.metric.Name }
+func (i depsItem) Title() string       { return i.metric.Name }
 func (i depsItem) Description() string {
 	return fmt.Sprintf("I: %.2f | Ca: %d | Ce: %d", i.metric.Instability, i.metric.Afferent, i.metric.Efferent)
 }

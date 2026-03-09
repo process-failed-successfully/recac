@@ -75,6 +75,7 @@ func TestRunWorkflow_Detached_Fail(t *testing.T) {
 	}
 }
 
+
 func TestRunWorkflow_NormalMode_Mocked(t *testing.T) {
 	// Mock NewSessionFunc
 	originalNewSession := NewSessionFunc

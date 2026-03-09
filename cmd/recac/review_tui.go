@@ -36,10 +36,8 @@ type item struct {
 	issue ReviewIssue
 }
 
-func (i item) Title() string { return i.issue.Title }
-func (i item) Description() string {
-	return fmt.Sprintf("%s:%d [%s]", i.issue.File, i.issue.Line, i.issue.Severity)
-}
+func (i item) Title() string       { return i.issue.Title }
+func (i item) Description() string { return fmt.Sprintf("%s:%d [%s]", i.issue.File, i.issue.Line, i.issue.Severity) }
 func (i item) FilterValue() string { return i.issue.Title }
 
 type ReviewModel struct {

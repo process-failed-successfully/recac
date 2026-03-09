@@ -1,11 +1,11 @@
 package tui_test
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/stretchr/testify/assert"
 	"recac/internal/tui"
 	"strings"
 	"testing"
+	"github.com/stretchr/testify/assert"
+	tea "github.com/charmbracelet/bubbletea"
 	"time"
 )
 

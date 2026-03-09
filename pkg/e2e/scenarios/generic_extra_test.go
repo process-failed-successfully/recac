@@ -62,9 +62,9 @@ func TestGenericScenario_Verify(t *testing.T) {
 		Name: "Test Verify Scenario Fail Optional",
 		Validations: []ValidationStep{
 			{
-				Name:     "Check file missing",
-				Type:     ValidateFileExists,
-				Path:     "missing.txt",
+				Name: "Check file missing",
+				Type: ValidateFileExists,
+				Path: "missing.txt",
 				Optional: true,
 			},
 		},
@@ -80,9 +80,9 @@ func TestGenericScenario_Verify(t *testing.T) {
 		Name: "Test Verify Scenario Fail",
 		Validations: []ValidationStep{
 			{
-				Name:     "Check file missing",
-				Type:     ValidateFileExists,
-				Path:     "missing.txt",
+				Name: "Check file missing",
+				Type: ValidateFileExists,
+				Path: "missing.txt",
 				Optional: false,
 			},
 		},

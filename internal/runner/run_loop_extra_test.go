@@ -23,17 +23,17 @@ import (
 
 // MockRunLoopDBStore implements db.Store with injection support
 type MockRunLoopDBStore struct {
-	GetSignalFunc           func(projectID, key string) (string, error)
-	SetSignalFunc           func(projectID, key, value string) error
-	DeleteSignalFunc        func(projectID, key string) error
-	GetFeaturesFunc         func(projectID string) (string, error)
-	SaveFeaturesFunc        func(projectID, features string) error
-	SaveObservationFunc     func(projectID, agentID, content string) error
-	SaveSpecFunc            func(projectID, spec string) error
-	GetSpecFunc             func(projectID string) (string, error)
-	QueryHistoryFunc        func(projectID string, limit int) ([]db.Observation, error)
-	AcquireLockFunc         func(projectID, path, agentID string, timeout time.Duration) (bool, error)
-	ReleaseLockFunc         func(projectID, path, agentID string) error
+	GetSignalFunc       func(projectID, key string) (string, error)
+	SetSignalFunc       func(projectID, key, value string) error
+	DeleteSignalFunc    func(projectID, key string) error
+	GetFeaturesFunc     func(projectID string) (string, error)
+	SaveFeaturesFunc    func(projectID, features string) error
+	SaveObservationFunc func(projectID, agentID, content string) error
+	SaveSpecFunc        func(projectID, spec string) error
+	GetSpecFunc         func(projectID string) (string, error)
+	QueryHistoryFunc    func(projectID string, limit int) ([]db.Observation, error)
+	AcquireLockFunc     func(projectID, path, agentID string, timeout time.Duration) (bool, error)
+	ReleaseLockFunc     func(projectID, path, agentID string) error
 	UpdateFeatureStatusFunc func(projectID, id, status string, passes bool) error
 }
 
@@ -110,9 +110,9 @@ func (m *MockRunLoopDBStore) ReleaseLock(projectID, path, agentID string) error 
 	}
 	return nil
 }
-func (m *MockRunLoopDBStore) ReleaseAllLocks(projectID, agentID string) error    { return nil }
+func (m *MockRunLoopDBStore) ReleaseAllLocks(projectID, agentID string) error   { return nil }
 func (m *MockRunLoopDBStore) GetActiveLocks(projectID string) ([]db.Lock, error) { return nil, nil }
-func (m *MockRunLoopDBStore) Cleanup() error                                     { return nil }
+func (m *MockRunLoopDBStore) Cleanup() error                                    { return nil }
 
 // MockAgent implements agent.Agent with testify/mock for better control
 type MockTestifyAgent struct {
@@ -498,13 +498,13 @@ func TestRunLoop_SubTask(t *testing.T) {
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Working on subtask...", nil)
 
 	s := &Session{
-		Workspace:        tmpDir,
-		DBStore:          mockDB,
-		Agent:            mockAgent,
-		Project:          "test-proj",
-		SelectedTaskID:   "task-1", // Focus on this task
-		Logger:           telemetry.NewLogger(true, "", false),
-		MaxIterations:    5,
+		Workspace:      tmpDir,
+		DBStore:        mockDB,
+		Agent:          mockAgent,
+		Project:        "test-proj",
+		SelectedTaskID: "task-1", // Focus on this task
+		Logger:         telemetry.NewLogger(true, "", false),
+		MaxIterations:  5,
 		ManagerFrequency: 5,
 	}
 

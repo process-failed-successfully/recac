@@ -168,7 +168,7 @@ func TestGeminiCLIClient_Send(t *testing.T) {
 		assert.Contains(t, resp, "Gemini Output")
 	})
 
-	clientFail := NewGeminiCLIClient("", "fail", "", "test-project")
+    clientFail := NewGeminiCLIClient("", "fail", "", "test-project")
 	t.Run("Failure", func(t *testing.T) {
 		resp, err := clientFail.Send(context.Background(), "hello")
 		assert.Error(t, err)

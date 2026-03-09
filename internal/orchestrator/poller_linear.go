@@ -139,9 +139,9 @@ func (p *LinearPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIte
 			Description: node.Description,
 			RepoURL:     repoURL, // Will be empty if not found, requires caller to handle or agent to have it configured
 			EnvVars: map[string]string{
-				"LINEAR_ISSUE_ID":  node.ID,
+				"LINEAR_ISSUE_ID": node.ID,
 				"LINEAR_ISSUE_KEY": node.Identifier,
-				"LINEAR_URL":       node.URL,
+				"LINEAR_URL": node.URL,
 			},
 		}
 		items = append(items, item)

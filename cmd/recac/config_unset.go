@@ -19,8 +19,8 @@ This removes the specified key from the configuration file.
 Examples:
   recac config unset agent.provider
   recac config unset max_iterations`,
-	Args: cobra.ExactArgs(1),
-	RunE: unsetConfigKey,
+	Args:  cobra.ExactArgs(1),
+	RunE:  unsetConfigKey,
 }
 
 func unsetConfigKey(cmd *cobra.Command, args []string) error {

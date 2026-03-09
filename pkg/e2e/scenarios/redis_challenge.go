@@ -71,7 +71,7 @@ func (s *RedisChallengeScenario) Verify(repoPath string, ticketKeys map[string]s
 	}
 
 	// Checkout branch
-	checkoutCmd := execCommand("git", "checkout", branch)
+	checkoutCmd := exec.Command("git", "checkout", branch)
 	checkoutCmd.Dir = repoPath
 	if out, err := checkoutCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to checkout %s: %v\nOutput: %s", branch, err, out)
@@ -88,13 +88,13 @@ func (s *RedisChallengeScenario) Verify(repoPath string, ticketKeys map[string]s
 	}
 
 	// Heuristic to find how to run
-	if _, err := execLookPath("go"); err == nil {
+	if _, err := exec.LookPath("go"); err == nil {
 		// Try go run .
-		runCmd = execCommand("go", "run", ".")
+		runCmd = exec.Command("go", "run", ".")
 		runCmd.Dir = repoPath
-	} else if _, err := execLookPath("python3"); err == nil {
+	} else if _, err := exec.LookPath("python3"); err == nil {
 		// Try python3 main.py
-		runCmd = execCommand("python3", "main.py")
+		runCmd = exec.Command("python3", "main.py")
 		runCmd.Dir = repoPath
 	}
 

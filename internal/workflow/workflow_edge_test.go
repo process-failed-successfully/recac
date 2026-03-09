@@ -46,7 +46,7 @@ func TestRunWorkflow_SessionManagerCreationError(t *testing.T) {
 	}
 
 	cfg := SessionConfig{
-		Detached:    true,
+		Detached: true,
 		SessionName: "test-detached",
 	}
 

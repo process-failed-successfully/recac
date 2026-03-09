@@ -1,11 +1,11 @@
 package main
 
 import (
+	"recac/internal/utils"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"recac/internal/utils"
 	"strings"
 )
 

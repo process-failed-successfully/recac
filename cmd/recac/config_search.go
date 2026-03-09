@@ -17,7 +17,7 @@ var configSearchCmd = &cobra.Command{
 This is useful when you want to find a configuration option but don't remember its exact name.
 
 It prints the matching keys and their current values (redacting sensitive keys).`,
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := strings.ToLower(args[0])
 		keys := viper.AllKeys()

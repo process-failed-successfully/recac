@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"os/exec"
 	"runtime"
 	"strings"
 

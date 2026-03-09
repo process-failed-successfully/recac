@@ -66,10 +66,10 @@ rules:
 
 	// Setup Command
 	root := &cobra.Command{Use: "recac"}
-	// archCmd is a package-level variable in main, but we need to ensure it has graph added.
-	// The init() function runs automatically when running tests in the package.
-	// So archCmd should already have archGraphCmd.
-	root.AddCommand(archCmd)
+    // archCmd is a package-level variable in main, but we need to ensure it has graph added.
+    // The init() function runs automatically when running tests in the package.
+    // So archCmd should already have archGraphCmd.
+    root.AddCommand(archCmd)
 
 	output, err := executeCommand(root, "arch", "graph", tmpDir)
 	assert.NoError(t, err)
@@ -87,16 +87,16 @@ rules:
 	// App -> Domain (Allowed)
 	assert.Contains(t, output, "app --> domain")
 
-	// Domain -> Infra (Violation)
-	assert.Contains(t, output, "domain --> infra")
+    // Domain -> Infra (Violation)
+    assert.Contains(t, output, "domain --> infra")
 
-	// 4. Styles
-	// We expect app->domain (green) and domain->infra (red)
-	// Sorted: app->domain comes first.
+    // 4. Styles
+    // We expect app->domain (green) and domain->infra (red)
+    // Sorted: app->domain comes first.
 
-	// Check for Green
-	assert.Contains(t, output, "linkStyle 0 stroke:#00ff00")
+    // Check for Green
+    assert.Contains(t, output, "linkStyle 0 stroke:#00ff00")
 
-	// Check for Red
-	assert.Contains(t, output, "linkStyle 1 stroke:#ff0000")
+    // Check for Red
+    assert.Contains(t, output, "linkStyle 1 stroke:#ff0000")
 }

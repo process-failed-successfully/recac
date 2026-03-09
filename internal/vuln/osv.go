@@ -42,10 +42,10 @@ type osvResult struct {
 }
 
 type osvVuln struct {
-	ID         string    `json:"id"`
-	Summary    string    `json:"summary"`
-	Details    string    `json:"details"`
-	Published  time.Time `json:"published"`
+	ID        string    `json:"id"`
+	Summary   string    `json:"summary"`
+	Details   string    `json:"details"`
+	Published time.Time `json:"published"`
 	References []struct {
 		Type string `json:"type"`
 		URL  string `json:"url"`

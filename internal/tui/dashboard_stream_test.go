@@ -82,9 +82,9 @@ func TestDashboardModel_Update_LogChunkMsg_EOF(t *testing.T) {
 	m := updatedModel.(DashboardModel)
 
 	// Assert
-	assert.Nil(t, m.err)       // EOF is not an error state for the model
+	assert.Nil(t, m.err) // EOF is not an error state for the model
 	assert.Nil(t, m.logStream) // Should be closed/nil
-	assert.Nil(t, cmd)         // No more reading
+	assert.Nil(t, cmd) // No more reading
 }
 
 func TestWaitForLogChunk(t *testing.T) {

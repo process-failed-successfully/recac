@@ -4,10 +4,10 @@ import (
 	"context"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
+	"os/exec"
 
 	"github.com/stretchr/testify/assert"
 )

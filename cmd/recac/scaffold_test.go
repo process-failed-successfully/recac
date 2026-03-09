@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"os"
-	"recac/internal/agent"
 	"strings"
 	"testing"
+	"recac/internal/agent"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"

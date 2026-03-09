@@ -140,7 +140,7 @@ func UnusedFunc() {
 
 	// 3. Setup Command
 	cmd := &cobra.Command{
-		Use:  "deadcode",
+		Use: "deadcode",
 		RunE: runDeadcode,
 	}
 	var buf bytes.Buffer

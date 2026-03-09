@@ -50,8 +50,8 @@ func TestUpdateJobPriority(t *testing.T) {
 	activeID := "TEST-ACTIVE"
 	orch.mu.Lock()
 	orch.activeJobs[activeID] = JobInfo{
-		ID:     activeID,
-		Status: "Spawning",
+		ID:        activeID,
+		Status:    "Spawning",
 	}
 	orch.mu.Unlock()
 

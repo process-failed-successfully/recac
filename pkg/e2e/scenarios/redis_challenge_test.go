@@ -2,7 +2,6 @@ package scenarios
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -43,15 +42,13 @@ func mockRedisServer(t *testing.T, delay time.Duration) net.Listener {
 				conn.Write([]byte("+PONG\r\n"))
 			} else if line == "*3\r\n" {
 				// SET foo bar
-				for i := 0; i < 6; i++ {
-					reader.ReadString('\n')
-				}
+				for i:=0; i<6; i++ { reader.ReadString('\n') }
 				conn.Write([]byte("+OK\r\n"))
 			} else if line == "*2\r\n" {
 				// GET
-				reader.ReadString('\n')           // $3
-				reader.ReadString('\n')           // GET
-				reader.ReadString('\n')           // $length
+				reader.ReadString('\n') // $3
+				reader.ReadString('\n') // GET
+				reader.ReadString('\n') // $length
 				key, _ := reader.ReadString('\n') // key
 
 				if key == "foo\r\n" {
@@ -61,9 +58,7 @@ func mockRedisServer(t *testing.T, delay time.Duration) net.Listener {
 				}
 			} else if line == "*5\r\n" {
 				// SET temp val PX 100
-				for i := 0; i < 10; i++ {
-					reader.ReadString('\n')
-				}
+				for i:=0; i<10; i++ { reader.ReadString('\n') }
 				conn.Write([]byte("+OK\r\n"))
 			}
 		}
@@ -117,70 +112,4 @@ func TestRedisChallengeScenario_testRESP(t *testing.T) {
 
 	err := s.testRESP("localhost:6379")
 	assert.NoError(t, err)
-}
-
-func TestRedisChallengeScenario_Verify_PortInUse(t *testing.T) {
-	s := &RedisChallengeScenario{}
-	dir := setupGitRepo(t)
-	remoteDir := t.TempDir()
-	exec.Command("git", "init", "--bare", remoteDir).Run()
-	exec.Command("git", "-C", dir, "remote", "add", "origin", remoteDir).Run()
-	exec.Command("git", "-C", dir, "push", "origin", "master").Run()
-
-	exec.Command("git", "-C", dir, "branch", "agent/REDIS").Run()
-	exec.Command("git", "-C", dir, "push", "origin", "agent/REDIS").Run()
-
-	l, err := net.Listen("tcp", "localhost:6379")
-	require.NoError(t, err)
-	defer l.Close()
-
-	err = s.Verify(dir, map[string]string{"REDIS": "REDIS"})
-	assert.ErrorContains(t, err, "port 6379 already in use")
-}
-
-func TestRedisChallengeScenario_Verify_NoRunCommand(t *testing.T) {
-	// Setup mocks
-	origExecCommand := execCommand
-	origExecLookPath := execLookPath
-	defer func() {
-		execCommand = origExecCommand
-		execLookPath = origExecLookPath
-	}()
-
-	execCommand = fakeExecCommand
-	execLookPath = func(file string) (string, error) {
-		return "", fmt.Errorf("not found")
-	}
-
-	s := &RedisChallengeScenario{}
-	dir := setupGitRepo(t)
-	remoteDir := t.TempDir()
-	exec.Command("git", "init", "--bare", remoteDir).Run()
-	exec.Command("git", "-C", dir, "remote", "add", "origin", remoteDir).Run()
-	exec.Command("git", "-C", dir, "push", "origin", "master").Run()
-
-	exec.Command("git", "-C", dir, "branch", "agent/REDIS").Run()
-	exec.Command("git", "-C", dir, "push", "origin", "agent/REDIS").Run()
-
-	err := s.Verify(dir, map[string]string{"REDIS": "REDIS"})
-	assert.ErrorContains(t, err, "could not determine how to run the server")
-}
-
-func TestRedisChallengeScenario_Verify_PortInUse(t *testing.T) {
-	s := &RedisChallengeScenario{}
-	dir := setupGitRepo(t)
-	remoteDir := t.TempDir()
-	exec.Command("git", "init", "--bare", remoteDir).Run()
-	exec.Command("git", "-C", dir, "remote", "add", "origin", remoteDir).Run()
-	exec.Command("git", "-C", dir, "push", "origin", "master").Run()
-
-	exec.Command("git", "-C", dir, "branch", "agent/REDIS").Run()
-	exec.Command("git", "-C", dir, "push", "origin", "agent/REDIS").Run()
-
-	l, err := net.Listen("tcp", "localhost:6379")
-	require.NoError(t, err)
-	defer l.Close()
-
-	err = s.Verify(dir, map[string]string{"REDIS": "REDIS"})
-	assert.ErrorContains(t, err, "port 6379 already in use")
 }

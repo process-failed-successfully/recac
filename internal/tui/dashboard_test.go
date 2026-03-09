@@ -1,10 +1,10 @@
 package tui
 
 import (
+	"net/http/httptest"
+	"net/http"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"recac/internal/orchestrator"
 	"testing"
 	"time"
@@ -87,7 +87,7 @@ func TestDashboardModel_View(t *testing.T) {
 	}
 	tModel := table.New(table.WithColumns(columns))
 	model := DashboardModel{
-		host:  "test-host",
+		host: "test-host",
 		table: tModel,
 		status: orchestrator.Status{
 			Uptime: "10m",
@@ -138,6 +138,7 @@ func TestDashboardModel_View_EmptyState(t *testing.T) {
 	// Assert
 	assert.Contains(t, view, "No active jobs found")
 }
+
 
 func setupMockServer(handler http.HandlerFunc) *httptest.Server {
 	return httptest.NewServer(handler)
@@ -287,6 +288,7 @@ func TestDashboardModel_OpenBrowser(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "Opened browser", action.Message)
 }
+
 
 func TestDashboardModel_Tick(t *testing.T) {
 	cmd := tick()

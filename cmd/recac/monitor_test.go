@@ -17,8 +17,8 @@ import (
 
 // MockMonitorAgent is a mock implementation of the Agent interface
 type MockMonitorAgent struct {
-	CapturedPrompt   string
-	Response         string
+	CapturedPrompt string
+	Response       string
 	SendStreamCalled bool
 }
 

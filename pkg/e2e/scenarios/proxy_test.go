@@ -98,7 +98,3 @@ func TestHTTPProxyScenario_Verify_FallbackBranch(t *testing.T) {
 	err := s.Verify(dir, map[string]string{})
 	assert.NoError(t, err)
 }
-
-func TestHTTPProxyScenario_Verify_FallbackBranchFail(t *testing.T) {
-	// Not needed to increase coverage, checkout handles fallback logic
-}

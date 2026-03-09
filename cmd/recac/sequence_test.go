@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"recac/internal/analysis"
 	"testing"
+	"recac/internal/analysis"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

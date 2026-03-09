@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"encoding/json"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"

@@ -331,54 +331,54 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 
 // MockGitClient is a mock implementation of the IGitClient interface.
 type MockGitClient struct {
-	CheckoutFunc           func(repoPath, commitOrBranch string) error
-	DiffFunc               func(repoPath, commitA, commitB string) (string, error)
-	DiffStagedFunc         func(repoPath string) (string, error)
-	DiffStatFunc           func(repoPath, commitA, commitB string) (string, error)
-	CurrentCommitSHAFunc   func(repoPath string) (string, error)
-	RepoExistsFunc         func(repoPath string) bool
-	CommitFunc             func(repoPath, message string) error
-	LogFunc                func(repoPath string, args ...string) ([]string, error)
-	FetchFunc              func(repoPath, remote, branch string) error
-	CurrentBranchFunc      func(repoPath string) (string, error)
-	CheckoutNewBranchFunc  func(repoPath, branch string) error
-	BisectStartFunc        func(repoPath, bad, good string) error
-	BisectGoodFunc         func(repoPath, rev string) error
-	BisectBadFunc          func(repoPath, rev string) error
-	BisectResetFunc        func(repoPath string) error
-	BisectLogFunc          func(repoPath string) ([]string, error)
-	TagFunc                func(repoPath, version string) error
-	DeleteTagFunc          func(repoPath, version string) error
-	PushTagsFunc           func(repoPath string) error
-	LatestTagFunc          func(repoPath string) (string, error)
-	MergeBaseFunc          func(repoPath, ref1, ref2 string) (string, error)
-	ResetSoftFunc          func(repoPath, target string) error
-	RunFunc                func(repoPath string, args ...string) (string, error)
-	DeleteLocalBranchFunc  func(repoPath, branch string) error
-	CreatePRFunc           func(repoPath, title, body, base string) (string, error)
-	StashPushFunc          func(directory, message string) error
-	StashListFunc          func(directory string) ([]string, error)
-	StashShowFunc          func(directory, id string) (string, error)
-	StashApplyFunc         func(directory, id string) error
-	StashDropFunc          func(directory, id string) error
-	StashClearFunc         func(directory string) error
-	PushFunc               func(directory, branch string) error
-	PullFunc               func(directory, remote, branch string) error
-	StashFunc              func(directory string) error
-	MergeFunc              func(directory, branchName string) error
-	AbortMergeFunc         func(directory string) error
-	RecoverFunc            func(directory string) error
-	CleanFunc              func(directory string) error
-	ResetHardFunc          func(directory, remote, branch string) error
-	StashPopFunc           func(directory string) error
-	DeleteRemoteBranchFunc func(directory, remote, branch string) error
-	SetRemoteURLFunc       func(directory, name, url string) error
-	LocalBranchExistsFunc  func(directory, branch string) (bool, error)
-	ConfigFunc             func(directory, key, value string) error
-	ConfigGlobalFunc       func(key, value string) error
-	ConfigAddGlobalFunc    func(key, value string) error
-	RemoteBranchExistsFunc func(directory, remote, branch string) (bool, error)
-	CloneFunc              func(ctx context.Context, repoURL, directory string) error
+	CheckoutFunc            func(repoPath, commitOrBranch string) error
+	DiffFunc                func(repoPath, commitA, commitB string) (string, error)
+	DiffStagedFunc          func(repoPath string) (string, error)
+	DiffStatFunc            func(repoPath, commitA, commitB string) (string, error)
+	CurrentCommitSHAFunc    func(repoPath string) (string, error)
+	RepoExistsFunc          func(repoPath string) bool
+	CommitFunc              func(repoPath, message string) error
+	LogFunc                 func(repoPath string, args ...string) ([]string, error)
+	FetchFunc               func(repoPath, remote, branch string) error
+	CurrentBranchFunc       func(repoPath string) (string, error)
+	CheckoutNewBranchFunc   func(repoPath, branch string) error
+	BisectStartFunc         func(repoPath, bad, good string) error
+	BisectGoodFunc          func(repoPath, rev string) error
+	BisectBadFunc           func(repoPath, rev string) error
+	BisectResetFunc         func(repoPath string) error
+	BisectLogFunc           func(repoPath string) ([]string, error)
+	TagFunc                 func(repoPath, version string) error
+	DeleteTagFunc           func(repoPath, version string) error
+	PushTagsFunc            func(repoPath string) error
+	LatestTagFunc           func(repoPath string) (string, error)
+	MergeBaseFunc           func(repoPath, ref1, ref2 string) (string, error)
+	ResetSoftFunc           func(repoPath, target string) error
+	RunFunc                 func(repoPath string, args ...string) (string, error)
+	DeleteLocalBranchFunc   func(repoPath, branch string) error
+	CreatePRFunc            func(repoPath, title, body, base string) (string, error)
+	StashPushFunc           func(directory, message string) error
+	StashListFunc           func(directory string) ([]string, error)
+	StashShowFunc           func(directory, id string) (string, error)
+	StashApplyFunc          func(directory, id string) error
+	StashDropFunc           func(directory, id string) error
+	StashClearFunc          func(directory string) error
+	PushFunc                func(directory, branch string) error
+	PullFunc                func(directory, remote, branch string) error
+	StashFunc               func(directory string) error
+	MergeFunc               func(directory, branchName string) error
+	AbortMergeFunc          func(directory string) error
+	RecoverFunc             func(directory string) error
+	CleanFunc               func(directory string) error
+	ResetHardFunc           func(directory, remote, branch string) error
+	StashPopFunc            func(directory string) error
+	DeleteRemoteBranchFunc  func(directory, remote, branch string) error
+	SetRemoteURLFunc        func(directory, name, url string) error
+	LocalBranchExistsFunc   func(directory, branch string) (bool, error)
+	ConfigFunc              func(directory, key, value string) error
+	ConfigGlobalFunc        func(key, value string) error
+	ConfigAddGlobalFunc     func(key, value string) error
+	RemoteBranchExistsFunc  func(directory, remote, branch string) (bool, error)
+	CloneFunc               func(ctx context.Context, repoURL, directory string) error
 }
 
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {

@@ -193,9 +193,9 @@ func checkStepCache(step *yaml.Node, findings *[]CIFinding) {
 		if key.Value == "uses" {
 			val := step.Content[i+1].Value
 			if strings.Contains(val, "actions/setup-go") ||
-				strings.Contains(val, "actions/setup-node") ||
-				strings.Contains(val, "actions/setup-python") ||
-				strings.Contains(val, "actions/setup-java") {
+			   strings.Contains(val, "actions/setup-node") ||
+			   strings.Contains(val, "actions/setup-python") ||
+			   strings.Contains(val, "actions/setup-java") {
 				usesSetup = true
 			}
 		}

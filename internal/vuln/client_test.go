@@ -34,9 +34,9 @@ func TestOSVClient_Scan(t *testing.T) {
 				{
 					Vulns: []osvVuln{
 						{
-							ID:        "GHSA-123",
-							Summary:   "Bad vulnerability",
-							Details:   "Very bad",
+							ID:      "GHSA-123",
+							Summary: "Bad vulnerability",
+							Details: "Very bad",
 							Published: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 						},
 					},

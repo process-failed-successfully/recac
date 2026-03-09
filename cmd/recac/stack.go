@@ -1,11 +1,11 @@
 package main
 
 import (
+	"recac/internal/utils"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"recac/internal/utils"
 	"sort"
 	"strings"
 

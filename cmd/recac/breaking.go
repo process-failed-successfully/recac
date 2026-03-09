@@ -22,7 +22,7 @@ var (
 var breakingCmd = &cobra.Command{
 	Use:   "breaking",
 	Short: "Detect breaking changes in Go API",
-	Long: `Compares the public Go API of the current directory against a git reference (e.g., main, v1.0.0).
+	Long:  `Compares the public Go API of the current directory against a git reference (e.g., main, v1.0.0).
 Reports removed or changed exported identifiers.`,
 	RunE: runBreaking,
 }

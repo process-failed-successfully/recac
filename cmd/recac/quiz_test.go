@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"recac/internal/agent"
 	"testing"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"

@@ -150,8 +150,8 @@ func TestParseMarkdownBlocks(t *testing.T) {
 			expected: []MarkdownBlock{{Type: "code", Content: "package main\n", Lang: "go"}},
 		},
 		{
-			name:  "Mixed",
-			input: []string{"Intro", "```bash", "echo hi", "```", "Outro"},
+			name:     "Mixed",
+			input:    []string{"Intro", "```bash", "echo hi", "```", "Outro"},
 			expected: []MarkdownBlock{
 				{Type: "text", Content: "Intro\n"},
 				{Type: "code", Content: "echo hi\n", Lang: "bash"},
@@ -159,8 +159,8 @@ func TestParseMarkdownBlocks(t *testing.T) {
 			},
 		},
 		{
-			name:  "Unclosed Code",
-			input: []string{"Intro", "```python", "print('hi')"},
+			name:     "Unclosed Code",
+			input:    []string{"Intro", "```python", "print('hi')"},
 			expected: []MarkdownBlock{
 				{Type: "text", Content: "Intro\n"},
 				{Type: "code", Content: "print('hi')\n", Lang: "python"},

@@ -27,60 +27,56 @@ func (m *MockBlogGitClient) RepoExists(dir string) bool {
 }
 
 // Stubs for other interface methods
-func (m *MockBlogGitClient) DiffStaged(dir string) (string, error)                   { return "", nil }
-func (m *MockBlogGitClient) Commit(dir, msg string) error                            { return nil }
-func (m *MockBlogGitClient) Push(dir, branch string) error                           { return nil }
-func (m *MockBlogGitClient) Pull(dir, remote, branch string) error                   { return nil }
-func (m *MockBlogGitClient) Status(dir string) (string, error)                       { return "", nil }
-func (m *MockBlogGitClient) Init(dir string) error                                   { return nil }
-func (m *MockBlogGitClient) Add(dir string, args ...string) error                    { return nil }
+func (m *MockBlogGitClient) DiffStaged(dir string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) Commit(dir, msg string) error          { return nil }
+func (m *MockBlogGitClient) Push(dir, branch string) error                 { return nil }
+func (m *MockBlogGitClient) Pull(dir, remote, branch string) error                 { return nil }
+func (m *MockBlogGitClient) Status(dir string) (string, error)     { return "", nil }
+func (m *MockBlogGitClient) Init(dir string) error                 { return nil }
+func (m *MockBlogGitClient) Add(dir string, args ...string) error  { return nil }
 func (m *MockBlogGitClient) Diff(dir, startCommit, endCommit string) (string, error) { return "", nil }
-func (m *MockBlogGitClient) Checkout(dir, branch string) error                       { return nil }
-func (m *MockBlogGitClient) CheckoutNew(dir, branch string) error                    { return nil }
-func (m *MockBlogGitClient) CheckoutNewBranch(dir, branch string) error              { return nil }
-func (m *MockBlogGitClient) CurrentBranch(dir string) (string, error)                { return "main", nil }
-func (m *MockBlogGitClient) Stash(dir string) error                                  { return nil }
-func (m *MockBlogGitClient) StashPop(dir string) error                               { return nil }
-func (m *MockBlogGitClient) MergeBase(directory, ref1, ref2 string) (string, error)  { return "", nil }
-func (m *MockBlogGitClient) ResetSoft(directory, target string) error                { return nil }
-func (m *MockBlogGitClient) StashPush(dir string, msg string) error                  { return nil }
-func (m *MockBlogGitClient) StashList(dir string) ([]string, error)                  { return []string{}, nil }
-func (m *MockBlogGitClient) StashShow(dir string, index string) (string, error)      { return "", nil }
-func (m *MockBlogGitClient) StashApply(dir string, index string) error               { return nil }
-func (m *MockBlogGitClient) StashDrop(dir string, index string) error                { return nil }
-func (m *MockBlogGitClient) StashClear(dir string) error                             { return nil }
-func (m *MockBlogGitClient) Fetch(dir, remote, branch string) error                  { return nil }
-func (m *MockBlogGitClient) LatestTag(dir string) (string, error)                    { return "", nil }
-func (m *MockBlogGitClient) Tag(dir, version string) error                           { return nil }
-func (m *MockBlogGitClient) PushTags(dir string) error                               { return nil }
-func (m *MockBlogGitClient) Run(dir string, args ...string) (string, error)          { return "", nil }
-func (m *MockBlogGitClient) BisectStart(dir, bad, good string) error                 { return nil }
-func (m *MockBlogGitClient) BisectGood(dir, rev string) error                        { return nil }
-func (m *MockBlogGitClient) BisectBad(dir, rev string) error                         { return nil }
-func (m *MockBlogGitClient) BisectReset(dir string) error                            { return nil }
-func (m *MockBlogGitClient) BisectLog(dir string) ([]string, error)                  { return []string{}, nil }
-func (m *MockBlogGitClient) CreatePR(dir, title, body, base string) (string, error)  { return "", nil }
-func (m *MockBlogGitClient) DeleteTag(dir, version string) error                     { return nil }
-func (m *MockBlogGitClient) DeleteLocalBranch(dir, branch string) error              { return nil }
-func (m *MockBlogGitClient) DeleteRemoteBranch(dir, remote, branch string) error     { return nil }
-func (m *MockBlogGitClient) DiffStat(dir, startCommit, endCommit string) (string, error) {
-	return "", nil
-}
-func (m *MockBlogGitClient) CurrentCommitSHA(dir string) (string, error)        { return "", nil }
-func (m *MockBlogGitClient) AbortMerge(dir string) error                        { return nil }
-func (m *MockBlogGitClient) Recover(dir string) error                           { return nil }
-func (m *MockBlogGitClient) Clean(dir string) error                             { return nil }
-func (m *MockBlogGitClient) ResetHard(dir, remote, branch string) error         { return nil }
-func (m *MockBlogGitClient) SetRemoteURL(dir, name, url string) error           { return nil }
+func (m *MockBlogGitClient) Checkout(dir, branch string) error     { return nil }
+func (m *MockBlogGitClient) CheckoutNew(dir, branch string) error  { return nil }
+func (m *MockBlogGitClient) CheckoutNewBranch(dir, branch string) error  { return nil }
+func (m *MockBlogGitClient) CurrentBranch(dir string) (string, error) { return "main", nil }
+func (m *MockBlogGitClient) Stash(dir string) error                { return nil }
+func (m *MockBlogGitClient) StashPop(dir string) error             { return nil }
+func (m *MockBlogGitClient) MergeBase(directory, ref1, ref2 string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) ResetSoft(directory, target string) error       { return nil }
+func (m *MockBlogGitClient) StashPush(dir string, msg string) error { return nil }
+func (m *MockBlogGitClient) StashList(dir string) ([]string, error) { return []string{}, nil }
+func (m *MockBlogGitClient) StashShow(dir string, index string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) StashApply(dir string, index string) error { return nil }
+func (m *MockBlogGitClient) StashDrop(dir string, index string) error { return nil }
+func (m *MockBlogGitClient) StashClear(dir string) error { return nil }
+func (m *MockBlogGitClient) Fetch(dir, remote, branch string) error { return nil }
+func (m *MockBlogGitClient) LatestTag(dir string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) Tag(dir, version string) error { return nil }
+func (m *MockBlogGitClient) PushTags(dir string) error { return nil }
+func (m *MockBlogGitClient) Run(dir string, args ...string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) BisectStart(dir, bad, good string) error { return nil }
+func (m *MockBlogGitClient) BisectGood(dir, rev string) error { return nil }
+func (m *MockBlogGitClient) BisectBad(dir, rev string) error { return nil }
+func (m *MockBlogGitClient) BisectReset(dir string) error { return nil }
+func (m *MockBlogGitClient) BisectLog(dir string) ([]string, error) { return []string{}, nil }
+func (m *MockBlogGitClient) CreatePR(dir, title, body, base string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) DeleteTag(dir, version string) error { return nil }
+func (m *MockBlogGitClient) DeleteLocalBranch(dir, branch string) error { return nil }
+func (m *MockBlogGitClient) DeleteRemoteBranch(dir, remote, branch string) error { return nil }
+func (m *MockBlogGitClient) DiffStat(dir, startCommit, endCommit string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) CurrentCommitSHA(dir string) (string, error) { return "", nil }
+func (m *MockBlogGitClient) AbortMerge(dir string) error { return nil }
+func (m *MockBlogGitClient) Recover(dir string) error { return nil }
+func (m *MockBlogGitClient) Clean(dir string) error { return nil }
+func (m *MockBlogGitClient) ResetHard(dir, remote, branch string) error { return nil }
+func (m *MockBlogGitClient) SetRemoteURL(dir, name, url string) error { return nil }
 func (m *MockBlogGitClient) LocalBranchExists(dir, branch string) (bool, error) { return false, nil }
-func (m *MockBlogGitClient) Config(dir, key, value string) error                { return nil }
-func (m *MockBlogGitClient) ConfigGlobal(key, value string) error               { return nil }
-func (m *MockBlogGitClient) ConfigAddGlobal(key, value string) error            { return nil }
-func (m *MockBlogGitClient) RemoteBranchExists(dir, remote, branch string) (bool, error) {
-	return false, nil
-}
+func (m *MockBlogGitClient) Config(dir, key, value string) error { return nil }
+func (m *MockBlogGitClient) ConfigGlobal(key, value string) error { return nil }
+func (m *MockBlogGitClient) ConfigAddGlobal(key, value string) error { return nil }
+func (m *MockBlogGitClient) RemoteBranchExists(dir, remote, branch string) (bool, error) { return false, nil }
 func (m *MockBlogGitClient) Clone(ctx context.Context, repoURL, dir string) error { return nil }
-func (m *MockBlogGitClient) Merge(dir, branchName string) error                   { return nil }
+func (m *MockBlogGitClient) Merge(dir, branchName string) error { return nil }
 
 // MockAgent for blog tests
 type MockBlogAgent struct {

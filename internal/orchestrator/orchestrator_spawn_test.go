@@ -12,9 +12,9 @@ import (
 
 type mockPersistenceError struct{}
 
-func (m *mockPersistenceError) Init() error               { return nil }
-func (m *mockPersistenceError) Close() error              { return nil }
-func (m *mockPersistenceError) SaveJob(job JobInfo) error { return errors.New("save failed") }
+func (m *mockPersistenceError) Init() error                 { return nil }
+func (m *mockPersistenceError) Close() error                { return nil }
+func (m *mockPersistenceError) SaveJob(job JobInfo) error   { return errors.New("save failed") }
 func (m *mockPersistenceError) GetJob(id string) (*JobInfo, error) {
 	return nil, errors.New("get failed")
 }

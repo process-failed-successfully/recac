@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
+	"strings"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,10 +127,10 @@ func TestAnalyzeStack(t *testing.T) {
 
 	// Create some files
 	files := map[string]string{
-		"main.go":                  "package main",
-		"go.mod":                   "module example\nrequire github.com/gin-gonic/gin v1.9.0",
-		"package.json":             `{"dependencies": {"react": "^18.0.0"}}`,
-		"docker-compose.yml":       "services:\n  db:\n    image: postgres:15",
+		"main.go":          "package main",
+		"go.mod":           "module example\nrequire github.com/gin-gonic/gin v1.9.0",
+		"package.json":     `{"dependencies": {"react": "^18.0.0"}}`,
+		"docker-compose.yml": "services:\n  db:\n    image: postgres:15",
 		".github/workflows/ci.yml": "name: CI",
 	}
 
@@ -172,10 +172,10 @@ func TestRunStack(t *testing.T) {
 	// Create a temp dir with some files
 	tmpDir := t.TempDir()
 	files := map[string]string{
-		"main.go":                  "package main",
-		"go.mod":                   "module example\nrequire github.com/gin-gonic/gin v1.9.0",
-		"package.json":             `{"dependencies": {"react": "^18.0.0"}}`,
-		"docker-compose.yml":       "services:\n  db:\n    image: postgres:15",
+		"main.go":          "package main",
+		"go.mod":           "module example\nrequire github.com/gin-gonic/gin v1.9.0",
+		"package.json":     `{"dependencies": {"react": "^18.0.0"}}`,
+		"docker-compose.yml": "services:\n  db:\n    image: postgres:15",
 		".github/workflows/ci.yml": "name: CI",
 	}
 

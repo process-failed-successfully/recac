@@ -39,21 +39,21 @@ func (m *MockSessionManagerK8s) LoadSession(name string) (*runner.SessionState, 
 
 // Stubs for other methods
 func (m *MockSessionManagerK8s) ListSessions() ([]*runner.SessionState, error) { return nil, nil }
-func (m *MockSessionManagerK8s) StopSession(name string) error                 { return nil }
-func (m *MockSessionManagerK8s) PauseSession(name string) error                { return nil }
-func (m *MockSessionManagerK8s) ResumeSession(name string) error               { return nil }
-func (m *MockSessionManagerK8s) GetSessionLogs(name string) (string, error)    { return "", nil }
+func (m *MockSessionManagerK8s) StopSession(name string) error                  { return nil }
+func (m *MockSessionManagerK8s) PauseSession(name string) error                 { return nil }
+func (m *MockSessionManagerK8s) ResumeSession(name string) error                { return nil }
+func (m *MockSessionManagerK8s) GetSessionLogs(name string) (string, error)     { return "", nil }
 func (m *MockSessionManagerK8s) GetSessionLogContent(name string, lines int) (string, error) {
 	return "", nil
 }
 func (m *MockSessionManagerK8s) StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error) {
 	return nil, nil
 }
-func (m *MockSessionManagerK8s) GetSessionPath(name string) string                 { return "" }
-func (m *MockSessionManagerK8s) IsProcessRunning(pid int) bool                     { return false }
-func (m *MockSessionManagerK8s) RemoveSession(name string, force bool) error       { return nil }
-func (m *MockSessionManagerK8s) RenameSession(oldName, newName string) error       { return nil }
-func (m *MockSessionManagerK8s) SessionsDir() string                               { return "" }
+func (m *MockSessionManagerK8s) GetSessionPath(name string) string { return "" }
+func (m *MockSessionManagerK8s) IsProcessRunning(pid int) bool     { return false }
+func (m *MockSessionManagerK8s) RemoveSession(name string, force bool) error { return nil }
+func (m *MockSessionManagerK8s) RenameSession(oldName, newName string) error { return nil }
+func (m *MockSessionManagerK8s) SessionsDir() string                         { return "" }
 func (m *MockSessionManagerK8s) GetSessionGitDiffStat(name string) (string, error) { return "", nil }
 func (m *MockSessionManagerK8s) ArchiveSession(name string) error                  { return nil }
 func (m *MockSessionManagerK8s) UnarchiveSession(name string) error                { return nil }
@@ -238,13 +238,13 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	sm := new(MockSessionManagerK8s)
 
 	spawner := &K8sSpawner{
-		Client:         clientset,
-		Namespace:      "test-ns",
-		Image:          "recac-agent:latest",
-		AgentProvider:  "gemini",
-		AgentModel:     "gemini-pro",
-		PullPolicy:     corev1.PullAlways,
-		Logger:         logger,
+		Client:        clientset,
+		Namespace:     "test-ns",
+		Image:         "recac-agent:latest",
+		AgentProvider: "gemini",
+		AgentModel:    "gemini-pro",
+		PullPolicy:    corev1.PullAlways,
+		Logger:        logger,
 		SessionManager: sm,
 	}
 
@@ -402,9 +402,9 @@ func TestK8sSpawner_Cancel(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	sm := new(MockSessionManagerK8s)
 	spawner := &K8sSpawner{
-		Client:         clientset,
-		Namespace:      "test-ns",
-		Logger:         logger,
+		Client:    clientset,
+		Namespace: "test-ns",
+		Logger:    logger,
 		SessionManager: sm,
 	}
 
@@ -443,9 +443,9 @@ func TestK8sSpawner_GetLogs(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	sm := new(MockSessionManagerK8s)
 	spawner := &K8sSpawner{
-		Client:         clientset,
-		Namespace:      "default",
-		Logger:         logger,
+		Client:    clientset,
+		Namespace: "default",
+		Logger:    logger,
 		SessionManager: sm,
 	}
 

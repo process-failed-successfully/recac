@@ -6,11 +6,11 @@ import (
 )
 
 type DockerFinding struct {
-	Line     int    `json:"line"`
-	Rule     string `json:"rule"`
-	Message  string `json:"message"`
-	Severity string `json:"severity"` // "info", "warning", "error"
-	Advice   string `json:"advice"`
+	Line      int    `json:"line"`
+	Rule      string `json:"rule"`
+	Message   string `json:"message"`
+	Severity  string `json:"severity"` // "info", "warning", "error"
+	Advice    string `json:"advice"`
 }
 
 type dockerInstruction struct {
