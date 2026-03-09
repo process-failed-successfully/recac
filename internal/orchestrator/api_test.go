@@ -66,6 +66,24 @@ func TestRegisterAPI(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
+	// Test / (Dashboard)
+	t.Run("Dashboard Endpoint", func(t *testing.T) {
+		resp, err := http.Get(server.URL + "/")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Contains(t, string(body), "Orchestrator Dashboard")
+	})
+
+	t.Run("Dashboard Endpoint NotFound", func(t *testing.T) {
+		resp, err := http.Get(server.URL + "/something-invalid")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	})
+
 	// Test /healthz
 	t.Run("Healthz Endpoint", func(t *testing.T) {
 		resp, err := http.Get(server.URL + "/healthz")

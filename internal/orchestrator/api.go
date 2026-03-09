@@ -21,12 +21,18 @@ import (
 
 // RegisterAPI registers the orchestrator API handlers on the provided ServeMux.
 func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, baseCtx context.Context) {
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(DashboardHTML))
+	})
+
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
 
-	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
 		status := orch.GetStatus()
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(status); err != nil {
@@ -34,7 +40,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
-	mux.HandleFunc("/analytics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /analytics", func(w http.ResponseWriter, r *http.Request) {
 		analytics := orch.GetAnalytics()
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(analytics); err != nil {
@@ -42,7 +48,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
-	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /jobs", func(w http.ResponseWriter, r *http.Request) {
 		state := r.URL.Query().Get("state")
 		statusFilter := r.URL.Query().Get("status")
 		tagFilter := r.URL.Query().Get("tag")
