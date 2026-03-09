@@ -41,6 +41,8 @@ const DashboardHTML = `
         #jobs-container { overflow-x: auto; }
         .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
         select, input { padding: 6px; }
+        #logs-output { background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-y: auto; height: 400px; margin: 0; }
+        .modal-large { width: 90%; max-width: 1000px; }
     </style>
 </head>
 <body>
@@ -85,6 +87,14 @@ const DashboardHTML = `
                     <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
                 </div>
                 <button onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
+            </div>
+        </div>
+
+        <div id="logsModal" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close" onclick="closeLogs()">&times;</span>
+                <h2 id="logs-title">Job Logs</h2>
+                <pre id="logs-output"></pre>
             </div>
         </div>
 
@@ -364,6 +374,8 @@ const DashboardHTML = `
                         actionButtons += '<button class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
                     }
 
+                    actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
+
                     let row = '<tr>' +
                         '<td><strong>' + safeId + '</strong></td>' +
                         '<td>' + safeSummary + '</td>' +
@@ -417,9 +429,96 @@ const DashboardHTML = `
         fetchAnalytics();
         fetchJobs();
 
-        setInterval(fetchStatus, 5000);
-        setInterval(fetchAnalytics, 15000);
-        setInterval(fetchJobs, 10000);
+        let currentLogController = null;
+
+        async function viewLogs(id) {
+            document.getElementById('logsModal').style.display = 'block';
+            document.getElementById('logs-title').innerText = 'Logs for ' + id;
+            const output = document.getElementById('logs-output');
+            output.textContent = 'Connecting to logs...\n';
+
+            if (currentLogController) {
+                currentLogController.abort();
+            }
+            currentLogController = new AbortController();
+
+            try {
+                const response = await fetch('/jobs/' + encodeURIComponent(id) + '/logs', {
+                    signal: currentLogController.signal
+                });
+
+                if (!response.ok) {
+                    output.textContent += 'Error: ' + await response.text();
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                output.textContent = ''; // clear
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (value) {
+                        output.textContent += decoder.decode(value, { stream: true });
+                        output.scrollTop = output.scrollHeight;
+                    }
+                    if (done) {
+                        output.textContent += '\n--- End of logs ---';
+                        break;
+                    }
+                }
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    output.textContent += '\n--- Stream closed ---';
+                } else {
+                    output.textContent += '\nError: ' + e;
+                }
+            }
+        }
+
+        function closeLogs() {
+            document.getElementById('logsModal').style.display = 'none';
+            if (currentLogController) {
+                currentLogController.abort();
+                currentLogController = null;
+            }
+        }
+
+        // Setup SSE for real-time updates
+        const setupSSE = () => {
+            const evtSource = new EventSource('/events');
+
+            evtSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data && data.event && data.event !== "connected") {
+                        // Dynamically refresh the UI when an event occurs
+                        fetchStatus();
+                        fetchJobs();
+                        if (data.event === "job_completed" || data.event === "job_failed" || data.event === "job_canceled") {
+                            fetchAnalytics();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error parsing SSE data", e);
+                }
+            };
+
+            evtSource.onerror = function(err) {
+                console.error("EventSource failed:", err);
+                evtSource.close();
+                // Attempt to reconnect after 5 seconds
+                setTimeout(setupSSE, 5000);
+            };
+        };
+
+        setupSSE();
+
+        // Keep slow polling as a fallback
+        setInterval(fetchStatus, 30000);
+        setInterval(fetchAnalytics, 60000);
+        setInterval(fetchJobs, 30000);
     </script>
 </body>
 </html>

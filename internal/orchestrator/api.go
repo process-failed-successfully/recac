@@ -32,6 +32,35 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Write([]byte("OK"))
 	})
 
+	mux.HandleFunc("GET /events", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		ch := orch.Subscribe()
+		defer orch.Unsubscribe(ch)
+
+		// Send an initial connected event
+		fmt.Fprintf(w, "data: {\"event\": \"connected\"}\n\n")
+		flusher.Flush()
+
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case eventData := <-ch:
+				fmt.Fprintf(w, "data: %s\n\n", string(eventData))
+				flusher.Flush()
+			}
+		}
+	})
+
 	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
 		status := orch.GetStatus()
 		w.Header().Set("Content-Type", "application/json")
