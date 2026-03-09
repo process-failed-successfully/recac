@@ -165,6 +165,37 @@ const DashboardHTML = `
             }
         }
 
+        async function doJobAction(action, id) {
+            let method = 'POST';
+            let url = '';
+
+            if (action === 'approve') {
+                url = '/jobs/' + encodeURIComponent(id) + '/approve';
+            } else if (action === 'retry') {
+                url = '/jobs/' + encodeURIComponent(id) + '/retry';
+            } else if (action === 'cancel') {
+                if(!confirm('Are you sure you want to cancel job ' + id + '?')) return;
+                url = '/jobs/' + encodeURIComponent(id);
+                method = 'DELETE';
+            } else if (action === 'purge') {
+                if(!confirm('Are you sure you want to purge job ' + id + '?')) return;
+                url = '/history/' + encodeURIComponent(id);
+                method = 'DELETE';
+            }
+
+            try {
+                const res = await fetch(url, { method: method });
+                if(res.ok) {
+                    fetchStatus();
+                    fetchJobs();
+                } else {
+                    alert('Action ' + action + ' failed: ' + await res.text());
+                }
+            } catch(e) {
+                alert('Request failed: ' + e);
+            }
+        }
+
         async function fetchJobs() {
             try {
                 const state = document.getElementById('job-state-filter').value;
@@ -211,12 +242,29 @@ const DashboardHTML = `
                     const safeSummary = escapeHTML(j.summary.substring(0, 50) + (j.summary.length > 50 ? '...' : ''));
                     const safeStatus = escapeHTML(j.status);
 
+                    let actionButtons = '';
+                    const lowerStatus = (j.status || '').toLowerCase();
+
+                    if (lowerStatus === 'pending approval') {
+                        actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
+                    } else if (lowerStatus === 'failed') {
+                        actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
+                    }
+
+                    if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {
+                        actionButtons += '<button class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
+                    }
+
+                    if (lowerStatus === 'completed' || lowerStatus === 'failed' || lowerStatus === 'canceled' || lowerStatus === 'error') {
+                        actionButtons += '<button class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
+                    }
+
                     let row = '<tr>' +
                         '<td><strong>' + safeId + '</strong></td>' +
                         '<td>' + safeSummary + '</td>' +
                         '<td class="status-' + safeStatus + '">' + safeStatus + '</td>' +
                         '<td>' + formatDate(j.start_time) + '</td>' +
-                        '<td>' + duration + '</td>' +
+                        '<td>' + duration + actionButtons + '</td>' +
                     '</tr>';
                     tbody.innerHTML += row;
                 });
