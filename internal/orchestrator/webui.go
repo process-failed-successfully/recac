@@ -28,6 +28,14 @@ const DashboardHTML = `
         .actions { margin-top: 20px; display: flex; gap: 10px; }
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; }
         button:hover { background: #0056b3; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input[type="text"], .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .form-group textarea { resize: vertical; height: 100px; }
         button.danger { background: #dc3545; }
         button.danger:hover { background: #a82330; }
         #jobs-container { overflow-x: auto; }
@@ -41,8 +49,43 @@ const DashboardHTML = `
         <div id="connection-status">Connecting...</div>
     </header>
     <div class="container">
-        <div class="actions" id="global-actions">
-            <!-- Buttons will be injected here if supported -->
+        <div class="controls" style="margin-top: 20px;">
+            <div class="actions" id="global-actions" style="margin-top: 0;">
+                <!-- Buttons will be injected here if supported -->
+            </div>
+            <button onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
+        </div>
+
+        <div id="submitModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="document.getElementById('submitModal').style.display='none'">&times;</span>
+                <h2>Submit Ad-hoc Job</h2>
+                <div class="form-group">
+                    <label for="job-id">Job ID (Optional, auto-generated if empty)</label>
+                    <input type="text" id="job-id" placeholder="e.g., MY-JOB-123">
+                </div>
+                <div class="form-group">
+                    <label for="job-summary">Summary *</label>
+                    <input type="text" id="job-summary" placeholder="e.g., Fix login bug">
+                </div>
+                <div class="form-group">
+                    <label for="job-repo">Repository URL *</label>
+                    <input type="text" id="job-repo" placeholder="e.g., https://github.com/org/repo">
+                </div>
+                <div class="form-group">
+                    <label for="job-deps">Depends On (Optional, comma-separated IDs)</label>
+                    <input type="text" id="job-deps" placeholder="e.g., JOB-1, JOB-2">
+                </div>
+                <div class="form-group">
+                    <label for="job-env">Environment Variables (Optional, KEY=VALUE, one per line)</label>
+                    <textarea id="job-env" placeholder="DEBUG=true&#10;PORT=8080"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="job-desc">Description (Optional)</label>
+                    <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
+                </div>
+                <button onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
+            </div>
         </div>
 
         <div class="grid">
@@ -190,6 +233,68 @@ const DashboardHTML = `
                     fetchJobs();
                 } else {
                     alert('Action ' + action + ' failed: ' + await res.text());
+                }
+            } catch(e) {
+                alert('Request failed: ' + e);
+            }
+        }
+
+        async function submitAdHocJob() {
+            const id = document.getElementById('job-id').value.trim();
+            const summary = document.getElementById('job-summary').value.trim();
+            const repo = document.getElementById('job-repo').value.trim();
+            const depsStr = document.getElementById('job-deps').value.trim();
+            const envStr = document.getElementById('job-env').value.trim();
+            const desc = document.getElementById('job-desc').value.trim();
+
+            if (!summary || !repo) {
+                alert('Summary and Repository URL are required.');
+                return;
+            }
+
+            const deps = depsStr ? depsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+            const env = {};
+            if (envStr) {
+                const lines = envStr.split('\n');
+                for (const line of lines) {
+                    const parts = line.split('=');
+                    if (parts.length >= 2) {
+                        const key = parts[0].trim();
+                        const val = parts.slice(1).join('=').trim();
+                        if (key) env[key] = val;
+                    }
+                }
+            }
+
+            const payload = {
+                id: id || ('adhoc-' + Math.random().toString(36).substr(2, 9)),
+                summary: summary,
+                repo_url: repo,
+                description: desc,
+                depends_on: deps,
+                env_vars: env
+            };
+
+            try {
+                const res = await fetch('/jobs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    document.getElementById('submitModal').style.display = 'none';
+                    // Reset form
+                    document.getElementById('job-id').value = '';
+                    document.getElementById('job-summary').value = '';
+                    document.getElementById('job-repo').value = '';
+                    document.getElementById('job-deps').value = '';
+                    document.getElementById('job-env').value = '';
+                    document.getElementById('job-desc').value = '';
+                    fetchStatus();
+                    fetchJobs();
+                } else {
+                    alert('Failed to submit job: ' + await res.text());
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
