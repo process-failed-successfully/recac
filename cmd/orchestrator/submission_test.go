@@ -391,3 +391,23 @@ func TestWaitForJob_FailedImmediately(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "some error")
 }
+
+func TestWaitForJob_CanceledImmediately(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "Canceled", "error": "canceled by user"}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	err := waitForJob(server.URL, "test-job", stdout)
+	w.Close()
+	io.ReadAll(r) // ignore
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "canceled with error: canceled by user")
+}
