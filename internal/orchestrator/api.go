@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -449,6 +450,117 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			"errors":    errors,
 		}); err != nil {
 			logger.Error("Failed to encode batch submission response", "error", err)
+		}
+	})
+
+	mux.HandleFunc("POST /jobs/matrix", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			BaseItem WorkItem            `json:"base_item"`
+			Matrix   map[string][]string `json:"matrix"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if req.BaseItem.ID == "" {
+			http.Error(w, "Base Job ID is required", http.StatusBadRequest)
+			return
+		}
+
+		// Generate combinations deterministically (sort keys)
+		var keys []string
+		for k := range req.Matrix {
+			keys = append(keys, k)
+		}
+
+		// Sort keys to ensure deterministic combination generation
+		sort.Strings(keys)
+
+		var combinations []map[string]string
+		var generate func(int, map[string]string)
+		generate = func(idx int, current map[string]string) {
+			if idx == len(keys) {
+				cp := make(map[string]string)
+				for k, v := range current {
+					cp[k] = v
+				}
+				combinations = append(combinations, cp)
+				return
+			}
+			key := keys[idx]
+			for _, val := range req.Matrix[key] {
+				current[key] = val
+				generate(idx+1, current)
+			}
+		}
+		generate(0, make(map[string]string))
+
+		// If matrix is empty, just submit the base item
+		if len(combinations) == 0 {
+			combinations = append(combinations, make(map[string]string))
+		}
+
+		var submitted []string
+		var errors []string
+
+		for i, combo := range combinations {
+			item := req.BaseItem // shallow copy
+
+			// deep copy EnvVars
+			item.EnvVars = make(map[string]string)
+			for k, v := range req.BaseItem.EnvVars {
+				item.EnvVars[k] = v
+			}
+
+			// Add matrix variables
+			suffixParts := []string{}
+			for _, k := range keys {
+				if v, ok := combo[k]; ok {
+					item.EnvVars[k] = v
+					suffixParts = append(suffixParts, fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+
+			if len(suffixParts) > 0 {
+				item.ID = fmt.Sprintf("%s-%d", req.BaseItem.ID, i+1)
+				item.Summary = fmt.Sprintf("%s [%s]", req.BaseItem.Summary, strings.Join(suffixParts, ", "))
+			}
+
+			// Deep copy DependsOn
+			if req.BaseItem.DependsOn != nil {
+				item.DependsOn = make([]string, len(req.BaseItem.DependsOn))
+				copy(item.DependsOn, req.BaseItem.DependsOn)
+			}
+			// Deep copy Tags
+			if req.BaseItem.Tags != nil {
+				item.Tags = make([]string, len(req.BaseItem.Tags))
+				copy(item.Tags, req.BaseItem.Tags)
+			}
+
+			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+				if err == ErrAtCapacity {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "at capacity"))
+				} else if err == ErrDraining {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "draining"))
+				} else if strings.Contains(err.Error(), "already active") {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "already active"))
+				} else {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, err.Error()))
+				}
+			} else {
+				submitted = append(submitted, item.ID)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"submitted": submitted,
+			"errors":    errors,
+		}); err != nil {
+			logger.Error("Failed to encode matrix submission response", "error", err)
 		}
 	})
 

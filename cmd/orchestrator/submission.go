@@ -69,6 +69,67 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
+func submitMatrixJob(host, filePath string, wait bool) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
+	}
+	defer file.Close()
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs/matrix", host), "application/json", file)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		fmt.Fprintf(stdout, "Failed to submit matrix job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Submitted []string `json:"submitted"`
+		Errors    []string `json:"errors"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse matrix response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Matrix submission completed.\n")
+	if len(result.Submitted) > 0 {
+		fmt.Fprintf(stdout, "Successfully submitted jobs: %s\n", strings.Join(result.Submitted, ", "))
+	}
+	if len(result.Errors) > 0 {
+		fmt.Fprintf(stdout, "Errors:\n")
+		for _, e := range result.Errors {
+			fmt.Fprintf(stdout, "  - %s\n", e)
+		}
+		if len(result.Submitted) == 0 {
+			exitFunc(1)
+			return
+		}
+	}
+
+	if wait && len(result.Submitted) > 0 {
+		for _, id := range result.Submitted {
+			if err := waitForJob(host, id, stdout); err != nil {
+				fmt.Fprintf(stdout, "Job %s failed: %v\n", id, err)
+				exitFunc(1)
+				return
+			}
+		}
+	}
+}
+
 func submitBatchJob(host, filePath string, wait bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
