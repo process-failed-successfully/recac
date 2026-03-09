@@ -177,6 +177,7 @@ func TestExplorerModel_UpdatePreview_EmptyFiles(t *testing.T) {
 	m = newM.(ExplorerModel)
 	m.loadFiles()
 	assert.Contains(t, m.viewport.View(), "Empty directory")
+	assert.Contains(t, m.viewport.View(), "Press 'h', 'backspace', or 'esc' to go back.")
 }
 
 func TestExplorerModel_SyntaxHighlighting(t *testing.T) {

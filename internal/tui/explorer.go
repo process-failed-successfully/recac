@@ -98,7 +98,7 @@ func (m *ExplorerModel) loadFiles() {
 	if len(m.files) > 0 {
 		m.updatePreview()
 	} else {
-		m.viewport.SetContent("Empty directory")
+		m.viewport.SetContent("Empty directory.\n\nPress 'h', 'backspace', or 'esc' to go back.")
 	}
 }
 
