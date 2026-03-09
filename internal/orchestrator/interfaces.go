@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"time"
+
 	"recac/internal/jira"
 	"recac/internal/runner"
 
@@ -21,6 +23,7 @@ type WorkItem struct {
 	DependsOn   []string          `json:"depends_on,omitempty"`
 	Priority    int               `json:"priority,omitempty"`
 	Tags        []string          `json:"tags,omitempty"`
+	RunAfter    time.Time         `json:"run_after,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.

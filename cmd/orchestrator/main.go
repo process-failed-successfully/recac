@@ -75,6 +75,7 @@ func main() {
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
 	pflag.Int("submit-priority", 0, "Priority for ad-hoc job submission (higher is more important)")
+	pflag.Duration("submit-delay", 0, "Delay before starting the ad-hoc job (e.g., 1m, 1h)")
 	pflag.StringSlice("env", []string{}, "Environment variables to pass to the ad-hoc job (e.g., --env KEY=VALUE)")
 	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
 	pflag.StringSlice("submit-tags", []string{}, "Comma-separated list of tags for the ad-hoc job")
@@ -224,6 +225,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
 	viper.BindPFlag("orchestrator.submit_priority", pflag.Lookup("submit-priority"))
+	viper.BindPFlag("orchestrator.submit_delay", pflag.Lookup("submit-delay"))
 	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
 	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
 	viper.BindPFlag("orchestrator.submit_tags", pflag.Lookup("submit-tags"))
@@ -569,8 +571,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 		}
 
+		delay := viper.GetDuration("orchestrator.submit_delay")
 		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
-		submitAdHocJob(host, submitURL, task, id, priority, wait, envMap, submitDeps, submitTags)
+		submitAdHocJob(host, submitURL, task, id, priority, delay, wait, envMap, submitDeps, submitTags)
 		return nil
 	}
 

@@ -829,6 +829,28 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		return err
 	}
 
+		if !item.RunAfter.IsZero() && time.Now().Before(item.RunAfter) {
+			delay := item.RunAfter.Sub(time.Now())
+
+			job := JobInfo{
+				ID:         item.ID,
+				Summary:    item.Summary,
+				StartTime:  time.Now(),
+				Status:     "Pending",
+				WorkItem:   item,
+				RetryCount: retryCount,
+				Approved:   bypassApproval,
+			}
+			o.pendingJobs[item.ID] = job
+			o.mu.Unlock()
+
+			time.AfterFunc(delay, func() {
+				o.evaluatePendingJobs(context.Background(), logger)
+			})
+
+			return nil
+		}
+
 	if o.RequireApproval && !bypassApproval {
 		job := JobInfo{
 			ID:         item.ID,
@@ -1078,6 +1100,10 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 	var toProcess []pendingJob
 	for id, jobInfo := range o.pendingJobs {
 		if !jobInfo.RetryAfter.IsZero() && time.Now().Before(jobInfo.RetryAfter) {
+			continue
+		}
+
+		if !jobInfo.WorkItem.RunAfter.IsZero() && time.Now().Before(jobInfo.WorkItem.RunAfter) {
 			continue
 		}
 
