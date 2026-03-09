@@ -20,6 +20,7 @@ type WorkItem struct {
 	EnvVars     map[string]string `json:"env_vars,omitempty"`
 	DependsOn   []string          `json:"depends_on,omitempty"`
 	Priority    int               `json:"priority,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.

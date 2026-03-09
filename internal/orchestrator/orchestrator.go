@@ -240,6 +240,47 @@ func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger
 	return count
 }
 
+// CancelJobsByTag cancels all running and pending jobs that have the specified tag.
+func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.activeJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && len(jobIDs) > 0 {
+		logger.Info("Canceling jobs by tag", "tag", tag, "count", len(jobIDs))
+	}
+
+	count := 0
+	var lastErr error
+	for _, id := range jobIDs {
+		if err := o.CancelJob(ctx, id); err != nil {
+			lastErr = err
+		} else {
+			count++
+		}
+	}
+
+	return count, lastErr
+}
+
 // CancelAllJobs cancels all running jobs.
 func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
 	// Get all active and pending job IDs first to avoid holding the lock during cancellation

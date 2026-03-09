@@ -39,6 +39,7 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
+	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
@@ -48,6 +49,7 @@ func main() {
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
+	pflag.String("cancel-tag", "", "Cancel all active and pending jobs with the specified tag")
 	pflag.String("purge-job", "", "Purge a specific job from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
@@ -72,6 +74,7 @@ func main() {
 	pflag.Int("submit-priority", 0, "Priority for ad-hoc job submission (higher is more important)")
 	pflag.StringSlice("env", []string{}, "Environment variables to pass to the ad-hoc job (e.g., --env KEY=VALUE)")
 	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
+	pflag.StringSlice("submit-tags", []string{}, "Comma-separated list of tags for the ad-hoc job")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -183,6 +186,7 @@ func main() {
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
+	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
@@ -191,6 +195,7 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
+	viper.BindPFlag("orchestrator.cancel_tag", pflag.Lookup("cancel-tag"))
 	viper.BindPFlag("orchestrator.purge_job", pflag.Lookup("purge-job"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
@@ -215,6 +220,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_priority", pflag.Lookup("submit-priority"))
 	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
 	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
+	viper.BindPFlag("orchestrator.submit_tags", pflag.Lookup("submit-tags"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -331,7 +337,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		history := viper.GetBool("orchestrator.history")
 		statusFilter := viper.GetString("orchestrator.list_jobs_status")
-		listJobs(host, history, statusFilter)
+		tagFilter := viper.GetString("orchestrator.list_jobs_tag")
+		listJobs(host, history, statusFilter, tagFilter)
 		return nil
 	}
 
@@ -383,6 +390,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.cancel_all") {
 		host := viper.GetString("orchestrator.host")
 		cancelAllJobs(host)
+		return nil
+	}
+
+	if cancelTag := viper.GetString("orchestrator.cancel_tag"); cancelTag != "" {
+		host := viper.GetString("orchestrator.host")
+		cancelJobsByTag(host, cancelTag)
 		return nil
 	}
 
@@ -531,7 +544,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 		}
 
-		submitAdHocJob(host, submitURL, task, id, priority, wait, envMap, submitDeps)
+		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
+		submitAdHocJob(host, submitURL, task, id, priority, wait, envMap, submitDeps, submitTags)
 		return nil
 	}
 
@@ -974,7 +988,7 @@ func printStatus(host string) {
 	fmt.Fprintln(stdout, "")
 }
 
-func listJobs(host string, history bool, status string) {
+func listJobs(host string, history bool, status, tag string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -988,6 +1002,9 @@ func listJobs(host string, history bool, status string) {
 	}
 	if status != "" {
 		q.Set("status", status)
+	}
+	if tag != "" {
+		q.Set("tag", tag)
 	}
 	u.RawQuery = q.Encode()
 
@@ -1145,6 +1162,13 @@ func inspectJob(host, jobID string) {
 	fmt.Fprintln(stdout, labelStyle.Render("Description:"))
 	fmt.Fprintln(stdout, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(job.WorkItem.Description))
 	fmt.Fprintln(stdout, "")
+
+	// Tags
+	if len(job.WorkItem.Tags) > 0 {
+		fmt.Fprintln(stdout, labelStyle.Render("Tags:"))
+		fmt.Fprintln(stdout, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  "+strings.Join(job.WorkItem.Tags, ", ")))
+		fmt.Fprintln(stdout, "")
+	}
 
 	// Env Vars
 	if len(job.WorkItem.EnvVars) > 0 {

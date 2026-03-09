@@ -146,8 +146,39 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Len(t, jobs, 2)
 		assert.ElementsMatch(t, []string{"job-3", "job-5"}, []string{jobs[0].ID, jobs[1].ID})
 
+		// Filter active jobs by tag
+		orch.mu.Lock()
+		orch.activeJobs["job-6"] = JobInfo{ID: "job-6", Status: "Running", WorkItem: WorkItem{Tags: []string{"backend", "urgent"}}}
+		orch.activeJobs["job-7"] = JobInfo{ID: "job-7", Status: "Running", WorkItem: WorkItem{Tags: []string{"frontend"}}}
+		orch.mu.Unlock()
+
+		resp, err = http.Get(server.URL + "/jobs?tag=urgent")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 1)
+		assert.Equal(t, "job-6", jobs[0].ID)
+
+		// Filter all jobs by tag
+		orch.mu.Lock()
+		orch.completedJobs = append(orch.completedJobs, JobInfo{ID: "job-8", Status: "Completed", WorkItem: WorkItem{Tags: []string{"frontend", "v1.2"}}})
+		orch.mu.Unlock()
+
+		resp, err = http.Get(server.URL + "/jobs?state=all&tag=frontend")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 2)
+		assert.ElementsMatch(t, []string{"job-7", "job-8"}, []string{jobs[0].ID, jobs[1].ID})
+
 		// Cleanup
 		orch.mu.Lock()
+		delete(orch.activeJobs, "job-6")
+		delete(orch.activeJobs, "job-7")
 		delete(orch.activeJobs, "job-1")
 		delete(orch.activeJobs, "job-2")
 		orch.completedJobs = nil
@@ -308,6 +339,58 @@ func TestRegisterAPI(t *testing.T) {
 		resp, err := http.DefaultClient.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	// 6.4 Test Cancel Jobs by Tag
+	t.Run("Cancel Jobs by Tag", func(t *testing.T) {
+		// Mock Cancel to return nil for any job
+		mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
+
+		// Insert dummy active and pending jobs with specific tags
+		orch.mu.Lock()
+		orch.activeJobs["TAGJOB-1"] = JobInfo{
+			ID: "TAGJOB-1",
+			Status: "Running",
+			WorkItem: WorkItem{Tags: []string{"release-1"}},
+		}
+		orch.pendingJobs["TAGJOB-2"] = JobInfo{
+			ID: "TAGJOB-2",
+			Status: "Pending",
+			WorkItem: WorkItem{Tags: []string{"release-1"}},
+		}
+		orch.activeJobs["TAGJOB-3"] = JobInfo{
+			ID: "TAGJOB-3",
+			Status: "Running",
+			WorkItem: WorkItem{Tags: []string{"other"}},
+		}
+		orch.mu.Unlock()
+
+		req, _ := http.NewRequest(http.MethodDelete, server.URL+"/jobs?tag=release-1", nil)
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var result map[string]int
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, result["canceled"])
+
+		// Ensure TAGJOB-3 is still active, others cancelled
+		orch.mu.RLock()
+		_, ok := orch.activeJobs["TAGJOB-3"]
+		assert.True(t, ok)
+		_, ok = orch.activeJobs["TAGJOB-1"]
+		// Note: since Spawner.Cancel is mocked, the activeJobs map doesn't get updated
+		// automatically because we aren't waiting for the spawnWorker goroutine to finish.
+		// However, for pendingJobs, CancelJob deletes it immediately.
+		_, pendingOk := orch.pendingJobs["TAGJOB-2"]
+		assert.False(t, pendingOk) // should be deleted by CancelJob
+		orch.mu.RUnlock()
+
+		// Cleanup
+		orch.mu.Lock()
+		delete(orch.activeJobs, "TAGJOB-3")
+		orch.mu.Unlock()
 	})
 
 	// 6.5 Test Cancel All Jobs

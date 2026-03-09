@@ -187,7 +187,7 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, priority int, wait bool, envVars map[string]string, dependsOn []string) {
+func submitAdHocJob(host, repo, task, id string, priority int, wait bool, envVars map[string]string, dependsOn []string, tags []string) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -200,6 +200,7 @@ func submitAdHocJob(host, repo, task, id string, priority int, wait bool, envVar
 		EnvVars:     envVars,
 		Priority:    priority,
 		DependsOn:   dependsOn,
+		Tags:        tags,
 	}
 
 	payload, err := json.Marshal(item)
@@ -429,6 +430,46 @@ func cancelAllJobs(host string) {
 	}
 
 	fmt.Fprintf(stdout, "Successfully canceled %d jobs.\n", int(canceled))
+}
+
+func cancelJobsByTag(host, tag string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs?tag=%s", host, url.QueryEscape(tag)), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to cancel jobs by tag: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	canceled, ok := result["canceled"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully canceled %d jobs with tag '%s'.\n", int(canceled), tag)
 }
 
 func updatePriority(host, jobID string, priority int) {

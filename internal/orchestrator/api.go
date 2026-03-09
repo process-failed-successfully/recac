@@ -44,6 +44,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
 		state := r.URL.Query().Get("state")
 		statusFilter := r.URL.Query().Get("status")
+		tagFilter := r.URL.Query().Get("tag")
 		var jobs []JobInfo
 
 		switch state {
@@ -60,6 +61,24 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			lowerStatusFilter := strings.ToLower(statusFilter)
 			for _, job := range jobs {
 				if strings.ToLower(job.Status) == lowerStatusFilter {
+					filtered = append(filtered, job)
+				}
+			}
+			jobs = filtered
+		}
+
+		if tagFilter != "" {
+			var filtered []JobInfo
+			lowerTagFilter := strings.ToLower(tagFilter)
+			for _, job := range jobs {
+				hasTag := false
+				for _, tag := range job.WorkItem.Tags {
+					if strings.ToLower(tag) == lowerTagFilter {
+						hasTag = true
+						break
+					}
+				}
+				if hasTag {
 					filtered = append(filtered, job)
 				}
 			}
@@ -299,7 +318,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	})
 
 	mux.HandleFunc("DELETE /jobs", func(w http.ResponseWriter, r *http.Request) {
-		count, err := orch.CancelAllJobs(r.Context())
+		tag := r.URL.Query().Get("tag")
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.CancelJobsByTag(r.Context(), tag, logger)
+		} else {
+			count, err = orch.CancelAllJobs(r.Context())
+		}
+
 		if err != nil && count == 0 {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
