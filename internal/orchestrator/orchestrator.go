@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -42,6 +43,9 @@ type Orchestrator struct {
 	RetryDelay        time.Duration
 	LogDir            string
 	RequireApproval   bool
+
+	eventChans map[chan []byte]struct{}
+	eventMu    sync.RWMutex
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
@@ -92,6 +96,7 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		pendingJobs:  make(map[string]JobInfo),
 		maxHistory:   50, // Default history size
 		forcePollCh:  make(chan struct{}, 1),
+		eventChans:   make(map[chan []byte]struct{}),
 	}
 }
 
@@ -112,6 +117,54 @@ func (o *Orchestrator) SetPersistence(p Persistence) {
 // SetNotifier sets the notification manager for the orchestrator.
 func (o *Orchestrator) SetNotifier(n Notifier) {
 	o.notifier = n
+}
+
+// Subscribe returns a channel that receives orchestrator events.
+func (o *Orchestrator) Subscribe() chan []byte {
+	ch := make(chan []byte, 100) // Buffer to avoid blocking
+	o.eventMu.Lock()
+	defer o.eventMu.Unlock()
+	o.eventChans[ch] = struct{}{}
+	return ch
+}
+
+// Unsubscribe removes an event channel.
+func (o *Orchestrator) Unsubscribe(ch chan []byte) {
+	o.eventMu.Lock()
+	defer o.eventMu.Unlock()
+	if _, ok := o.eventChans[ch]; ok {
+		delete(o.eventChans, ch)
+		close(ch)
+	}
+}
+
+// BroadcastEvent sends an event to all subscribers.
+func (o *Orchestrator) BroadcastEvent(eventType string, data interface{}) {
+	o.eventMu.RLock()
+	defer o.eventMu.RUnlock()
+
+	if len(o.eventChans) == 0 {
+		return
+	}
+
+	event := map[string]interface{}{
+		"event":     eventType,
+		"data":      data,
+		"timestamp": time.Now(),
+	}
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+
+	for ch := range o.eventChans {
+		select {
+		case ch <- payload:
+		default:
+			// Drop event if subscriber is too slow
+		}
+	}
 }
 
 // LoadHistory loads the job history from the persistence layer.
@@ -211,6 +264,7 @@ func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
 		job.Error = "Canceled by user"
 		o.addToHistory(job, nil)
 		o.mu.Unlock()
+		o.BroadcastEvent("job_canceled", job)
 		return nil
 	}
 	o.mu.Unlock()
@@ -234,6 +288,7 @@ func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger
 		job.Error = "Canceled from pending queue"
 		o.addToHistory(job, logger)
 		count++
+		o.BroadcastEvent("job_canceled", job)
 	}
 
 	if count > 0 && logger != nil {
@@ -538,6 +593,7 @@ func (o *Orchestrator) ApproveJob(ctx context.Context, jobID string, logger *slo
 	job.Approved = true
 	o.pendingJobs[jobID] = job
 	o.mu.Unlock()
+	o.BroadcastEvent("job_approved", job)
 
 	if logger != nil {
 		logger.Info("Job approved", "id", jobID)
@@ -574,6 +630,7 @@ func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newP
 	job.WorkItem.Priority = newPriority
 	o.pendingJobs[jobID] = job
 	o.mu.Unlock()
+	o.BroadcastEvent("job_priority_updated", job)
 
 	if logger != nil {
 		logger.Info("Updated job priority", "jobID", jobID, "newPriority", newPriority)
@@ -784,6 +841,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		}
 		o.pendingJobs[item.ID] = job
 		o.mu.Unlock()
+		o.BroadcastEvent("job_pending_approval", job)
 		if logger != nil {
 			logger.Info("Job pending approval", "id", item.ID)
 		}
@@ -806,6 +864,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 				}
 				o.addToHistory(job, logger)
 				o.mu.Unlock()
+				o.BroadcastEvent("job_failed", job)
 				if logger != nil {
 					logger.Error("Job failed due to failed dependency", "id", item.ID, "dependency", failedDep)
 				}
@@ -822,6 +881,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 			}
 			o.pendingJobs[item.ID] = job
 			o.mu.Unlock()
+			o.BroadcastEvent("job_pending_deps", job)
 			if logger != nil {
 				logger.Info("Job pending dependencies", "id", item.ID, "depends_on", item.DependsOn)
 			}
@@ -847,6 +907,8 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	}
 	o.activeJobs[item.ID] = job
 	o.mu.Unlock()
+
+	o.BroadcastEvent("job_spawning", job)
 
 	o.wg.Add(1)
 	go o.spawnWorker(ctx, item, logger)
@@ -877,6 +939,9 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 
 	defer func() {
 		o.mu.Lock()
+		var finalJob JobInfo
+		var hasFinalJob bool
+
 		// Move to history
 		if job, ok := o.activeJobs[item.ID]; ok {
 			job.ThreadState = threadState
@@ -887,6 +952,8 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 					job.Error = spawnErr.Error()
 					job.RetryAfter = time.Now().Add(o.RetryDelay)
 					o.pendingJobs[item.ID] = job
+					finalJob = job
+					hasFinalJob = true
 
 					if logger != nil {
 						logger.Info("Job failed, scheduling auto-retry", "id", item.ID, "attempt", job.RetryCount, "max", o.MaxRetries, "delay", o.RetryDelay)
@@ -902,17 +969,31 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 					job.Status = "Failed"
 					job.Error = spawnErr.Error()
 					o.addToHistory(job, logger)
+					finalJob = job
+					hasFinalJob = true
 				}
 			} else {
 				job.EndTime = time.Now()
 				job.Status = "Completed"
 				o.addToHistory(job, logger)
+				finalJob = job
+				hasFinalJob = true
 			}
 		}
 
 		o.activeSpawns--
 		delete(o.activeJobs, item.ID)
 		o.mu.Unlock()
+
+		if hasFinalJob {
+			if finalJob.Status == "Retrying" {
+				o.BroadcastEvent("job_retrying", finalJob)
+			} else if finalJob.Status == "Failed" {
+				o.BroadcastEvent("job_failed", finalJob)
+			} else if finalJob.Status == "Completed" {
+				o.BroadcastEvent("job_completed", finalJob)
+			}
+		}
 
 		if o.notifier != nil {
 			if spawnErr != nil {
@@ -1024,6 +1105,8 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 				WorkItem:  item,
 			}
 			o.addToHistory(job, logger)
+			// Ensure we broadcast after dropping the lock to avoid deadlocks
+			defer o.BroadcastEvent("job_failed", job)
 		}
 	}
 	o.mu.Unlock()
@@ -1118,6 +1201,8 @@ func (o *Orchestrator) PurgeJob(id string, logger *slog.Logger) error {
 	if logger != nil {
 		logger.Info("Job purged from history", "id", id)
 	}
+
+	o.BroadcastEvent("job_purged", map[string]string{"id": id})
 
 	return nil
 }

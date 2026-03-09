@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Mock Spawner (MockPoller is defined in spawner_docker_test.go)
@@ -803,6 +804,73 @@ func TestRegisterAPI(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
+}
+
+func TestEventsEndpoint(t *testing.T) {
+	poller := new(MockPoller)
+	spawner := new(MockSpawner)
+	orch := New(poller, spawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+
+	RegisterAPI(mux, orch, logger, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Make request to SSE endpoint
+	req, err := http.NewRequest("GET", server.URL+"/events", nil)
+	require.NoError(t, err)
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+
+	// We need to read lines from the stream.
+	// Give the subscriber a moment to register.
+	time.Sleep(50 * time.Millisecond)
+
+	// Trigger an event via ProcessWorkItem
+	spawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	item := WorkItem{ID: "SSE-TEST-1", Summary: "Testing SSE"}
+	// It's internal but we can trigger it via SubmitJob which calls it.
+	err = orch.SubmitJob(context.Background(), item, logger)
+	require.NoError(t, err)
+
+	// We need to read lines from the stream.
+	// Since HTTP streaming can return chunks, let's read until we find what we need or timeout.
+	done := make(chan bool)
+	go func() {
+		buf := make([]byte, 4096)
+		var output string
+		for {
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				output += string(buf[:n])
+				if strings.Contains(output, `{"event": "connected"}`) && strings.Contains(output, `job_spawning`) && strings.Contains(output, `SSE-TEST-1`) {
+					done <- true
+					return
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-done:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for expected SSE events")
+	}
 }
 
 func TestAPI_PurgeJob(t *testing.T) {
