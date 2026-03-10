@@ -303,3 +303,57 @@ func TestOrchestrator_CancelAllPendingJobs(t *testing.T) {
 
 	mockSpawner.AssertExpectations(t)
 }
+
+func TestOrchestrator_JobSpecificTimeout(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+
+	items := []WorkItem{
+		{ID: "JOB-NO-TIMEOUT", Summary: "Fast job"},
+		{ID: "JOB-TIMEOUT", Summary: "Slow job", Timeout: 10 * time.Millisecond},
+	}
+
+	mockPoller.On("Poll", mock.Anything, mock.Anything).Return(items, nil).Once()
+	mockPoller.On("Poll", mock.Anything, mock.Anything).Return([]WorkItem{}, nil)
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-NO-TIMEOUT"
+	})).Return(nil)
+
+	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+		return item.ID == "JOB-TIMEOUT"
+	})).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		<-ctx.Done()
+	}).Return(context.DeadlineExceeded)
+
+	orch := New(mockPoller, mockSpawner, 10*time.Millisecond)
+	orch.JobTimeout = 1 * time.Hour
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go orch.Run(ctx, logger)
+
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	orch.mu.RLock()
+	defer orch.mu.RUnlock()
+
+	var jobNoTimeout, jobTimeout JobInfo
+	for _, j := range orch.completedJobs {
+		if j.ID == "JOB-NO-TIMEOUT" {
+			jobNoTimeout = j
+		}
+		if j.ID == "JOB-TIMEOUT" {
+			jobTimeout = j
+		}
+	}
+
+	assert.Equal(t, "Completed", jobNoTimeout.Status)
+	assert.Equal(t, "Failed", jobTimeout.Status)
+	assert.Contains(t, jobTimeout.Error, "context deadline exceeded")
+}

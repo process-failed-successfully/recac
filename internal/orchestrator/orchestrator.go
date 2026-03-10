@@ -954,8 +954,14 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 
 	spawnCtx := ctx
 	var cancel context.CancelFunc
-	if o.JobTimeout > 0 {
-		spawnCtx, cancel = context.WithTimeout(ctx, o.JobTimeout)
+
+	timeout := item.Timeout
+	if timeout == 0 {
+		timeout = o.JobTimeout
+	}
+
+	if timeout > 0 {
+		spawnCtx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 
