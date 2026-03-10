@@ -205,8 +205,12 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 			errMsg = err.Error()
 		}
 
-		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
-		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
+		safeCmdScript := maskSecrets(cmdScript)
+		safeOutput := maskSecrets(output)
+		safeErrMsg := maskSecrets(errMsg)
+
+		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", safeCmdScript, safeErrMsg, safeOutput)
+		s.Logger.Error("command failed", "script", safeCmdScript, "error", safeErrMsg)
 
 		// Telemetry: Build Failure
 		if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
@@ -320,4 +324,11 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+var secretMaskRegex = regexp.MustCompile(`(?i)(["']?(?:token|password|secret|key|pwd)["']?\s*[:=]\s*)(?:["']([^"']+)["']|([^\s]+))`)
+
+// maskSecrets redacts potential secrets from output strings to prevent leakage in logs or context
+func maskSecrets(text string) string {
+	return secretMaskRegex.ReplaceAllString(text, "${1}[REDACTED]")
 }
