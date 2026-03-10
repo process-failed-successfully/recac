@@ -25,11 +25,6 @@ type DraftQuestion struct {
 	Context  string `json:"context,omitempty"`
 }
 
-type DraftSpec struct {
-	ProjectName string
-	Pitch       string
-	Answers     []string
-}
 
 // -- Command --
 
