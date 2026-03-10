@@ -586,39 +586,6 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "y", "enter":
-			if len(m.selectedJobs) > 0 && strings.HasSuffix(m.pendingAction, "multiple") {
-				var cmds []tea.Cmd
-				for id := range m.selectedJobs {
-					switch m.pendingAction {
-					case "cancel multiple":
-						cmds = append(cmds, cancelJob(m.host, id))
-					case "purge multiple":
-						cmds = append(cmds, purgeJobCmd(m.host, id))
-					case "retry multiple":
-						cmds = append(cmds, retryJob(m.host, id))
-					case "approve multiple":
-						cmds = append(cmds, approveJobCmd(m.host, id))
-					case "priority multiple":
-						// We need to fetch current priority to change it.
-						for _, job := range m.jobs {
-							if job.ID == id {
-								if m.pendingJobId == "MULTIPLE_up" {
-									cmds = append(cmds, updatePriorityCmd(m.host, id, job.WorkItem.Priority+1))
-								} else if m.pendingJobId == "MULTIPLE_down" {
-									cmds = append(cmds, updatePriorityCmd(m.host, id, job.WorkItem.Priority-1))
-								}
-								break
-							}
-						}
-					}
-				}
-				m.selectedJobs = make(map[string]bool)
-				m.updateTableContent()
-				m.pendingJobId = ""
-				m.pendingAction = ""
-				m.viewState = viewMain
-				return m, tea.Batch(cmds...)
-			}
 			var cmd tea.Cmd
 			if m.pendingAction == "cancel" {
 				cmd = cancelJob(m.host, m.pendingJobId)
@@ -853,16 +820,6 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE job %s entirely?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "clear pending" {
 			dialogMsg = "Are you sure you want to clear ALL pending jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
-		} else if m.pendingAction == "cancel multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "purge multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "retry multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "approve multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to APPROVE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "priority multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to CHANGE PRIORITY for %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else {
 			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
