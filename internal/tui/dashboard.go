@@ -50,6 +50,7 @@ const (
 	viewSubmit
 	viewAnalytics
 	viewTree
+	viewTimeoutInput
 )
 
 type DashboardModel struct {
@@ -78,6 +79,9 @@ type DashboardModel struct {
 	// Filter fields
 	filterInput textinput.Model
 	isFiltering bool
+
+	// Timeout input field
+	timeoutInput textinput.Model
 }
 
 type tickMsg time.Time
@@ -282,6 +286,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewSubmit:
 		m, cmd = m.updateSubmit(msg)
+		cmds = append(cmds, cmd)
+	case viewTimeoutInput:
+		m, cmd = m.updateTimeoutInput(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -500,6 +507,16 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "clear pending"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "T":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				m.pendingJobId = id
+				m.viewState = viewTimeoutInput
+				m.timeoutInput.SetValue("")
+				m.timeoutInput.Focus()
+				return m, textinput.Blink
+			}
 		case "e":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -749,6 +766,32 @@ func (m *DashboardModel) updateFocus() []tea.Cmd {
 	return cmds
 }
 
+func (m DashboardModel) updateTimeoutInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.timeoutInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "enter":
+			val := m.timeoutInput.Value()
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.timeoutInput.Blur()
+			m.pendingJobId = ""
+			if val != "" {
+				return m, updateTimeoutCmd(m.host, id, val)
+			}
+			return m, nil
+		}
+	}
+	m.timeoutInput, cmd = m.timeoutInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -833,7 +876,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T: timeout | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -916,6 +959,25 @@ func (m DashboardModel) View() string {
 
 		contentView = baseStyle.Render(sb.String())
 		helpView = statusStyle.Render("tab/shift+tab/up/down: focus | ctrl+s: submit | esc: cancel")
+	case viewTimeoutInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Update Timeout for %s\n\n%s", m.pendingJobId, m.timeoutInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		// Render the dialog centered
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
 	}
 
 	if m.err != nil {
@@ -1134,6 +1196,7 @@ func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
 		if err != nil {
 			return actionMsg{Err: err}
 		}
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -1147,6 +1210,31 @@ func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Updated priority for job %s to %d", id, newPriority)}
+	}
+}
+
+func updateTimeoutCmd(host, id, newTimeout string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/timeout", host, id)
+		reqBody := fmt.Sprintf(`{"timeout": "%s"}`, newTimeout)
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, strings.NewReader(reqBody))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated timeout for job %s to %s", id, newTimeout)}
 	}
 }
 
@@ -1448,6 +1536,11 @@ func NewDashboardModel(host string) DashboardModel {
 	fi.Prompt = "/"
 	fi.Width = 40
 
+	ti := textinput.New()
+	ti.Placeholder = "e.g., 30m or 2h"
+	ti.Prompt = "New Timeout: "
+	ti.Width = 20
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -1457,6 +1550,7 @@ func NewDashboardModel(host string) DashboardModel {
 		textarea:     ta,
 		filterInput:  fi,
 		isFiltering:  false,
+		timeoutInput: ti,
 		selectedJobs: make(map[string]bool),
 	}
 }
