@@ -63,8 +63,8 @@ func TestDashboardModel_Update_StatusMsg(t *testing.T) {
 	// Check table rows
 	rows := m.table.Rows()
 	assert.Len(t, rows, 2)
-	assert.Equal(t, "JOB-2", rows[0][0]) // Sorted by time (newest first)
-	assert.Equal(t, "JOB-1", rows[1][0])
+	assert.Equal(t, "[ ] JOB-2", rows[0][0]) // Sorted by time (newest first)
+	assert.Equal(t, "[ ] JOB-1", rows[1][0])
 }
 
 func TestDashboardModel_Update_Error(t *testing.T) {
