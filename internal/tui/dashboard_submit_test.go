@@ -49,8 +49,10 @@ func TestDashboard_SubmitState(t *testing.T) {
 
 	// Press Down to focus textarea
 	newM, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	newM, _ = newM.(DashboardModel).Update(tea.KeyMsg{Type: tea.KeyDown})
+	newM, _ = newM.(DashboardModel).Update(tea.KeyMsg{Type: tea.KeyDown})
 	model = newM.(DashboardModel)
-	assert.Equal(t, 3, model.focusedInput, "Expected textarea to be focused after Down")
+	assert.Equal(t, 5, model.focusedInput, "Expected textarea to be focused after Down")
 
 	// Type in textarea
 	newM, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d', 'e', 's', 'c'}})
