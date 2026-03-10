@@ -17,9 +17,6 @@ type RadarItem struct {
 }
 
 // RadarReport holds all items for the radar.
-type RadarReport struct {
-	Items []RadarItem `json:"items"`
-}
 
 // ScanForDependencyFiles searches the root directory for known dependency files.
 func ScanForDependencyFiles(root string) ([]string, error) {
