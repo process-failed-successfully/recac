@@ -41,6 +41,7 @@ func main() {
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
+	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
@@ -204,6 +205,7 @@ func main() {
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
+	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
@@ -370,7 +372,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		history := viper.GetBool("orchestrator.history")
 		statusFilter := viper.GetString("orchestrator.list_jobs_status")
 		tagFilter := viper.GetString("orchestrator.list_jobs_tag")
-		listJobs(host, history, statusFilter, tagFilter)
+		matchFilter := viper.GetString("orchestrator.list_jobs_match")
+		listJobs(host, history, statusFilter, tagFilter, matchFilter)
 		return nil
 	}
 
@@ -1167,7 +1170,7 @@ func listPendingJobs(host string) {
 	}
 }
 
-func listJobs(host string, history bool, status, tag string) {
+func listJobs(host string, history bool, status, tag, match string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -1184,6 +1187,9 @@ func listJobs(host string, history bool, status, tag string) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if match != "" {
+		q.Set("match", match)
 	}
 	u.RawQuery = q.Encode()
 
