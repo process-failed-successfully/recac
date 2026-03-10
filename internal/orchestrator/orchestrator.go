@@ -52,17 +52,18 @@ var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
 var ErrDraining = fmt.Errorf("orchestrator is draining and cannot accept new jobs")
 
 type JobInfo struct {
-	ID          string    `json:"id"`
-	Summary     string    `json:"summary"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time,omitempty"`
-	Status      string    `json:"status"`
-	Error       string    `json:"error,omitempty"`
-	WorkItem    WorkItem  `json:"work_item"`
-	ThreadState string    `json:"thread_state,omitempty"`
-	RetryCount  int       `json:"retry_count,omitempty"`
-	RetryAfter  time.Time `json:"retry_after,omitempty"`
-	Approved    bool      `json:"approved,omitempty"`
+	ID          string            `json:"id"`
+	Summary     string            `json:"summary"`
+	StartTime   time.Time         `json:"start_time"`
+	EndTime     time.Time         `json:"end_time,omitempty"`
+	Status      string            `json:"status"`
+	Error       string            `json:"error,omitempty"`
+	WorkItem    WorkItem          `json:"work_item"`
+	ThreadState string            `json:"thread_state,omitempty"`
+	RetryCount  int               `json:"retry_count,omitempty"`
+	RetryAfter  time.Time         `json:"retry_after,omitempty"`
+	Approved    bool              `json:"approved,omitempty"`
+	Outputs     map[string]string `json:"outputs,omitempty"`
 }
 
 type Status struct {
@@ -720,15 +721,28 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger
 	return count, nil
 }
 
-func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, string) {
+var outputSanitizeRegex = regexp.MustCompile(`[^A-Z0-9_]`)
+
+func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, string, map[string]string) {
+	outputs := make(map[string]string)
+
+	// Helper to sanitize job ID for env var name
+	sanitize := func(id string) string {
+		s := strings.ToUpper(id)
+		s = strings.ReplaceAll(s, "-", "_")
+		s = outputSanitizeRegex.ReplaceAllString(s, "_")
+		return s
+	}
+
 	for _, dep := range dependsOn {
 		met := false
+		var depJob JobInfo
 
 		if _, ok := o.activeJobs[dep]; ok {
-			return false, "" // Active, not met yet
+			return false, "", nil // Active, not met yet
 		}
 		if _, ok := o.pendingJobs[dep]; ok {
-			return false, "" // Pending, not met yet
+			return false, "", nil // Pending, not met yet
 		}
 
 		// Check memory history (newest first)
@@ -737,8 +751,9 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 			if completed.ID == dep {
 				if completed.Status == "Completed" {
 					met = true
+					depJob = completed
 				} else if completed.Status == "Failed" || completed.Status == "Canceled" {
-					return false, dep // dependency failed
+					return false, dep, nil // dependency failed
 				}
 				break
 			}
@@ -750,17 +765,24 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 			if err == nil {
 				if job.Status == "Completed" {
 					met = true
+					depJob = *job
 				} else if job.Status == "Failed" || job.Status == "Canceled" {
-					return false, dep
+					return false, dep, nil
 				}
 			}
 		}
 
 		if !met {
-			return false, ""
+			return false, "", nil
+		}
+
+		// Accumulate outputs
+		prefix := fmt.Sprintf("DEP_%s_", sanitize(dep))
+		for k, v := range depJob.Outputs {
+			outputs[prefix+strings.ToUpper(k)] = v
 		}
 	}
-	return true, ""
+	return true, "", outputs
 }
 
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retryCount int, logger *slog.Logger) error {
@@ -882,8 +904,11 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		return nil
 	}
 
+	var depOutputs map[string]string
 	if len(item.DependsOn) > 0 {
-		met, failedDep := o.checkDependenciesMetLocked(item.DependsOn)
+		var met bool
+		var failedDep string
+		met, failedDep, depOutputs = o.checkDependenciesMetLocked(item.DependsOn)
 		if !met {
 			if failedDep != "" {
 				// Dependency failed, immediately fail this job
@@ -926,6 +951,22 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	if o.MaxConcurrentJobs > 0 && o.activeSpawns >= o.MaxConcurrentJobs {
 		o.mu.Unlock()
 		return ErrAtCapacity
+	}
+
+	// Merge dependency outputs into the new job's environment variables
+	if len(depOutputs) > 0 {
+		if item.EnvVars == nil {
+			item.EnvVars = make(map[string]string)
+		}
+		// Deep copy so we don't mutate shared structures incorrectly if retried
+		newEnv := make(map[string]string)
+		for k, v := range item.EnvVars {
+			newEnv[k] = v
+		}
+		for k, v := range depOutputs {
+			newEnv[k] = v
+		}
+		item.EnvVars = newEnv
 	}
 
 	o.activeSpawns++
@@ -1132,7 +1173,7 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		}
 
 		item := jobInfo.WorkItem
-		met, failedDep := o.checkDependenciesMetLocked(item.DependsOn)
+		met, failedDep, _ := o.checkDependenciesMetLocked(item.DependsOn)
 		if met {
 			toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount, approved: jobInfo.Approved})
 			delete(o.pendingJobs, id)
@@ -1201,6 +1242,94 @@ func (o *Orchestrator) addToHistory(job JobInfo, logger *slog.Logger) {
 			}
 		}
 	}
+}
+
+// SetJobOutput sets output variables for a specific job.
+func (o *Orchestrator) SetJobOutput(jobID string, outputs map[string]string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// 1. Check active jobs
+	if job, ok := o.activeJobs[jobID]; ok {
+		if job.Outputs == nil {
+			job.Outputs = make(map[string]string)
+		}
+		for k, v := range outputs {
+			job.Outputs[k] = v
+		}
+		o.activeJobs[jobID] = job
+		if logger != nil {
+			logger.Info("Set output for active job", "jobID", jobID, "outputs", len(outputs))
+		}
+		return nil
+	}
+
+	// 2. Check pending jobs (though unlikely to have outputs set)
+	if job, ok := o.pendingJobs[jobID]; ok {
+		if job.Outputs == nil {
+			job.Outputs = make(map[string]string)
+		}
+		for k, v := range outputs {
+			job.Outputs[k] = v
+		}
+		o.pendingJobs[jobID] = job
+		if logger != nil {
+			logger.Info("Set output for pending job", "jobID", jobID, "outputs", len(outputs))
+		}
+		return nil
+	}
+
+	// 3. Check memory history
+	foundInMemory := false
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		if o.completedJobs[i].ID == jobID {
+			if o.completedJobs[i].Outputs == nil {
+				o.completedJobs[i].Outputs = make(map[string]string)
+			}
+			for k, v := range outputs {
+				o.completedJobs[i].Outputs[k] = v
+			}
+
+			// 4. Also update persistence if found in memory
+			if o.Persistence != nil {
+				if err := o.Persistence.SaveJob(o.completedJobs[i]); err != nil && logger != nil {
+					logger.Warn("Failed to persist updated job output", "jobID", jobID, "error", err)
+				}
+			}
+
+			foundInMemory = true
+			if logger != nil {
+				logger.Info("Set output for completed job (in memory)", "jobID", jobID, "outputs", len(outputs))
+			}
+			break
+		}
+	}
+
+	if foundInMemory {
+		return nil
+	}
+
+	// 5. Check persistence only if not in memory
+	if o.Persistence != nil {
+		job, err := o.Persistence.GetJob(jobID)
+		if err == nil {
+			if job.Outputs == nil {
+				job.Outputs = make(map[string]string)
+			}
+			for k, v := range outputs {
+				job.Outputs[k] = v
+			}
+			if err := o.Persistence.SaveJob(*job); err != nil {
+				return fmt.Errorf("failed to persist updated job output: %w", err)
+			}
+			if logger != nil {
+				logger.Info("Set output for completed job (in persistence)", "jobID", jobID, "outputs", len(outputs))
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("job %s not found", jobID)
 }
 
 // PurgeJob removes a specific job from history (both in-memory and persistent storage).
