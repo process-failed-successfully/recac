@@ -39,6 +39,9 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "doJobAction(\\'cancel\\'")
 	assert.Contains(t, html, "doJobAction(\\'purge\\'")
 
+	// Verify clone job JS function exists
+	assert.Contains(t, html, "function cloneJob(")
+
 	// Verify Submit Job Modal HTML exists
 	assert.Contains(t, html, "id=\"submitModal\"")
 	assert.Contains(t, html, "Submit Ad-hoc Job")
