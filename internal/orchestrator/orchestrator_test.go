@@ -326,6 +326,27 @@ func TestOrchestrator_GetAnalytics(t *testing.T) {
 	assert.Equal(t, 3*time.Minute, analytics.AverageDuration) // (2 + 4) / 2 = 3
 }
 
+func TestOrchestrator_GetPendingJobs(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	orch.mu.Lock()
+	orch.pendingJobs["JOB-1"] = JobInfo{ID: "JOB-1"}
+	orch.pendingJobs["JOB-2"] = JobInfo{ID: "JOB-2"}
+	orch.mu.Unlock()
+
+	pending := orch.GetPendingJobs()
+	assert.Len(t, pending, 2)
+
+	ids := make(map[string]bool)
+	for _, job := range pending {
+		ids[job.ID] = true
+	}
+	assert.True(t, ids["JOB-1"])
+	assert.True(t, ids["JOB-2"])
+}
+
 func TestOrchestrator_SubmitJob(t *testing.T) {
 	poller := newMockPoller(nil)
 	blockCh := make(chan struct{})

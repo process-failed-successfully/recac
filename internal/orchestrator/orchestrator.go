@@ -210,6 +210,18 @@ func (o *Orchestrator) GetActiveJobs() []JobInfo {
 	return jobs
 }
 
+// GetPendingJobs returns the list of currently pending jobs.
+func (o *Orchestrator) GetPendingJobs() []JobInfo {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	jobs := make([]JobInfo, 0, len(o.pendingJobs))
+	for _, job := range o.pendingJobs {
+		jobs = append(jobs, job)
+	}
+	return jobs
+}
+
 // GetJob returns the details of a specific job.
 func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
 	o.mu.RLock()

@@ -194,8 +194,25 @@ func TestRegisterAPI(t *testing.T) {
 		assert.Len(t, jobs, 2)
 		assert.ElementsMatch(t, []string{"job-7", "job-8"}, []string{jobs[0].ID, jobs[1].ID})
 
+		// Filter pending jobs
+		orch.mu.Lock()
+		orch.pendingJobs["job-9"] = JobInfo{ID: "job-9", Status: "Pending"}
+		orch.pendingJobs["job-10"] = JobInfo{ID: "job-10", Status: "Pending Dependencies"}
+		orch.mu.Unlock()
+
+		resp, err = http.Get(server.URL + "/jobs?state=pending")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 2)
+		assert.ElementsMatch(t, []string{"job-9", "job-10"}, []string{jobs[0].ID, jobs[1].ID})
+
 		// Cleanup
 		orch.mu.Lock()
+		delete(orch.pendingJobs, "job-9")
+		delete(orch.pendingJobs, "job-10")
 		delete(orch.activeJobs, "job-6")
 		delete(orch.activeJobs, "job-7")
 		delete(orch.activeJobs, "job-1")
