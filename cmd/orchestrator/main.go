@@ -84,6 +84,8 @@ func main() {
 	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
 	pflag.StringSlice("submit-tags", []string{}, "Comma-separated list of tags for the ad-hoc job")
 	pflag.Duration("submit-timeout", 0, "Optional custom timeout for the ad-hoc job (e.g. 30m)")
+	pflag.String("submit-concurrency-group", "", "Concurrency group for the ad-hoc job")
+	pflag.Bool("submit-cancel-in-progress", false, "Cancel running jobs in the same concurrency group")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -239,6 +241,8 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
 	viper.BindPFlag("orchestrator.submit_tags", pflag.Lookup("submit-tags"))
 	viper.BindPFlag("orchestrator.submit_timeout", pflag.Lookup("submit-timeout"))
+	viper.BindPFlag("orchestrator.submit_concurrency_group", pflag.Lookup("submit-concurrency-group"))
+	viper.BindPFlag("orchestrator.submit_cancel_in_progress", pflag.Lookup("submit-cancel-in-progress"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -603,7 +607,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		delay := viper.GetDuration("orchestrator.submit_delay")
 		timeout := viper.GetDuration("orchestrator.submit_timeout")
 		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
-		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, wait, envMap, submitDeps, submitTags)
+		concurrencyGroup := viper.GetString("orchestrator.submit_concurrency_group")
+		cancelInProgress := viper.GetBool("orchestrator.submit_cancel_in_progress")
+		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress)
 		return nil
 	}
 

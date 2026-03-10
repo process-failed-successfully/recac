@@ -858,32 +858,60 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		return fmt.Errorf("job %s is already pending dependencies", item.ID)
 	}
 
+	// Concurrency Group logic
+	var jobsToCancel []string
+	if item.CancelInProgress && item.ConcurrencyGroup != "" && retryCount == 0 && !bypassApproval {
+		for id, activeJob := range o.activeJobs {
+			if activeJob.WorkItem.ConcurrencyGroup == item.ConcurrencyGroup && id != item.ID {
+				jobsToCancel = append(jobsToCancel, id)
+			}
+		}
+		for id, pendingJob := range o.pendingJobs {
+			if pendingJob.WorkItem.ConcurrencyGroup == item.ConcurrencyGroup && id != item.ID {
+				jobsToCancel = append(jobsToCancel, id)
+			}
+		}
+	}
+
 	if err := o.checkCircularDependencyLocked(item); err != nil {
 		o.mu.Unlock()
 		return err
 	}
 
-		if !item.RunAfter.IsZero() && time.Now().Before(item.RunAfter) {
-			delay := item.RunAfter.Sub(time.Now())
+	if !item.RunAfter.IsZero() && time.Now().Before(item.RunAfter) {
+		delay := item.RunAfter.Sub(time.Now())
 
-			job := JobInfo{
-				ID:         item.ID,
-				Summary:    item.Summary,
-				StartTime:  time.Now(),
-				Status:     "Pending",
-				WorkItem:   item,
-				RetryCount: retryCount,
-				Approved:   bypassApproval,
-			}
-			o.pendingJobs[item.ID] = job
-			o.mu.Unlock()
-
-			time.AfterFunc(delay, func() {
-				o.evaluatePendingJobs(context.Background(), logger)
-			})
-
-			return nil
+		job := JobInfo{
+			ID:         item.ID,
+			Summary:    item.Summary,
+			StartTime:  time.Now(),
+			Status:     "Pending",
+			WorkItem:   item,
+			RetryCount: retryCount,
+			Approved:   bypassApproval,
 		}
+		o.pendingJobs[item.ID] = job
+		o.mu.Unlock()
+
+		if len(jobsToCancel) > 0 {
+			if logger != nil {
+				logger.Info("Canceling existing jobs in concurrency group for delayed job", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+			}
+			for _, cancelID := range jobsToCancel {
+				if err := o.CancelJob(ctx, cancelID); err != nil {
+					if logger != nil {
+						logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+					}
+				}
+			}
+		}
+
+		time.AfterFunc(delay, func() {
+			o.evaluatePendingJobs(context.Background(), logger)
+		})
+
+		return nil
+	}
 
 	if o.RequireApproval && !bypassApproval {
 		job := JobInfo{
@@ -897,6 +925,20 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		}
 		o.pendingJobs[item.ID] = job
 		o.mu.Unlock()
+
+		if len(jobsToCancel) > 0 {
+			if logger != nil {
+				logger.Info("Canceling existing jobs in concurrency group for pending approval job", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+			}
+			for _, cancelID := range jobsToCancel {
+				if err := o.CancelJob(ctx, cancelID); err != nil {
+					if logger != nil {
+						logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+					}
+				}
+			}
+		}
+
 		o.BroadcastEvent("job_pending_approval", job)
 		if logger != nil {
 			logger.Info("Job pending approval", "id", item.ID)
@@ -923,6 +965,20 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 				}
 				o.addToHistory(job, logger)
 				o.mu.Unlock()
+
+				if len(jobsToCancel) > 0 {
+					if logger != nil {
+						logger.Info("Canceling existing jobs in concurrency group despite dependency failure", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+					}
+					for _, cancelID := range jobsToCancel {
+						if err := o.CancelJob(ctx, cancelID); err != nil {
+							if logger != nil {
+								logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+							}
+						}
+					}
+				}
+
 				o.BroadcastEvent("job_failed", job)
 				if logger != nil {
 					logger.Error("Job failed due to failed dependency", "id", item.ID, "dependency", failedDep)
@@ -940,6 +996,20 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 			}
 			o.pendingJobs[item.ID] = job
 			o.mu.Unlock()
+
+			if len(jobsToCancel) > 0 {
+				if logger != nil {
+					logger.Info("Canceling existing jobs in concurrency group for pending dep job", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+				}
+				for _, cancelID := range jobsToCancel {
+					if err := o.CancelJob(ctx, cancelID); err != nil {
+						if logger != nil {
+							logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+						}
+					}
+				}
+			}
+
 			o.BroadcastEvent("job_pending_deps", job)
 			if logger != nil {
 				logger.Info("Job pending dependencies", "id", item.ID, "depends_on", item.DependsOn)
@@ -982,6 +1052,19 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	}
 	o.activeJobs[item.ID] = job
 	o.mu.Unlock()
+
+	if len(jobsToCancel) > 0 {
+		if logger != nil {
+			logger.Info("Canceling existing jobs in concurrency group", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+		}
+		for _, cancelID := range jobsToCancel {
+			if err := o.CancelJob(ctx, cancelID); err != nil {
+				if logger != nil {
+					logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+				}
+			}
+		}
+	}
 
 	o.BroadcastEvent("job_spawning", job)
 

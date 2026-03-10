@@ -248,21 +248,23 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, wait bool, envVars map[string]string, dependsOn []string, tags []string) {
+func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool) {
 	if id == "" {
 		id = uuid.New().String()
 	}
 
 	item := orchestrator.WorkItem{
-		ID:          id,
-		Summary:     task, // Using task description as summary for ad-hoc
-		Description: task,
-		RepoURL:     repo,
-		EnvVars:     envVars,
-		Priority:    priority,
-		DependsOn:   dependsOn,
-		Tags:        tags,
-		Timeout:     timeout,
+		ID:               id,
+		Summary:          task, // Using task description as summary for ad-hoc
+		Description:      task,
+		RepoURL:          repo,
+		EnvVars:          envVars,
+		Priority:         priority,
+		DependsOn:        dependsOn,
+		Tags:             tags,
+		Timeout:          timeout,
+		ConcurrencyGroup: concurrencyGroup,
+		CancelInProgress: cancelInProgress,
 	}
 
 	if delay > 0 {
