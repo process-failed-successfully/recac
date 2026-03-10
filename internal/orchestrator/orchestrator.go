@@ -618,6 +618,61 @@ func (o *Orchestrator) ApproveJob(ctx context.Context, jobID string, logger *slo
 	return nil
 }
 
+// UpdateJobDependencies updates the dependencies of a job in the pending queue.
+func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, dependsOn []string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have dependencies updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	// Create a backup of old dependencies to revert if cycle detected
+	oldDeps := job.WorkItem.DependsOn
+
+	// Make a copy of the new dependencies to avoid mutating original slice accidentally
+	newDeps := make([]string, len(dependsOn))
+	copy(newDeps, dependsOn)
+	job.WorkItem.DependsOn = newDeps
+
+	// Update the map so checkCircularDependencyLocked can see the new graph
+	o.pendingJobs[jobID] = job
+
+	// Temporarily create a dummy WorkItem for cycle detection
+	dummyItem := job.WorkItem
+
+	if err := o.checkCircularDependencyLocked(dummyItem); err != nil {
+		// Revert
+		job.WorkItem.DependsOn = oldDeps
+		o.pendingJobs[jobID] = job
+		o.mu.Unlock()
+		return err
+	}
+
+	o.mu.Unlock()
+	o.BroadcastEvent("job_dependencies_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job dependencies", "jobID", jobID, "dependsOn", newDeps)
+	}
+
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // UpdateJobPriority updates the priority of a job in the pending queue.
 func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newPriority int, logger *slog.Logger) error {
 	o.mu.Lock()

@@ -68,6 +68,8 @@ func main() {
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
+	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
+	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
@@ -225,6 +227,8 @@ func main() {
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
+	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
+	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
@@ -549,6 +553,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		priorityVal := viper.GetInt("orchestrator.priority_val")
 		updatePriority(host, updateJob, priorityVal)
+		return nil
+	}
+
+	if updateDepsJob := viper.GetString("orchestrator.update_deps_job"); updateDepsJob != "" {
+		host := viper.GetString("orchestrator.host")
+		var setDepsPtr []string
+		if viper.IsSet("orchestrator.set_deps") {
+			setDepsPtr = viper.GetStringSlice("orchestrator.set_deps")
+		} else {
+			setDepsPtr = []string{}
+		}
+		updateDependencies(host, updateDepsJob, setDepsPtr)
 		return nil
 	}
 
