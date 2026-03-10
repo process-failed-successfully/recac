@@ -57,7 +57,4 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "id=\"editDepsModal\"")
 	assert.Contains(t, html, "function editDependencies(encodedJobJson)")
 	assert.Contains(t, html, "async function submitEditDeps()")
-
-	// Verify Set Deps button render logic exists
-	assert.Contains(t, html, "editDependencies(\\'")
 }

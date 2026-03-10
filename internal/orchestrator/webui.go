@@ -90,6 +90,16 @@ const DashboardHTML = `
             </div>
         </div>
 
+        <div id="editDepsModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</span>
+                <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
+                <input type="hidden" id="edit-deps-job-id">
+                <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
+                <button onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+            </div>
+        </div>
+
         <div id="logsModal" class="modal">
             <div class="modal-content modal-large">
                 <span class="close" onclick="closeLogs()">&times;</span>
@@ -282,6 +292,42 @@ const DashboardHTML = `
             }
         }
 
+        function editDependencies(encodedJobJson) {
+            try {
+                const j = JSON.parse(decodeURIComponent(encodedJobJson));
+                document.getElementById('edit-deps-job-id').value = j.id;
+                document.getElementById('edit-deps-job-id-display').innerText = j.id;
+                document.getElementById('edit-deps-input').value = (j.work_item.depends_on || []).join(', ');
+                document.getElementById('editDepsModal').style.display = 'block';
+            } catch (e) {
+                console.error("Error editing dependencies:", e);
+                alert("Failed to load job details.");
+            }
+        }
+
+        async function submitEditDeps() {
+            const id = document.getElementById('edit-deps-job-id').value;
+            const depsStr = document.getElementById('edit-deps-input').value.trim();
+            const deps = depsStr ? depsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+
+            try {
+                const res = await fetch('/jobs/' + encodeURIComponent(id) + '/dependencies', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ depends_on: deps })
+                });
+                if (res.ok) {
+                    document.getElementById('editDepsModal').style.display = 'none';
+                    fetchStatus();
+                    fetchJobs();
+                } else {
+                    alert('Failed to update dependencies: ' + await res.text());
+                }
+            } catch(e) {
+                alert('Request failed: ' + e);
+            }
+        }
+
         async function submitAdHocJob() {
             const id = document.getElementById('job-id').value.trim();
             const summary = document.getElementById('job-summary').value.trim();
@@ -409,6 +455,9 @@ const DashboardHTML = `
 
                     actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
+                    if (lowerStatus === 'pending') {
+                        actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
+                    }
                     actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +

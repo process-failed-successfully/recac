@@ -1,0 +1,11 @@
+--- internal/orchestrator/api_webui_test.go
++++ internal/orchestrator/api_webui_test.go
+@@ -46,5 +46,8 @@
+	// Verify Set Deps Modal HTML exists
+	assert.Contains(t, html, "id=\"editDepsModal\"")
+	assert.Contains(t, html, "function editDependencies(encodedJobJson)")
+	assert.Contains(t, html, "async function submitEditDeps()")
++
++	// Verify Set Deps button render logic exists
++	assert.Contains(t, html, "editDependencies(\\'")
+ }
