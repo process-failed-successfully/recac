@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var bugFixRe = regexp.MustCompile(`(?i)(fix|resolve|close|bug|issue)`)
+
 // GitClient defines the interface needed for gamification analysis.
 type GitClient interface {
 	Log(directory string, args ...string) ([]string, error)
@@ -51,9 +53,6 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 
 	players := make(map[string]*Player)
 	var currentPlayer *Player
-
-	// Regex for bug fixes
-	bugFixRe := regexp.MustCompile(`(?i)(fix|resolve|close|bug|issue)`)
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
