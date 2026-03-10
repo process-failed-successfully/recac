@@ -560,7 +560,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	})
 
 	mux.HandleFunc("DELETE /history", func(w http.ResponseWriter, r *http.Request) {
-		count, err := orch.ClearHistory(logger)
+		tag := r.URL.Query().Get("tag")
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.PurgeJobsByTag(tag, logger)
+		} else {
+			count, err = orch.ClearHistory(logger)
+		}
+
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to clear history: %v", err), http.StatusInternalServerError)
 			return

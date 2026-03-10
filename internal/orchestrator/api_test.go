@@ -949,6 +949,31 @@ func TestAPI_PurgeJob(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, rr.Code)
 		assert.Contains(t, rr.Body.String(), "cannot purge")
 	})
+
+	t.Run("DELETE /history?tag=", func(t *testing.T) {
+		// Create a job with a specific tag to test purge by tag
+		jobWithTag := JobInfo{
+			ID:     "TAG-JOB-1",
+			Status: "Completed",
+			WorkItem: WorkItem{
+				Tags: []string{"test-purge-tag"},
+			},
+		}
+		orch.mu.Lock()
+		orch.completedJobs = append(orch.completedJobs, jobWithTag)
+		orch.mu.Unlock()
+
+		req, _ := http.NewRequest("DELETE", "/history?tag=test-purge-tag", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"cleared":1`)
+
+		// Verify it was purged
+		_, err := orch.GetJob("TAG-JOB-1")
+		assert.Error(t, err)
+	})
 }
 
 func TestAPI_ClearHistory(t *testing.T) {

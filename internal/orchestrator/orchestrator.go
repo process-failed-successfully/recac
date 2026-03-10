@@ -1726,6 +1726,72 @@ func (o *Orchestrator) PurgeJob(id string, logger *slog.Logger) error {
 	return nil
 }
 
+// PurgeJobsByTag purges all completed/failed jobs that have the specified tag from both memory and persistence.
+func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	lowerTag := strings.ToLower(tag)
+
+	purgedIDs := make(map[string]bool)
+
+	// 1. Purge from memory
+	var newCompleted []JobInfo
+	for _, job := range o.completedJobs {
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag {
+			purgedIDs[job.ID] = true
+			if logger != nil {
+				logger.Info("Job purged from history by tag", "id", job.ID, "tag", tag)
+			}
+			o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+		} else {
+			newCompleted = append(newCompleted, job)
+		}
+	}
+	o.completedJobs = newCompleted
+
+	// 2. Purge from persistence
+	if o.Persistence != nil {
+		// As there is no PurgeJobsByTag method in the Persistence interface,
+		// we fetch all jobs, check the tags, and delete them individually.
+		// For a better approach in the future, a new method could be added to Persistence.
+		jobsInDb, err := o.Persistence.GetJobs(10000) // Getting a large number to ensure we get all
+		if err == nil {
+			for _, job := range jobsInDb {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.ToLower(t) == lowerTag {
+						hasTag = true
+						break
+					}
+				}
+
+				if hasTag {
+					if err := o.Persistence.PurgeJob(job.ID); err == nil {
+						if !purgedIDs[job.ID] {
+							purgedIDs[job.ID] = true
+							if logger != nil {
+								logger.Info("Job purged from history by tag (DB only)", "id", job.ID, "tag", tag)
+							}
+							o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return len(purgedIDs), nil
+}
+
 // ClearHistory clears the in-memory history and the persistent history.
 func (o *Orchestrator) ClearHistory(logger *slog.Logger) (int, error) {
 	o.mu.Lock()

@@ -19,7 +19,13 @@ func (m *mockPersistenceClear) Init() error                 { return nil }
 func (m *mockPersistenceClear) Close() error                { return nil }
 func (m *mockPersistenceClear) SaveJob(job JobInfo) error   { return nil }
 func (m *mockPersistenceClear) GetJob(id string) (*JobInfo, error) { return nil, nil }
-func (m *mockPersistenceClear) GetJobs(limit int) ([]JobInfo, error) { return nil, nil }
+func (m *mockPersistenceClear) GetJobs(limit int) ([]JobInfo, error) {
+	args := m.Called(limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]JobInfo), args.Error(1)
+}
 func (m *mockPersistenceClear) PurgeJob(id string) error {
 	args := m.Called(id)
 	return args.Error(0)
@@ -71,6 +77,49 @@ func TestOrchestrator_PurgeJob(t *testing.T) {
 	err = orch.PurgeJob("JOB-2", silentLogger)
 	assert.NoError(t, err)
 	assert.Len(t, orch.GetCompletedJobs(), 0)
+	p.AssertExpectations(t)
+}
+
+func TestOrchestrator_PurgeJobsByTag(t *testing.T) {
+	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
+
+	job1 := JobInfo{ID: "JOB-1", Status: "Completed", WorkItem: WorkItem{Tags: []string{"tag1", "common"}}}
+	job2 := JobInfo{ID: "JOB-2", Status: "Failed", WorkItem: WorkItem{Tags: []string{"tag2", "common"}}}
+	job3 := JobInfo{ID: "JOB-3", Status: "Completed", WorkItem: WorkItem{Tags: []string{"tag1"}}}
+
+	orch.completedJobs = append(orch.completedJobs, job1, job2, job3)
+	assert.Len(t, orch.GetCompletedJobs(), 3)
+
+	// Test purge by specific tag
+	count, err := orch.PurgeJobsByTag("tag1", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 1)
+	assert.Equal(t, "JOB-2", completed[0].ID)
+
+	// Add more jobs to test case insensitivity
+	job4 := JobInfo{ID: "JOB-4", Status: "Completed", WorkItem: WorkItem{Tags: []string{"TAG-UPPER"}}}
+	orch.completedJobs = append(orch.completedJobs, job4)
+
+	count, err = orch.PurgeJobsByTag("tag-upper", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	// Add jobs to test persistence
+	p := &mockPersistenceClear{}
+	// Since we mock GetJobs and PurgeJob we need to set them up
+	p.On("GetJobs", 10000).Return([]JobInfo{
+		{ID: "DB-JOB-1", Status: "Completed", WorkItem: WorkItem{Tags: []string{"db-tag"}}},
+		{ID: "DB-JOB-2", Status: "Failed", WorkItem: WorkItem{Tags: []string{"other-tag"}}},
+	}, nil).Once()
+	p.On("PurgeJob", "DB-JOB-1").Return(nil).Once()
+	orch.SetPersistence(p)
+
+	count, err = orch.PurgeJobsByTag("db-tag", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
 	p.AssertExpectations(t)
 }
 
