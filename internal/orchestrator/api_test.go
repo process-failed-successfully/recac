@@ -135,11 +135,11 @@ func TestRegisterAPI(t *testing.T) {
 
 	t.Run("Jobs Endpoint Filtered", func(t *testing.T) {
 		orch.mu.Lock()
-		orch.activeJobs["job-1"] = JobInfo{ID: "job-1", Status: "Running"}
-		orch.activeJobs["job-2"] = JobInfo{ID: "job-2", Status: "Pending"}
+		orch.activeJobs["job-1"] = JobInfo{ID: "job-1", Status: "Running", Summary: "Standard job"}
+		orch.activeJobs["job-2"] = JobInfo{ID: "job-2", Status: "Pending", Summary: "Another standard job"}
 		orch.completedJobs = []JobInfo{
-			{ID: "job-3", Status: "Failed"},
-			{ID: "job-4", Status: "Completed"},
+			{ID: "job-3", Status: "Failed", Error: "timeout exceeded in spawner"},
+			{ID: "job-4", Status: "Completed", Summary: "Fix login timeout issue"},
 			{ID: "job-5", Status: "FAILED"}, // test case insensitivity
 		}
 		orch.mu.Unlock()
@@ -208,6 +208,21 @@ func TestRegisterAPI(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, jobs, 2)
 		assert.ElementsMatch(t, []string{"job-9", "job-10"}, []string{jobs[0].ID, jobs[1].ID})
+
+		// Filter all jobs by match regex
+		resp, err = http.Get(server.URL + "/jobs?state=all&match=timeout")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 2)
+		assert.ElementsMatch(t, []string{"job-3", "job-4"}, []string{jobs[0].ID, jobs[1].ID})
+
+		// Filter with invalid regex
+		resp, err = http.Get(server.URL + "/jobs?state=all&match=[invalid")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 		// Cleanup
 		orch.mu.Lock()

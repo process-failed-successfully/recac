@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -117,6 +118,22 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 					}
 				}
 				if hasTag {
+					filtered = append(filtered, job)
+				}
+			}
+			jobs = filtered
+		}
+
+		matchFilter := r.URL.Query().Get("match")
+		if matchFilter != "" {
+			matcher, err := regexp.Compile("(?i)" + matchFilter)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid match regex: %v", err), http.StatusBadRequest)
+				return
+			}
+			var filtered []JobInfo
+			for _, job := range jobs {
+				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 					filtered = append(filtered, job)
 				}
 			}
