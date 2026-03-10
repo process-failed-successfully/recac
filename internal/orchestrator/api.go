@@ -198,6 +198,31 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		io.Copy(w, logStream)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/output", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			Outputs map[string]string `json:"outputs"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.SetJobOutput(id, req.Outputs, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"status": "success", "job_id": "%s"}`, id)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/priority", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

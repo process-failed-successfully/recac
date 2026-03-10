@@ -573,6 +573,46 @@ func updatePriority(host, jobID string, priority int) {
 	fmt.Fprintf(stdout, "Job %s priority updated to %d\n", jobID, priority)
 }
 
+func setJobOutput(host, jobID, key, val string) {
+	reqBody := struct {
+		Outputs map[string]string `json:"outputs"`
+	}{
+		Outputs: map[string]string{key: val},
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal output data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	urlStr := fmt.Sprintf("%s/jobs/%s/output", host, url.PathEscape(jobID))
+	req, err := http.NewRequest(http.MethodPost, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to set job output: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully set output %s=%s for job %s\n", key, val, jobID)
+}
+
 func exportJobs(host, path, format string) {
 	if format != "json" && format != "csv" {
 		fmt.Fprintf(stdout, "Invalid format: %s. Must be 'json' or 'csv'.\n", format)

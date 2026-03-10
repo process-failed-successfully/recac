@@ -69,6 +69,9 @@ func main() {
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
+	pflag.String("set-output-job", "", "Set output key-value pair for a job")
+	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
+	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-matrix", "", "Submit a matrix job from a JSON file path")
@@ -221,6 +224,9 @@ func main() {
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
+	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
+	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
+	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
 	viper.BindPFlag("orchestrator.submit_matrix", pflag.Lookup("submit-matrix"))
@@ -372,6 +378,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			fmt.Fprintf(stdout, "Tail failed: %v\n", err)
 			exitFunc(1)
 		}
+		return nil
+	}
+
+	if outputJob := viper.GetString("orchestrator.set_output_job"); outputJob != "" {
+		host := viper.GetString("orchestrator.host")
+		key := viper.GetString("orchestrator.set_output_key")
+		val := viper.GetString("orchestrator.set_output_val")
+		if key == "" {
+			fmt.Fprintf(stdout, "Error: --set-output-key is required when using --set-output-job\n")
+			exitFunc(1)
+			return nil
+		}
+		setJobOutput(host, outputJob, key, val)
 		return nil
 	}
 
