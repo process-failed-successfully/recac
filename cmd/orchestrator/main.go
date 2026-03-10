@@ -102,7 +102,7 @@ func main() {
 	pflag.String("export-jobs", "", "Export all jobs to a file (use '-' for stdout)")
 	pflag.String("export-format", "json", "Format for exported jobs ('json' or 'csv')")
 
-	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
+	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
@@ -868,8 +868,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		pullPolicy := viper.GetString("orchestrator.image_pull_policy")
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 		janitorClient = dockerCli
+	case "process", "native":
+		spawner = orchestrator.NewProcessSpawner(logger, agentProvider, agentModel, sm, maxIterations, managerFrequency, taskMaxIterations)
 	default:
-		return fmt.Errorf("Invalid mode. Use 'local' or 'k8s': %s", mode)
+		return fmt.Errorf("Invalid mode. Use 'local', 'k8s', or 'process': %s", mode)
 	}
 
 	// 3. Janitor
