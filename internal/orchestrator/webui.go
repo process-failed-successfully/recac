@@ -207,12 +207,21 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/analytics');
                 const data = await res.json();
-                document.getElementById('analytics-content').innerHTML = '<div class="metric"><span class="label">Total Jobs:</span> <span class="value">' + data.total_jobs + '</span></div>' +
+                let html = '<div class="metric"><span class="label">Total Jobs:</span> <span class="value">' + data.total_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Successful:</span> <span class="value" style="color: green">' + data.successful_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Failed:</span> <span class="value" style="color: red">' + data.failed_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Canceled:</span> <span class="value">' + data.canceled_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Success Rate:</span> <span class="value">' + data.success_rate.toFixed(2) + '%</span></div>' +
                     '<div class="metric"><span class="label">Avg Duration:</span> <span class="value">' + (data.average_duration/1e9).toFixed(2) + 's</span></div>';
+
+                if (data.total_metrics && Object.keys(data.total_metrics).length > 0) {
+                    html += '<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;"><strong>Total Metrics</strong></div>';
+                    for (const [key, value] of Object.entries(data.total_metrics)) {
+                        html += '<div class="metric"><span class="label">' + escapeHTML(key) + ':</span> <span class="value">' + value.toFixed(2) + '</span></div>';
+                    }
+                }
+
+                document.getElementById('analytics-content').innerHTML = html;
             } catch (err) {
                 console.error('Error fetching analytics:', err);
             }
