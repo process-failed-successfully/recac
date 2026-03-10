@@ -511,6 +511,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 						m.inputs[0].SetValue(job.Summary)
 						m.inputs[1].SetValue(job.WorkItem.RepoURL)
 						m.inputs[2].SetValue(strings.Join(job.WorkItem.DependsOn, ","))
+						m.inputs[3].SetValue(job.WorkItem.ConcurrencyGroup)
+						m.inputs[4].SetValue(fmt.Sprintf("%t", job.WorkItem.CancelInProgress))
 						m.textarea.SetValue(job.WorkItem.Description)
 						for i := 1; i < len(m.inputs); i++ {
 							m.inputs[i].Blur()
@@ -663,7 +665,14 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			summary := m.inputs[0].Value()
 			repoUrl := m.inputs[1].Value()
 			dependsOnStr := m.inputs[2].Value()
+			concurrencyGroup := m.inputs[3].Value()
+			cancelInProgressStr := strings.ToLower(strings.TrimSpace(m.inputs[4].Value()))
 			description := m.textarea.Value()
+
+			cancelInProgress := false
+			if cancelInProgressStr == "true" || cancelInProgressStr == "t" || cancelInProgressStr == "yes" || cancelInProgressStr == "y" || cancelInProgressStr == "1" {
+				cancelInProgress = true
+			}
 
 			var dependsOn []string
 			if dependsOnStr != "" {
@@ -678,7 +687,7 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 
 			if summary != "" && repoUrl != "" {
 				m.viewState = viewMain
-				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn)
+				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn, concurrencyGroup, cancelInProgress)
 			}
 		case tea.KeyTab, tea.KeyShiftTab, tea.KeyEnter, tea.KeyUp, tea.KeyDown:
 			s := msg.String()
@@ -1298,18 +1307,20 @@ func openBrowserCmd(url string) tea.Cmd {
 	}
 }
 
-func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string) tea.Cmd {
+func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string, concurrencyGroup string, cancelInProgress bool) tea.Cmd {
 	return func() tea.Msg {
 		// Use a timestamp-based ID or a unique ID.
 		// For simplicity, generating an ad-hoc ID
 		jobID := fmt.Sprintf("adhoc-%d", time.Now().Unix())
 
 		item := orchestrator.WorkItem{
-			ID:          jobID,
-			Summary:     summary,
-			RepoURL:     repoUrl,
-			Description: description,
-			DependsOn:   dependsOn,
+			ID:               jobID,
+			Summary:          summary,
+			RepoURL:          repoUrl,
+			Description:      description,
+			DependsOn:        dependsOn,
+			ConcurrencyGroup: concurrencyGroup,
+			CancelInProgress: cancelInProgress,
 		}
 
 		bodyBytes, err := json.Marshal(item)
@@ -1370,7 +1381,7 @@ func retryFailedJobs(host string) tea.Cmd {
 // NewDashboardModel initializes a new DashboardModel with default styles
 func NewDashboardModel(host string) DashboardModel {
 	// Initialize inputs for submission form
-	inputs := make([]textinput.Model, 3)
+	inputs := make([]textinput.Model, 5)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Fix login issue"
@@ -1387,6 +1398,16 @@ func NewDashboardModel(host string) DashboardModel {
 	inputs[2].Placeholder = "JOB-1,JOB-2"
 	inputs[2].Prompt = "Depends On (comma-separated IDs): "
 	inputs[2].Width = 50
+
+	inputs[3] = textinput.New()
+	inputs[3].Placeholder = "group-1"
+	inputs[3].Prompt = "Concurrency Group: "
+	inputs[3].Width = 50
+
+	inputs[4] = textinput.New()
+	inputs[4].Placeholder = "true/false"
+	inputs[4].Prompt = "Cancel In Progress: "
+	inputs[4].Width = 50
 
 	ta := textarea.New()
 	ta.Placeholder = "Detailed description of the issue..."
