@@ -86,6 +86,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		switch state {
 		case "completed":
 			jobs = orch.GetCompletedJobs()
+		case "pending":
+			jobs = orch.GetPendingJobs()
 		case "all":
 			jobs = append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
 		default:

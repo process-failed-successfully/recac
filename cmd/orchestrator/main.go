@@ -37,6 +37,7 @@ func main() {
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
+	pflag.Bool("list-pending", false, "List pending jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
@@ -187,6 +188,7 @@ func main() {
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.list_pending", pflag.Lookup("list-pending"))
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
@@ -347,6 +349,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		statusFilter := viper.GetString("orchestrator.list_jobs_status")
 		tagFilter := viper.GetString("orchestrator.list_jobs_tag")
 		listJobs(host, history, statusFilter, tagFilter)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.list_pending") {
+		host := viper.GetString("orchestrator.host")
+		listPendingJobs(host)
 		return nil
 	}
 
@@ -1014,6 +1022,81 @@ func printStatus(host string) {
 		printField("Max Concurrent Jobs", "Unlimited")
 	}
 	fmt.Fprintln(stdout, "")
+}
+
+func listPendingJobs(host string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	q.Set("state", "pending")
+	u.RawQuery = q.Encode()
+
+	resp, err := http.Get(u.String())
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(stdout, "Failed to fetch pending jobs: status %s\n", resp.Status)
+		exitFunc(1)
+		return
+	}
+
+	var jobs []orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if len(jobs) == 0 {
+		fmt.Fprintln(stdout, "No pending jobs.")
+		return
+	}
+
+	// Styles
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		Padding(0, 1)
+
+	rowStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
+	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Pending Jobs (%d)", len(jobs))))
+	fmt.Fprintln(stdout, "")
+
+	// Table Header
+	fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
+		headerStyle.Render("ID"),
+		headerStyle.Render("Summary"),
+		headerStyle.Render("Status"),
+		headerStyle.Render("Duration"),
+	)
+
+	for _, job := range jobs {
+		duration := time.Since(job.StartTime).Round(time.Second).String()
+		fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
+			rowStyle.Render(job.ID),
+			rowStyle.Render(limitString(job.Summary, 38)),
+			rowStyle.Render(job.Status),
+			rowStyle.Render(duration),
+		)
+	}
 }
 
 func listJobs(host string, history bool, status, tag string) {

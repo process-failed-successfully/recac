@@ -127,6 +127,97 @@ func TestListJobs(t *testing.T) {
 	})
 }
 
+func TestListPendingJobs(t *testing.T) {
+	// Mock exitFunc and stdout
+	originalExit := exitFunc
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() {
+		exitFunc = originalExit
+		stdout = originalStdout
+	}()
+
+	t.Run("Success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs", r.URL.Path)
+			assert.Equal(t, "pending", r.URL.Query().Get("state"))
+			jobs := []orchestrator.JobInfo{
+				{
+					ID:        "job-pending-1",
+					Summary:   "Test Pending Job",
+					Status:    "Pending",
+					StartTime: time.Now(),
+				},
+			}
+			json.NewEncoder(w).Encode(jobs)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		listPendingJobs(server.URL)
+
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "job-pending-1")
+		assert.Contains(t, buf.String(), "Test Pending Job")
+		assert.Contains(t, buf.String(), "Pending")
+	})
+
+	t.Run("Empty", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "pending", r.URL.Query().Get("state"))
+			json.NewEncoder(w).Encode([]orchestrator.JobInfo{})
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		listPendingJobs(server.URL)
+
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "No pending jobs.")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		listPendingJobs("http://invalid-host")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect")
+	})
+
+	t.Run("ServerError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		listPendingJobs(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to fetch pending jobs")
+	})
+
+	t.Run("DecodeError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("invalid json"))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		listPendingJobs(server.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+}
+
 func TestGetLogs(t *testing.T) {
 	// Mock exitFunc and stdout
 	originalExit := exitFunc
