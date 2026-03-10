@@ -708,6 +708,81 @@ func (o *Orchestrator) UpdateJobTimeout(ctx context.Context, jobID string, newTi
 	return nil
 }
 
+// UpdateJobWorkItem completely updates the WorkItem of a job in the pending queue.
+func (o *Orchestrator) UpdateJobWorkItem(ctx context.Context, jobID string, newItem WorkItem, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot be updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	if newItem.ID != jobID {
+		o.mu.Unlock()
+		return fmt.Errorf("cannot change job ID from %s to %s", jobID, newItem.ID)
+	}
+
+	// Create a backup to revert if a cycle is detected
+	oldItem := job.WorkItem
+
+	// Deep copy to prevent mutating the original pointers
+	newDeps := make([]string, len(newItem.DependsOn))
+	copy(newDeps, newItem.DependsOn)
+	newItem.DependsOn = newDeps
+
+	if newItem.EnvVars != nil {
+		newEnv := make(map[string]string)
+		for k, v := range newItem.EnvVars {
+			newEnv[k] = v
+		}
+		newItem.EnvVars = newEnv
+	}
+
+	if newItem.Tags != nil {
+		newTags := make([]string, len(newItem.Tags))
+		copy(newTags, newItem.Tags)
+		newItem.Tags = newTags
+	}
+
+	job.WorkItem = newItem
+	job.Summary = newItem.Summary
+
+	// Update the map temporarily for cycle detection
+	o.pendingJobs[jobID] = job
+
+	if err := o.checkCircularDependencyLocked(newItem); err != nil {
+		// Revert
+		job.WorkItem = oldItem
+		job.Summary = oldItem.Summary
+		o.pendingJobs[jobID] = job
+		o.mu.Unlock()
+		return err
+	}
+
+	o.mu.Unlock()
+	o.BroadcastEvent("job_workitem_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job work item", "jobID", jobID)
+	}
+
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // UpdateJobPriority updates the priority of a job in the pending queue.
 func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newPriority int, logger *slog.Logger) error {
 	o.mu.Lock()
