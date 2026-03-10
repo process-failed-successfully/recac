@@ -687,6 +687,46 @@ func setJobOutput(host, jobID, key, val string) {
 	fmt.Fprintf(stdout, "Successfully set output %s=%s for job %s\n", key, val, jobID)
 }
 
+func addJobMetrics(host, jobID, key string, val float64) {
+	reqBody := struct {
+		Metrics map[string]float64 `json:"metrics"`
+	}{
+		Metrics: map[string]float64{key: val},
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal metric data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	urlStr := fmt.Sprintf("%s/jobs/%s/metrics", host, url.PathEscape(jobID))
+	req, err := http.NewRequest(http.MethodPost, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to add job metrics: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully added metric %s=%.2f for job %s\n", key, val, jobID)
+}
+
 func exportJobs(host, path, format string) {
 	if format != "json" && format != "csv" {
 		fmt.Fprintf(stdout, "Invalid format: %s. Must be 'json' or 'csv'.\n", format)

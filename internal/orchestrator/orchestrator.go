@@ -64,6 +64,7 @@ type JobInfo struct {
 	RetryAfter  time.Time         `json:"retry_after,omitempty"`
 	Approved    bool              `json:"approved,omitempty"`
 	Outputs     map[string]string `json:"outputs,omitempty"`
+	Metrics     map[string]float64 `json:"metrics,omitempty"`
 }
 
 type Status struct {
@@ -86,6 +87,7 @@ type Analytics struct {
 	CanceledJobs    int           `json:"canceled_jobs"`
 	SuccessRate     float64       `json:"success_rate"`
 	AverageDuration time.Duration `json:"average_duration"`
+	TotalMetrics    map[string]float64 `json:"total_metrics,omitempty"`
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -452,6 +454,8 @@ func (o *Orchestrator) GetAnalytics() Analytics {
 	var totalDuration time.Duration
 	var durationCount int
 
+	stats.TotalMetrics = make(map[string]float64)
+
 	for _, job := range jobs {
 		stats.TotalJobs++
 		if job.Status == "Completed" {
@@ -464,6 +468,12 @@ func (o *Orchestrator) GetAnalytics() Analytics {
 			stats.FailedJobs++
 		} else if job.Status == "Canceled" {
 			stats.CanceledJobs++
+		}
+
+		if job.Metrics != nil {
+			for k, v := range job.Metrics {
+				stats.TotalMetrics[k] += v
+			}
 		}
 	}
 
@@ -1490,6 +1500,94 @@ func (o *Orchestrator) addToHistory(job JobInfo, logger *slog.Logger) {
 			}
 		}
 	}
+}
+
+// AddJobMetrics sets metrics variables for a specific job.
+func (o *Orchestrator) AddJobMetrics(jobID string, metrics map[string]float64, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// 1. Check active jobs
+	if job, ok := o.activeJobs[jobID]; ok {
+		if job.Metrics == nil {
+			job.Metrics = make(map[string]float64)
+		}
+		for k, v := range metrics {
+			job.Metrics[k] += v
+		}
+		o.activeJobs[jobID] = job
+		if logger != nil {
+			logger.Info("Added metrics for active job", "jobID", jobID, "metrics", len(metrics))
+		}
+		return nil
+	}
+
+	// 2. Check pending jobs (though unlikely to have metrics set)
+	if job, ok := o.pendingJobs[jobID]; ok {
+		if job.Metrics == nil {
+			job.Metrics = make(map[string]float64)
+		}
+		for k, v := range metrics {
+			job.Metrics[k] += v
+		}
+		o.pendingJobs[jobID] = job
+		if logger != nil {
+			logger.Info("Added metrics for pending job", "jobID", jobID, "metrics", len(metrics))
+		}
+		return nil
+	}
+
+	// 3. Check memory history
+	foundInMemory := false
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		if o.completedJobs[i].ID == jobID {
+			if o.completedJobs[i].Metrics == nil {
+				o.completedJobs[i].Metrics = make(map[string]float64)
+			}
+			for k, v := range metrics {
+				o.completedJobs[i].Metrics[k] += v
+			}
+
+			// 4. Also update persistence if found in memory
+			if o.Persistence != nil {
+				if err := o.Persistence.SaveJob(o.completedJobs[i]); err != nil && logger != nil {
+					logger.Warn("Failed to persist updated job metrics", "jobID", jobID, "error", err)
+				}
+			}
+
+			foundInMemory = true
+			if logger != nil {
+				logger.Info("Added metrics for completed job (in memory)", "jobID", jobID, "metrics", len(metrics))
+			}
+			break
+		}
+	}
+
+	if foundInMemory {
+		return nil
+	}
+
+	// 5. Check persistence only if not in memory
+	if o.Persistence != nil {
+		job, err := o.Persistence.GetJob(jobID)
+		if err == nil {
+			if job.Metrics == nil {
+				job.Metrics = make(map[string]float64)
+			}
+			for k, v := range metrics {
+				job.Metrics[k] += v
+			}
+			if err := o.Persistence.SaveJob(*job); err != nil {
+				return fmt.Errorf("failed to persist updated job metrics: %w", err)
+			}
+			if logger != nil {
+				logger.Info("Added metrics for completed job (in persistence)", "jobID", jobID, "metrics", len(metrics))
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("job %s not found", jobID)
 }
 
 // SetJobOutput sets output variables for a specific job.

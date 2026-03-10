@@ -78,6 +78,9 @@ func main() {
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
 	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
+	pflag.String("add-metrics-job", "", "Add metrics to a specific job")
+	pflag.String("metrics-key", "", "The metrics key to add (requires --add-metrics-job)")
+	pflag.Float64("metrics-val", 0, "The metrics value to add (requires --add-metrics-job)")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-matrix", "", "Submit a matrix job from a JSON file path")
@@ -241,6 +244,9 @@ func main() {
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
 	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
+	viper.BindPFlag("orchestrator.add_metrics_job", pflag.Lookup("add-metrics-job"))
+	viper.BindPFlag("orchestrator.metrics_key", pflag.Lookup("metrics-key"))
+	viper.BindPFlag("orchestrator.metrics_val", pflag.Lookup("metrics-val"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
 	viper.BindPFlag("orchestrator.submit_matrix", pflag.Lookup("submit-matrix"))
@@ -408,6 +414,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		setJobOutput(host, outputJob, key, val)
+		return nil
+	}
+
+	if addMetricsJob := viper.GetString("orchestrator.add_metrics_job"); addMetricsJob != "" {
+		host := viper.GetString("orchestrator.host")
+		key := viper.GetString("orchestrator.metrics_key")
+		val := viper.GetFloat64("orchestrator.metrics_val")
+		if key == "" {
+			fmt.Fprintf(stdout, "Error: --metrics-key is required when using --add-metrics-job\n")
+			exitFunc(1)
+			return nil
+		}
+		addJobMetrics(host, addMetricsJob, key, val)
 		return nil
 	}
 
@@ -1027,6 +1046,14 @@ func printAnalytics(host string) {
 	// Convert ns to a more readable format, like 1h2m3s
 	avgDuration := analytics.AverageDuration.Round(time.Second).String()
 	printField("Average Duration", avgDuration)
+
+	if len(analytics.TotalMetrics) > 0 {
+		fmt.Fprintln(stdout, "\n"+titleStyle.Render("Total Metrics"))
+		for k, v := range analytics.TotalMetrics {
+			fmt.Fprintf(stdout, "%s %s\n", labelStyle.Render(k+":"), valueStyle.Render(fmt.Sprintf("%.2f", v)))
+		}
+	}
+
 	fmt.Fprintln(stdout, "")
 }
 
@@ -1364,6 +1391,14 @@ func inspectJob(host, jobID string) {
 				v = "***"
 			}
 			fmt.Fprintf(stdout, "  %s=%s\n", k, v)
+		}
+	}
+
+	// Metrics
+	if len(job.Metrics) > 0 {
+		fmt.Fprintln(stdout, "\n"+labelStyle.Render("Metrics:"))
+		for k, v := range job.Metrics {
+			fmt.Fprintf(stdout, "  %s=%.2f\n", k, v)
 		}
 	}
 }

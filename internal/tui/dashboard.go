@@ -1522,6 +1522,13 @@ func renderAnalytics(a orchestrator.Analytics) string {
 	s.WriteString(kv("Success Rate", fmt.Sprintf("%.2f%%", a.SuccessRate)))
 	s.WriteString(kv("Average Duration", a.AverageDuration.Round(time.Second).String()))
 
+	if len(a.TotalMetrics) > 0 {
+		s.WriteString("\n" + h1("Total Metrics") + "\n\n")
+		for k, v := range a.TotalMetrics {
+			s.WriteString(kv(k, fmt.Sprintf("%.2f", v)))
+		}
+	}
+
 	return s.String()
 }
 
@@ -1655,6 +1662,13 @@ func renderDetails(job orchestrator.JobInfo) string {
 		s.WriteString("\n" + h1("Environment Variables") + "\n")
 		for k, v := range job.WorkItem.EnvVars {
 			s.WriteString(fmt.Sprintf("  %s=%s\n", k, v))
+		}
+	}
+
+	if len(job.Metrics) > 0 {
+		s.WriteString("\n" + h1("Metrics") + "\n")
+		for k, v := range job.Metrics {
+			s.WriteString(fmt.Sprintf("  %s=%.2f\n", k, v))
 		}
 	}
 
