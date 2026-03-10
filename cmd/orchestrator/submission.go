@@ -546,6 +546,47 @@ func cancelJobsByTag(host, tag string) {
 	fmt.Fprintf(stdout, "Successfully canceled %d jobs with tag '%s'.\n", int(canceled), tag)
 }
 
+func updateDependencies(host, jobID string, deps []string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s/dependencies", host, url.PathEscape(jobID))
+
+	reqBody := struct {
+		DependsOn []string `json:"depends_on"`
+	}{
+		DependsOn: deps,
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal dependency data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update dependencies: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s dependencies updated to: %s\n", jobID, strings.Join(deps, ", "))
+}
+
 func updatePriority(host, jobID string, priority int) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/priority", host, jobID)
 	reqBody := fmt.Sprintf(`{"priority": %d}`, priority)
