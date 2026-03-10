@@ -52,19 +52,21 @@ var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
 var ErrDraining = fmt.Errorf("orchestrator is draining and cannot accept new jobs")
 
 type JobInfo struct {
-	ID          string            `json:"id"`
-	Summary     string            `json:"summary"`
-	StartTime   time.Time         `json:"start_time"`
-	EndTime     time.Time         `json:"end_time,omitempty"`
-	Status      string            `json:"status"`
-	Error       string            `json:"error,omitempty"`
-	WorkItem    WorkItem          `json:"work_item"`
-	ThreadState string            `json:"thread_state,omitempty"`
-	RetryCount  int               `json:"retry_count,omitempty"`
-	RetryAfter  time.Time         `json:"retry_after,omitempty"`
-	Approved    bool              `json:"approved,omitempty"`
-	Outputs     map[string]string `json:"outputs,omitempty"`
-	Metrics     map[string]float64 `json:"metrics,omitempty"`
+	ID            string             `json:"id"`
+	Summary       string             `json:"summary"`
+	StartTime     time.Time          `json:"start_time"`
+	EndTime       time.Time          `json:"end_time,omitempty"`
+	Status        string             `json:"status"`
+	Error         string             `json:"error,omitempty"`
+	WorkItem      WorkItem           `json:"work_item"`
+	ThreadState   string             `json:"thread_state,omitempty"`
+	RetryCount    int                `json:"retry_count,omitempty"`
+	RetryAfter    time.Time          `json:"retry_after,omitempty"`
+	Approved      bool               `json:"approved,omitempty"`
+	Outputs       map[string]string  `json:"outputs,omitempty"`
+	Metrics       map[string]float64 `json:"metrics,omitempty"`
+	Progress      *int               `json:"progress,omitempty"`
+	StatusMessage *string            `json:"status_message,omitempty"`
 }
 
 type Status struct {
@@ -1500,6 +1502,98 @@ func (o *Orchestrator) addToHistory(job JobInfo, logger *slog.Logger) {
 			}
 		}
 	}
+}
+
+// UpdateJobProgress updates the progress and status message of a job.
+func (o *Orchestrator) UpdateJobProgress(jobID string, progress *int, statusMessage *string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// 1. Check active jobs
+	if job, ok := o.activeJobs[jobID]; ok {
+		if progress != nil {
+			job.Progress = progress
+		}
+		if statusMessage != nil {
+			job.StatusMessage = statusMessage
+		}
+		o.activeJobs[jobID] = job
+		if logger != nil {
+			logger.Info("Updated progress for active job", "jobID", jobID, "progress", progress, "statusMessage", statusMessage)
+		}
+		o.BroadcastEvent("job_progress_updated", job)
+		return nil
+	}
+
+	// 2. Check pending jobs
+	if job, ok := o.pendingJobs[jobID]; ok {
+		if progress != nil {
+			job.Progress = progress
+		}
+		if statusMessage != nil {
+			job.StatusMessage = statusMessage
+		}
+		o.pendingJobs[jobID] = job
+		if logger != nil {
+			logger.Info("Updated progress for pending job", "jobID", jobID, "progress", progress, "statusMessage", statusMessage)
+		}
+		o.BroadcastEvent("job_progress_updated", job)
+		return nil
+	}
+
+	// 3. Check memory history
+	foundInMemory := false
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		if o.completedJobs[i].ID == jobID {
+			if progress != nil {
+				o.completedJobs[i].Progress = progress
+			}
+			if statusMessage != nil {
+				o.completedJobs[i].StatusMessage = statusMessage
+			}
+
+			// 4. Also update persistence if found in memory
+			if o.Persistence != nil {
+				if err := o.Persistence.SaveJob(o.completedJobs[i]); err != nil && logger != nil {
+					logger.Warn("Failed to persist updated job progress", "jobID", jobID, "error", err)
+				}
+			}
+
+			foundInMemory = true
+			if logger != nil {
+				logger.Info("Updated progress for completed job (in memory)", "jobID", jobID, "progress", progress, "statusMessage", statusMessage)
+			}
+			o.BroadcastEvent("job_progress_updated", o.completedJobs[i])
+			break
+		}
+	}
+
+	if foundInMemory {
+		return nil
+	}
+
+	// 5. Check persistence only if not in memory
+	if o.Persistence != nil {
+		job, err := o.Persistence.GetJob(jobID)
+		if err == nil {
+			if progress != nil {
+				job.Progress = progress
+			}
+			if statusMessage != nil {
+				job.StatusMessage = statusMessage
+			}
+			if err := o.Persistence.SaveJob(*job); err != nil {
+				return fmt.Errorf("failed to persist updated job progress: %w", err)
+			}
+			if logger != nil {
+				logger.Info("Updated progress for completed job (in persistence)", "jobID", jobID, "progress", progress, "statusMessage", statusMessage)
+			}
+			o.BroadcastEvent("job_progress_updated", *job)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("job %s not found", jobID)
 }
 
 // AddJobMetrics sets metrics variables for a specific job.

@@ -73,6 +73,9 @@ func main() {
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout)")
+	pflag.String("set-progress-job", "", "Set progress for a specific job")
+	pflag.Int("progress-val", -1, "The progress value to set (0-100) (requires --set-progress-job)")
+	pflag.String("progress-msg", "", "Optional status message to set along with progress")
 	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
 	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
@@ -240,6 +243,9 @@ func main() {
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.timeout_val", pflag.Lookup("timeout-val"))
+	viper.BindPFlag("orchestrator.set_progress_job", pflag.Lookup("set-progress-job"))
+	viper.BindPFlag("orchestrator.progress_val", pflag.Lookup("progress-val"))
+	viper.BindPFlag("orchestrator.progress_msg", pflag.Lookup("progress-msg"))
 	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
@@ -607,6 +613,31 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		updateTimeout(host, updateTimeoutJob, timeoutVal)
+		return nil
+	}
+
+	if setProgressJob := viper.GetString("orchestrator.set_progress_job"); setProgressJob != "" {
+		host := viper.GetString("orchestrator.host")
+		progressVal := viper.GetInt("orchestrator.progress_val")
+		progressMsg := viper.GetString("orchestrator.progress_msg")
+
+		var pVal *int
+		if progressVal >= 0 && progressVal <= 100 {
+			pVal = &progressVal
+		}
+
+		var pMsg *string
+		if progressMsg != "" {
+			pMsg = &progressMsg
+		}
+
+		if pVal == nil && pMsg == nil {
+			fmt.Fprintf(stdout, "Error: Must provide either a valid --progress-val (0-100) or a --progress-msg\n")
+			exitFunc(1)
+			return nil
+		}
+
+		setJobProgress(host, setProgressJob, pVal, pMsg)
 		return nil
 	}
 
@@ -1189,7 +1220,7 @@ func listPendingJobs(host string) {
 	fmt.Fprintln(stdout, "")
 
 	// Table Header
-	fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
+	fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
 		headerStyle.Render("ID"),
 		headerStyle.Render("Summary"),
 		headerStyle.Render("Status"),
@@ -1198,10 +1229,19 @@ func listPendingJobs(host string) {
 
 	for _, job := range jobs {
 		duration := time.Since(job.StartTime).Round(time.Second).String()
-		fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
+		statusDisplay := job.Status
+		if job.Progress != nil {
+			statusDisplay = fmt.Sprintf("%s (%d%%)", job.Status, *job.Progress)
+		}
+		if job.StatusMessage != nil {
+			statusDisplay = fmt.Sprintf("%s - %s", statusDisplay, *job.StatusMessage)
+		}
+		statusDisplay = limitString(statusDisplay, 25)
+
+		fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
 			rowStyle.Render(job.ID),
 			rowStyle.Render(limitString(job.Summary, 38)),
-			rowStyle.Render(job.Status),
+			rowStyle.Render(statusDisplay),
 			rowStyle.Render(duration),
 		)
 	}
@@ -1279,7 +1319,7 @@ func listJobs(host string, history bool, status, tag, match string) {
 	fmt.Fprintln(stdout, "")
 
 	// Table Header
-	fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
+	fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
 		headerStyle.Render("ID"),
 		headerStyle.Render("Summary"),
 		headerStyle.Render("Status"),
@@ -1288,10 +1328,19 @@ func listJobs(host string, history bool, status, tag, match string) {
 
 	for _, job := range jobs {
 		duration := time.Since(job.StartTime).Round(time.Second).String()
-		fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
+		statusDisplay := job.Status
+		if job.Progress != nil {
+			statusDisplay = fmt.Sprintf("%s (%d%%)", job.Status, *job.Progress)
+		}
+		if job.StatusMessage != nil {
+			statusDisplay = fmt.Sprintf("%s - %s", statusDisplay, *job.StatusMessage)
+		}
+		statusDisplay = limitString(statusDisplay, 25)
+
+		fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
 			rowStyle.Render(job.ID),
 			rowStyle.Render(limitString(job.Summary, 38)),
-			rowStyle.Render(job.Status),
+			rowStyle.Render(statusDisplay),
 			rowStyle.Render(duration),
 		)
 	}
