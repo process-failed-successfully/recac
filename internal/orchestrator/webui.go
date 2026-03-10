@@ -249,6 +249,30 @@ const DashboardHTML = `
             }
         }
 
+        function cloneJob(encodedJobJson) {
+            try {
+                const j = JSON.parse(decodeURIComponent(encodedJobJson));
+                document.getElementById('job-id').value = '';
+                document.getElementById('job-summary').value = j.summary || '';
+                document.getElementById('job-repo').value = j.repo_url || '';
+                document.getElementById('job-deps').value = (j.depends_on || []).join(', ');
+
+                let envStr = '';
+                if (j.env_vars) {
+                    for (const [key, val] of Object.entries(j.env_vars)) {
+                        envStr += key + '=' + val + '\n';
+                    }
+                }
+                document.getElementById('job-env').value = envStr;
+                document.getElementById('job-desc').value = j.description || '';
+
+                document.getElementById('submitModal').style.display = 'block';
+            } catch (e) {
+                console.error("Error cloning job:", e);
+                alert("Failed to clone job details.");
+            }
+        }
+
         async function submitAdHocJob() {
             const id = document.getElementById('job-id').value.trim();
             const summary = document.getElementById('job-summary').value.trim();
@@ -375,6 +399,8 @@ const DashboardHTML = `
                     }
 
                     actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
+                    const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
+                    actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
                         '<td><strong>' + safeId + '</strong></td>' +

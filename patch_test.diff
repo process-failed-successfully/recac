@@ -1,0 +1,15 @@
+--- internal/orchestrator/orchestrator_priority_test.go
++++ internal/orchestrator/orchestrator_priority_test.go
+@@ -107,7 +107,11 @@
+	close(blockCh)
+
+	// Wait for jobs to be evaluated and spawned
+-	time.Sleep(100 * time.Millisecond)
++	assert.Eventually(t, func() bool {
++		spawner.mu.Lock()
++		defer spawner.mu.Unlock()
++		return len(spawner.spawnedOrder) == 6
++	}, 2*time.Second, 10*time.Millisecond, "Expected 6 jobs to be spawned")
+
+	spawner.mu.Lock()
+	defer spawner.mu.Unlock()
