@@ -54,6 +54,7 @@ func main() {
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
 	pflag.String("cancel-tag", "", "Cancel all active and pending jobs with the specified tag")
 	pflag.String("purge-job", "", "Purge a specific job from history")
+	pflag.String("purge-tag", "", "Purge all completed/failed jobs with the specified tag from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
@@ -220,6 +221,7 @@ func main() {
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
 	viper.BindPFlag("orchestrator.cancel_tag", pflag.Lookup("cancel-tag"))
 	viper.BindPFlag("orchestrator.purge_job", pflag.Lookup("purge-job"))
+	viper.BindPFlag("orchestrator.purge_tag", pflag.Lookup("purge-tag"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
@@ -481,6 +483,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.purge_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		purgeJob(host, jobID)
+		return nil
+	}
+
+	if purgeTag := viper.GetString("orchestrator.purge_tag"); purgeTag != "" {
+		host := viper.GetString("orchestrator.host")
+		purgeJobsByTag(host, purgeTag)
 		return nil
 	}
 
