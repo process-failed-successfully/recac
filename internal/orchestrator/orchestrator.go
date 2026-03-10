@@ -673,6 +673,41 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 	return nil
 }
 
+// UpdateJobTimeout updates the timeout of a job in the pending queue.
+func (o *Orchestrator) UpdateJobTimeout(ctx context.Context, jobID string, newTimeout time.Duration, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have timeout updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	job.WorkItem.Timeout = newTimeout
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_timeout_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job timeout", "jobID", jobID, "newTimeout", newTimeout)
+	}
+
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // UpdateJobPriority updates the priority of a job in the pending queue.
 func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newPriority int, logger *slog.Logger) error {
 	o.mu.Lock()

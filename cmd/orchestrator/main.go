@@ -68,6 +68,8 @@ func main() {
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
+	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
+	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout)")
 	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
 	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
@@ -227,6 +229,8 @@ func main() {
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
+	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
+	viper.BindPFlag("orchestrator.timeout_val", pflag.Lookup("timeout-val"))
 	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
@@ -553,6 +557,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		priorityVal := viper.GetInt("orchestrator.priority_val")
 		updatePriority(host, updateJob, priorityVal)
+		return nil
+	}
+
+	if updateTimeoutJob := viper.GetString("orchestrator.update_timeout"); updateTimeoutJob != "" {
+		host := viper.GetString("orchestrator.host")
+		timeoutVal := viper.GetString("orchestrator.timeout_val")
+		if timeoutVal == "" {
+			fmt.Fprintf(stdout, "Error: --timeout-val is required when using --update-timeout\n")
+			exitFunc(1)
+			return nil
+		}
+		updateTimeout(host, updateTimeoutJob, timeoutVal)
 		return nil
 	}
 

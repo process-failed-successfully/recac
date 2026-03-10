@@ -278,6 +278,37 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"priority": %d}`, req.Priority)
 	})
 
+	mux.HandleFunc("PUT /jobs/{id}/timeout", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			Timeout string `json:"timeout"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		parsedTimeout, err := time.ParseDuration(req.Timeout)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid timeout format: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.UpdateJobTimeout(r.Context(), id, parsedTimeout, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"timeout": "%s"}`, parsedTimeout.String())
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		// Use r.Context() but ensure logger is available
