@@ -47,6 +47,7 @@ func main() {
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
+	pflag.String("edit-job", "", "Edit a pending job interactively using $EDITOR")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
@@ -208,6 +209,7 @@ func main() {
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
+	viper.BindPFlag("orchestrator.edit_job", pflag.Lookup("edit-job"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
@@ -421,6 +423,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if logID := viper.GetString("orchestrator.logs"); logID != "" {
 		host := viper.GetString("orchestrator.host")
 		getLogs(host, logID)
+		return nil
+	}
+
+	if jobID := viper.GetString("orchestrator.edit_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		editJob(host, jobID)
 		return nil
 	}
 

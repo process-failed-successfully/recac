@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -730,4 +731,126 @@ func exportJobs(host, path, format string) {
 		}
 		fmt.Fprintf(stdout, "Jobs successfully exported to %s\n", path)
 	}
+}
+
+func editJob(host, jobID string) {
+	// 1. Fetch current job
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode job response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if job.Status != "Pending" && job.Status != "Pending Approval" {
+		fmt.Fprintf(stdout, "Cannot edit job %s. It is currently %s.\n", jobID, job.Status)
+		exitFunc(1)
+		return
+	}
+
+	// 2. Format WorkItem as JSON
+	jobJSON, err := json.MarshalIndent(job.WorkItem, "", "  ")
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to format job JSON: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// 3. Create temp file
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("recac-job-%s-*.json", jobID))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create temp file: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	defer os.Remove(tmpFile.Name()) // Clean up after we're done
+
+	if _, err := tmpFile.Write(jobJSON); err != nil {
+		fmt.Fprintf(stdout, "Failed to write to temp file: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	tmpFile.Close()
+
+	// 4. Open editor
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi" // Default fallback
+	}
+
+	// Wrap editor command in sh -c to properly support arguments in $EDITOR (e.g. "code --wait")
+	shellCmd := fmt.Sprintf("%s %s", editor, tmpFile.Name())
+	cmd := exec.Command("sh", "-c", shellCmd)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(stdout, "Editor exited with error: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// 5. Read back modified JSON
+	modifiedJSON, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read modified JSON: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// 6. Validate
+	var updatedItem orchestrator.WorkItem
+	if err := json.Unmarshal(modifiedJSON, &updatedItem); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse modified JSON: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if updatedItem.ID != jobID {
+		fmt.Fprintf(stdout, "Error: You cannot change the Job ID during edit.\n")
+		exitFunc(1)
+		return
+	}
+
+	// 7. Send PUT request
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/jobs/%s", host, jobID), bytes.NewBuffer(modifiedJSON))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create PUT request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	putResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer putResp.Body.Close()
+
+	if putResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(putResp.Body)
+		fmt.Fprintf(stdout, "Failed to update job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s updated successfully.\n", jobID)
 }

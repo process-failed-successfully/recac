@@ -278,6 +278,37 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"priority": %d}`, req.Priority)
 	})
 
+	mux.HandleFunc("PUT /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var newItem WorkItem
+		if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if newItem.ID == "" {
+			newItem.ID = id
+		} else if newItem.ID != id {
+			http.Error(w, "Job ID in body must match URL", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.UpdateJobWorkItem(r.Context(), id, newItem, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s work item updated", id)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/timeout", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 
