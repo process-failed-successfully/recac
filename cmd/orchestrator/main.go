@@ -80,6 +80,7 @@ func main() {
 	pflag.StringSlice("env", []string{}, "Environment variables to pass to the ad-hoc job (e.g., --env KEY=VALUE)")
 	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
 	pflag.StringSlice("submit-tags", []string{}, "Comma-separated list of tags for the ad-hoc job")
+	pflag.Duration("submit-timeout", 0, "Optional custom timeout for the ad-hoc job (e.g. 30m)")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -231,6 +232,7 @@ func main() {
 	viper.BindPFlag("orchestrator.env", pflag.Lookup("env"))
 	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
 	viper.BindPFlag("orchestrator.submit_tags", pflag.Lookup("submit-tags"))
+	viper.BindPFlag("orchestrator.submit_timeout", pflag.Lookup("submit-timeout"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -580,8 +582,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		delay := viper.GetDuration("orchestrator.submit_delay")
+		timeout := viper.GetDuration("orchestrator.submit_timeout")
 		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
-		submitAdHocJob(host, submitURL, task, id, priority, delay, wait, envMap, submitDeps, submitTags)
+		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, wait, envMap, submitDeps, submitTags)
 		return nil
 	}
 

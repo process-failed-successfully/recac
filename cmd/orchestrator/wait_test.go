@@ -155,3 +155,24 @@ func TestWaitForJob_Failed(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "job failed with error: Something went wrong")
 }
+
+func TestWaitForJob_Canceled(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-CANCEL", func(w http.ResponseWriter, r *http.Request) {
+		job := orchestrator.JobInfo{
+			ID:     "JOB-CANCEL",
+			Status: "Canceled",
+			Error:  "Canceled by user",
+		}
+		json.NewEncoder(w).Encode(job)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	err := waitForJob(server.URL, "JOB-CANCEL", &out)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job canceled with error: Canceled by user")
+}

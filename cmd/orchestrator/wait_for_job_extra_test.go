@@ -109,6 +109,51 @@ func TestWaitForJob_StreamLogs_Failed(t *testing.T) {
 	}
 }
 
+func TestWaitForJob_StreamLogs_Canceled(t *testing.T) {
+	mux := http.NewServeMux()
+
+	jobCalls := 0
+
+	mux.HandleFunc("/jobs/JOB-CANCEL", func(w http.ResponseWriter, r *http.Request) {
+		jobCalls++
+
+		status := "Running"
+		if jobCalls >= 2 {
+			status = "Canceled"
+		}
+
+		job := orchestrator.JobInfo{
+			ID:     "JOB-CANCEL",
+			Status: status,
+			Error:  "Canceled during run",
+		}
+		json.NewEncoder(w).Encode(job)
+	})
+
+	mux.HandleFunc("/jobs/JOB-CANCEL/logs", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("some logs\n"))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+
+	errCh := make(chan error)
+	go func() {
+		errCh <- waitForJob(server.URL, "JOB-CANCEL", &buf)
+	}()
+
+	select {
+	case err := <-errCh:
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Canceled during run")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for job")
+	}
+}
+
 func TestWaitForJob_NetworkErrorRecovery(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

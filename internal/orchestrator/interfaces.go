@@ -24,6 +24,7 @@ type WorkItem struct {
 	Priority    int               `json:"priority,omitempty"`
 	Tags        []string          `json:"tags,omitempty"`
 	RunAfter    time.Time         `json:"run_after,omitempty"`
+	Timeout     time.Duration     `json:"timeout,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.
