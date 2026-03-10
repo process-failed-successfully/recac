@@ -295,6 +295,34 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Write(respData)
 	})
 
+	mux.HandleFunc("PUT /jobs/{id}/progress", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			Progress      *int    `json:"progress,omitempty"`
+			StatusMessage *string `json:"status_message,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.UpdateJobProgress(id, req.Progress, req.StatusMessage, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		respData, _ := json.Marshal(req)
+		w.Write(respData)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/priority", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

@@ -326,10 +326,19 @@ func (m *DashboardModel) updateTableContent() {
 			idDisplay = "[ ] " + idDisplay
 		}
 
+		statusDisplay := job.Status
+		if job.Progress != nil {
+			statusDisplay = fmt.Sprintf("%s (%d%%)", job.Status, *job.Progress)
+		}
+		if job.StatusMessage != nil {
+			statusDisplay = fmt.Sprintf("%s - %s", statusDisplay, *job.StatusMessage)
+		}
+		statusDisplay = limitString(statusDisplay, 25)
+
 		rows = append(rows, table.Row{
 			idDisplay,
 			limitString(job.Summary, 40),
-			job.Status,
+			statusDisplay,
 			duration,
 		})
 	}
@@ -1505,7 +1514,7 @@ func NewDashboardModel(host string) DashboardModel {
 	columns := []table.Column{
 		{Title: "ID", Width: 19}, // Increased width for [x] indicator
 		{Title: "Summary", Width: 40},
-		{Title: "Status", Width: 15},
+		{Title: "Status", Width: 25},
 		{Title: "Duration", Width: 15},
 	}
 
@@ -1735,7 +1744,16 @@ func renderDetails(job orchestrator.JobInfo) string {
 
 	s.WriteString(kv("ID", job.ID))
 	s.WriteString(kv("Summary", job.Summary))
-	s.WriteString(kv("Status", job.Status))
+
+	statusDisplay := job.Status
+	if job.Progress != nil {
+		statusDisplay = fmt.Sprintf("%s (%d%%)", job.Status, *job.Progress)
+	}
+	if job.StatusMessage != nil {
+		statusDisplay = fmt.Sprintf("%s - %s", statusDisplay, *job.StatusMessage)
+	}
+	s.WriteString(kv("Status", statusDisplay))
+
 	s.WriteString(kv("Start Time", job.StartTime.Format(time.RFC3339)))
 	if !job.EndTime.IsZero() {
 		s.WriteString(kv("End Time", job.EndTime.Format(time.RFC3339)))
