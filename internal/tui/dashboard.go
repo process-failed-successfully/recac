@@ -789,9 +789,9 @@ func (m DashboardModel) View() string {
 	switch m.viewState {
 	case viewMain:
 		if len(m.jobs) == 0 {
-			msg := "No active jobs found.\n\nPress 'h' to view history."
+			msg := "No active jobs found.\n\nPress 's' to submit a new job, or 'h' to view history."
 			if m.showHistory {
-				msg = "No job history found.\n\nPress 'h' to view active jobs."
+				msg = "No job history found.\n\nPress 's' to submit a new job, or 'h' to view active jobs."
 			}
 
 			// Create a style that mimics the table's dimensions to prevent layout shifts

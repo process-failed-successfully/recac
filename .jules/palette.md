@@ -8,3 +8,7 @@
 ## 2026-03-05 - Reciprocal Actions in Empty States
 **Learning:** When users toggle a view (e.g., showing history) and arrive at an empty state, the UI must provide a clear call-to-action to return to the previous state to avoid getting stuck.
 **Action:** Always include the reverse keybinding hint (like "Press 'h' to return") in empty state messages for toggled views.
+
+## 2026-03-05 - Actionable Empty States
+**Learning:** Empty states should not just tell the user what's missing, but proactively guide them on what to do next. When a list is empty, including a primary action (like "Submit a new job" in the Orchestrator dashboard) makes the UI significantly more actionable and intuitive.
+**Action:** Always include a helpful call-to-action in empty state messages, suggesting the most logical next step for the user and providing the relevant keybinding.
