@@ -20,11 +20,13 @@ type WorkItem struct {
 	Description string            `json:"description"`
 	RepoURL     string            `json:"repo_url"` // Repo to clone
 	EnvVars     map[string]string `json:"env_vars,omitempty"`
-	DependsOn   []string          `json:"depends_on,omitempty"`
-	Priority    int               `json:"priority,omitempty"`
-	Tags        []string          `json:"tags,omitempty"`
-	RunAfter    time.Time         `json:"run_after,omitempty"`
-	Timeout     time.Duration     `json:"timeout,omitempty"`
+	DependsOn        []string          `json:"depends_on,omitempty"`
+	Priority         int               `json:"priority,omitempty"`
+	Tags             []string          `json:"tags,omitempty"`
+	RunAfter         time.Time         `json:"run_after,omitempty"`
+	Timeout          time.Duration     `json:"timeout,omitempty"`
+	ConcurrencyGroup string            `json:"concurrency_group,omitempty"`
+	CancelInProgress bool              `json:"cancel_in_progress,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.

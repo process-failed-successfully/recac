@@ -704,13 +704,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			return
 		}
 
-		jobID := fmt.Sprintf("gh-%s-%d", repoName, int(issueNum))
+		concurrencyGroup := fmt.Sprintf("gh-%s-%d", repoName, int(issueNum))
+		jobID := fmt.Sprintf("%s-%d", concurrencyGroup, time.Now().UnixNano())
 
 		item := WorkItem{
-			ID:          jobID,
-			Summary:     title,
-			Description: description,
-			RepoURL:     repoURL,
+			ID:               jobID,
+			Summary:          title,
+			Description:      description,
+			RepoURL:          repoURL,
+			ConcurrencyGroup: concurrencyGroup,
+			CancelInProgress: true,
 			EnvVars: map[string]string{
 				"GITHUB_ISSUE": fmt.Sprintf("%d", int(issueNum)),
 				"GITHUB_REPO":  repoName,
@@ -839,13 +842,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			return
 		}
 
-		jobID := fmt.Sprintf("gl-%d", int(issueNum))
+		concurrencyGroup := fmt.Sprintf("gl-%d", int(issueNum))
+		jobID := fmt.Sprintf("%s-%d", concurrencyGroup, time.Now().UnixNano())
 
 		item := WorkItem{
-			ID:          jobID,
-			Summary:     title,
-			Description: description,
-			RepoURL:     repoURL,
+			ID:               jobID,
+			Summary:          title,
+			Description:      description,
+			RepoURL:          repoURL,
+			ConcurrencyGroup: concurrencyGroup,
+			CancelInProgress: true,
 			EnvVars: map[string]string{
 				"GITLAB_ISSUE": fmt.Sprintf("%d", int(issueNum)),
 			},

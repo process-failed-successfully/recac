@@ -563,12 +563,14 @@ func TestRegisterAPI(t *testing.T) {
 		body, _ := json.Marshal(payload)
 
 		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
-			return i.ID == "gh-my-repo-42" &&
+			return strings.HasPrefix(i.ID, "gh-my-repo-42-") &&
 				i.Summary == "Fix bug" &&
 				i.Description == "The bug needs fixing" &&
 				i.RepoURL == "https://github.com/my-org/my-repo.git" &&
 				i.EnvVars["GITHUB_ISSUE"] == "42" &&
-				i.EnvVars["GITHUB_REPO"] == "my-repo"
+				i.EnvVars["GITHUB_REPO"] == "my-repo" &&
+				i.ConcurrencyGroup == "gh-my-repo-42" &&
+				i.CancelInProgress == true
 		})).Return(nil)
 
 		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
@@ -637,11 +639,13 @@ func TestRegisterAPI(t *testing.T) {
 		body, _ := json.Marshal(payload)
 
 		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
-			return i.ID == "gh-my-repo-2-43" &&
+			return strings.HasPrefix(i.ID, "gh-my-repo-2-43-") &&
 				i.Summary == "Update feature" &&
 				strings.Contains(i.Description, "Do this specific thing now") &&
 				strings.Contains(i.Description, "The original issue body") &&
-				i.RepoURL == "https://github.com/my-org/my-repo-2.git"
+				i.RepoURL == "https://github.com/my-org/my-repo-2.git" &&
+				i.ConcurrencyGroup == "gh-my-repo-2-43" &&
+				i.CancelInProgress == true
 		})).Return(nil)
 
 		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/github", strings.NewReader(string(body)))
@@ -710,11 +714,13 @@ func TestRegisterAPI(t *testing.T) {
 		mac.Write(body)
 
 		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
-			return i.ID == "gl-42" &&
+			return strings.HasPrefix(i.ID, "gl-42-") &&
 				i.Summary == "Test Issue" &&
 				i.Description == "This is a test issue" &&
 				i.RepoURL == "https://gitlab.example.com/owner/repo" &&
-				i.EnvVars["GITLAB_ISSUE"] == "42"
+				i.EnvVars["GITLAB_ISSUE"] == "42" &&
+				i.ConcurrencyGroup == "gl-42" &&
+				i.CancelInProgress == true
 		})).Return(nil)
 
 		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
@@ -748,12 +754,14 @@ func TestRegisterAPI(t *testing.T) {
 		body, _ := json.Marshal(payload)
 
 		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(i WorkItem) bool {
-			return i.ID == "gl-43" &&
+			return strings.HasPrefix(i.ID, "gl-43-") &&
 				i.Summary == "Issue with comment" &&
 				strings.Contains(i.Description, "This is a comment") &&
 				strings.Contains(i.Description, "Original description") &&
 				i.RepoURL == "https://gitlab.example.com/owner/repo.git" &&
-				i.EnvVars["GITLAB_ISSUE"] == "43"
+				i.EnvVars["GITLAB_ISSUE"] == "43" &&
+				i.ConcurrencyGroup == "gl-43" &&
+				i.CancelInProgress == true
 		})).Return(nil)
 
 		req, _ := http.NewRequest(http.MethodPost, server.URL+"/webhook/gitlab", strings.NewReader(string(body)))
