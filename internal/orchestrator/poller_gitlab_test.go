@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -160,4 +161,52 @@ func TestGitLabPoller_Ping_API_Error(t *testing.T) {
 	err := poller.Ping(context.Background())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "gitlab ping failed")
+}
+
+func TestGitLabPoller_UpdateStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "notes") {
+			w.WriteHeader(http.StatusOK)
+		} else if r.Method == "PUT" && strings.Contains(r.URL.Path, "issues") {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer ts.Close()
+
+	poller := NewGitLabPoller(
+		ts.URL,
+		"test-token",
+		"test-project",
+		"open",
+	)
+
+	// Test successful comment
+	err := poller.UpdateStatus(context.Background(), WorkItem{ID: "gl-123"}, "Open", "test comment")
+	assert.NoError(t, err)
+
+	// Test successful close
+	err = poller.UpdateStatus(context.Background(), WorkItem{ID: "gl-123"}, "Done", "")
+	assert.NoError(t, err)
+
+	// Test failed comment
+	tsErr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer tsErr.Close()
+
+	pollerErr := NewGitLabPoller(
+		tsErr.URL,
+		"test-token",
+		"test-project",
+		"open",
+	)
+
+	err = pollerErr.UpdateStatus(context.Background(), WorkItem{ID: "gl-123"}, "Open", "test comment")
+	assert.Error(t, err)
+
+	// Test failed close
+	err = pollerErr.UpdateStatus(context.Background(), WorkItem{ID: "gl-123"}, "Done", "")
+	assert.Error(t, err)
 }
