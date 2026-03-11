@@ -96,10 +96,10 @@ func TestOrchestrator_PrioritySorting(t *testing.T) {
 
 	// Manually submit them so they go to pending
 	orch.SubmitJob(ctx, itemLow, logger)
-	orch.SubmitJob(ctx, itemSame2, logger)
+	orch.SubmitJob(ctx, itemSame1, logger)
 	orch.SubmitJob(ctx, itemMed, logger)
 	orch.SubmitJob(ctx, itemHigh, logger)
-	orch.SubmitJob(ctx, itemSame1, logger)
+	orch.SubmitJob(ctx, itemSame2, logger)
 
 	orch.mu.RLock()
 	assert.Len(t, orch.pendingJobs, 5)
