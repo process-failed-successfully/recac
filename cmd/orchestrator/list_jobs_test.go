@@ -37,7 +37,7 @@ func TestListJobs_MatchFilter(t *testing.T) {
 	defer func() { stdout = oldStdout }()
 
 	// Execute listJobs with the match filter
-	listJobs(server.URL, true, "Failed", "urgent", "timeout")
+	listJobs(server.URL, true, "Failed", "urgent", "timeout", "table")
 
 	// Read and verify stdout
 	w.Close()
@@ -47,4 +47,65 @@ func TestListJobs_MatchFilter(t *testing.T) {
 
 	assert.Contains(t, output, "job-1")
 	assert.Contains(t, output, "Failed due to timeout")
+}
+
+func TestListJobs_FormatJSON(t *testing.T) {
+	// Start a mock server to intercept the API request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"id": "job-json-1", "summary": "JSON Test", "status": "Running"}]`))
+	}))
+	defer server.Close()
+
+	// Intercept stdout to prevent spamming test output
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	// Execute listJobs with JSON format
+	listJobs(server.URL, false, "", "", "", "json")
+
+	// Read and verify stdout
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, `"id": "job-json-1"`)
+	assert.Contains(t, output, `"summary": "JSON Test"`)
+	// Ensure table headers are NOT present
+	assert.NotContains(t, output, "Active Jobs")
+}
+
+func TestListPendingJobs_FormatJSON(t *testing.T) {
+	// Start a mock server to intercept the API request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, "pending", r.URL.Query().Get("state"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"id": "job-pending-json", "summary": "Pending JSON Test", "status": "Pending"}]`))
+	}))
+	defer server.Close()
+
+	// Intercept stdout to prevent spamming test output
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	// Execute listPendingJobs with JSON format
+	listPendingJobs(server.URL, "json")
+
+	// Read and verify stdout
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, `"id": "job-pending-json"`)
+	assert.Contains(t, output, `"summary": "Pending JSON Test"`)
+	// Ensure table headers are NOT present
+	assert.NotContains(t, output, "Pending Jobs")
 }
