@@ -307,6 +307,53 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 	}
 }
 
+func waitForTag(host, tag string, out io.Writer) error {
+	fmt.Fprintf(out, "Waiting for jobs with tag '%s' to complete...\n", tag)
+
+	urlStr := fmt.Sprintf("%s/jobs?state=all&tag=%s", host, url.QueryEscape(tag))
+
+	for {
+		resp, err := http.Get(urlStr)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			resp.Body.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		resp.Body.Close()
+
+		if len(jobs) == 0 {
+			fmt.Fprintf(out, "No jobs found with tag '%s'.\n", tag)
+			return nil
+		}
+
+		allCompleted := true
+		for _, job := range jobs {
+			if job.Status == "Failed" {
+				return fmt.Errorf("job %s failed with error: %s", job.ID, job.Error)
+			}
+			if job.Status == "Canceled" {
+				return fmt.Errorf("job %s canceled with error: %s", job.ID, job.Error)
+			}
+			if job.Status != "Completed" {
+				allCompleted = false
+			}
+		}
+
+		if allCompleted {
+			fmt.Fprintf(out, "All jobs with tag '%s' completed successfully.\n", tag)
+			return nil
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func waitForJob(host, jobID string, out io.Writer) error {
 	fmt.Fprintf(out, "Waiting for job %s to start...\n", jobID)
 
