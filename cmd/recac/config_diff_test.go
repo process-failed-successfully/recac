@@ -85,3 +85,56 @@ func TestConfigDiffCmd(t *testing.T) {
 		})
 	}
 }
+
+func TestIsEmpty(t *testing.T) {
+	tests := []struct {
+		name     string
+		val      interface{}
+		expected bool
+	}{
+		{"nil", nil, true},
+		{"empty string", "", true},
+		{"non-empty string", "test", false},
+		{"empty array", []int{}, true},
+		{"non-empty array", []int{1}, false},
+		{"empty map", map[string]int{}, true},
+		{"non-empty map", map[string]int{"a": 1}, false},
+		{"false bool", false, true},
+		{"true bool", true, false},
+		{"zero int", 0, true},
+		{"non-zero int", 1, false},
+		{"zero int8", int8(0), true},
+		{"non-zero int8", int8(1), false},
+		{"zero int16", int16(0), true},
+		{"non-zero int16", int16(1), false},
+		{"zero int32", int32(0), true},
+		{"non-zero int32", int32(1), false},
+		{"zero int64", int64(0), true},
+		{"non-zero int64", int64(1), false},
+		{"zero uint", uint(0), true},
+		{"non-zero uint", uint(1), false},
+		{"zero uint8", uint8(0), true},
+		{"non-zero uint8", uint8(1), false},
+		{"zero uint16", uint16(0), true},
+		{"non-zero uint16", uint16(1), false},
+		{"zero uint32", uint32(0), true},
+		{"non-zero uint32", uint32(1), false},
+		{"zero uint64", uint64(0), true},
+		{"non-zero uint64", uint64(1), false},
+		{"zero uintptr", uintptr(0), true},
+		{"non-zero uintptr", uintptr(1), false},
+		{"zero float32", float32(0), true},
+		{"non-zero float32", float32(1.1), false},
+		{"zero float64", float64(0), true},
+		{"non-zero float64", float64(1.1), false},
+		{"nil ptr", (*int)(nil), true},
+		{"non-nil ptr", new(int), false},
+		{"struct", struct{}{}, false}, // Default false for unhandled types
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isEmpty(tt.val))
+		})
+	}
+}
