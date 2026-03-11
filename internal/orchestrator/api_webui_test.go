@@ -47,11 +47,13 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "Submit Ad-hoc Job")
 	assert.Contains(t, html, "id=\"job-summary\"")
 	assert.Contains(t, html, "id=\"job-repo\"")
+	assert.Contains(t, html, "id=\"job-tags\"")
 	assert.Contains(t, html, "onclick=\"submitAdHocJob()\"")
 
 	// Verify JS submit function exists
 	assert.Contains(t, html, "async function submitAdHocJob()")
 	assert.Contains(t, html, "fetch('/jobs', {")
+	assert.Contains(t, html, "tags: tags,")
 
 	// Verify Set Deps Modal HTML exists
 	assert.Contains(t, html, "id=\"editDepsModal\"")
