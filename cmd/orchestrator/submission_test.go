@@ -847,3 +847,1350 @@ func TestEditJob_IDChanged(t *testing.T) {
 	assert.Contains(t, string(out), "Error: You cannot change the Job ID during edit.")
 	assert.Equal(t, 1, exitCode)
 }
+
+func TestCancelJobsByStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, "status=Pending", r.URL.RawQuery)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"canceled": 2}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByStatus(server.URL, "Pending")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully canceled 2 jobs with status 'Pending'.")
+}
+
+func TestCancelJobsByStatus_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByStatus(server.URL, "Running")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to cancel jobs by status: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByMatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, "match=test", r.URL.RawQuery)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"canceled": 5}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByMatch(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully canceled 5 jobs matching 'test'.")
+}
+
+func TestCancelJobsByMatch_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByMatch(server.URL, "error-match")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to cancel jobs by match: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByStatus_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByStatus(server.URL, "Pending")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to decode response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByStatus_MissingField(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"other": 1}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByStatus(server.URL, "Pending")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Unexpected response format")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByStatus_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByStatus("http://localhost:123456", "Pending")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByMatch_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByMatch(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to decode response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByMatch_MissingField(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"other": 1}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByMatch(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Unexpected response format")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCancelJobsByMatch_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cancelJobsByMatch("http://localhost:123456", "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/history", r.URL.Path)
+		assert.Equal(t, "status=Completed", r.URL.RawQuery)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cleared": 10}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByStatus(server.URL, "Completed")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully purged 10 jobs with status 'Completed'.")
+}
+
+func TestPurgeJobsByStatus_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByStatus(server.URL, "Failed")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to purge jobs by status: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByStatus_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByStatus(server.URL, "Completed")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to decode response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByStatus_MissingField(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"other": 1}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByStatus(server.URL, "Completed")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Unexpected response format")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByStatus_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByStatus("http://localhost:123456", "Completed")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByMatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/history", r.URL.Path)
+		assert.Equal(t, "match=test", r.URL.RawQuery)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cleared": 5}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByMatch(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully purged 5 jobs matching 'test'.")
+}
+
+func TestPurgeJobsByMatch_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByMatch(server.URL, "error-match")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to purge jobs by match: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByMatch_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByMatch(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to decode response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByMatch_MissingField(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"other": 1}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByMatch(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Unexpected response format")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByMatch_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByMatch("http://localhost:123456", "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByTag_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByTag(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to decode response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByTag_MissingField(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"other": 1}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByTag(server.URL, "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Unexpected response format")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByTag_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByTag("http://localhost:123456", "test")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCloneJob_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/ORIG-JOB/clone", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cloned_job_id": "NEW-JOB-123"}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	priority := 10
+	cloneJob(server.URL, "ORIG-JOB", "NEW-JOB-123", &priority, false, map[string]string{"K": "V"}, []string{"DEP1"})
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Job ORIG-JOB cloned successfully as NEW-JOB-123")
+}
+
+func TestCloneJob_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneJob("http://localhost:123456", "ORIG-JOB", "", nil, false, nil, nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCloneJob_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Error"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneJob(server.URL, "ORIG-JOB", "", nil, false, nil, nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to clone job: Internal Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCloneJob_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneJob(server.URL, "ORIG-JOB", "", nil, false, nil, nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to parse response")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestCloneJob_WaitFailed(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte(`{"cloned_job_id": "NEW-JOB-WAIT"}`))
+		} else if r.Method == http.MethodGet {
+			callCount++
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": "Failed", "error": "test failure"}`))
+		}
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneJob(server.URL, "ORIG-JOB", "", nil, true, nil, nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Job failed: job failed with error: test failure")
+	assert.Equal(t, 1, exitCode)
+	assert.Greater(t, callCount, 0)
+}
+
+func TestSubmitMatrixJob_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/matrix", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"submitted": ["JOB-1", "JOB-2"], "errors": []}`))
+	}))
+	defer server.Close()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob(server.URL, f.Name(), false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Matrix submission completed.")
+	assert.Contains(t, string(out), "Successfully submitted jobs: JOB-1, JOB-2")
+}
+
+func TestSubmitMatrixJob_InvalidFile(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob("http://localhost", "non_existent_file.json", false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to open file non_existent_file.json")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestSubmitMatrixJob_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob("http://localhost:123456", f.Name(), false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestSubmitMatrixJob_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob(server.URL, f.Name(), false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to submit matrix job: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestSubmitMatrixJob_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob(server.URL, f.Name(), false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to parse matrix response")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestSubmitMatrixJob_WithErrors(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted": ["JOB-1"], "errors": ["some error"]}`))
+	}))
+	defer server.Close()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob(server.URL, f.Name(), false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully submitted jobs: JOB-1")
+	assert.Contains(t, string(out), "Errors:")
+	assert.Contains(t, string(out), "some error")
+	assert.Equal(t, 0, exitCode) // still 0 if some were submitted
+}
+
+func TestSubmitMatrixJob_OnlyErrors(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted": [], "errors": ["all failed"]}`))
+	}))
+	defer server.Close()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob(server.URL, f.Name(), false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Errors:")
+	assert.Contains(t, string(out), "all failed")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestSubmitMatrixJob_WaitFailed(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte(`{"submitted": ["JOB-WAIT"], "errors": []}`))
+		} else if r.Method == http.MethodGet {
+			callCount++
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": "Failed", "error": "test matrix failure"}`))
+		}
+	}))
+	defer server.Close()
+
+	f, _ := os.CreateTemp("", "matrix_*.json")
+	f.Write([]byte(`{"matrix": {}}`))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitMatrixJob(server.URL, f.Name(), true)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Job JOB-WAIT failed: job failed with error: test matrix failure")
+	assert.Equal(t, 1, exitCode)
+	assert.Greater(t, callCount, 0)
+}
+
+func TestEditJob_ConnectionErrorGET(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	editJob("http://localhost:123456", "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEditJob_ErrorResponseGET(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Not Found"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	editJob(server.URL, "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to fetch job details: Not Found")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEditJob_InvalidJSONGET(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	editJob(server.URL, "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to decode job response")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEditJob_EditorError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		job := orchestrator.JobInfo{
+			Status: "Pending",
+			WorkItem: orchestrator.WorkItem{
+				ID:      "MY-JOB",
+				Summary: "Original Summary",
+			},
+		}
+		json.NewEncoder(w).Encode(job)
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", "false") // false returns exit code 1
+
+	editJob(server.URL, "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Editor exited with error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEditJob_InvalidJSONAfterEdit(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		job := orchestrator.JobInfo{
+			Status: "Pending",
+			WorkItem: orchestrator.WorkItem{
+				ID:      "MY-JOB",
+				Summary: "Original Summary",
+			},
+		}
+		json.NewEncoder(w).Encode(job)
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'echo "invalid json" > "$1"' _`)
+
+	editJob(server.URL, "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to parse modified JSON")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEditJob_ErrorResponsePUT(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Pending",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		} else if r.Method == http.MethodPut {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal Server Error"))
+		}
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	editJob(server.URL, "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to update job: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEditJob_ConnectionErrorPUT(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// We only mock the GET part, then kill the server so PUT fails
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Pending",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		}
+	}))
+
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'curl -X POST -s http://localhost:0/kill || true && sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	// Close server before edit finishes if we could, but instead let's just make the editor script break the URL somehow,
+	// actually the easiest way to test connection error on PUT is just to mock HTTP client, but since we use DefaultClient,
+	// let's do a different trick: we can use a httptest.Server that closes the connection on PUT.
+	server.Close()
+
+	// Wait, we need the server open for GET. Let's start a new server that handles GET, then closes itself.
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Pending",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		} else if r.Method == http.MethodPut {
+			// Instead of closing, panic or hijack and close.
+			hj, _ := w.(http.Hijacker)
+			conn, _, _ := hj.Hijack()
+			conn.Close()
+		}
+	}))
+	defer server2.Close()
+
+	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	editJob(server2.URL, "MY-JOB")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+// The original submission_clone_test.go had a payload check for the Clone. Adding it here to replace what was deleted.
+func TestCloneJob_PayloadCheck(t *testing.T) {
+	var receivedBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/ORIG-JOB/clone", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+
+		receivedBody, _ = io.ReadAll(r.Body)
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cloned_job_id": "NEW-JOB-123"}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	priority := 10
+	cloneJob(server.URL, "ORIG-JOB", "NEW-JOB-123", &priority, false, map[string]string{"K": "V"}, []string{"DEP1"})
+
+	pw.Close()
+	io.ReadAll(pr) // ignore stdout
+
+	var payload map[string]interface{}
+	err := json.Unmarshal(receivedBody, &payload)
+	require.NoError(t, err)
+
+	assert.Equal(t, "NEW-JOB-123", payload["new_id"])
+
+	// Convert types to check properly
+	envVars, ok := payload["env_vars"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "V", envVars["K"])
+
+	pri, ok := payload["priority"].(float64)
+	assert.True(t, ok)
+	assert.Equal(t, float64(10), pri)
+
+	deps, ok := payload["depends_on"].([]interface{})
+	assert.True(t, ok)
+	assert.Len(t, deps, 1)
+	assert.Equal(t, "DEP1", deps[0])
+}
+
+func TestPurgeJobsByTag_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/history", r.URL.Path)
+		assert.Equal(t, "tag=my-tag", r.URL.RawQuery)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cleared": 4}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	purgeJobsByTag(server.URL, "my-tag")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully purged 4 jobs with tag 'my-tag'.")
+}
