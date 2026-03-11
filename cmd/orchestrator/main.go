@@ -53,8 +53,13 @@ func main() {
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
 	pflag.String("cancel-tag", "", "Cancel all active and pending jobs with the specified tag")
+	pflag.String("cancel-status", "", "Cancel all active and pending jobs with the specified status")
+	pflag.String("cancel-match", "", "Cancel all active and pending jobs matching the given regex")
 	pflag.String("purge-job", "", "Purge a specific job from history")
 	pflag.String("purge-tag", "", "Purge all completed/failed jobs with the specified tag from history")
+	pflag.String("purge-status", "", "Purge all history jobs with the specified status")
+	pflag.String("purge-match", "", "Purge all history jobs matching the given regex")
+	pflag.Bool("purge-failed", false, "Purge all failed jobs from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
@@ -225,8 +230,13 @@ func main() {
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
 	viper.BindPFlag("orchestrator.cancel_tag", pflag.Lookup("cancel-tag"))
+	viper.BindPFlag("orchestrator.cancel_status", pflag.Lookup("cancel-status"))
+	viper.BindPFlag("orchestrator.cancel_match", pflag.Lookup("cancel-match"))
 	viper.BindPFlag("orchestrator.purge_job", pflag.Lookup("purge-job"))
 	viper.BindPFlag("orchestrator.purge_tag", pflag.Lookup("purge-tag"))
+	viper.BindPFlag("orchestrator.purge_status", pflag.Lookup("purge-status"))
+	viper.BindPFlag("orchestrator.purge_match", pflag.Lookup("purge-match"))
+	viper.BindPFlag("orchestrator.purge_failed", pflag.Lookup("purge-failed"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
@@ -490,6 +500,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	if cancelStatus := viper.GetString("orchestrator.cancel_status"); cancelStatus != "" {
+		host := viper.GetString("orchestrator.host")
+		cancelJobsByStatus(host, cancelStatus)
+		return nil
+	}
+
+	if cancelMatch := viper.GetString("orchestrator.cancel_match"); cancelMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		cancelJobsByMatch(host, cancelMatch)
+		return nil
+	}
+
 	if jobID := viper.GetString("orchestrator.purge_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		purgeJob(host, jobID)
@@ -499,6 +521,24 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if purgeTag := viper.GetString("orchestrator.purge_tag"); purgeTag != "" {
 		host := viper.GetString("orchestrator.host")
 		purgeJobsByTag(host, purgeTag)
+		return nil
+	}
+
+	if purgeStatus := viper.GetString("orchestrator.purge_status"); purgeStatus != "" {
+		host := viper.GetString("orchestrator.host")
+		purgeJobsByStatus(host, purgeStatus)
+		return nil
+	}
+
+	if purgeMatch := viper.GetString("orchestrator.purge_match"); purgeMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		purgeJobsByMatch(host, purgeMatch)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.purge_failed") {
+		host := viper.GetString("orchestrator.host")
+		purgeJobsByStatus(host, "Failed")
 		return nil
 	}
 

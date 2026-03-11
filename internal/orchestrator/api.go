@@ -544,17 +544,28 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 	mux.HandleFunc("DELETE /jobs", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
+		status := r.URL.Query().Get("status")
+		match := r.URL.Query().Get("match")
+
 		var count int
 		var err error
 
 		if tag != "" {
 			count, err = orch.CancelJobsByTag(r.Context(), tag, logger)
+		} else if status != "" {
+			count, err = orch.CancelJobsByStatus(r.Context(), status, logger)
+		} else if match != "" {
+			count, err = orch.CancelJobsByMatch(r.Context(), match, logger)
 		} else {
 			count, err = orch.CancelAllJobs(r.Context())
 		}
 
 		if err != nil && count == 0 {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -589,17 +600,28 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 	mux.HandleFunc("DELETE /history", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
+		status := r.URL.Query().Get("status")
+		match := r.URL.Query().Get("match")
+
 		var count int
 		var err error
 
 		if tag != "" {
 			count, err = orch.PurgeJobsByTag(tag, logger)
+		} else if status != "" {
+			count, err = orch.PurgeJobsByStatus(status, logger)
+		} else if match != "" {
+			count, err = orch.PurgeJobsByMatch(match, logger)
 		} else {
 			count, err = orch.ClearHistory(logger)
 		}
 
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to clear history: %v", err), http.StatusInternalServerError)
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, fmt.Sprintf("Failed to clear history: %v", err), http.StatusBadRequest)
+			} else {
+				http.Error(w, fmt.Sprintf("Failed to clear history: %v", err), http.StatusInternalServerError)
+			}
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
