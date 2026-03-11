@@ -869,6 +869,70 @@ func (o *Orchestrator) UpdateJobWorkItem(ctx context.Context, jobID string, newI
 	return nil
 }
 
+// HoldJobsByTag holds pending jobs that match the given tag.
+func (o *Orchestrator) HoldJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag && !job.WorkItem.Hold {
+			job.WorkItem.Hold = true
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_held", job)
+			if logger != nil {
+				logger.Info("Held job", "jobID", id)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Held jobs by tag", "tag", tag, "count", count)
+	}
+
+	return count, nil
+}
+
+// HoldJobsByMatch holds pending jobs where the summary matches the given regex.
+func (o *Orchestrator) HoldJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if (matcher.MatchString(job.Summary) || matcher.MatchString(job.Error)) && !job.WorkItem.Hold {
+			job.WorkItem.Hold = true
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_held", job)
+			if logger != nil {
+				logger.Info("Held job", "jobID", id)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Held jobs by match", "match", match, "count", count)
+	}
+
+	return count, nil
+}
+
 // HoldJob holds a pending job.
 func (o *Orchestrator) HoldJob(ctx context.Context, jobID string, logger *slog.Logger) error {
 	o.mu.Lock()
@@ -899,6 +963,78 @@ func (o *Orchestrator) HoldJob(ctx context.Context, jobID string, logger *slog.L
 	}
 
 	return nil
+}
+
+// UnholdJobsByTag unholds pending jobs that match the given tag.
+func (o *Orchestrator) UnholdJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag && job.WorkItem.Hold {
+			job.WorkItem.Hold = false
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_unheld", job)
+			if logger != nil {
+				logger.Info("Unheld job", "jobID", id)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Unheld jobs by tag", "tag", tag, "count", count)
+	}
+
+	if count > 0 {
+		o.evaluatePendingJobs(ctx, logger)
+	}
+
+	return count, nil
+}
+
+// UnholdJobsByMatch unholds pending jobs where the summary matches the given regex.
+func (o *Orchestrator) UnholdJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if (matcher.MatchString(job.Summary) || matcher.MatchString(job.Error)) && job.WorkItem.Hold {
+			job.WorkItem.Hold = false
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_unheld", job)
+			if logger != nil {
+				logger.Info("Unheld job", "jobID", id)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Unheld jobs by match", "match", match, "count", count)
+	}
+
+	if count > 0 {
+		o.evaluatePendingJobs(ctx, logger)
+	}
+
+	return count, nil
 }
 
 // UnholdJob unholds a pending job.

@@ -72,6 +72,10 @@ func main() {
 	pflag.String("approve-job", "", "Approve a job that is pending approval")
 	pflag.String("hold-job", "", "Hold a pending job to prevent it from running")
 	pflag.String("unhold-job", "", "Unhold a pending job to allow it to run")
+	pflag.String("hold-tag", "", "Hold all pending jobs with the specified tag")
+	pflag.String("hold-match", "", "Hold all pending jobs matching the given regex")
+	pflag.String("unhold-tag", "", "Unhold all pending jobs with the specified tag")
+	pflag.String("unhold-match", "", "Unhold all pending jobs matching the given regex")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
@@ -256,6 +260,10 @@ func main() {
 	viper.BindPFlag("orchestrator.approve_job", pflag.Lookup("approve-job"))
 	viper.BindPFlag("orchestrator.hold_job", pflag.Lookup("hold-job"))
 	viper.BindPFlag("orchestrator.unhold_job", pflag.Lookup("unhold-job"))
+	viper.BindPFlag("orchestrator.hold_tag", pflag.Lookup("hold-tag"))
+	viper.BindPFlag("orchestrator.hold_match", pflag.Lookup("hold-match"))
+	viper.BindPFlag("orchestrator.unhold_tag", pflag.Lookup("unhold-tag"))
+	viper.BindPFlag("orchestrator.unhold_match", pflag.Lookup("unhold-match"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.drain", pflag.Lookup("drain"))
@@ -628,9 +636,25 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	holdTag := viper.GetString("orchestrator.hold_tag")
+	holdMatch := viper.GetString("orchestrator.hold_match")
+	if holdTag != "" || holdMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		holdJobs(host, holdMatch, holdTag)
+		return nil
+	}
+
 	if unholdJobID := viper.GetString("orchestrator.unhold_job"); unholdJobID != "" {
 		host := viper.GetString("orchestrator.host")
 		unholdJob(host, unholdJobID)
+		return nil
+	}
+
+	unholdTag := viper.GetString("orchestrator.unhold_tag")
+	unholdMatch := viper.GetString("orchestrator.unhold_match")
+	if unholdTag != "" || unholdMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		unholdJobs(host, unholdMatch, unholdTag)
 		return nil
 	}
 
