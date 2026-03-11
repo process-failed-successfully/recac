@@ -66,6 +66,7 @@ func main() {
 	pflag.String("clone-job", "", "Clone an existing job by ID")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
+	pflag.String("retry-tag", "", "Retry all failed jobs from history with the specified tag")
 	pflag.Bool("require-approval", false, "Require human approval before starting any job")
 	pflag.String("approve-job", "", "Approve a job that is pending approval")
 	pflag.String("hold-job", "", "Hold a pending job to prevent it from running")
@@ -248,6 +249,7 @@ func main() {
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
+	viper.BindPFlag("orchestrator.retry_tag", pflag.Lookup("retry-tag"))
 	viper.BindPFlag("orchestrator.require_approval", pflag.Lookup("require-approval"))
 	viper.BindPFlag("orchestrator.approve_job", pflag.Lookup("approve-job"))
 	viper.BindPFlag("orchestrator.hold_job", pflag.Lookup("hold-job"))
@@ -603,9 +605,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	retryMatch := viper.GetString("orchestrator.retry_match")
-	if viper.GetBool("orchestrator.retry_failed") || retryMatch != "" {
+	retryTag := viper.GetString("orchestrator.retry_tag")
+	if viper.GetBool("orchestrator.retry_failed") || retryMatch != "" || retryTag != "" {
 		host := viper.GetString("orchestrator.host")
-		retryFailedJobs(host, retryMatch)
+		retryFailedJobs(host, retryMatch, retryTag)
 		return nil
 	}
 
@@ -1787,7 +1790,7 @@ func retryJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s retry submitted successfully.\n", jobID)
 }
 
-func retryFailedJobs(host, match string) {
+func retryFailedJobs(host, match string, tag string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/retry-failed", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -1795,11 +1798,14 @@ func retryFailedJobs(host, match string) {
 		return
 	}
 
+	q := u.Query()
 	if match != "" {
-		q := u.Query()
 		q.Set("match", match)
-		u.RawQuery = q.Encode()
 	}
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {

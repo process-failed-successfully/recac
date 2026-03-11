@@ -25,7 +25,7 @@ func TestRetryFailedJobs_Success(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	retryFailedJobs(server.URL, "")
+	retryFailedJobs(server.URL, "", "")
 
 	w.Close()
 	var buf bytes.Buffer
@@ -50,7 +50,7 @@ func TestRetryFailedJobs_Failure(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	retryFailedJobs(server.URL, "")
+	retryFailedJobs(server.URL, "", "")
 
 	w.Close()
 	var buf bytes.Buffer
@@ -70,7 +70,7 @@ func TestRetryFailedJobs_ConnectionError(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	retryFailedJobs("http://invalid-url-that-will-fail.test", "")
+	retryFailedJobs("http://invalid-url-that-will-fail.test", "", "")
 
 	w.Close()
 	var buf bytes.Buffer
@@ -96,7 +96,7 @@ func TestRetryFailedJobs_InvalidResponse(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	retryFailedJobs(server.URL, "")
+	retryFailedJobs(server.URL, "", "")
 
 	w.Close()
 	var buf bytes.Buffer
@@ -116,7 +116,7 @@ func TestRetryFailedJobs_InvalidURL(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	retryFailedJobs("http://[fe80::1%en0]:8080", "")
+	retryFailedJobs("http://[fe80::1%en0]:8080", "", "")
 
 	w.Close()
 	var buf bytes.Buffer
@@ -138,10 +138,31 @@ func TestRetryFailedJobs_WithMatch(t *testing.T) {
 	stdout = w
 	defer func() { stdout = oldStdout }()
 
-	retryFailedJobs(server.URL, "match_string")
+	retryFailedJobs(server.URL, "match_string", "")
 
 	w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	assert.Contains(t, buf.String(), "Successfully retried 2 failed jobs.")
+}
+
+func TestRetryFailedJobs_WithTag(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "backend", r.URL.Query().Get("tag"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"retried": 3}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	retryFailedJobs(server.URL, "", "backend")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	assert.Contains(t, buf.String(), "Successfully retried 3 failed jobs.")
 }
