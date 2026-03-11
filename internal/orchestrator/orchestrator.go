@@ -869,6 +869,71 @@ func (o *Orchestrator) UpdateJobWorkItem(ctx context.Context, jobID string, newI
 	return nil
 }
 
+// HoldJob holds a pending job.
+func (o *Orchestrator) HoldJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		// Check if active or completed to return a more specific error
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.Unlock()
+			return fmt.Errorf("job %s is already active and cannot be held", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.Unlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.Unlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	job.WorkItem.Hold = true
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_held", job)
+
+	if logger != nil {
+		logger.Info("Held job", "jobID", jobID)
+	}
+
+	return nil
+}
+
+// UnholdJob unholds a pending job.
+func (o *Orchestrator) UnholdJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		// Check if active or completed to return a more specific error
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.Unlock()
+			return fmt.Errorf("job %s is already active and cannot be unheld", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.Unlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.Unlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	job.WorkItem.Hold = false
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_unheld", job)
+
+	if logger != nil {
+		logger.Info("Unheld job", "jobID", jobID)
+	}
+
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // UpdateJobPriority updates the priority of a job in the pending queue.
 func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newPriority int, logger *slog.Logger) error {
 	o.mu.Lock()
@@ -1503,6 +1568,10 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		// If require approval is true, and it hasn't been approved, skip it.
 		// If it has been approved, we process it normally (check dependencies, spawn)
 		if o.RequireApproval && !jobInfo.Approved {
+			continue
+		}
+
+		if jobInfo.WorkItem.Hold {
 			continue
 		}
 
