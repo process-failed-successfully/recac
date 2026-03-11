@@ -708,6 +708,48 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("POST /jobs/pipeline", func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read body", http.StatusBadRequest)
+			return
+		}
+
+		items, err := ParsePipelineToWorkItems(bodyBytes)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var submitted []string
+		var errors []string
+
+		for _, item := range items {
+			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+				if err == ErrAtCapacity {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "at capacity"))
+				} else if err == ErrDraining {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "draining"))
+				} else if strings.Contains(err.Error(), "already active") {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "already active"))
+				} else {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, err.Error()))
+				}
+			} else {
+				submitted = append(submitted, item.ID)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"submitted": submitted,
+			"errors":    errors,
+		}); err != nil {
+			logger.Error("Failed to encode pipeline submission response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("POST /jobs/matrix", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			BaseItem WorkItem            `json:"base_item"`
