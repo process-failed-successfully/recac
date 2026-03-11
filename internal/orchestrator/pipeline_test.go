@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -139,4 +140,76 @@ jobs:
 	_, err := ParsePipelineToWorkItems(yamlData)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to unmarshal pipeline YAML")
+}
+
+func TestParsePipelineToWorkItems_Matrix(t *testing.T) {
+	yamlData := []byte(`
+name: Matrix Pipeline
+defaults:
+  repo_url: https://github.com/org/repo.git
+jobs:
+  lint:
+    summary: Run linter
+    task: npm run lint
+  test:
+    summary: Run tests
+    depends_on: [lint]
+    task: npm run test
+    matrix:
+      NODE_VERSION: ["16", "18"]
+      OS: ["ubuntu-latest", "macos-latest"]
+  deploy:
+    summary: Deploy
+    depends_on: [test]
+    task: ./deploy.sh
+`)
+
+	items, err := ParsePipelineToWorkItems(yamlData)
+	require.NoError(t, err)
+
+	// lint: 1 job
+	// test: 2 * 2 = 4 jobs
+	// deploy: 1 job
+	// Total: 6 jobs
+	assert.Len(t, items, 6)
+
+	// Find the jobs
+	var lintJob WorkItem
+	var testJobs []WorkItem
+	var deployJob WorkItem
+
+	for _, item := range items {
+		if strings.Contains(item.ID, "matrix-pipeline-lint") {
+			lintJob = item
+		} else if strings.Contains(item.ID, "matrix-pipeline-test") {
+			testJobs = append(testJobs, item)
+		} else if strings.Contains(item.ID, "matrix-pipeline-deploy") {
+			deployJob = item
+		}
+	}
+
+	assert.NotEqual(t, "", lintJob.ID)
+	assert.Len(t, testJobs, 4)
+	assert.NotEqual(t, "", deployJob.ID)
+
+	// Check test matrix permutations
+	var envVarsFound []string
+	for _, job := range testJobs {
+		assert.Equal(t, []string{lintJob.ID}, job.DependsOn)
+		envVarsFound = append(envVarsFound, fmt.Sprintf("%s-%s", job.EnvVars["NODE_VERSION"], job.EnvVars["OS"]))
+	}
+	assert.ElementsMatch(t, []string{
+		"16-ubuntu-latest",
+		"16-macos-latest",
+		"18-ubuntu-latest",
+		"18-macos-latest",
+	}, envVarsFound)
+
+	// Check deploy dependency resolution
+	assert.Len(t, deployJob.DependsOn, 4)
+	var expectedTestIDs []string
+	for _, job := range testJobs {
+		expectedTestIDs = append(expectedTestIDs, job.ID)
+	}
+	assert.ElementsMatch(t, expectedTestIDs, deployJob.DependsOn)
 }
