@@ -443,6 +443,66 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s approved", id)
 	})
 
+	mux.HandleFunc("POST /jobs/hold", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.HoldJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.HoldJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk hold", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"held": %d}`, count)
+	})
+
+	mux.HandleFunc("POST /jobs/unhold", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UnholdJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.UnholdJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk unhold", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"unheld": %d}`, count)
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/hold", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if err := orch.HoldJob(r.Context(), id, logger); err != nil {

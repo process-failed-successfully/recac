@@ -127,3 +127,137 @@ func TestOrchestrator_HoldJob_Errors(t *testing.T) {
 		t.Fatalf("Expected error when holding active/completed job")
 	}
 }
+
+func TestOrchestrator_HoldJobsByTag(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+	orch.RequireApproval = true
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "S1", Tags: []string{"backend"}}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "S2", Tags: []string{"frontend", "backend"}}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "S3", Tags: []string{"frontend"}}, nil)
+
+	count, err := orch.HoldJobsByTag(ctx, "BACKend", nil)
+	if err != nil {
+		t.Fatalf("Failed to hold jobs by tag: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("Expected 2 jobs held, got %d", count)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	j2, _ := orch.GetJob("J2")
+	j3, _ := orch.GetJob("J3")
+
+	if !j1.WorkItem.Hold || !j2.WorkItem.Hold {
+		t.Fatalf("Expected J1 and J2 to be held")
+	}
+	if j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 not to be held")
+	}
+}
+
+func TestOrchestrator_HoldJobsByMatch(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+	orch.RequireApproval = true
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "Update database schema"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "Fix database connection"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "Update frontend UI"}, nil)
+
+	count, err := orch.HoldJobsByMatch(ctx, "database", nil)
+	if err != nil {
+		t.Fatalf("Failed to hold jobs by match: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("Expected 2 jobs held, got %d", count)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	j2, _ := orch.GetJob("J2")
+	j3, _ := orch.GetJob("J3")
+
+	if !j1.WorkItem.Hold || !j2.WorkItem.Hold {
+		t.Fatalf("Expected J1 and J2 to be held")
+	}
+	if j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 not to be held")
+	}
+}
+
+func TestOrchestrator_UnholdJobsByTag(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+	orch.RequireApproval = true
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "S1", Tags: []string{"backend"}}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "S2", Tags: []string{"frontend", "backend"}}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "S3", Tags: []string{"frontend"}}, nil)
+
+	orch.HoldJobsByTag(ctx, "backend", nil)
+	orch.HoldJob(ctx, "J3", nil)
+
+	count, err := orch.UnholdJobsByTag(ctx, "backend", nil)
+	if err != nil {
+		t.Fatalf("Failed to unhold jobs by tag: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("Expected 2 jobs unheld, got %d", count)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	j2, _ := orch.GetJob("J2")
+	j3, _ := orch.GetJob("J3")
+
+	if j1.WorkItem.Hold || j2.WorkItem.Hold {
+		t.Fatalf("Expected J1 and J2 to be unheld")
+	}
+	if !j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 to remain held")
+	}
+}
+
+func TestOrchestrator_UnholdJobsByMatch(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+	orch.RequireApproval = true
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "Update database schema"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "Fix database connection"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "Update frontend UI"}, nil)
+
+	orch.HoldJobsByMatch(ctx, "database", nil)
+	orch.HoldJob(ctx, "J3", nil)
+
+	count, err := orch.UnholdJobsByMatch(ctx, "database", nil)
+	if err != nil {
+		t.Fatalf("Failed to unhold jobs by match: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("Expected 2 jobs unheld, got %d", count)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	j2, _ := orch.GetJob("J2")
+	j3, _ := orch.GetJob("J3")
+
+	if j1.WorkItem.Hold || j2.WorkItem.Hold {
+		t.Fatalf("Expected J1 and J2 to be unheld")
+	}
+	if !j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 to remain held")
+	}
+}
