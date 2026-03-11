@@ -510,3 +510,34 @@ func TestOrchestrator_ForcePoll(t *testing.T) {
 	cancel()
 	wg.Wait()
 }
+
+func TestOrchestrator_UnholdJob_Errors(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	o := New(mockPoller, mockSpawner, 10*time.Millisecond)
+
+	// Test UnholdJob active job
+	o.mu.Lock()
+	o.activeJobs["active-job"] = JobInfo{ID: "active-job"}
+	o.mu.Unlock()
+
+	err := o.UnholdJob(context.Background(), "active-job", logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already active and cannot be unheld")
+
+	// Test UnholdJob completed job
+	o.mu.Lock()
+	o.completedJobs = append(o.completedJobs, JobInfo{ID: "completed-job"})
+	o.mu.Unlock()
+
+	err = o.UnholdJob(context.Background(), "completed-job", logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already completed")
+
+	// Test UnholdJob not found
+	err = o.UnholdJob(context.Background(), "missing-job", logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found in pending queue")
+}

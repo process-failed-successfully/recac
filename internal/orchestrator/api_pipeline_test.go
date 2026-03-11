@@ -102,6 +102,7 @@ jobs:
 		orch.mu.Unlock()
 
 		req := httptest.NewRequest(http.MethodPost, "/jobs/pipeline", bytes.NewReader(yamlData))
+		req.Header.Set("Content-Type", "application/x-yaml")
 		rr := httptest.NewRecorder()
 
 		mux.ServeHTTP(rr, req)
@@ -115,13 +116,18 @@ jobs:
 		errorsRaw, ok := resp["errors"]
 		require.True(t, ok, "Expected 'errors' key in response")
 
-		errorsArr, ok := errorsRaw.([]interface{})
-		require.True(t, ok, "Expected 'errors' to be a list")
-		assert.Len(t, errorsArr, 1)
-
-		errStr, ok := errorsArr[0].(string)
-		require.True(t, ok, "Expected error to be a string")
-		assert.Contains(t, errStr, "at capacity")
+		if errorsRaw != nil {
+			errorsArr, ok := errorsRaw.([]interface{})
+			require.True(t, ok, "Expected 'errors' to be a list")
+			assert.Len(t, errorsArr, 1)
+			if len(errorsArr) > 0 {
+				errStr, ok := errorsArr[0].(string)
+				require.True(t, ok, "Expected error to be a string")
+				assert.Contains(t, errStr, "at capacity")
+			}
+		} else {
+			t.Fatalf("Expected errors to be a list, got nil")
+		}
 
 		// Reset for other tests
 		orch.mu.Lock()

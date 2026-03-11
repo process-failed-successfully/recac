@@ -712,8 +712,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			}
 		}
 
-		var submitted []string
-		var errors []string
+		submitted := make([]string, 0)
+		errors := make([]string, 0)
 
 		for _, item := range items {
 			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
@@ -754,8 +754,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			return
 		}
 
-		var submitted []string
-		var errors []string
+		submitted := make([]string, 0)
+		errors := make([]string, 0)
 
 		for _, item := range items {
 			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
@@ -832,8 +832,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			combinations = append(combinations, make(map[string]string))
 		}
 
-		var submitted []string
-		var errors []string
+		submitted := make([]string, 0)
+		errors := make([]string, 0)
 
 		for i, combo := range combinations {
 			item := req.BaseItem // shallow copy

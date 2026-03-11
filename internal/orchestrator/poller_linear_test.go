@@ -2,11 +2,13 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -423,4 +425,71 @@ func TestLinearPoller_closeIssue_GraphQL_Error(t *testing.T) {
 	err := poller.closeIssue(context.Background(), "issue_id")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "linear issue update error: Update failed")
+}
+
+func TestLinearPoller_closeIssue_Errors(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	poller := NewLinearPoller(
+
+		"test-token",
+		"test-team",
+		"todo",
+	)
+	poller.BaseURL = ts.URL
+
+	err := poller.closeIssue(context.Background(), "lin-123")
+	assert.Error(t, err)
+
+	// Test missing state ID
+	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data":{"workflowStates":{"nodes":[]}}}`))
+	}))
+	defer ts2.Close()
+
+	poller2 := NewLinearPoller(
+
+		"test-token",
+		"test-team",
+		"todo",
+	)
+	poller2.BaseURL = ts2.URL
+
+	err = poller2.closeIssue(context.Background(), "lin-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no completed workflow state found for team")
+
+	// Test failed mutation
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&req)
+
+		query, _ := req["query"].(string)
+		if strings.Contains(query, "workflowStates") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"workflowStates":{"nodes":[{"id":"state-1"}]}}}`))
+		} else if strings.Contains(query, "issueUpdate") {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	})
+	ts3 := httptest.NewServer(mux)
+	defer ts3.Close()
+
+	poller3 := NewLinearPoller(
+
+		"test-token",
+		"test-team",
+		"todo",
+	)
+	poller3.BaseURL = ts3.URL
+
+	err = poller3.closeIssue(context.Background(), "lin-123")
+	assert.Error(t, err)
 }

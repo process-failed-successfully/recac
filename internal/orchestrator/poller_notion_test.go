@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -189,4 +190,40 @@ func TestNotionPoller_addComment_API_Error(t *testing.T) {
 	err := poller.addComment(context.Background(), "page_id", "comment text")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to post notion comment")
+}
+
+func TestNotionPoller_UpdateStatus_UpdateFailure(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	poller := NewNotionPoller(
+		ts.URL,
+		"test-token",
+		"test-db-id",
+	)
+
+	err := poller.UpdateStatus(context.Background(), WorkItem{ID: "test-id"}, "Done", "")
+	assert.Error(t, err)
+}
+
+func TestNotionPoller_UpdateStatus_CommentFailure(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "pages") {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer ts.Close()
+
+	poller := NewNotionPoller(
+		ts.URL,
+		"test-token",
+		"test-db-id",
+	)
+
+	err := poller.UpdateStatus(context.Background(), WorkItem{ID: "test-id"}, "Done", "test comment")
+	assert.Error(t, err)
 }
