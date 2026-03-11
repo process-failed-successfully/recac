@@ -759,6 +759,46 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 	return nil
 }
 
+// UpdateJobAgent updates the agent provider and model of a job in the pending queue.
+func (o *Orchestrator) UpdateJobAgent(ctx context.Context, jobID string, agentProvider string, agentModel string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have agent updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	if agentProvider != "" {
+		job.WorkItem.AgentProvider = agentProvider
+	}
+	if agentModel != "" {
+		job.WorkItem.AgentModel = agentModel
+	}
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_agent_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job agent", "jobID", jobID, "agentProvider", agentProvider, "agentModel", agentModel)
+	}
+
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
 // UpdateJobTimeout updates the timeout of a job in the pending queue.
 func (o *Orchestrator) UpdateJobTimeout(ctx context.Context, jobID string, newTimeout time.Duration, logger *slog.Logger) error {
 	o.mu.Lock()

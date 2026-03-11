@@ -34,3 +34,9 @@
 {"time":"2026-03-11T20:36:52.292922895Z","level":"INFO","msg":"Cleaning up local workspace","work_item":"TEST-PROC"}
 {"time":"2026-03-11T20:36:52.293009051Z","level":"INFO","msg":"Canceling job process","job_id":"NON-EXISTENT"}
 {"time":"2026-03-11T20:36:52.310579874Z","level":"INFO","msg":"Canceling job process","job_id":"TEST-CANCEL"}
+{"time":"2026-03-11T21:45:48.681141037Z","level":"INFO","msg":"Creating local workspace for job","id":"TEST-PROC","dir":"/tmp/recac-agent-TEST-PROC-1131683878"}
+{"time":"2026-03-11T21:45:48.681966524Z","level":"INFO","msg":"Starting local agent process","work_item":"TEST-PROC"}
+{"time":"2026-03-11T21:45:48.681978364Z","level":"ERROR","msg":"failed to start agent process","error":"exec: \"recac-agent\": executable file not found in $PATH"}
+{"time":"2026-03-11T21:45:48.682131993Z","level":"INFO","msg":"Cleaning up local workspace","work_item":"TEST-PROC"}
+{"time":"2026-03-11T21:45:48.682288515Z","level":"INFO","msg":"Canceling job process","job_id":"NON-EXISTENT"}
+{"time":"2026-03-11T21:45:48.70175288Z","level":"INFO","msg":"Canceling job process","job_id":"TEST-CANCEL"}

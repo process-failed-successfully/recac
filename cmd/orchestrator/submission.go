@@ -948,6 +948,49 @@ func updatePriority(host, jobID string, priority int) {
 	fmt.Fprintf(stdout, "Job %s priority updated to %d\n", jobID, priority)
 }
 
+func updateAgent(host, jobID, providerStr, modelStr string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s/agent", host, jobID)
+
+	reqBody := struct {
+		AgentProvider string `json:"agent_provider"`
+		AgentModel    string `json:"agent_model"`
+	}{
+		AgentProvider: providerStr,
+		AgentModel:    modelStr,
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal agent data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update agent: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s agent updated to provider=%s model=%s\n", jobID, providerStr, modelStr)
+}
+
 func updateTimeout(host, jobID, timeoutStr string) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/timeout", host, jobID)
 	reqBody := fmt.Sprintf(`{"timeout": "%s"}`, timeoutStr)

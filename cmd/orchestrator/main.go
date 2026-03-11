@@ -86,6 +86,9 @@ func main() {
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout)")
+	pflag.String("update-agent-job", "", "Update the agent provider and model of a specific pending job")
+	pflag.String("agent-provider-val", "", "The new agent provider to assign (requires --update-agent-job)")
+	pflag.String("agent-model-val", "", "The new agent model to assign (requires --update-agent-job)")
 	pflag.String("set-progress-job", "", "Set progress for a specific job")
 	pflag.Int("progress-val", -1, "The progress value to set (0-100) (requires --set-progress-job)")
 	pflag.String("progress-msg", "", "Optional status message to set along with progress")
@@ -275,6 +278,9 @@ func main() {
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.timeout_val", pflag.Lookup("timeout-val"))
+	viper.BindPFlag("orchestrator.update_agent_job", pflag.Lookup("update-agent-job"))
+	viper.BindPFlag("orchestrator.agent_provider_val", pflag.Lookup("agent-provider-val"))
+	viper.BindPFlag("orchestrator.agent_model_val", pflag.Lookup("agent-model-val"))
 	viper.BindPFlag("orchestrator.set_progress_job", pflag.Lookup("set-progress-job"))
 	viper.BindPFlag("orchestrator.progress_val", pflag.Lookup("progress-val"))
 	viper.BindPFlag("orchestrator.progress_msg", pflag.Lookup("progress-msg"))
@@ -712,6 +718,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		updateTimeout(host, updateTimeoutJob, timeoutVal)
+		return nil
+	}
+
+	if updateAgentJob := viper.GetString("orchestrator.update_agent_job"); updateAgentJob != "" {
+		host := viper.GetString("orchestrator.host")
+		providerVal := viper.GetString("orchestrator.agent_provider_val")
+		modelVal := viper.GetString("orchestrator.agent_model_val")
+		if providerVal == "" && modelVal == "" {
+			fmt.Fprintf(stdout, "Error: --agent-provider-val or --agent-model-val is required when using --update-agent-job\n")
+			exitFunc(1)
+			return nil
+		}
+		updateAgent(host, updateAgentJob, providerVal, modelVal)
 		return nil
 	}
 
