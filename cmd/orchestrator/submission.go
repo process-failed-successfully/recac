@@ -1141,3 +1141,55 @@ func editJob(host, jobID string) {
 
 	fmt.Fprintf(stdout, "Job %s updated successfully.\n", jobID)
 }
+
+func importJobs(host, path string) {
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", path, err)
+		exitFunc(1)
+		return
+	}
+	defer file.Close()
+
+	var jobs []orchestrator.JobInfo
+	if err := json.NewDecoder(file).Decode(&jobs); err != nil {
+		fmt.Fprintf(stdout, "Invalid JSON in file %s: %v\n", path, err)
+		exitFunc(1)
+		return
+	}
+
+	var items []orchestrator.WorkItem
+	for _, job := range jobs {
+		items = append(items, job.WorkItem)
+	}
+
+	if len(items) == 0 {
+		fmt.Fprintf(stdout, "No jobs found in file %s\n", path)
+		return
+	}
+
+	data, err := json.Marshal(items)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to encode items: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs/batch", host), "application/json", bytes.NewReader(data))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to import jobs: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Fprintf(stdout, "Successfully imported jobs:\n%s\n", strings.TrimSpace(string(body)))
+}
