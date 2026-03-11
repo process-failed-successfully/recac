@@ -12,3 +12,7 @@
 ## 2026-03-05 - Actionable Empty States
 **Learning:** Empty states should not just tell the user what's missing, but proactively guide them on what to do next. When a list is empty, including a primary action (like "Submit a new job" in the Orchestrator dashboard) makes the UI significantly more actionable and intuitive.
 **Action:** Always include a helpful call-to-action in empty state messages, suggesting the most logical next step for the user and providing the relevant keybinding.
+
+## 2026-03-05 - Overlay Actionable Empty States
+**Learning:** When displaying actionable empty states in overlay views (like `viewTree` in the Orchestrator dashboard) where primary actions (like 's' to submit) are only handled by the main view, the empty state instruction must explicitly guide the user to return to the main view first.
+**Action:** Use phrasing like "Press 'q' or 'esc' to go back, then press 's' to submit a new job" rather than just "Press 's' to submit", which would falsely imply the key works directly in the overlay.

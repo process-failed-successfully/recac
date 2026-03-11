@@ -1672,7 +1672,7 @@ func renderAnalytics(a orchestrator.Analytics) string {
 
 func renderTree(jobs []orchestrator.JobInfo) string {
 	if len(jobs) == 0 {
-		return "No jobs found."
+		return "No jobs found.\n\nPress 'q' or 'esc' to go back, then press 's' to submit a new job."
 	}
 
 	jobMap := make(map[string]orchestrator.JobInfo)
