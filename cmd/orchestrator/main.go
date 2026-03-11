@@ -103,6 +103,7 @@ func main() {
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-matrix", "", "Submit a matrix job from a JSON file path")
 	pflag.String("submit-pipeline", "", "Submit a pipeline job from a YAML file path")
+	pflag.String("lint-pipeline", "", "Validate a pipeline YAML file without submitting")
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
@@ -291,6 +292,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
 	viper.BindPFlag("orchestrator.submit_matrix", pflag.Lookup("submit-matrix"))
 	viper.BindPFlag("orchestrator.submit_pipeline", pflag.Lookup("submit-pipeline"))
+	viper.BindPFlag("orchestrator.lint_pipeline", pflag.Lookup("lint-pipeline"))
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
@@ -793,6 +795,11 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		wait := viper.GetBool("orchestrator.wait")
 		submitPipelineJob(host, submitPipelineFile, wait)
+		return nil
+	}
+
+	if lintPipelineFile := viper.GetString("orchestrator.lint_pipeline"); lintPipelineFile != "" {
+		lintPipelineJob(lintPipelineFile)
 		return nil
 	}
 

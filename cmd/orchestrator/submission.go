@@ -70,6 +70,24 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
+func lintPipelineJob(filePath string) {
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
+	}
+
+	items, err := orchestrator.ParsePipelineToWorkItems(fileData)
+	if err != nil {
+		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Pipeline is valid. Parsed %d jobs.\n", len(items))
+}
+
 func submitPipelineJob(host, filePath string, wait bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
