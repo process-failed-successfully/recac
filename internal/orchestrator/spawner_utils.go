@@ -14,13 +14,19 @@ func collectAgentEnvVars(item WorkItem, provider, model string) map[string]strin
 		env[k] = v
 	}
 
-	// 2. Agent Config
-	if provider != "" {
+	// 2. Agent Config (WorkItem overrides Default overrides Nothing)
+	if item.AgentProvider != "" {
+		env["RECAC_PROVIDER"] = item.AgentProvider
+	} else if provider != "" {
 		env["RECAC_PROVIDER"] = provider
 	}
-	if model != "" {
+
+	if item.AgentModel != "" {
+		env["RECAC_MODEL"] = item.AgentModel
+	} else if model != "" {
 		env["RECAC_MODEL"] = model
 	}
+
 	env["RECAC_PROJECT_ID"] = item.ID
 	env["GIT_TERMINAL_PROMPT"] = "0"
 

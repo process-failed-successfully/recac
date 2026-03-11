@@ -540,6 +540,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 						m.inputs[3].SetValue(job.WorkItem.ConcurrencyGroup)
 						m.inputs[4].SetValue(fmt.Sprintf("%t", job.WorkItem.CancelInProgress))
 						m.inputs[5].SetValue(strings.Join(job.WorkItem.Tags, ","))
+						m.inputs[6].SetValue(job.WorkItem.AgentProvider)
+						m.inputs[7].SetValue(job.WorkItem.AgentModel)
 						m.textarea.SetValue(job.WorkItem.Description)
 						for i := 1; i < len(m.inputs); i++ {
 							m.inputs[i].Blur()
@@ -695,6 +697,8 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			concurrencyGroup := m.inputs[3].Value()
 			cancelInProgressStr := strings.ToLower(strings.TrimSpace(m.inputs[4].Value()))
 			tagsStr := m.inputs[5].Value()
+			agentProvider := m.inputs[6].Value()
+			agentModel := m.inputs[7].Value()
 			description := m.textarea.Value()
 
 			cancelInProgress := false
@@ -726,7 +730,7 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 
 			if summary != "" && repoUrl != "" {
 				m.viewState = viewMain
-				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn, tags, concurrencyGroup, cancelInProgress)
+				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn, tags, concurrencyGroup, cancelInProgress, agentProvider, agentModel)
 			}
 		case tea.KeyTab, tea.KeyShiftTab, tea.KeyEnter, tea.KeyUp, tea.KeyDown:
 			s := msg.String()
@@ -1417,7 +1421,7 @@ func openBrowserCmd(url string) tea.Cmd {
 	}
 }
 
-func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool) tea.Cmd {
+func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string) tea.Cmd {
 	return func() tea.Msg {
 		// Use a timestamp-based ID or a unique ID.
 		// For simplicity, generating an ad-hoc ID
@@ -1432,6 +1436,8 @@ func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string
 			Tags:             tags,
 			ConcurrencyGroup: concurrencyGroup,
 			CancelInProgress: cancelInProgress,
+			AgentProvider:    agentProvider,
+			AgentModel:       agentModel,
 		}
 
 		bodyBytes, err := json.Marshal(item)
@@ -1492,7 +1498,7 @@ func retryFailedJobs(host string) tea.Cmd {
 // NewDashboardModel initializes a new DashboardModel with default styles
 func NewDashboardModel(host string) DashboardModel {
 	// Initialize inputs for submission form
-	inputs := make([]textinput.Model, 6)
+	inputs := make([]textinput.Model, 8)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Fix login issue"
@@ -1524,6 +1530,16 @@ func NewDashboardModel(host string) DashboardModel {
 	inputs[5].Placeholder = "bug,feature"
 	inputs[5].Prompt = "Tags (comma-separated): "
 	inputs[5].Width = 50
+
+	inputs[6] = textinput.New()
+	inputs[6].Placeholder = "openrouter"
+	inputs[6].Prompt = "Agent Provider: "
+	inputs[6].Width = 50
+
+	inputs[7] = textinput.New()
+	inputs[7].Placeholder = "openai/gpt-4o-mini"
+	inputs[7].Prompt = "Agent Model: "
+	inputs[7].Width = 50
 
 	ta := textarea.New()
 	ta.Placeholder = "Detailed description of the issue..."

@@ -83,6 +83,14 @@ const DashboardHTML = `
                     <input type="text" id="job-tags" placeholder="e.g., bug, frontend">
                 </div>
                 <div class="form-group">
+                    <label for="job-agent-provider">Agent Provider (Optional)</label>
+                    <input type="text" id="job-agent-provider" placeholder="e.g., openrouter">
+                </div>
+                <div class="form-group">
+                    <label for="job-agent-model">Agent Model (Optional)</label>
+                    <input type="text" id="job-agent-model" placeholder="e.g., openai/gpt-4o-mini">
+                </div>
+                <div class="form-group">
                     <label for="job-env">Environment Variables (Optional, KEY=VALUE, one per line)</label>
                     <textarea id="job-env" placeholder="DEBUG=true&#10;PORT=8080"></textarea>
                 </div>
@@ -280,6 +288,8 @@ const DashboardHTML = `
                 document.getElementById('job-repo').value = j.work_item.repo_url || '';
                 document.getElementById('job-deps').value = (j.work_item.depends_on || []).join(', ');
                 document.getElementById('job-tags').value = (j.work_item.tags || []).join(', ');
+                document.getElementById('job-agent-provider').value = j.work_item.agent_provider || '';
+                document.getElementById('job-agent-model').value = j.work_item.agent_model || '';
 
                 let envStr = '';
                 if (j.work_item.env_vars) {
@@ -339,6 +349,8 @@ const DashboardHTML = `
             const repo = document.getElementById('job-repo').value.trim();
             const depsStr = document.getElementById('job-deps').value.trim();
             const tagsStr = document.getElementById('job-tags').value.trim();
+            const agentProvider = document.getElementById('job-agent-provider').value.trim();
+            const agentModel = document.getElementById('job-agent-model').value.trim();
             const envStr = document.getElementById('job-env').value.trim();
             const desc = document.getElementById('job-desc').value.trim();
 
@@ -369,6 +381,8 @@ const DashboardHTML = `
                 description: desc,
                 depends_on: deps,
                 tags: tags,
+                agent_provider: agentProvider,
+                agent_model: agentModel,
                 env_vars: env
             };
 
@@ -387,6 +401,8 @@ const DashboardHTML = `
                     document.getElementById('job-repo').value = '';
                     document.getElementById('job-deps').value = '';
                     document.getElementById('job-tags').value = '';
+                    document.getElementById('job-agent-provider').value = '';
+                    document.getElementById('job-agent-model').value = '';
                     document.getElementById('job-env').value = '';
                     document.getElementById('job-desc').value = '';
                     fetchStatus();
