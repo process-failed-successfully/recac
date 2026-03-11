@@ -99,6 +99,8 @@ func main() {
 	pflag.Duration("submit-timeout", 0, "Optional custom timeout for the ad-hoc job (e.g. 30m)")
 	pflag.String("submit-concurrency-group", "", "Concurrency group for the ad-hoc job")
 	pflag.Bool("submit-cancel-in-progress", false, "Cancel running jobs in the same concurrency group")
+	pflag.String("submit-agent-provider", "", "Agent provider to use for the ad-hoc job")
+	pflag.String("submit-agent-model", "", "Agent model to use for the ad-hoc job")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -269,6 +271,8 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_timeout", pflag.Lookup("submit-timeout"))
 	viper.BindPFlag("orchestrator.submit_concurrency_group", pflag.Lookup("submit-concurrency-group"))
 	viper.BindPFlag("orchestrator.submit_cancel_in_progress", pflag.Lookup("submit-cancel-in-progress"))
+	viper.BindPFlag("orchestrator.submit_agent_provider", pflag.Lookup("submit-agent-provider"))
+	viper.BindPFlag("orchestrator.submit_agent_model", pflag.Lookup("submit-agent-model"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -710,7 +714,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
 		concurrencyGroup := viper.GetString("orchestrator.submit_concurrency_group")
 		cancelInProgress := viper.GetBool("orchestrator.submit_cancel_in_progress")
-		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress)
+		agentProvider := viper.GetString("orchestrator.submit_agent_provider")
+		agentModel := viper.GetString("orchestrator.submit_agent_model")
+		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel)
 		return nil
 	}
 
