@@ -79,6 +79,10 @@ const DashboardHTML = `
                     <input type="text" id="job-deps" placeholder="e.g., JOB-1, JOB-2">
                 </div>
                 <div class="form-group">
+                    <label for="job-tags">Tags (Optional, comma-separated tags)</label>
+                    <input type="text" id="job-tags" placeholder="e.g., bug, frontend">
+                </div>
+                <div class="form-group">
                     <label for="job-env">Environment Variables (Optional, KEY=VALUE, one per line)</label>
                     <textarea id="job-env" placeholder="DEBUG=true&#10;PORT=8080"></textarea>
                 </div>
@@ -273,17 +277,18 @@ const DashboardHTML = `
                 const j = JSON.parse(decodeURIComponent(encodedJobJson));
                 document.getElementById('job-id').value = '';
                 document.getElementById('job-summary').value = j.summary || '';
-                document.getElementById('job-repo').value = j.repo_url || '';
-                document.getElementById('job-deps').value = (j.depends_on || []).join(', ');
+                document.getElementById('job-repo').value = j.work_item.repo_url || '';
+                document.getElementById('job-deps').value = (j.work_item.depends_on || []).join(', ');
+                document.getElementById('job-tags').value = (j.work_item.tags || []).join(', ');
 
                 let envStr = '';
-                if (j.env_vars) {
-                    for (const [key, val] of Object.entries(j.env_vars)) {
+                if (j.work_item.env_vars) {
+                    for (const [key, val] of Object.entries(j.work_item.env_vars)) {
                         envStr += key + '=' + val + '\n';
                     }
                 }
                 document.getElementById('job-env').value = envStr;
-                document.getElementById('job-desc').value = j.description || '';
+                document.getElementById('job-desc').value = j.work_item.description || '';
 
                 document.getElementById('submitModal').style.display = 'block';
             } catch (e) {
@@ -333,6 +338,7 @@ const DashboardHTML = `
             const summary = document.getElementById('job-summary').value.trim();
             const repo = document.getElementById('job-repo').value.trim();
             const depsStr = document.getElementById('job-deps').value.trim();
+            const tagsStr = document.getElementById('job-tags').value.trim();
             const envStr = document.getElementById('job-env').value.trim();
             const desc = document.getElementById('job-desc').value.trim();
 
@@ -342,6 +348,7 @@ const DashboardHTML = `
             }
 
             const deps = depsStr ? depsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+            const tags = tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(s => s) : [];
             const env = {};
             if (envStr) {
                 const lines = envStr.split('\n');
@@ -361,6 +368,7 @@ const DashboardHTML = `
                 repo_url: repo,
                 description: desc,
                 depends_on: deps,
+                tags: tags,
                 env_vars: env
             };
 
@@ -378,6 +386,7 @@ const DashboardHTML = `
                     document.getElementById('job-summary').value = '';
                     document.getElementById('job-repo').value = '';
                     document.getElementById('job-deps').value = '';
+                    document.getElementById('job-tags').value = '';
                     document.getElementById('job-env').value = '';
                     document.getElementById('job-desc').value = '';
                     fetchStatus();

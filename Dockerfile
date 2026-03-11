@@ -29,7 +29,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 # Install Cursor Agent
 ENV HOME=/root
-RUN curl -fsS https://cursor.com/install | bash
+RUN for i in 1 2 3; do curl -fsS https://cursor.com/install | bash && break || sleep 5; done
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
 WORKDIR /app

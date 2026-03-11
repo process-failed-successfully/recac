@@ -206,7 +206,7 @@ func TestDashboardModel_SubmitJob(t *testing.T) {
 	})
 	defer server.Close()
 
-	cmd := submitJobCmd(server.URL, "summary", "repo", "desc", []string{"JOB-1"}, "group-1", true)
+	cmd := submitJobCmd(server.URL, "summary", "repo", "desc", []string{"JOB-1"}, []string{"tag1"}, "group-1", true)
 	msg := cmd()
 	action, ok := msg.(actionMsg)
 	assert.True(t, ok)
@@ -323,7 +323,7 @@ func TestDashboardModel_UpdateFocus(t *testing.T) {
 	assert.False(t, m.inputs[1].Focused())
 	assert.True(t, m.inputs[2].Focused())
 
-	m.focusedInput = 5
+	m.focusedInput = 6
 	m.updateFocus()
 
 	assert.False(t, m.inputs[2].Focused())
