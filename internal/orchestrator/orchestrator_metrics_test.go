@@ -37,6 +37,17 @@ func TestAddJobMetrics(t *testing.T) {
 	assert.Equal(t, 1.5, job.Metrics["cost"])
 	assert.Equal(t, float64(100), job.Metrics["tokens"])
 
+	// Test adding to pending job
+	orch.pendingJobs["PENDING-METRICS-JOB"] = JobInfo{
+		ID:      "PENDING-METRICS-JOB",
+		Summary: "Test pending metrics",
+	}
+	err = orch.AddJobMetrics("PENDING-METRICS-JOB", map[string]float64{"cost": 2.0}, logger)
+	require.NoError(t, err)
+	job, err = orch.GetJob("PENDING-METRICS-JOB")
+	require.NoError(t, err)
+	assert.Equal(t, 2.0, job.Metrics["cost"])
+
 	// Test appending
 	err = orch.AddJobMetrics("METRICS-JOB", map[string]float64{"cost": 0.5, "time": 10}, logger)
 	require.NoError(t, err)
@@ -62,6 +73,14 @@ func TestAddJobMetrics(t *testing.T) {
 	// Test adding to non-existent job
 	err = orch.AddJobMetrics("NON-EXISTENT", map[string]float64{"cost": 1.0}, logger)
 	require.Error(t, err)
+
+	// Test appending to completed job
+	err = orch.AddJobMetrics("METRICS-JOB", map[string]float64{"cost": 1.0}, logger)
+	require.NoError(t, err)
+
+	job, err = orch.GetJob("METRICS-JOB")
+	require.NoError(t, err)
+	assert.Equal(t, 4.0, job.Metrics["cost"])
 }
 
 func TestGetAnalyticsMetrics(t *testing.T) {

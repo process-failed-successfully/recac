@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPostPipelineAPI(t *testing.T) {
@@ -108,11 +109,19 @@ jobs:
 		assert.Equal(t, http.StatusAccepted, rr.Code)
 
 		var resp map[string]interface{}
-		json.Unmarshal(rr.Body.Bytes(), &resp)
+		err := json.Unmarshal(rr.Body.Bytes(), &resp)
+		require.NoError(t, err)
 
-		errors := resp["errors"].([]interface{})
-		assert.Len(t, errors, 1)
-		assert.Contains(t, errors[0].(string), "at capacity")
+		errorsRaw, ok := resp["errors"]
+		require.True(t, ok, "Expected 'errors' key in response")
+
+		errorsArr, ok := errorsRaw.([]interface{})
+		require.True(t, ok, "Expected 'errors' to be a list")
+		assert.Len(t, errorsArr, 1)
+
+		errStr, ok := errorsArr[0].(string)
+		require.True(t, ok, "Expected error to be a string")
+		assert.Contains(t, errStr, "at capacity")
 
 		// Reset for other tests
 		orch.mu.Lock()

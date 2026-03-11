@@ -341,6 +341,11 @@ func TestRegisterAPI(t *testing.T) {
 		orch.activeSpawns = 1
 		orch.mu.Unlock()
 
+		// Allow mock spawner to be called since it gets submitted anyway
+		mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
+			return item.ID == "JOB-456"
+		})).Return(nil).Maybe()
+
 		item2 := WorkItem{ID: "JOB-456", Summary: "Test Job Too Many"}
 		body2, _ := json.Marshal(item2)
 
