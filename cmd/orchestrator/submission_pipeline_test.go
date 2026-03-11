@@ -10,6 +10,83 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestLintPipelineJob_Success(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\njobs:\n  build:\n    summary: build\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	lintPipelineJob(f.Name())
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Pipeline is valid. Parsed 1 jobs.")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestLintPipelineJob_InvalidFile(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	lintPipelineJob("non_existent_pipeline_file.yaml")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to read file non_existent_pipeline_file.yaml")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestLintPipelineJob_InvalidYaml(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\njobs:\n  build:\n    summary: build\n    depends_on: [unknown_job]\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	lintPipelineJob(f.Name())
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Pipeline validation failed")
+	assert.Contains(t, string(out), "job 'build' depends on unknown job 'unknown_job'")
+	assert.Equal(t, 1, exitCode)
+}
+
 func TestSubmitPipelineJob_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/jobs/pipeline", r.URL.Path)
