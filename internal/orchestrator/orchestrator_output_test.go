@@ -30,6 +30,36 @@ func TestSetJobOutput_ActiveJob(t *testing.T) {
 	assert.Equal(t, outputs, job.Outputs)
 }
 
+func TestSetJobOutput_PendingJob(t *testing.T) {
+	mockPoller := &MockPoller{}
+	mockSpawner := &MockSpawner{}
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	orch.pendingJobs["job-1"] = JobInfo{
+		ID: "job-1",
+		Status: "Pending",
+	}
+
+	outputs := map[string]string{"foo": "bar"}
+	err := orch.SetJobOutput("job-1", outputs, logger)
+	assert.NoError(t, err)
+
+	job, _ := orch.GetJob("job-1")
+	assert.Equal(t, outputs, job.Outputs)
+}
+
+func TestSetJobOutput_NonExistentJob(t *testing.T) {
+	mockPoller := &MockPoller{}
+	mockSpawner := &MockSpawner{}
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	outputs := map[string]string{"foo": "bar"}
+	err := orch.SetJobOutput("non-existent-job", outputs, logger)
+	assert.Error(t, err)
+}
+
 func TestSetJobOutput_CompletedJob(t *testing.T) {
 	mockPoller := &MockPoller{}
 	mockSpawner := &MockSpawner{}
