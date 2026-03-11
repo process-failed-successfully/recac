@@ -443,6 +443,38 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s approved", id)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/hold", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.HoldJob(r.Context(), id, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s held", id)
+	})
+
+	mux.HandleFunc("POST /jobs/{id}/unhold", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.UnholdJob(r.Context(), id, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s unheld", id)
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/clone", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

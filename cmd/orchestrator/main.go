@@ -68,6 +68,8 @@ func main() {
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
 	pflag.Bool("require-approval", false, "Require human approval before starting any job")
 	pflag.String("approve-job", "", "Approve a job that is pending approval")
+	pflag.String("hold-job", "", "Hold a pending job to prevent it from running")
+	pflag.String("unhold-job", "", "Unhold a pending job to allow it to run")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
@@ -248,6 +250,8 @@ func main() {
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
 	viper.BindPFlag("orchestrator.require_approval", pflag.Lookup("require-approval"))
 	viper.BindPFlag("orchestrator.approve_job", pflag.Lookup("approve-job"))
+	viper.BindPFlag("orchestrator.hold_job", pflag.Lookup("hold-job"))
+	viper.BindPFlag("orchestrator.unhold_job", pflag.Lookup("unhold-job"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.drain", pflag.Lookup("drain"))
@@ -608,6 +612,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if approveJobId := viper.GetString("orchestrator.approve_job"); approveJobId != "" {
 		host := viper.GetString("orchestrator.host")
 		approveJob(host, approveJobId)
+		return nil
+	}
+
+	if holdJobID := viper.GetString("orchestrator.hold_job"); holdJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		holdJob(host, holdJobID)
+		return nil
+	}
+
+	if unholdJobID := viper.GetString("orchestrator.unhold_job"); unholdJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		unholdJob(host, unholdJobID)
 		return nil
 	}
 
@@ -1843,4 +1859,56 @@ func approveJob(host, jobID string) {
 	}
 
 	fmt.Fprintf(stdout, "Job %s approved successfully.\n", jobID)
+}
+
+func holdJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/hold", host, jobID), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to hold job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s held successfully.\n", jobID)
+}
+
+func unholdJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/unhold", host, jobID), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to unhold job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s unheld successfully.\n", jobID)
 }

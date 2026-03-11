@@ -29,6 +29,7 @@ type WorkItem struct {
 	CancelInProgress bool              `json:"cancel_in_progress,omitempty"`
 	AgentProvider    string            `json:"agent_provider,omitempty"`
 	AgentModel       string            `json:"agent_model,omitempty"`
+	Hold             bool              `json:"hold,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.
