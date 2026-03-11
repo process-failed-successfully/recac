@@ -84,6 +84,7 @@ func main() {
 	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
 	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
+	pflag.String("wait-tag", "", "Wait for all jobs with a specific tag to complete")
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
 	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
@@ -262,6 +263,7 @@ func main() {
 	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
+	viper.BindPFlag("orchestrator.wait_tag", pflag.Lookup("wait-tag"))
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
 	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
@@ -703,6 +705,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		if err := waitForJob(host, waitJob, stdout); err != nil {
 			fmt.Fprintf(stdout, "Job failed: %v\n", err)
+			exitFunc(1)
+		}
+		return nil
+	}
+
+	if waitTag := viper.GetString("orchestrator.wait_tag"); waitTag != "" {
+		host := viper.GetString("orchestrator.host")
+		if err := waitForTag(host, waitTag, stdout); err != nil {
+			fmt.Fprintf(stdout, "Tag %s wait failed: %v\n", waitTag, err)
 			exitFunc(1)
 		}
 		return nil
