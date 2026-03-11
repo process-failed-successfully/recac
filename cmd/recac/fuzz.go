@@ -19,6 +19,11 @@ var (
 	fuzzFunc     string
 	fuzzDuration string
 	fuzzKeep     bool
+
+	// Hoisted regexes for performance
+	fuzzExportedFuncRe = regexp.MustCompile(`func ([A-Z][a-zA-Z0-9_]*)`)
+	fuzzFuzzFuncRe     = regexp.MustCompile(`func (Fuzz[a-zA-Z0-9_]*)`)
+	fuzzPackageRe      = regexp.MustCompile(`package\s+([a-zA-Z0-9_]+)`)
 )
 
 var fuzzCmd = &cobra.Command{
@@ -61,8 +66,7 @@ func runFuzz(cmd *cobra.Command, args []string) error {
 	if targetFunc == "" {
 		// Simple regex to find exported functions
 		// This is a heuristic. A real parser would be better but this suffices for CLI.
-		re := regexp.MustCompile(`func ([A-Z][a-zA-Z0-9_]*)`)
-		matches := re.FindAllStringSubmatch(string(content), -1)
+		matches := fuzzExportedFuncRe.FindAllStringSubmatch(string(content), -1)
 
 		if len(matches) == 0 {
 			return fmt.Errorf("no exported functions found in %s", filePath)
@@ -128,8 +132,7 @@ File Content:
 	// 5. Run Fuzzer
 	// We need to know the name of the Fuzz function.
 	// We can regex it from the generated code.
-	reFuzzFunc := regexp.MustCompile(`func (Fuzz[a-zA-Z0-9_]*)`)
-	match := reFuzzFunc.FindStringSubmatch(fuzzCode)
+	match := fuzzFuzzFuncRe.FindStringSubmatch(fuzzCode)
 	if len(match) < 2 {
 		return fmt.Errorf("could not find Fuzz function name in generated code")
 	}
@@ -181,8 +184,7 @@ File Content:
 }
 
 func getPackageName(content string) string {
-	re := regexp.MustCompile(`package\s+([a-zA-Z0-9_]+)`)
-	matches := re.FindStringSubmatch(content)
+	matches := fuzzPackageRe.FindStringSubmatch(content)
 	if len(matches) >= 2 {
 		return matches[1]
 	}
