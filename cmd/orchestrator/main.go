@@ -42,6 +42,7 @@ func main() {
 	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
+	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
@@ -226,6 +227,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
 	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
+	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
@@ -413,13 +415,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		statusFilter := viper.GetString("orchestrator.list_jobs_status")
 		tagFilter := viper.GetString("orchestrator.list_jobs_tag")
 		matchFilter := viper.GetString("orchestrator.list_jobs_match")
-		listJobs(host, history, statusFilter, tagFilter, matchFilter)
+		format := viper.GetString("orchestrator.list_jobs_format")
+		listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
 		return nil
 	}
 
 	if viper.GetBool("orchestrator.list_pending") {
 		host := viper.GetString("orchestrator.host")
-		listPendingJobs(host)
+		format := viper.GetString("orchestrator.list_jobs_format")
+		listPendingJobs(host, format)
 		return nil
 	}
 
@@ -1256,7 +1260,7 @@ func printStatus(host string) {
 	fmt.Fprintln(stdout, "")
 }
 
-func listPendingJobs(host string) {
+func listPendingJobs(host string, format string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -1286,6 +1290,16 @@ func listPendingJobs(host string) {
 	if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
 		exitFunc(1)
+		return
+	}
+
+	if format == "json" {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(jobs); err != nil {
+			fmt.Fprintf(stdout, "Failed to encode jobs to JSON: %v\n", err)
+			exitFunc(1)
+		}
 		return
 	}
 
@@ -1340,7 +1354,7 @@ func listPendingJobs(host string) {
 	}
 }
 
-func listJobs(host string, history bool, status, tag, match string) {
+func listJobs(host string, history bool, status, tag, match, format string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -1381,6 +1395,16 @@ func listJobs(host string, history bool, status, tag, match string) {
 	if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
 		exitFunc(1)
+		return
+	}
+
+	if format == "json" {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(jobs); err != nil {
+			fmt.Fprintf(stdout, "Failed to encode jobs to JSON: %v\n", err)
+			exitFunc(1)
+		}
 		return
 	}
 
