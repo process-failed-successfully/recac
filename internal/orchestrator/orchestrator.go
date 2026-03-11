@@ -1000,7 +1000,7 @@ func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.
 }
 
 // RetryFailedJobs resubmits all failed jobs from history.
-func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag string, logger *slog.Logger) (int, error) {
 	var matcher *regexp.Regexp
 	var err error
 	if match != "" {
@@ -1010,6 +1010,8 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger
 		}
 	}
 
+	lowerTag := strings.ToLower(tag)
+
 	o.mu.RLock()
 	var toRetry []WorkItem
 	for _, job := range o.completedJobs {
@@ -1017,6 +1019,20 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, logger
 			if matcher != nil && !matcher.MatchString(job.Error) {
 				continue
 			}
+
+			if tag != "" {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.ToLower(t) == lowerTag {
+						hasTag = true
+						break
+					}
+				}
+				if !hasTag {
+					continue
+				}
+			}
+
 			// Check if already active
 			if _, active := o.activeJobs[job.ID]; !active {
 				toRetry = append(toRetry, job.WorkItem)
