@@ -315,6 +315,80 @@ func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger
 	return count
 }
 
+// CancelJobsByStatus cancels all running and pending jobs that match the specified status (case-insensitive).
+func (o *Orchestrator) CancelJobsByStatus(ctx context.Context, status string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	lowerStatus := strings.ToLower(status)
+
+	for id, job := range o.activeJobs {
+		if strings.ToLower(job.Status) == lowerStatus {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.pendingJobs {
+		if strings.ToLower(job.Status) == lowerStatus {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && len(jobIDs) > 0 {
+		logger.Info("Canceling jobs by status", "status", status, "count", len(jobIDs))
+	}
+
+	count := 0
+	var lastErr error
+	for _, id := range jobIDs {
+		if err := o.CancelJob(ctx, id); err != nil {
+			lastErr = err
+		} else {
+			count++
+		}
+	}
+
+	return count, lastErr
+}
+
+// CancelJobsByMatch cancels all running and pending jobs where the summary or error matches the given regex.
+func (o *Orchestrator) CancelJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	var jobIDs []string
+
+	for id, job := range o.activeJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && len(jobIDs) > 0 {
+		logger.Info("Canceling jobs by match", "match", match, "count", len(jobIDs))
+	}
+
+	count := 0
+	var lastErr error
+	for _, id := range jobIDs {
+		if err := o.CancelJob(ctx, id); err != nil {
+			lastErr = err
+		} else {
+			count++
+		}
+	}
+
+	return count, lastErr
+}
+
 // CancelJobsByTag cancels all running and pending jobs that have the specified tag.
 func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
@@ -1818,6 +1892,103 @@ func (o *Orchestrator) PurgeJob(id string, logger *slog.Logger) error {
 	o.BroadcastEvent("job_purged", map[string]string{"id": id})
 
 	return nil
+}
+
+// PurgeJobsByStatus purges all jobs matching a specific status from both memory and persistence.
+func (o *Orchestrator) PurgeJobsByStatus(status string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	lowerStatus := strings.ToLower(status)
+
+	purgedIDs := make(map[string]bool)
+
+	// 1. Purge from memory
+	var newCompleted []JobInfo
+	for _, job := range o.completedJobs {
+		if strings.ToLower(job.Status) == lowerStatus {
+			purgedIDs[job.ID] = true
+			if logger != nil {
+				logger.Info("Job purged from history by status", "id", job.ID, "status", status)
+			}
+			o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+		} else {
+			newCompleted = append(newCompleted, job)
+		}
+	}
+	o.completedJobs = newCompleted
+
+	// 2. Purge from persistence
+	if o.Persistence != nil {
+		jobsInDb, err := o.Persistence.GetJobs(10000)
+		if err == nil {
+			for _, job := range jobsInDb {
+				if strings.ToLower(job.Status) == lowerStatus {
+					if err := o.Persistence.PurgeJob(job.ID); err == nil {
+						if !purgedIDs[job.ID] {
+							purgedIDs[job.ID] = true
+							if logger != nil {
+								logger.Info("Job purged from history by status (DB only)", "id", job.ID, "status", status)
+							}
+							o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return len(purgedIDs), nil
+}
+
+// PurgeJobsByMatch purges all completed/failed jobs matching a regex from both memory and persistence.
+func (o *Orchestrator) PurgeJobsByMatch(match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	purgedIDs := make(map[string]bool)
+
+	// 1. Purge from memory
+	var newCompleted []JobInfo
+	for _, job := range o.completedJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			purgedIDs[job.ID] = true
+			if logger != nil {
+				logger.Info("Job purged from history by match", "id", job.ID, "match", match)
+			}
+			o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+		} else {
+			newCompleted = append(newCompleted, job)
+		}
+	}
+	o.completedJobs = newCompleted
+
+	// 2. Purge from persistence
+	if o.Persistence != nil {
+		jobsInDb, err := o.Persistence.GetJobs(10000)
+		if err == nil {
+			for _, job := range jobsInDb {
+				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+					if err := o.Persistence.PurgeJob(job.ID); err == nil {
+						if !purgedIDs[job.ID] {
+							purgedIDs[job.ID] = true
+							if logger != nil {
+								logger.Info("Job purged from history by match (DB only)", "id", job.ID, "match", match)
+							}
+							o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return len(purgedIDs), nil
 }
 
 // PurgeJobsByTag purges all completed/failed jobs that have the specified tag from both memory and persistence.

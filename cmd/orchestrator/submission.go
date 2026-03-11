@@ -549,6 +549,86 @@ func cancelJobsByTag(host, tag string) {
 	fmt.Fprintf(stdout, "Successfully canceled %d jobs with tag '%s'.\n", int(canceled), tag)
 }
 
+func cancelJobsByStatus(host, status string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs?status=%s", host, url.QueryEscape(status)), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to cancel jobs by status: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	canceled, ok := result["canceled"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully canceled %d jobs with status '%s'.\n", int(canceled), status)
+}
+
+func cancelJobsByMatch(host, match string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs?match=%s", host, url.QueryEscape(match)), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to cancel jobs by match: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	canceled, ok := result["canceled"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully canceled %d jobs matching '%s'.\n", int(canceled), match)
+}
+
 func purgeJobsByTag(host, tag string) {
 	urlStr := fmt.Sprintf("%s/history?tag=%s", host, url.QueryEscape(tag))
 	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
@@ -588,6 +668,88 @@ func purgeJobsByTag(host, tag string) {
 	}
 
 	fmt.Fprintf(stdout, "Successfully purged %d jobs with tag '%s'.\n", int(cleared), tag)
+}
+
+func purgeJobsByStatus(host, status string) {
+	urlStr := fmt.Sprintf("%s/history?status=%s", host, url.QueryEscape(status))
+	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to purge jobs by status: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	cleared, ok := result["cleared"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully purged %d jobs with status '%s'.\n", int(cleared), status)
+}
+
+func purgeJobsByMatch(host, match string) {
+	urlStr := fmt.Sprintf("%s/history?match=%s", host, url.QueryEscape(match))
+	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to purge jobs by match: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	cleared, ok := result["cleared"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully purged %d jobs matching '%s'.\n", int(cleared), match)
 }
 
 func updateDependencies(host, jobID string, deps []string) {
