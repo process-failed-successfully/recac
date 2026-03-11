@@ -16,3 +16,7 @@
 **Vulnerability:** Found a Path Traversal vulnerability (CWE-22) in `cmd/recac/snapshot.go` where snapshot names passed via CLI arguments were joined without validation using `filepath.Join`.
 **Learning:** Even CLI tools executing locally can be susceptible to path traversal if they manage files in a designated directory but accept path separators in inputs. This could inadvertently overwrite or delete unintended files.
 **Prevention:** Introduce validation functions (e.g., `validateSnapshotName`) that assert `filepath.Base(name) == name` to strictly enforce that the input is merely a filename and not a directory path.
+## 2024-03-11 - [Credential Leakage in Execution Logs]
+**Vulnerability:** Command script and standard output strings were only sanitized (`maskSecrets`) inside the error handling branch. Successful command executions logged unmasked scripts and outputs, leading to potential credential leakage.
+**Learning:** Security sanitation/masking must be applied universally to all sensitive data flows, not just as an afterthought during error reporting.
+**Prevention:** Mask all secrets early in the pipeline or before any logging/returning of potentially sensitive output data.

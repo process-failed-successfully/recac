@@ -139,23 +139,24 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 
 // executeCommandBlock handles the execution of a single command block.
 func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, index, total int) (string, error) {
-	s.Logger.Info("executing command block", "index", index, "total", total, "script", cmdScript)
+	safeCmdScript := maskSecrets(cmdScript)
+	s.Logger.Info("executing command block", "index", index, "total", total, "script", safeCmdScript)
 
 	// Security Scan
 	if s.Scanner != nil {
 		findings, err := s.Scanner.Scan(cmdScript)
 		if err != nil {
-			s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
+			s.Logger.Warn("security scanner error", "error", err, "script", safeCmdScript)
 		}
 		if len(findings) > 0 {
-			s.Logger.Warn("security violation: blocked dangerous command", "script", cmdScript, "findings", findings)
+			s.Logger.Warn("security violation: blocked dangerous command", "script", safeCmdScript, "findings", findings)
 			return fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", index, findings[0].Description), nil
 		}
 	}
 
 	// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
 	if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
-		s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
+		s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", safeCmdScript[:min(len(safeCmdScript), 50)])
 		return fmt.Sprintf("\n[Skipped JSON Block %d - Use 'cat' to write files]\n", index), nil
 	}
 
@@ -195,6 +196,8 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
 	}
 
+	safeOutput := maskSecrets(output)
+
 	if err != nil {
 		var errMsg string
 		if cmdCtx.Err() == context.DeadlineExceeded {
@@ -205,8 +208,6 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 			errMsg = err.Error()
 		}
 
-		safeCmdScript := maskSecrets(cmdScript)
-		safeOutput := maskSecrets(output)
 		safeErrMsg := maskSecrets(errMsg)
 
 		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", safeCmdScript, safeErrMsg, safeOutput)
@@ -222,14 +223,14 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 
 	// Output Truncation to prevent context exhaustion
 	const MaxOutputChars = 20000
-	truncatedOutput := output
-	if len(output) > MaxOutputChars {
-		truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
+	truncatedOutput := safeOutput
+	if len(safeOutput) > MaxOutputChars {
+		truncatedOutput = safeOutput[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(safeOutput))
 		// Also truncate for display to avoid flooding user console
 		s.Logger.Info("command output truncated", "truncated_output", truncatedOutput)
 	} else {
-		if len(output) > 0 {
-			s.Logger.Info("command output", "output", output)
+		if len(safeOutput) > 0 {
+			s.Logger.Info("command output", "output", safeOutput)
 		}
 	}
 
