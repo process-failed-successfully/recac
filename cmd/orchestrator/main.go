@@ -110,6 +110,7 @@ func main() {
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
 	pflag.String("export-jobs", "", "Export all jobs to a file (use '-' for stdout)")
+	pflag.String("import-jobs", "", "Import jobs from an exported JSON file")
 	pflag.String("export-format", "json", "Format for exported jobs ('json' or 'csv')")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
@@ -287,6 +288,7 @@ func main() {
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.export_jobs", pflag.Lookup("export-jobs"))
+	viper.BindPFlag("orchestrator.import_jobs", pflag.Lookup("import-jobs"))
 	viper.BindPFlag("orchestrator.export_format", pflag.Lookup("export-format"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -766,6 +768,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		exportJobs(host, exportFile, format)
 		return nil
 	}
+	if importFile := viper.GetString("orchestrator.import_jobs"); importFile != "" {
+		host := viper.GetString("orchestrator.host")
+		importJobs(host, importFile)
+		return nil
+	}
+
 
 	if viper.GetBool("orchestrator.monitor") {
 		host := viper.GetString("orchestrator.host")
