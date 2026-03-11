@@ -18,7 +18,7 @@ func TestRenderTree(t *testing.T) {
 		{
 			name:     "Empty list",
 			jobs:     []orchestrator.JobInfo{},
-			expected: []string{"No jobs found."},
+			expected: []string{"No jobs found.\n\nPress 'q' or 'esc' to go back, then press 's' to submit a new job."},
 		},
 		{
 			name: "Single node",
