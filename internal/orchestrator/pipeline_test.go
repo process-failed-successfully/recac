@@ -129,6 +129,59 @@ jobs:
 	assert.Contains(t, err.Error(), "invalid timeout format for job 'build'")
 }
 
+func TestParsePipelineToWorkItems_InvalidDelay(t *testing.T) {
+	yamlData := []byte(`
+name: Bad Delay
+jobs:
+  build:
+    summary: Build
+    delay: invalid
+`)
+	_, err := ParsePipelineToWorkItems(yamlData)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid delay format for job 'build'")
+}
+
+func TestParsePipelineToWorkItems_Delay(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Delay
+defaults:
+  repo_url: https://github.com/org/repo.git
+  delay: 1h
+jobs:
+  build:
+    summary: Build application
+  test:
+    summary: Run tests
+    depends_on: [build]
+    delay: 2h
+`)
+	now := time.Now()
+	items, err := ParsePipelineToWorkItems(yamlData)
+	require.NoError(t, err)
+	assert.Len(t, items, 2)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	buildJob := jobMap["build"]
+	// Should use default 1h delay
+	assert.Equal(t, 1*time.Hour, buildJob.Delay)
+	assert.True(t, buildJob.RunAfter.IsZero())
+
+	testJob := jobMap["test"]
+	// Should override to 2h delay
+	assert.Equal(t, 2*time.Hour, testJob.Delay)
+	assert.True(t, testJob.RunAfter.IsZero())
+
+	// Just so it compiles, use now or remove it.
+	_ = now
+}
+
 func TestParsePipelineToWorkItems_InvalidYaml(t *testing.T) {
 	yamlData := []byte(`
 name: Invalid Yaml

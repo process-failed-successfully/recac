@@ -203,5 +203,5 @@ func TestOrchestrator_RetryFailedJobs_WithTag(t *testing.T) {
 	assert.True(t, ids["JOB-1"])
 	assert.False(t, ids["JOB-2"]) // Completed, not failed
 	assert.False(t, ids["JOB-3"]) // No backend tag
-	assert.True(t, ids["JOB-4"]) // Has BACKEND tag (case-insensitive check)
+	assert.True(t, ids["JOB-4"])  // Has BACKEND tag (case-insensitive check)
 }

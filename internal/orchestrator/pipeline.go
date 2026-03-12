@@ -16,6 +16,7 @@ type Pipeline struct {
 		AgentProvider    string `yaml:"agent_provider"`
 		AgentModel       string `yaml:"agent_model"`
 		ConcurrencyGroup string `yaml:"concurrency_group"`
+		Delay            string `yaml:"delay"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -31,6 +32,7 @@ type PipelineJob struct {
 	Tags             []string            `yaml:"tags"`
 	Priority         int                 `yaml:"priority"`
 	Timeout          string              `yaml:"timeout"` // Parse to time.Duration
+	Delay            string              `yaml:"delay"`   // Parse to time.Duration
 	ConcurrencyGroup string              `yaml:"concurrency_group"`
 	CancelInProgress bool                `yaml:"cancel_in_progress"`
 	AgentProvider    string              `yaml:"agent_provider"`
@@ -93,6 +95,10 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 		if concurrencyGroup == "" {
 			concurrencyGroup = p.Defaults.ConcurrencyGroup
 		}
+		delayStr := jobDef.Delay
+		if delayStr == "" {
+			delayStr = p.Defaults.Delay
+		}
 
 		// Use Task as Description if Description is empty
 		description := jobDef.Description
@@ -107,6 +113,16 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 			parsedTimeout, err = time.ParseDuration(jobDef.Timeout)
 			if err != nil {
 				return nil, fmt.Errorf("invalid timeout format for job '%s': %w", jobKey, err)
+			}
+		}
+
+		// Parse delay
+		var parsedDelay time.Duration
+		if delayStr != "" {
+			var err error
+			parsedDelay, err = time.ParseDuration(delayStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid delay format for job '%s': %w", jobKey, err)
 			}
 		}
 
@@ -189,6 +205,7 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 				Priority:         jobDef.Priority,
 				Tags:             tags,
 				Timeout:          parsedTimeout,
+				Delay:            parsedDelay,
 				ConcurrencyGroup: concurrencyGroup,
 				CancelInProgress: jobDef.CancelInProgress,
 				AgentProvider:    agentProvider,

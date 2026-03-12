@@ -18,7 +18,7 @@ func TestUpdateTimeoutAPI(t *testing.T) {
 	orch.pendingJobs["job1"] = JobInfo{
 		ID: "job1",
 		WorkItem: WorkItem{
-			ID: "job1",
+			ID:       "job1",
 			RunAfter: time.Now().Add(1 * time.Hour), // Keep it pending
 		},
 	}

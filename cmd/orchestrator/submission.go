@@ -342,15 +342,12 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 		Priority:         priority,
 		DependsOn:        dependsOn,
 		Tags:             tags,
+		Delay:            delay,
 		Timeout:          timeout,
 		ConcurrencyGroup: concurrencyGroup,
 		CancelInProgress: cancelInProgress,
 		AgentProvider:    agentProvider,
 		AgentModel:       agentModel,
-	}
-
-	if delay > 0 {
-		item.RunAfter = time.Now().Add(delay)
 	}
 
 	payload, err := json.Marshal(item)

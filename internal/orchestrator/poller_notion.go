@@ -96,7 +96,7 @@ func (p *NotionPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIte
 
 	var result struct {
 		Results []struct {
-			ID         string `json:"id"`
+			ID         string                 `json:"id"`
 			Properties map[string]interface{} `json:"properties"`
 		} `json:"results"`
 	}

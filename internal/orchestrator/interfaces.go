@@ -15,15 +15,16 @@ import (
 
 // WorkItem represents a unit of work to be processed, e.g., a Jira ticket.
 type WorkItem struct {
-	ID          string            `json:"id"`
-	Summary     string            `json:"summary"`
-	Description string            `json:"description"`
-	RepoURL     string            `json:"repo_url"` // Repo to clone
-	EnvVars     map[string]string `json:"env_vars,omitempty"`
+	ID               string            `json:"id"`
+	Summary          string            `json:"summary"`
+	Description      string            `json:"description"`
+	RepoURL          string            `json:"repo_url"` // Repo to clone
+	EnvVars          map[string]string `json:"env_vars,omitempty"`
 	DependsOn        []string          `json:"depends_on,omitempty"`
 	Priority         int               `json:"priority,omitempty"`
 	Tags             []string          `json:"tags,omitempty"`
 	RunAfter         time.Time         `json:"run_after,omitempty"`
+	Delay            time.Duration     `json:"delay,omitempty"`
 	Timeout          time.Duration     `json:"timeout,omitempty"`
 	ConcurrencyGroup string            `json:"concurrency_group,omitempty"`
 	CancelInProgress bool              `json:"cancel_in_progress,omitempty"`

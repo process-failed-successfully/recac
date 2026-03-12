@@ -1,0 +1,6 @@
+{"time":"2026-03-12T10:16:56.777307683Z","level":"INFO","msg":"Creating local workspace for job","id":"TEST-PROC","dir":"/tmp/recac-agent-TEST-PROC-791597525"}
+{"time":"2026-03-12T10:16:56.777702058Z","level":"INFO","msg":"Starting local agent process","work_item":"TEST-PROC"}
+{"time":"2026-03-12T10:16:56.777717942Z","level":"ERROR","msg":"failed to start agent process","error":"exec: \"recac-agent\": executable file not found in $PATH"}
+{"time":"2026-03-12T10:16:56.777888782Z","level":"INFO","msg":"Cleaning up local workspace","work_item":"TEST-PROC"}
+{"time":"2026-03-12T10:16:56.777967965Z","level":"INFO","msg":"Canceling job process","job_id":"NON-EXISTENT"}
+{"time":"2026-03-12T10:16:56.778654508Z","level":"INFO","msg":"Canceling job process","job_id":"TEST-CANCEL"}

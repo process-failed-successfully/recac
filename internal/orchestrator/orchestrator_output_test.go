@@ -18,7 +18,7 @@ func TestSetJobOutput_ActiveJob(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	orch.activeJobs["job-1"] = JobInfo{
-		ID: "job-1",
+		ID:     "job-1",
 		Status: "Active",
 	}
 
@@ -37,7 +37,7 @@ func TestSetJobOutput_PendingJob(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	orch.pendingJobs["job-1"] = JobInfo{
-		ID: "job-1",
+		ID:     "job-1",
 		Status: "Pending",
 	}
 
@@ -67,7 +67,7 @@ func TestSetJobOutput_CompletedJob(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	orch.completedJobs = append(orch.completedJobs, JobInfo{
-		ID: "job-1",
+		ID:     "job-1",
 		Status: "Completed",
 	})
 
@@ -87,7 +87,7 @@ func TestSetJobOutput_DependencyChaining(t *testing.T) {
 
 	// Pre-populate completed job A with an output
 	orch.completedJobs = append(orch.completedJobs, JobInfo{
-		ID: "JOB-A",
+		ID:     "JOB-A",
 		Status: "Completed",
 		Outputs: map[string]string{
 			"url": "https://example.com",
@@ -96,7 +96,7 @@ func TestSetJobOutput_DependencyChaining(t *testing.T) {
 
 	// Job B depends on Job A
 	itemB := WorkItem{
-		ID: "JOB-B",
+		ID:        "JOB-B",
 		DependsOn: []string{"JOB-A"},
 		EnvVars: map[string]string{
 			"EXISTING": "VALUE",

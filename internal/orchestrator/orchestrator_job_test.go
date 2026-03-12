@@ -100,9 +100,11 @@ func (s *timeoutSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	return ctx.Err()
 }
 func (s *timeoutSpawner) Cleanup(ctx context.Context, item WorkItem) error { return nil }
-func (s *timeoutSpawner) Cancel(ctx context.Context, jobID string) error { return nil }
-func (s *timeoutSpawner) Ping(ctx context.Context) error { return nil }
-func (s *timeoutSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) { return nil, nil }
+func (s *timeoutSpawner) Cancel(ctx context.Context, jobID string) error   { return nil }
+func (s *timeoutSpawner) Ping(ctx context.Context) error                   { return nil }
+func (s *timeoutSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	return nil, nil
+}
 
 func TestOrchestrator_JobDependencies(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
