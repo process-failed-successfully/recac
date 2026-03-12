@@ -2,54 +2,97 @@ package orchestrator
 
 import (
 	"context"
-	"log/slog"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"recac/internal/telemetry"
+)
+
+import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestOrchestrator_RunAfter(t *testing.T) {
-	poller := &MockPoller{}
-	poller.On("Poll", mock.Anything, mock.Anything).Return([]WorkItem{}, nil)
-	spawner := &MockSpawner{}
-	spawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
-	orch := New(poller, spawner, 50*time.Millisecond)
+func TestOrchestrator_JobDelayAfterDependency(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	mockSpawner.On("GetLogs", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	logger := telemetry.NewLogger(true, "test-orch-delay", false)
+
+	o := New(mockPoller, mockSpawner, 100*time.Millisecond)
+
+	// We'll set up two jobs.
+	// Job 1 has no dependencies.
+	// Job 2 depends on Job 1 and has a Delay of 500ms.
+
+	job1 := WorkItem{
+		ID:      "JOB-1",
+		Summary: "First Job",
+	}
+
+	job2 := WorkItem{
+		ID:        "JOB-2",
+		Summary:   "Second Job",
+		DependsOn: []string{"JOB-1"},
+		Delay:     500 * time.Millisecond,
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	go orch.Run(ctx, logger)
+	// Submit both jobs
+	err := o.SubmitJob(ctx, job1, logger)
+	require.NoError(t, err)
 
-	// Create an item with RunAfter 500ms in the future
-	item := WorkItem{
-		ID:       "delay-1",
-		Summary:  "Delayed Job",
-		RunAfter: time.Now().Add(500 * time.Millisecond),
+	err = o.SubmitJob(ctx, job2, logger)
+	require.NoError(t, err)
+
+	// Wait a moment for goroutines
+	time.Sleep(50 * time.Millisecond)
+
+	_ = o.GetActiveJobs()
+	pending := o.GetPendingJobs()
+
+	// Because mockSpawner finishes immediately and clears active jobs,
+	// we just need to ensure JOB-1 completed and JOB-2 is still pending due to delay.
+
+	assert.Len(t, pending, 1)
+	assert.Equal(t, "JOB-2", pending[0].ID)
+
+	o.mu.RLock()
+	j2Info := o.pendingJobs["JOB-2"]
+	runAfter := j2Info.WorkItem.RunAfter
+	delayRemaining := j2Info.WorkItem.Delay
+	o.mu.RUnlock()
+
+	assert.False(t, runAfter.IsZero(), "RunAfter should be set once dependencies are met")
+	assert.Equal(t, time.Duration(0), delayRemaining, "Delay should be reset to 0 to prevent re-applying")
+
+	// Wait 100ms, it should STILL be pending
+	time.Sleep(100 * time.Millisecond)
+	pending = o.GetPendingJobs()
+	assert.Len(t, pending, 1)
+
+	// Wait until delay expires
+	time.Sleep(500 * time.Millisecond)
+
+	// Wait for goroutines to process
+	time.Sleep(50 * time.Millisecond)
+
+	// It should now be spawned and completed
+	pending = o.GetPendingJobs()
+	assert.Len(t, pending, 0)
+
+	completed := o.GetCompletedJobs()
+	foundJ2 := false
+	for _, c := range completed {
+		if c.ID == "JOB-2" {
+			foundJ2 = true
+			break
+		}
 	}
-
-	err := orch.SubmitJob(ctx, item, nil)
-	assert.NoError(t, err)
-
-	// Should be pending immediately
-	job, err := orch.GetJob("delay-1")
-	assert.NoError(t, err)
-	assert.Equal(t, "Pending", job.Status)
-	assert.Equal(t, 0, orch.GetStatus().ActiveSpawns)
-
-	// Wait 200ms, should still be pending
-	time.Sleep(200 * time.Millisecond)
-	job, _ = orch.GetJob("delay-1")
-	assert.Equal(t, "Pending", job.Status)
-	assert.Equal(t, 0, orch.GetStatus().ActiveSpawns)
-
-	// Wait until enough time has elapsed
-	assert.Eventually(t, func() bool {
-		job, _ := orch.GetJob("delay-1")
-		// The mock spawner returns nil for Spawn so it should transition to Completed
-		return job.Status == "Completed" || job.Status == "Spawning"
-	}, 2*time.Second, 100*time.Millisecond)
+	assert.True(t, foundJ2, "JOB-2 should have completed after delay")
 }

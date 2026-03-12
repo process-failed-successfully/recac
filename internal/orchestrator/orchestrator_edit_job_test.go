@@ -15,8 +15,8 @@ func TestOrchestrator_UpdateJobWorkItem(t *testing.T) {
 
 	ctx := context.Background()
 	item := WorkItem{
-		ID:       "JOB-1",
-		Summary:  "Old Summary",
+		ID:        "JOB-1",
+		Summary:   "Old Summary",
 		DependsOn: []string{"dep1"},
 	}
 
@@ -29,11 +29,11 @@ func TestOrchestrator_UpdateJobWorkItem(t *testing.T) {
 	}
 
 	newItem := WorkItem{
-		ID:       "JOB-1",
-		Summary:  "New Summary",
+		ID:        "JOB-1",
+		Summary:   "New Summary",
 		DependsOn: []string{"dep2"},
-		EnvVars: map[string]string{"foo": "bar"},
-		Tags: []string{"tag1"},
+		EnvVars:   map[string]string{"foo": "bar"},
+		Tags:      []string{"tag1"},
 	}
 
 	err := orch.UpdateJobWorkItem(ctx, "JOB-1", newItem, nil)
@@ -70,7 +70,7 @@ func TestOrchestrator_UpdateJobWorkItem(t *testing.T) {
 	orch.pendingJobs["JOB-5"] = JobInfo{ID: "JOB-5", WorkItem: WorkItem{ID: "JOB-5", DependsOn: []string{"JOB-1"}}}
 
 	cycleItem := WorkItem{
-		ID: "JOB-1",
+		ID:        "JOB-1",
 		DependsOn: []string{"JOB-5"},
 	}
 	err = orch.UpdateJobWorkItem(ctx, "JOB-1", cycleItem, nil)

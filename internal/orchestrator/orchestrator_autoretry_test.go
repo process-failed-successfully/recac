@@ -25,7 +25,7 @@ func (m *mockRetrySpawner) Spawn(ctx context.Context, item WorkItem) error {
 }
 
 func (m *mockRetrySpawner) Cleanup(ctx context.Context, item WorkItem) error { return nil }
-func (m *mockRetrySpawner) Cancel(ctx context.Context, jobID string) error  { return nil }
+func (m *mockRetrySpawner) Cancel(ctx context.Context, jobID string) error   { return nil }
 func (m *mockRetrySpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	return nil, nil
 }

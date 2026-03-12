@@ -15,9 +15,9 @@ type mockPersistenceClear struct {
 	mock.Mock
 }
 
-func (m *mockPersistenceClear) Init() error                 { return nil }
-func (m *mockPersistenceClear) Close() error                { return nil }
-func (m *mockPersistenceClear) SaveJob(job JobInfo) error   { return nil }
+func (m *mockPersistenceClear) Init() error                        { return nil }
+func (m *mockPersistenceClear) Close() error                       { return nil }
+func (m *mockPersistenceClear) SaveJob(job JobInfo) error          { return nil }
 func (m *mockPersistenceClear) GetJob(id string) (*JobInfo, error) { return nil, nil }
 func (m *mockPersistenceClear) GetJobs(limit int) ([]JobInfo, error) {
 	args := m.Called(limit)

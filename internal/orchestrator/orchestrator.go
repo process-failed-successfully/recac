@@ -31,6 +31,7 @@ type Orchestrator struct {
 	activeJobs        map[string]JobInfo
 	completedJobs     []JobInfo
 	pendingJobs       map[string]JobInfo
+	delayTimers       map[string]*time.Timer
 	maxHistory        int
 	paused            bool
 	draining          bool
@@ -83,12 +84,12 @@ type Status struct {
 }
 
 type Analytics struct {
-	TotalJobs       int           `json:"total_jobs"`
-	SuccessfulJobs  int           `json:"successful_jobs"`
-	FailedJobs      int           `json:"failed_jobs"`
-	CanceledJobs    int           `json:"canceled_jobs"`
-	SuccessRate     float64       `json:"success_rate"`
-	AverageDuration time.Duration `json:"average_duration"`
+	TotalJobs       int                `json:"total_jobs"`
+	SuccessfulJobs  int                `json:"successful_jobs"`
+	FailedJobs      int                `json:"failed_jobs"`
+	CanceledJobs    int                `json:"canceled_jobs"`
+	SuccessRate     float64            `json:"success_rate"`
+	AverageDuration time.Duration      `json:"average_duration"`
 	TotalMetrics    map[string]float64 `json:"total_metrics,omitempty"`
 }
 
@@ -99,6 +100,7 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		PollInterval: pollInterval,
 		activeJobs:   make(map[string]JobInfo),
 		pendingJobs:  make(map[string]JobInfo),
+		delayTimers:  make(map[string]*time.Timer),
 		maxHistory:   50, // Default history size
 		forcePollCh:  make(chan struct{}, 1),
 		eventChans:   make(map[chan []byte]struct{}),
@@ -274,6 +276,10 @@ func (o *Orchestrator) GetCompletedJobs() []JobInfo {
 // CancelJob cancels a running job.
 func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
 	o.mu.Lock()
+	if t, ok := o.delayTimers[jobID]; ok {
+		t.Stop()
+		delete(o.delayTimers, jobID)
+	}
 	if job, exists := o.pendingJobs[jobID]; exists {
 		delete(o.pendingJobs, jobID)
 		job.Status = "Canceled"
@@ -299,6 +305,10 @@ func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger
 
 	count := 0
 	for id, job := range o.pendingJobs {
+		if t, ok := o.delayTimers[id]; ok {
+			t.Stop()
+			delete(o.delayTimers, id)
+		}
 		delete(o.pendingJobs, id)
 		job.Status = "Canceled"
 		job.EndTime = time.Now()
@@ -1770,9 +1780,39 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		item := jobInfo.WorkItem
 		met, failedDep, _ := o.checkDependenciesMetLocked(item.DependsOn)
 		if met {
-			toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount, approved: jobInfo.Approved})
-			delete(o.pendingJobs, id)
+			if item.Delay > 0 {
+				// Apply delay by setting RunAfter and resetting Delay so it only triggers once
+				item.RunAfter = time.Now().Add(item.Delay)
+				item.Delay = 0
+				jobInfo.WorkItem = item
+				o.pendingJobs[id] = jobInfo
+
+				if logger != nil {
+					logger.Info("Job dependencies met, applying delay", "id", item.ID, "delay", item.RunAfter.Sub(time.Now()))
+				}
+
+				// Re-evaluate when the delay expires
+				delay := time.Until(item.RunAfter)
+				if delay < 0 {
+					delay = 0
+				}
+				timer := time.AfterFunc(delay, func() {
+					o.evaluatePendingJobs(context.Background(), logger)
+				})
+				o.delayTimers[id] = timer
+			} else {
+				if t, ok := o.delayTimers[id]; ok {
+					t.Stop()
+					delete(o.delayTimers, id)
+				}
+				toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount, approved: jobInfo.Approved})
+				delete(o.pendingJobs, id)
+			}
 		} else if failedDep != "" {
+			if t, ok := o.delayTimers[id]; ok {
+				t.Stop()
+				delete(o.delayTimers, id)
+			}
 			// Dependency failed, fail this job too
 			delete(o.pendingJobs, id)
 			job := JobInfo{
@@ -2403,6 +2443,12 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		select {
 		case <-ctx.Done():
 			logger.Info("Orchestrator shutting down...")
+			o.mu.Lock()
+			for id, t := range o.delayTimers {
+				t.Stop()
+				delete(o.delayTimers, id)
+			}
+			o.mu.Unlock()
 			o.wg.Wait()
 			return ctx.Err()
 		case <-ticker.C:

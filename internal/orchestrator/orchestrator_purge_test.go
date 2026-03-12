@@ -41,7 +41,6 @@ func TestOrchestrator_PurgeJobActive(t *testing.T) {
 	assert.Error(t, err)
 }
 
-
 func TestOrchestrator_PurgeJobsByStatus(t *testing.T) {
 	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
 
@@ -100,7 +99,6 @@ func TestOrchestrator_PurgeJobsByMatch(t *testing.T) {
 	}
 	mockPersistence.On("GetJobs", 10000).Return(dbJobs, nil)
 	mockPersistence.On("PurgeJob", "JOB-5").Return(nil)
-
 
 	count, err := orch.PurgeJobsByMatch("login", silentLogger)
 	assert.NoError(t, err)
