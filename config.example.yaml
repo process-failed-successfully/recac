@@ -47,6 +47,10 @@ orchestrator:
     namespace: default
     poller: jira
     work_file: work_items.json
+    aliases:
+        "ls": "--list-jobs"
+        "lp": "--list-pending"
+        "st": "--status"
 path: ""
 project: ""
 provider: gemini
