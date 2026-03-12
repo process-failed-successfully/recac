@@ -15,6 +15,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+// resolveConflictRe is compiled once at package initialization to avoid the overhead
+// of repeatedly parsing and compiling the regular expression inside resolveFileConflicts.
+var resolveConflictRe = regexp.MustCompile(`<<<<<<<[^\n]*\n[\s\S]*?>>>>>>>[^\n]*\n?`)
+
 var resolveCmd = &cobra.Command{
 	Use:   "resolve [file]",
 	Short: "Intelligently resolve git merge conflicts using AI",
@@ -95,12 +99,8 @@ func resolveFileConflicts(ctx context.Context, cmd *cobra.Command, filePath stri
 
 	// Regex to find conflict blocks
 	// Matches <<<<<<< ... >>>>>>> (including newline)
-	// We use a package-level variable or compile here.
-	// Since this is not a hot loop (user interaction involves network), compiling here is fine,
-	// but for cleanliness:
-	re := regexp.MustCompile(`<<<<<<<[^\n]*\n[\s\S]*?>>>>>>>[^\n]*\n?`)
 
-	matches := re.FindAllStringIndex(content, -1)
+	matches := resolveConflictRe.FindAllStringIndex(content, -1)
 	if len(matches) == 0 {
 		return fmt.Errorf("no conflict markers found in file")
 	}
