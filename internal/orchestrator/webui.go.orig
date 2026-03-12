@@ -135,7 +135,7 @@ const DashboardHTML = `
             <div class="controls">
                 <h2>Jobs</h2>
                 <div>
-                    <select id="job-state-filter" aria-label="Filter jobs by state">
+                    <select id="job-state-filter">
                         <option value="">Active Jobs</option>
                         <option value="completed">Completed Jobs</option>
                         <option value="all">All Jobs</option>

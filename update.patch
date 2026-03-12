@@ -1,0 +1,21 @@
+--- internal/orchestrator/webui.go
++++ internal/orchestrator/webui.go
+@@ -107,8 +107,8 @@
+             <div class="controls">
+                 <h2>Jobs</h2>
+                 <div>
+-                    <select id="job-state-filter">
++                    <select id="job-state-filter" aria-label="Filter jobs by state">
+                         <option value="">Active Jobs</option>
+                         <option value="completed">Completed Jobs</option>
+                         <option value="all">All Jobs</option>
+                     </select>
+-                    <input type="text" id="job-search" placeholder="Search ID or Summary...">
++                    <input type="text" id="job-search" placeholder="Search ID or Summary..." aria-label="Search jobs">
+                     <button id="refresh-jobs">Refresh</button>
+                 </div>
+@@ -440,3 +440,3 @@
+                 if (jobs.length === 0) {
+-                    tbody.innerHTML = '<tr><td colspan="5">No jobs found.</td></tr>';
++                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button onclick="document.getElementById(\'submitModal\').style.display=\'block\'" style="background-color: #28a745;">+ Submit Job</button></td></tr>';
+                     return;
