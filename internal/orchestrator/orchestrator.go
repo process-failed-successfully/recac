@@ -1628,7 +1628,11 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		if job, ok := o.activeJobs[item.ID]; ok {
 			job.ThreadState = threadState
 			if spawnErr != nil {
-				if o.MaxRetries > 0 && job.RetryCount < o.MaxRetries && spawnCtx.Err() != context.DeadlineExceeded && spawnCtx.Err() != context.Canceled {
+				maxRetries := o.MaxRetries
+				if job.WorkItem.MaxRetries != nil {
+					maxRetries = *job.WorkItem.MaxRetries
+				}
+				if maxRetries > 0 && job.RetryCount < maxRetries && spawnCtx.Err() != context.DeadlineExceeded && spawnCtx.Err() != context.Canceled {
 					job.RetryCount++
 					job.Status = "Retrying"
 					job.Error = spawnErr.Error()
@@ -1638,7 +1642,7 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 					hasFinalJob = true
 
 					if logger != nil {
-						logger.Info("Job failed, scheduling auto-retry", "id", item.ID, "attempt", job.RetryCount, "max", o.MaxRetries, "delay", o.RetryDelay)
+						logger.Info("Job failed, scheduling auto-retry", "id", item.ID, "attempt", job.RetryCount, "max", maxRetries, "delay", o.RetryDelay)
 					}
 
 					// Trigger re-evaluation when delay expires

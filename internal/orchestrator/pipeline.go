@@ -17,6 +17,7 @@ type Pipeline struct {
 		AgentModel       string `yaml:"agent_model"`
 		ConcurrencyGroup string `yaml:"concurrency_group"`
 		Delay            string `yaml:"delay"`
+		MaxRetries       *int   `yaml:"max_retries"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -37,6 +38,7 @@ type PipelineJob struct {
 	CancelInProgress bool                `yaml:"cancel_in_progress"`
 	AgentProvider    string              `yaml:"agent_provider"`
 	AgentModel       string              `yaml:"agent_model"`
+	MaxRetries       *int                `yaml:"max_retries"`
 }
 
 // sanitizeName creates a safe string for IDs
@@ -98,6 +100,10 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 		delayStr := jobDef.Delay
 		if delayStr == "" {
 			delayStr = p.Defaults.Delay
+		}
+		maxRetries := jobDef.MaxRetries
+		if maxRetries == nil && p.Defaults.MaxRetries != nil {
+			maxRetries = p.Defaults.MaxRetries
 		}
 
 		// Use Task as Description if Description is empty
@@ -210,6 +216,7 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 				CancelInProgress: jobDef.CancelInProgress,
 				AgentProvider:    agentProvider,
 				AgentModel:       agentModel,
+				MaxRetries:       maxRetries,
 			})
 		}
 	}

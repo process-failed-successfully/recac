@@ -31,6 +31,7 @@ type WorkItem struct {
 	AgentProvider    string            `json:"agent_provider,omitempty"`
 	AgentModel       string            `json:"agent_model,omitempty"`
 	Hold             bool              `json:"hold,omitempty"`
+	MaxRetries       *int              `json:"max_retries,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.
