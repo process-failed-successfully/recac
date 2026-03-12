@@ -39,8 +39,15 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "doJobAction(\\'cancel\\'")
 	assert.Contains(t, html, "doJobAction(\\'purge\\'")
 
+	// Verify empty state CTA exists
+	assert.Contains(t, html, "+ Submit Job")
+
 	// Verify clone job JS function exists
 	assert.Contains(t, html, "function cloneJob(")
+
+	// Verify accessibility attributes exist
+	assert.Contains(t, html, "aria-label=\"Filter jobs by state\"")
+	assert.Contains(t, html, "aria-label=\"Search jobs\"")
 
 	// Verify Submit Job Modal HTML exists
 	assert.Contains(t, html, "id=\"submitModal\"")
