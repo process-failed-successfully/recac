@@ -328,7 +328,7 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string) {
+func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -348,6 +348,7 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 		CancelInProgress: cancelInProgress,
 		AgentProvider:    agentProvider,
 		AgentModel:       agentModel,
+		MaxRetries:       maxRetries,
 	}
 
 	payload, err := json.Marshal(item)

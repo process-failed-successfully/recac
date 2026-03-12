@@ -17,6 +17,7 @@ defaults:
   repo_url: https://github.com/org/repo.git
   agent_provider: openrouter
   agent_model: openai/gpt-4o-mini
+  max_retries: 2
 jobs:
   build:
     summary: Build application
@@ -64,6 +65,8 @@ jobs:
 	assert.Equal(t, "openai/gpt-4o-mini", buildJob.AgentModel)
 	assert.Equal(t, 30*time.Minute, buildJob.Timeout)
 	assert.Empty(t, buildJob.DependsOn)
+	require.NotNil(t, buildJob.MaxRetries)
+	assert.Equal(t, 2, *buildJob.MaxRetries)
 
 	// Test Job
 	testJob, ok := jobMap["test"]

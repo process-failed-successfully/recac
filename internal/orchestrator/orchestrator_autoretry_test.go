@@ -137,3 +137,40 @@ func TestOrchestrator_AutoRetry_CancelDuringRetry(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Canceled", job.Status)
 }
+
+func TestOrchestrator_PerJobMaxRetries(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockRetrySpawner{failCount: 5} // Fails 5 times
+	orch := New(poller, spawner, 1*time.Second)
+	orch.MaxRetries = 1 // Global max retries is 1
+	orch.RetryDelay = 10 * time.Millisecond
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Run orchestrator
+	go orch.Run(ctx, logger)
+
+	// Job overriding max retries to 3
+	jobMaxRetries := 3
+	item := WorkItem{ID: "RETRY-PER-JOB", Summary: "Per-Job Retry Exhaust Test", MaxRetries: &jobMaxRetries}
+	err := orch.SubmitJob(ctx, item, logger)
+	assert.NoError(t, err)
+
+	// Wait for the job to eventually fail (after exhausting its specific retries)
+	assert.Eventually(t, func() bool {
+		job, err := orch.GetJob("RETRY-PER-JOB")
+		if err != nil {
+			return false
+		}
+		return job.Status == "Failed"
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// Verify retry count respected the per-job override (3) and not the global (1)
+	job, err := orch.GetJob("RETRY-PER-JOB")
+	assert.NoError(t, err)
+	assert.Equal(t, 3, job.RetryCount, "job should have retried exactly 3 times before failing")
+	assert.Equal(t, 4, spawner.spawnCount, "spawner should have been called 4 times total (initial + 3 retries)")
+}

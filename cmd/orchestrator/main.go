@@ -170,6 +170,7 @@ func main() {
 	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
 	pflag.StringSlice("submit-tags", []string{}, "Comma-separated list of tags for the ad-hoc job")
 	pflag.Duration("submit-timeout", 0, "Optional custom timeout for the ad-hoc job (e.g. 30m)")
+	pflag.Int("submit-max-retries", -1, "Maximum retries for the ad-hoc job (-1 to use global default)")
 	pflag.String("submit-concurrency-group", "", "Concurrency group for the ad-hoc job")
 	pflag.Bool("submit-cancel-in-progress", false, "Cancel running jobs in the same concurrency group")
 	pflag.String("submit-agent-provider", "", "Agent provider to use for the ad-hoc job")
@@ -383,6 +384,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
 	viper.BindPFlag("orchestrator.submit_tags", pflag.Lookup("submit-tags"))
 	viper.BindPFlag("orchestrator.submit_timeout", pflag.Lookup("submit-timeout"))
+	viper.BindPFlag("orchestrator.submit_max_retries", pflag.Lookup("submit-max-retries"))
 	viper.BindPFlag("orchestrator.submit_concurrency_group", pflag.Lookup("submit-concurrency-group"))
 	viper.BindPFlag("orchestrator.submit_cancel_in_progress", pflag.Lookup("submit-cancel-in-progress"))
 	viper.BindPFlag("orchestrator.submit_agent_provider", pflag.Lookup("submit-agent-provider"))
@@ -938,11 +940,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		delay := viper.GetDuration("orchestrator.submit_delay")
 		timeout := viper.GetDuration("orchestrator.submit_timeout")
 		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
+
+		var maxRetriesPtr *int
+		if viper.IsSet("orchestrator.submit_max_retries") {
+			mr := viper.GetInt("orchestrator.submit_max_retries")
+			if mr >= 0 {
+				maxRetriesPtr = &mr
+			}
+		}
+
 		concurrencyGroup := viper.GetString("orchestrator.submit_concurrency_group")
 		cancelInProgress := viper.GetBool("orchestrator.submit_cancel_in_progress")
 		agentProvider := viper.GetString("orchestrator.submit_agent_provider")
 		agentModel := viper.GetString("orchestrator.submit_agent_model")
-		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel)
+		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, maxRetriesPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel)
 		return nil
 	}
 
