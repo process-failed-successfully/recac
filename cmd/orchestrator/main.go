@@ -29,6 +29,57 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+func expandAliases(args []string) []string {
+	aliases := viper.GetStringMapString("orchestrator.aliases")
+	if len(aliases) == 0 || len(args) <= 1 {
+		return args
+	}
+
+	// We look for the first argument that doesn't start with a dash (-)
+	// and isn't the value of a previous flag (like --config value)
+
+	// A quick list of string flags that we know might precede an alias
+	// Ideally we'd use pflag to parse, but we are expanding before pflag.Parse().
+	// For robust alias expansion, we just skip any argument starting with `-`
+	// and if a previous argument was a known flag that takes a value, we skip the current one too.
+	skipNext := false
+
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+
+		if skipNext {
+			skipNext = false
+			continue
+		}
+
+		if strings.HasPrefix(arg, "-") {
+			// Some common flags that take arguments without '='
+			if arg == "--config" || arg == "-c" || arg == "--list-jobs-status" || arg == "--list-jobs-tag" || arg == "--list-jobs-match" || arg == "--list-jobs-format" {
+				skipNext = true
+			}
+			continue
+		}
+
+		// This is the first positional argument. Expand it if it's an alias.
+		if replacement, ok := aliases[arg]; ok {
+			parts := strings.Fields(replacement)
+
+			var newArgs []string
+			newArgs = append(newArgs, args[:i]...)
+			newArgs = append(newArgs, parts...)
+			newArgs = append(newArgs, args[i+1:]...)
+
+			return newArgs
+		}
+
+		// If we found a positional argument but it wasn't an alias, stop looking
+		// (aliases only apply to the main subcommand)
+		break
+	}
+
+	return args
+}
+
 func main() {
 	// Flags
 	var cfgFile string
@@ -196,9 +247,27 @@ func main() {
 	pflag.String("webhook-url", "", "URL for generic webhook notifications")
 	pflag.String("webhook-secret", "", "Secret for generic webhook HMAC signature")
 
+	// We need to parse --config early to load the config file before full flag parsing
+	// so we can resolve aliases defined in the config.
+	for i, arg := range os.Args {
+		if (arg == "--config" || arg == "-c") && i+1 < len(os.Args) {
+			cfgFile = os.Args[i+1]
+			break
+		} else if strings.HasPrefix(arg, "--config=") || strings.HasPrefix(arg, "-c=") {
+			cfgFile = strings.SplitN(arg, "=", 2)[1]
+			break
+		}
+	}
+
+	// Load config early for aliases
+	config.Load(cfgFile)
+
+	// Alias resolution
+	os.Args = expandAliases(os.Args)
+
 	pflag.Parse()
 
-	// Config
+	// Load config again after pflag.Parse to ensure any final flag values override correctly
 	config.Load(cfgFile)
 
 	// Bind Flags

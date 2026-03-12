@@ -1,15 +1,12 @@
-{"time":"2026-03-12T10:15:05.943215946Z","level":"INFO","msg":"Job pending dependencies","id":"JOB-2","depends_on":["JOB-1"]}
-{"time":"2026-03-12T10:15:05.943302234Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-1"}
-{"time":"2026-03-12T10:15:05.943466129Z","level":"INFO","msg":"Job dependencies met, applying delay","id":"JOB-2","delay":499999533}
-{"time":"2026-03-12T10:15:30.22423159Z","level":"INFO","msg":"Job pending dependencies","id":"JOB-2","depends_on":["JOB-1"]}
-{"time":"2026-03-12T10:15:30.224319246Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-1"}
-{"time":"2026-03-12T10:15:30.224380434Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-1"}
-{"time":"2026-03-12T10:15:30.224406498Z","level":"INFO","msg":"Job dependencies met, applying delay","id":"JOB-2","delay":499999620}
-{"time":"2026-03-12T10:15:30.725117219Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-2"}
-{"time":"2026-03-12T10:15:30.725269363Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-2"}
-{"time":"2026-03-12T10:16:25.501992843Z","level":"INFO","msg":"Job pending dependencies","id":"JOB-2","depends_on":["JOB-1"]}
-{"time":"2026-03-12T10:16:25.502094074Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-1"}
-{"time":"2026-03-12T10:16:25.502208778Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-1"}
-{"time":"2026-03-12T10:16:25.502244748Z","level":"INFO","msg":"Job dependencies met, applying delay","id":"JOB-2","delay":499999527}
-{"time":"2026-03-12T10:16:26.002447914Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-2"}
-{"time":"2026-03-12T10:16:26.00260147Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-2"}
+{"time":"2026-03-12T12:11:43.198663259Z","level":"INFO","msg":"Job pending dependencies","id":"JOB-2","depends_on":["JOB-1"]}
+{"time":"2026-03-12T12:11:43.198755028Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-1"}
+{"time":"2026-03-12T12:11:43.198834514Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-1"}
+{"time":"2026-03-12T12:11:43.198863682Z","level":"INFO","msg":"Job dependencies met, applying delay","id":"JOB-2","delay":499999590}
+{"time":"2026-03-12T12:11:43.700009766Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-2"}
+{"time":"2026-03-12T12:11:43.700488563Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-2"}
+{"time":"2026-03-12T12:18:28.434043443Z","level":"INFO","msg":"Job pending dependencies","id":"JOB-2","depends_on":["JOB-1"]}
+{"time":"2026-03-12T12:18:28.434313812Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-1"}
+{"time":"2026-03-12T12:18:28.434715026Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-1"}
+{"time":"2026-03-12T12:18:28.434781814Z","level":"INFO","msg":"Job dependencies met, applying delay","id":"JOB-2","delay":499999556}
+{"time":"2026-03-12T12:18:28.938744743Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-2"}
+{"time":"2026-03-12T12:18:28.938865045Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-2"}
