@@ -82,6 +82,16 @@ const DashboardHTML = `
                     <label for="job-tags">Tags (Optional, comma-separated tags)</label>
                     <input type="text" id="job-tags" placeholder="e.g., bug, frontend">
                 </div>
+                <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                    <div style="flex: 1;">
+                        <label for="job-concurrency-group">Concurrency Group (Optional)</label>
+                        <input type="text" id="job-concurrency-group" placeholder="e.g., deploy-prod">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; margin-top: 15px;">
+                        <input type="checkbox" id="job-cancel-in-progress" style="width: auto;">
+                        <label for="job-cancel-in-progress" style="margin-bottom: 0;">Cancel In Progress</label>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="job-agent-provider">Agent Provider (Optional)</label>
                     <input type="text" id="job-agent-provider" placeholder="e.g., openrouter">
@@ -288,6 +298,8 @@ const DashboardHTML = `
                 document.getElementById('job-repo').value = j.work_item.repo_url || '';
                 document.getElementById('job-deps').value = (j.work_item.depends_on || []).join(', ');
                 document.getElementById('job-tags').value = (j.work_item.tags || []).join(', ');
+                document.getElementById('job-concurrency-group').value = j.work_item.concurrency_group || '';
+                document.getElementById('job-cancel-in-progress').checked = j.work_item.cancel_in_progress || false;
                 document.getElementById('job-agent-provider').value = j.work_item.agent_provider || '';
                 document.getElementById('job-agent-model').value = j.work_item.agent_model || '';
 
@@ -349,6 +361,8 @@ const DashboardHTML = `
             const repo = document.getElementById('job-repo').value.trim();
             const depsStr = document.getElementById('job-deps').value.trim();
             const tagsStr = document.getElementById('job-tags').value.trim();
+            const concurrencyGroup = document.getElementById('job-concurrency-group').value.trim();
+            const cancelInProgress = document.getElementById('job-cancel-in-progress').checked;
             const agentProvider = document.getElementById('job-agent-provider').value.trim();
             const agentModel = document.getElementById('job-agent-model').value.trim();
             const envStr = document.getElementById('job-env').value.trim();
@@ -381,6 +395,8 @@ const DashboardHTML = `
                 description: desc,
                 depends_on: deps,
                 tags: tags,
+                concurrency_group: concurrencyGroup,
+                cancel_in_progress: cancelInProgress,
                 agent_provider: agentProvider,
                 agent_model: agentModel,
                 env_vars: env
@@ -401,6 +417,8 @@ const DashboardHTML = `
                     document.getElementById('job-repo').value = '';
                     document.getElementById('job-deps').value = '';
                     document.getElementById('job-tags').value = '';
+                    document.getElementById('job-concurrency-group').value = '';
+                    document.getElementById('job-cancel-in-progress').checked = false;
                     document.getElementById('job-agent-provider').value = '';
                     document.getElementById('job-agent-model').value = '';
                     document.getElementById('job-env').value = '';
