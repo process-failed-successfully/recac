@@ -769,6 +769,40 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 	return nil
 }
 
+// UpdateJobTags updates the tags of a job in the pending queue.
+func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have tags updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	job.WorkItem.Tags = tags
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_tags_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job tags", "jobID", jobID, "tags", tags)
+	}
+
+	return nil
+}
+
 // UpdateJobAgent updates the agent provider and model of a job in the pending queue.
 func (o *Orchestrator) UpdateJobAgent(ctx context.Context, jobID string, agentProvider string, agentModel string, logger *slog.Logger) error {
 	o.mu.Lock()

@@ -463,6 +463,32 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s work item updated", id)
 	})
 
+	mux.HandleFunc("PUT /jobs/{id}/tags", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.UpdateJobTags(r.Context(), id, req.Tags, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "tags updated successfully"})
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/agent", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 
