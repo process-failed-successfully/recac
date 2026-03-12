@@ -102,6 +102,8 @@ func main() {
 	pflag.String("add-metrics-job", "", "Add metrics to a specific job")
 	pflag.String("metrics-key", "", "The metrics key to add (requires --add-metrics-job)")
 	pflag.Float64("metrics-val", 0, "The metrics value to add (requires --add-metrics-job)")
+	pflag.String("archive-job", "", "Download a compressed archive containing job details and logs")
+	pflag.String("archive-out", "", "Output path for the archive file (default is {jobID}.tar.gz) (used with --archive-job)")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-matrix", "", "Submit a matrix job from a JSON file path")
@@ -294,6 +296,8 @@ func main() {
 	viper.BindPFlag("orchestrator.add_metrics_job", pflag.Lookup("add-metrics-job"))
 	viper.BindPFlag("orchestrator.metrics_key", pflag.Lookup("metrics-key"))
 	viper.BindPFlag("orchestrator.metrics_val", pflag.Lookup("metrics-val"))
+	viper.BindPFlag("orchestrator.archive_job", pflag.Lookup("archive-job"))
+	viper.BindPFlag("orchestrator.archive_out", pflag.Lookup("archive-out"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
 	viper.BindPFlag("orchestrator.submit_matrix", pflag.Lookup("submit-matrix"))
@@ -481,6 +485,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		addJobMetrics(host, addMetricsJob, key, val)
+		return nil
+	}
+
+	if archiveJobId := viper.GetString("orchestrator.archive_job"); archiveJobId != "" {
+		host := viper.GetString("orchestrator.host")
+		outPath := viper.GetString("orchestrator.archive_out")
+		archiveJob(host, archiveJobId, outPath)
 		return nil
 	}
 
