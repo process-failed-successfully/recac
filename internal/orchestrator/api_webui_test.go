@@ -48,12 +48,16 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "id=\"job-summary\"")
 	assert.Contains(t, html, "id=\"job-repo\"")
 	assert.Contains(t, html, "id=\"job-tags\"")
+	assert.Contains(t, html, "id=\"job-concurrency-group\"")
+	assert.Contains(t, html, "id=\"job-cancel-in-progress\"")
 	assert.Contains(t, html, "onclick=\"submitAdHocJob()\"")
 
 	// Verify JS submit function exists
 	assert.Contains(t, html, "async function submitAdHocJob()")
 	assert.Contains(t, html, "fetch('/jobs', {")
 	assert.Contains(t, html, "tags: tags,")
+	assert.Contains(t, html, "concurrency_group: concurrencyGroup,")
+	assert.Contains(t, html, "cancel_in_progress: cancelInProgress,")
 
 	// Verify Set Deps Modal HTML exists
 	assert.Contains(t, html, "id=\"editDepsModal\"")
