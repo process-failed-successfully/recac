@@ -398,6 +398,12 @@ func waitForTag(host, tag string, out io.Writer) error {
 			continue
 		}
 
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return fmt.Errorf("failed to fetch jobs: status %s, error: %s", resp.Status, strings.TrimSpace(string(body)))
+		}
+
 		var jobs []orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 			resp.Body.Close()
@@ -426,6 +432,59 @@ func waitForTag(host, tag string, out io.Writer) error {
 
 		if allCompleted {
 			fmt.Fprintf(out, "All jobs with tag '%s' completed successfully.\n", tag)
+			return nil
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func waitForMatch(host, match string, out io.Writer) error {
+	fmt.Fprintf(out, "Waiting for jobs matching '%s' to complete...\n", match)
+
+	urlStr := fmt.Sprintf("%s/jobs?state=all&match=%s", host, url.QueryEscape(match))
+
+	for {
+		resp, err := http.Get(urlStr)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return fmt.Errorf("failed to fetch jobs: status %s, error: %s", resp.Status, strings.TrimSpace(string(body)))
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			resp.Body.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		resp.Body.Close()
+
+		if len(jobs) == 0 {
+			fmt.Fprintf(out, "No jobs found matching '%s'.\n", match)
+			return nil
+		}
+
+		allCompleted := true
+		for _, job := range jobs {
+			if job.Status == "Failed" {
+				return fmt.Errorf("job %s failed with error: %s", job.ID, job.Error)
+			}
+			if job.Status == "Canceled" {
+				return fmt.Errorf("job %s canceled with error: %s", job.ID, job.Error)
+			}
+			if job.Status != "Completed" {
+				allCompleted = false
+			}
+		}
+
+		if allCompleted {
+			fmt.Fprintf(out, "All jobs matching '%s' completed successfully.\n", match)
 			return nil
 		}
 
