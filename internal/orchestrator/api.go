@@ -148,6 +148,35 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/export/pipeline", func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Query().Get("name")
+		if name == "" {
+			name = "exported-pipeline"
+		}
+		state := r.URL.Query().Get("state")
+
+		var jobs []JobInfo
+		switch state {
+		case "completed":
+			jobs = orch.GetCompletedJobs()
+		case "all":
+			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
+			jobs = append(jobs, orch.GetCompletedJobs()...)
+		default: // default active+pending
+			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
+		}
+
+		yamlData, err := ExportPipelineToYAML(name, jobs)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to export pipeline: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/x-yaml")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.yaml", name))
+		w.Write(yamlData)
+	})
+
 	mux.HandleFunc("GET /jobs/export", func(w http.ResponseWriter, r *http.Request) {
 		format := r.URL.Query().Get("format")
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
