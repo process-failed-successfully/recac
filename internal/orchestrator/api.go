@@ -1,7 +1,9 @@
 package orchestrator
 
 import (
+	archive_tar "archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -213,6 +215,59 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 		defer logStream.Close()
 		io.Copy(w, logStream)
+	})
+
+	mux.HandleFunc("GET /jobs/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		job, err := orch.GetJob(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/gzip")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.tar.gz\"", id))
+
+		gzWriter := gzip.NewWriter(w)
+		defer gzWriter.Close()
+
+		tarWriter := archive_tar.NewWriter(gzWriter)
+		defer tarWriter.Close()
+
+		// 1. Write job.json
+		jobData, err := json.MarshalIndent(job, "", "  ")
+		if err == nil {
+			hdr := &archive_tar.Header{
+				Name: "job.json",
+				Mode: 0600,
+				Size: int64(len(jobData)),
+			}
+			if err := tarWriter.WriteHeader(hdr); err == nil {
+				tarWriter.Write(jobData)
+			}
+		}
+
+		// 2. Write logs.txt
+		logStream, err := orch.GetLogs(r.Context(), id)
+		if err == nil {
+			defer logStream.Close()
+
+			// We need the size of the logs. We can buffer them in memory since they are typically small for an agent run,
+			// but a safer approach is to stream them to a temporary buffer if we need to know the size.
+			// Or we can just read all.
+			logData, err := io.ReadAll(logStream)
+			if err == nil {
+				hdr := &archive_tar.Header{
+					Name: "logs.txt",
+					Mode: 0600,
+					Size: int64(len(logData)),
+				}
+				if err := tarWriter.WriteHeader(hdr); err == nil {
+					tarWriter.Write(logData)
+				}
+			}
+		}
 	})
 
 	mux.HandleFunc("POST /jobs/{id}/metrics", func(w http.ResponseWriter, r *http.Request) {
