@@ -55,6 +55,8 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "id=\"job-summary\"")
 	assert.Contains(t, html, "id=\"job-repo\"")
 	assert.Contains(t, html, "id=\"job-tags\"")
+	assert.Contains(t, html, "id=\"job-concurrency-group\"")
+	assert.Contains(t, html, "id=\"job-cancel-in-progress\"")
 	assert.Contains(t, html, "onclick=\"submitAdHocJob()\"")
 
 	// Verify JS submit function exists
