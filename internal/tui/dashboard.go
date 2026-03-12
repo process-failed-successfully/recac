@@ -473,6 +473,34 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "cancel all"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "H":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_H"
+				m.pendingAction = "hold multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "hold"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+		case "U":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_U"
+				m.pendingAction = "unhold multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "unhold"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "r":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_r"
@@ -629,6 +657,10 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 						cmds = append(cmds, retryJob(m.host, id))
 					case "approve multiple":
 						cmds = append(cmds, approveJobCmd(m.host, id))
+					case "hold multiple":
+						cmds = append(cmds, holdJobCmd(m.host, id))
+					case "unhold multiple":
+						cmds = append(cmds, unholdJobCmd(m.host, id))
 					case "priority multiple":
 						// We need to fetch current priority to change it.
 						for _, job := range m.jobs {
@@ -665,6 +697,10 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = clearHistory(m.host)
 			} else if m.pendingAction == "clear pending" {
 				cmd = clearPending(m.host)
+			} else if m.pendingAction == "hold" {
+				cmd = holdJobCmd(m.host, m.pendingJobId)
+			} else if m.pendingAction == "unhold" {
+				cmd = unholdJobCmd(m.host, m.pendingJobId)
 			}
 			m.pendingJobId = ""
 			m.pendingAction = ""
@@ -902,7 +938,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T: timeout | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T: timeout | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1280,6 +1316,44 @@ func purgeJobCmd(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Purged"}
+	}
+}
+
+func holdJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/hold", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Held"}
+	}
+}
+
+func unholdJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/unhold", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Unheld"}
 	}
 }
 
