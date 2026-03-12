@@ -120,6 +120,30 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "ALL", m.pendingJobId)
 	})
 
+	t.Run("Hold Key (H)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("H")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "hold", m.pendingAction)
+		assert.Equal(t, "JOB-1", m.pendingJobId)
+	})
+
+	t.Run("Unhold Key (U)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("U")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "unhold", m.pendingAction)
+		assert.Equal(t, "JOB-1", m.pendingJobId)
+	})
+
 	t.Run("Retry Key (r)", func(t *testing.T) {
 		// Reset state
 		model.viewState = viewMain
