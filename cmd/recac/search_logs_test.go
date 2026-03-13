@@ -154,3 +154,48 @@ func TestSearchLogs(t *testing.T) {
 		})
 	}
 }
+
+func TestSearchLogsWrapper(t *testing.T) {
+	// Temporarily mock the factory
+	originalFactory := sessionManagerFactory
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	cleanup, sessionsDir := setupSearchTest(t)
+	defer cleanup()
+
+	mockSM := NewMockSessionManager()
+	mockSM.SessionsDirFunc = func() string { return sessionsDir }
+	mockSM.Sessions = map[string]*runner.SessionState{
+		"session-1": {Name: "session-1"},
+	}
+
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+
+	cmd, out, _ := newRootCmd()
+	err := searchLogs("Apple", cmd, false, false)
+	require.NoError(t, err)
+
+	// Verify the actual behavior: "Apple" is matched case-insensitively in session-1
+	output := out.String()
+	require.Contains(t, output, "[session-1] DEBUG: Found value: Apple")
+}
+
+func TestSearchLogsFactoryError(t *testing.T) {
+	originalFactory := sessionManagerFactory
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return nil, os.ErrPermission
+	}
+
+	cmd, out, _ := newRootCmd()
+	err := searchLogs("test", cmd, false, false)
+
+	require.ErrorIs(t, err, os.ErrPermission)
+	require.Contains(t, err.Error(), "failed to initialize session manager")
+
+	// Output shouldn't have successful search results
+	require.Empty(t, out.String())
+}
