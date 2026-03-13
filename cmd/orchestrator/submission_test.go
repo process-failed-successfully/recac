@@ -2194,3 +2194,194 @@ func TestPurgeJobsByTag_Success(t *testing.T) {
 
 	assert.Contains(t, string(out), "Successfully purged 4 jobs with tag 'my-tag'.")
 }
+
+func TestCloneBulkJobs_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneBulkJobs("http://localhost:12345", ".*", "tag-1", nil, false, nil, nil)
+	pw.Close()
+
+	output, _ := io.ReadAll(pr)
+	assert.Contains(t, string(output), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestCloneBulkJobs_InvalidURL(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneBulkJobs("://invalid-url", ".*", "tag-1", nil, false, nil, nil)
+	pw.Close()
+
+	output, _ := io.ReadAll(pr)
+	assert.Contains(t, string(output), "Failed to parse URL")
+	assert.True(t, exitCalled)
+}
+
+func TestCloneBulkJobs_InvalidJSONResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("{invalid-json}"))
+	}))
+	defer server.Close()
+
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	cloneBulkJobs(server.URL, ".*", "tag-1", nil, false, nil, nil)
+	pw.Close()
+
+	output, _ := io.ReadAll(pr)
+	assert.Contains(t, string(output), "Failed to parse response")
+	assert.True(t, exitCalled)
+}
+
+func TestUpdateDependencies_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	updateDependencies("http://localhost:12345", "MY-JOB", []string{"DEP-1"})
+	pw.Close()
+
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestUpdateAgent_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	updateAgent("http://localhost:12345", "MY-JOB", "provider", "model")
+	pw.Close()
+
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestSetJobOutput_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	setJobOutput("http://localhost:12345", "MY-JOB", "key", "val")
+	pw.Close()
+
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestSetJobProgress_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	prog := 50
+	msg := "Halfway there"
+	setJobProgress("http://localhost:12345", "MY-JOB", &prog, &msg)
+	pw.Close()
+
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestAddJobMetrics_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	addJobMetrics("http://localhost:12345", "MY-JOB", "key", 1.5)
+	pw.Close()
+
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestUnholdJobs_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	unholdJobs("http://localhost:12345", "match-val", "tag-val")
+	pw.Close()
+
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
