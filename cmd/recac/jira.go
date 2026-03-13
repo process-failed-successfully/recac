@@ -22,6 +22,11 @@ import (
 )
 
 // jiraCmd represents the jira command
+var (
+	jiraRepoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+	jiraIDRegex   = regexp.MustCompile(`(?i)ID:\[?([\w-]+)\]?`)
+)
+
 var jiraCmd = &cobra.Command{
 	Use:   "jira",
 	Short: "Jira integration commands",
@@ -312,14 +317,13 @@ func createTicketsFromNodes(ctx context.Context, tickets []ticketNode, projectKe
 	fmt.Printf("Found %d top-level items. Creating tickets...\n", len(tickets))
 
 	// Validate repository in descriptions
-	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 	// Helper for recursive validation
 	var validate func([]ticketNode) error
 	validate = func(nodes []ticketNode) error {
 		for _, node := range nodes {
 			// If repoURL is provided via flag, we don't strictly enforce it in description during validation
 			// because we will inject it. But if NOT provided via flag, we enforce it.
-			if repoURL == "" && !repoRegex.MatchString(node.Description) {
+			if repoURL == "" && !jiraRepoRegex.MatchString(node.Description) {
 				return fmt.Errorf("Item '%s' description missing repository URL (Repo: https://...)", node.Title)
 			}
 			if err := validate(node.Children); err != nil {
@@ -366,10 +370,9 @@ func createTicketsFromNodes(ctx context.Context, tickets []ticketNode, projectKe
 
 	// 4. Map logical IDs back from titles
 	idToKey := make(map[string]string)
-	idRegex := regexp.MustCompile(`(?i)ID:\[?([\w-]+)\]?`) // Match ID:[SQL] or ID:SQL-1
 
 	for title, key := range titleToKey {
-		matches := idRegex.FindStringSubmatch(title)
+		matches := jiraIDRegex.FindStringSubmatch(title)
 		if len(matches) > 1 {
 			idToKey[matches[1]] = key
 			fmt.Printf("Mapped ID %s -> %s\n", matches[1], key)

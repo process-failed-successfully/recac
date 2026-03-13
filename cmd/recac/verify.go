@@ -19,6 +19,8 @@ var (
 	verifyStaged bool
 	verifyAll    bool
 	verifyJSON   bool
+
+	verifyHunkRe = regexp.MustCompile(`@@ \-\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@`)
 )
 
 var verifyCmd = &cobra.Command{
@@ -201,15 +203,12 @@ func getFileChangedLines(file string, staged bool) ([]LineInterval, error) {
 // parseDiffHunks parses `@@ -old_start,old_count +new_start,new_count @@`
 func parseDiffHunks(diff string) []LineInterval {
 	var intervals []LineInterval
-	// Regex to find hunk headers
-	// @@ -1,2 +3,4 @@
-	re := regexp.MustCompile(`@@ \-\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@`)
 
 	scanner := bufio.NewScanner(strings.NewReader(diff))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "@@") {
-			matches := re.FindStringSubmatch(line)
+			matches := verifyHunkRe.FindStringSubmatch(line)
 			if len(matches) > 1 {
 				start, _ := strconv.Atoi(matches[1])
 				count := 1 // Default is 1 line if comma is missing

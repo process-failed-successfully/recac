@@ -18,6 +18,8 @@ import (
 
 var (
 	researchLimit int
+
+	researchLinkRe = regexp.MustCompile(`<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
 )
 
 var researchBaseURL = "https://html.duckduckgo.com/html/"
@@ -149,9 +151,7 @@ func searchDuckDuckGo(query string, limit int) ([]SearchResult, error) {
 	// Or look for <a href="http..." class="result__a">
 
 	// Regex: <a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>
-	re := regexp.MustCompile(`<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
-
-	matches := re.FindAllStringSubmatch(body, limit+5) // Fetch a few more to filter ads/internal
+	matches := researchLinkRe.FindAllStringSubmatch(body, limit+5) // Fetch a few more to filter ads/internal
 
 	var results []SearchResult
 	for _, m := range matches {

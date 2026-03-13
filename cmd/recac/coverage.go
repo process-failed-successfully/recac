@@ -21,6 +21,8 @@ var (
 	coverageHTML      bool
 	coverageBranch    string
 	coverageRunCmd    string
+
+	coverageProfileRe = regexp.MustCompile(`-coverprofile=(\S+)`)
 )
 
 var coverageCmd = &cobra.Command{
@@ -86,8 +88,7 @@ func runCoverage(cmd *cobra.Command, args []string) error {
 	coverageProfilePath := "coverage.out"
 	// Try to find if user specified a different profile in run-cmd
 	if strings.Contains(coverageRunCmd, "-coverprofile=") {
-		re := regexp.MustCompile(`-coverprofile=(\S+)`)
-		matches := re.FindStringSubmatch(coverageRunCmd)
+		matches := coverageProfileRe.FindStringSubmatch(coverageRunCmd)
 		if len(matches) > 1 {
 			coverageProfilePath = matches[1]
 		}

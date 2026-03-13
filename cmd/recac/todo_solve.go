@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var todoSolveRe = regexp.MustCompile(`\[([^]]+):(\d+)\]`)
+
 var todoSolveCmd = &cobra.Command{
 	Use:   "solve [index]",
 	Short: "Solve a TODO item using AI",
@@ -64,8 +66,7 @@ func runTodoSolve(cmd *cobra.Command, index int) error {
 	// 2. Parse [File:Line]
 	// Expected format: "- [ ] [path/to/file:123] Keyword: Content"
 	// Use [^]]+ to ensure we don't match across multiple brackets like [ ] [file:123]
-	re := regexp.MustCompile(`\[([^]]+):(\d+)\]`)
-	matches := re.FindStringSubmatch(taskLine)
+	matches := todoSolveRe.FindStringSubmatch(taskLine)
 	if len(matches) < 3 {
 		return fmt.Errorf("could not identify file and line in task: %s\nMake sure the task was added via 'recac todo scan'", taskLine)
 	}
