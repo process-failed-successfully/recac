@@ -1,0 +1,7 @@
+1. Write `TestCloneBulkJobs` tests to cover `cloneBulkJobs`
+2. Write `TestUnholdJobs` tests to cover `unholdJobs`
+3. Write `TestHoldJobs` tests to cover `holdJobs`
+4. Write `TestUpdateDependencies` tests to cover `updateDependencies`
+5. Write `TestUpdateAgent` tests to cover `updateAgent`
+6. Write `TestSetJobOutput` tests to cover `setJobOutput`
+7. Write `TestAddJobMetrics` tests to cover `addJobMetrics`
