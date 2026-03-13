@@ -55,7 +55,29 @@ const DashboardHTML = `
             <div class="actions" id="global-actions" style="margin-top: 0;">
                 <!-- Buttons will be injected here if supported -->
             </div>
-            <button onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
+            <div>
+                <button onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
+                <button onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
+            </div>
+        </div>
+
+        <div id="submitPipelineModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="document.getElementById('submitPipelineModal').style.display='none'">&times;</span>
+                <h2>Submit Pipeline (YAML)</h2>
+                <div class="form-group">
+                    <label for="pipeline-yaml">Pipeline Definition</label>
+                    <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
+                    <button onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
+                </div>
+                <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                    <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
+                    <pre id="dry-run-output" style="margin: 0; font-size: 0.9em; white-space: pre-wrap;"></pre>
+                </div>
+            </div>
         </div>
 
         <div id="submitModal" class="modal">
@@ -349,6 +371,74 @@ const DashboardHTML = `
                     fetchJobs();
                 } else {
                     alert('Failed to update dependencies: ' + await res.text());
+                }
+            } catch(e) {
+                alert('Request failed: ' + e);
+            }
+        }
+
+        async function dryRunPipeline() {
+            const yaml = document.getElementById('pipeline-yaml').value.trim();
+            if (!yaml) {
+                alert('Pipeline YAML is required.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/jobs/pipeline/dry-run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-yaml' },
+                    body: yaml
+                });
+
+                const resultsDiv = document.getElementById('dry-run-results');
+                const outputPre = document.getElementById('dry-run-output');
+
+                if (res.ok) {
+                    const items = await res.json();
+                    let outputText = "Generated " + (items ? items.length : 0) + " jobs:\n\n";
+                    if (items) {
+                        items.forEach((item, index) => {
+                            outputText += (index + 1) + ". " + item.id + "\n";
+                            outputText += "   Summary: " + item.summary + "\n";
+                            if (item.depends_on && item.depends_on.length > 0) {
+                                outputText += "   Depends On: " + item.depends_on.join(", ") + "\n";
+                            }
+                        });
+                    }
+                    outputPre.innerText = outputText;
+                    resultsDiv.style.display = 'block';
+                } else {
+                    const text = await res.text();
+                    outputPre.innerText = "Error: " + text;
+                    resultsDiv.style.display = 'block';
+                }
+            } catch(e) {
+                alert('Request failed: ' + e);
+            }
+        }
+
+        async function submitPipeline() {
+            const yaml = document.getElementById('pipeline-yaml').value.trim();
+            if (!yaml) {
+                alert('Pipeline YAML is required.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/jobs/pipeline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-yaml' },
+                    body: yaml
+                });
+
+                if (res.ok) {
+                    document.getElementById('submitPipelineModal').style.display = 'none';
+                    document.getElementById('pipeline-yaml').value = '';
+                    fetchStatus();
+                    fetchJobs();
+                } else {
+                    alert('Failed to submit pipeline: ' + await res.text());
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
