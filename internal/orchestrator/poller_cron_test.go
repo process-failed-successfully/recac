@@ -107,4 +107,56 @@ func TestCronPoller(t *testing.T) {
 		assert.Len(t, items, 1)
 		assert.Equal(t, "Updated Task", items[0].Summary)
 	})
+
+	t.Run("Failed Load in Poll", func(t *testing.T) {
+		poller, err := NewCronPoller("* * * * *", templatePath)
+		require.NoError(t, err)
+		poller.nextRun = time.Now().Add(-1 * time.Minute)
+
+		err = os.Remove(templatePath)
+		require.NoError(t, err)
+
+		items, err := poller.Poll(ctx, logger)
+		assert.NoError(t, err)
+		assert.Empty(t, items)
+
+		// restore
+		err = os.WriteFile(templatePath, []byte(templateContent), 0644)
+		require.NoError(t, err)
+	})
+
+	t.Run("Invalid JSON loadTemplate", func(t *testing.T) {
+		poller, err := NewCronPoller("* * * * *", templatePath)
+		require.NoError(t, err)
+		poller.nextRun = time.Now().Add(-1 * time.Minute)
+
+		err = os.WriteFile(templatePath, []byte("invalid json"), 0644)
+		require.NoError(t, err)
+
+		err = poller.loadTemplate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JSON in template file")
+
+		// restore
+		err = os.WriteFile(templatePath, []byte(templateContent), 0644)
+		require.NoError(t, err)
+	})
+
+	t.Run("Valid Schedule - Template with ID", func(t *testing.T) {
+		idTemplatePath := filepath.Join(dir, "template2.json")
+		err := os.WriteFile(idTemplatePath, []byte(`{"id": "test-id"}`), 0644)
+		require.NoError(t, err)
+		poller, err := NewCronPoller("* * * * *", idTemplatePath)
+		require.NoError(t, err)
+
+		// Manually set nextRun to the past to simulate time passing
+		poller.nextRun = time.Now().Add(-1 * time.Minute)
+
+		items, err := poller.Poll(ctx, logger)
+		assert.NoError(t, err)
+		assert.Len(t, items, 1, "Should return 1 item when due")
+
+		item := items[0]
+		assert.Contains(t, item.ID, "test-id-")
+	})
 }

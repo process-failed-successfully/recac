@@ -223,3 +223,71 @@ func TestTrelloPoller_closeCard_API_Error(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to close trello card")
 }
+
+func TestTrelloPoller_RequestErrors(t *testing.T) {
+	p := NewTrelloPoller("key", "token", "board", "list")
+	p.BaseURL = "http://\x00invalid"
+
+	err := p.postComment(context.Background(), "123", "test")
+	assert.Error(t, err)
+
+	err = p.closeCard(context.Background(), "123")
+	assert.Error(t, err)
+
+	err = p.Ping(context.Background())
+	assert.Error(t, err)
+
+	_, err = p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+}
+
+func TestTrelloPoller_Poll_BadJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{invalid json}"))
+	}))
+	defer server.Close()
+
+	p := NewTrelloPoller("key", "token", "", "list")
+	p.BaseURL = server.URL
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode trello response")
+}
+
+func TestTrelloPoller_UpdateStatus_NoComment(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	p := NewTrelloPoller("key", "token", "", "list")
+	p.BaseURL = server.URL
+	item := WorkItem{ID: "tr-1"}
+	err := p.UpdateStatus(context.Background(), item, "InProgress", "")
+	assert.NoError(t, err)
+}
+
+func TestTrelloPoller_UpdateStatus_CloseError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.WriteHeader(http.StatusOK)
+		} else if r.Method == "PUT" {
+			w.WriteHeader(http.StatusBadRequest) // Fail close
+		}
+	}))
+	defer server.Close()
+
+	p := NewTrelloPoller("key", "token", "", "list")
+	p.BaseURL = server.URL
+	item := WorkItem{ID: "tr-1"}
+	err := p.UpdateStatus(context.Background(), item, "Done", "Job Done")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close trello card: 400")
+}
+
+func TestTrelloPoller_UpdateStatus_PostCommentError(t *testing.T) {
+	p := NewTrelloPoller("key", "token", "", "list")
+	p.BaseURL = "http://\x00invalid"
+	item := WorkItem{ID: "tr-1"}
+	err := p.UpdateStatus(context.Background(), item, "InProgress", "comment")
+	assert.Error(t, err)
+}

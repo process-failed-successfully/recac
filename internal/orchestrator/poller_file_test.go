@@ -2,11 +2,13 @@ package orchestrator
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFilePoller(t *testing.T) {
@@ -49,4 +51,28 @@ func TestFilePoller(t *testing.T) {
 		err := poller.UpdateStatus(context.Background(), WorkItem{ID: "TASK-1"}, "done", "comment")
 		assert.NoError(t, err)
 	})
+}
+
+func TestFilePoller_Poll_BadJSON(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "bad-json-*.json")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	_, err = tempFile.Write([]byte("{invalid json}"))
+	require.NoError(t, err)
+	tempFile.Close()
+
+	poller := NewFilePoller(tempFile.Name())
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	_, err = poller.Poll(context.Background(), logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to unmarshal")
+}
+
+func TestFilePoller_Ping_DirInsteadOfFile(t *testing.T) {
+	tempDir := t.TempDir()
+	poller := NewFilePoller(tempDir)
+	err := poller.Ping(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "watch path is a directory")
 }

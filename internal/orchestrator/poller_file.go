@@ -62,13 +62,17 @@ func (p *FilePoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 
 func (p *FilePoller) Ping(ctx context.Context) error {
 	// Check if file exists or directory exists
-	if _, err := os.Stat(p.path); err != nil {
+	info, err := os.Stat(p.path)
+	if err != nil {
 		if os.IsNotExist(err) {
 			// If file doesn't exist, check parent dir
 			// Actually, just returning error is fine, the file SHOULD exist or be creatable.
 			return fmt.Errorf("work file not found: %w", err)
 		}
 		return err
+	}
+	if info.IsDir() {
+		return fmt.Errorf("watch path is a directory: %s", p.path)
 	}
 	return nil
 }
