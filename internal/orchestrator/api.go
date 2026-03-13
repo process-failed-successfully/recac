@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"bufio"
 	archive_tar "archive/tar"
 	"bytes"
 	"compress/gzip"
@@ -145,6 +146,102 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(jobs); err != nil {
 			logger.Error("Failed to encode jobs", "error", err)
+		}
+	})
+
+
+
+	mux.HandleFunc("GET /jobs/search/logs", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
+			return
+		}
+
+		matcher, err := regexp.Compile("(?i)" + query)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid regex query: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		tagFilter := r.URL.Query().Get("tag")
+		statusFilter := r.URL.Query().Get("status")
+
+		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		var filtered []JobInfo
+
+		for _, job := range jobs {
+			if statusFilter != "" && strings.ToLower(job.Status) != strings.ToLower(statusFilter) {
+				continue
+			}
+
+			if tagFilter != "" {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.ToLower(t) == strings.ToLower(tagFilter) {
+						hasTag = true
+						break
+					}
+				}
+				if !hasTag {
+					continue
+				}
+			}
+			filtered = append(filtered, job)
+		}
+
+		type LogMatch struct {
+			LineNumber int    `json:"line_number"`
+			Text       string `json:"text"`
+		}
+
+		type JobLogResult struct {
+			JobID   string     `json:"job_id"`
+			Summary string     `json:"summary"`
+			Status  string     `json:"status"`
+			Matches []LogMatch `json:"matches"`
+		}
+
+		var results []JobLogResult
+
+		for _, job := range filtered {
+			logStream, err := orch.GetLogs(r.Context(), job.ID)
+			if err != nil {
+				continue // Skip if logs are not available
+			}
+
+			scanner := bufio.NewScanner(logStream)
+			lineNum := 1
+			var matches []LogMatch
+
+			for scanner.Scan() {
+				line := scanner.Text()
+				if matcher.MatchString(line) {
+					matches = append(matches, LogMatch{
+						LineNumber: lineNum,
+						Text:       line,
+					})
+					if len(matches) >= 10 { // Limit matches per job to avoid huge responses
+						break
+					}
+				}
+				lineNum++
+			}
+			logStream.Close()
+
+			if len(matches) > 0 {
+				results = append(results, JobLogResult{
+					JobID:   job.ID,
+					Summary: job.Summary,
+					Status:  job.Status,
+					Matches: matches,
+				})
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(results); err != nil {
+			logger.Error("Failed to encode log search results", "error", err)
 		}
 	})
 
