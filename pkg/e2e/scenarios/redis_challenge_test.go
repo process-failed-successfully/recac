@@ -104,6 +104,73 @@ func TestRedisChallengeScenario_Verify(t *testing.T) {
 	assert.ErrorContains(t, err, "server failed to start on localhost:6379")
 }
 
+func TestRedisChallengeScenario_Verify_Success(t *testing.T) {
+	s := &RedisChallengeScenario{}
+	dir := setupGitRepo(t)
+
+	// We need remote origin
+	remoteDir := t.TempDir()
+	exec.Command("git", "init", "--bare", remoteDir).Run()
+	exec.Command("git", "-C", dir, "remote", "add", "origin", remoteDir).Run()
+
+	_ = exec.Command("git", "-C", dir, "branch", "agent/REDIS").Run()
+	_ = exec.Command("git", "-C", dir, "push", "origin", "agent/REDIS").Run()
+
+	mockPython := `
+import socket
+import sys
+
+def handle_client(conn):
+    try:
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+            req = data.decode('utf-8')
+
+            # Simple manual parsing of test flow
+            if "*1\r\n$4\r\nPING\r\n" in req:
+                conn.sendall(b"+PONG\r\n")
+            elif "*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n" in req:
+                conn.sendall(b"+OK\r\n")
+            elif "*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n" in req:
+                conn.sendall(b"$3\r\nbar\r\n")
+            elif "*5\r\n$3\r\nSET\r\n$4\r\ntemp\r\n$3\r\nval\r\n$2\r\nPX\r\n$3\r\n100\r\n" in req:
+                conn.sendall(b"+OK\r\n")
+            elif "*2\r\n$3\r\nGET\r\n$4\r\ntemp\r\n" in req:
+                conn.sendall(b"$-1\r\n")
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        conn.close()
+
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        s.bind(('localhost', 6379))
+        s.listen(1)
+        print("Listening on 6379")
+        while True:
+            conn, addr = s.accept()
+            handle_client(conn)
+    except KeyboardInterrupt:
+        sys.exit(0)
+    finally:
+        s.close()
+
+if __name__ == '__main__':
+    main()
+`
+	_ = os.WriteFile(filepath.Join(dir, "main.py"), []byte(mockPython), 0644)
+
+	err := s.Verify(dir, map[string]string{"REDIS": "REDIS"})
+	if err != nil {
+		t.Logf("Verify Error: %v", err)
+	}
+	assert.NoError(t, err)
+}
+
 func TestRedisChallengeScenario_testRESP(t *testing.T) {
 	s := &RedisChallengeScenario{}
 

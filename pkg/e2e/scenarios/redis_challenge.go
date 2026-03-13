@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -87,15 +88,29 @@ func (s *RedisChallengeScenario) Verify(repoPath string, ticketKeys map[string]s
 		return fmt.Errorf("port 6379 already in use")
 	}
 
-	// Heuristic to find how to run
-	if _, err := exec.LookPath("go"); err == nil {
-		// Try go run .
-		runCmd = exec.Command("go", "run", ".")
-		runCmd.Dir = repoPath
-	} else if _, err := exec.LookPath("python3"); err == nil {
-		// Try python3 main.py
-		runCmd = exec.Command("python3", "main.py")
-		runCmd.Dir = repoPath
+	// Look for existing files first to determine execution strategy
+	_, goErr := os.Stat(repoPath + "/main.go")
+	_, pyErr := os.Stat(repoPath + "/main.py")
+
+	if goErr == nil {
+		if _, err := exec.LookPath("go"); err == nil {
+			runCmd = exec.Command("go", "run", ".")
+			runCmd.Dir = repoPath
+		}
+	} else if pyErr == nil {
+		if _, err := exec.LookPath("python3"); err == nil {
+			runCmd = exec.Command("python3", "main.py")
+			runCmd.Dir = repoPath
+		}
+	} else {
+		// Fallback heuristic
+		if _, err := exec.LookPath("go"); err == nil {
+			runCmd = exec.Command("go", "run", ".")
+			runCmd.Dir = repoPath
+		} else if _, err := exec.LookPath("python3"); err == nil {
+			runCmd = exec.Command("python3", "main.py")
+			runCmd.Dir = repoPath
+		}
 	}
 
 	if runCmd == nil {
