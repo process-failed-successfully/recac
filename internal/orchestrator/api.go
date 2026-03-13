@@ -744,6 +744,112 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "Job %s unheld", id)
 	})
 
+	mux.HandleFunc("POST /jobs/clone/bulk", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk clone", http.StatusBadRequest)
+			return
+		}
+
+		var overrides struct {
+			EnvVars   map[string]string `json:"env_vars"`
+			Priority  *int              `json:"priority"`
+			DependsOn []string          `json:"depends_on"`
+		}
+
+		if r.Body != nil {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err == nil && len(bodyBytes) > 0 {
+				if err := json.Unmarshal(bodyBytes, &overrides); err != nil {
+					http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+					return
+				}
+			}
+		}
+
+		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		var filtered []JobInfo
+
+		if tag != "" {
+			lowerTag := strings.ToLower(tag)
+			for _, job := range jobs {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.ToLower(t) == lowerTag {
+						hasTag = true
+						break
+					}
+				}
+				if hasTag {
+					filtered = append(filtered, job)
+				}
+			}
+		} else if match != "" {
+			matcher, err := regexp.Compile("(?i)" + match)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid match regex: %v", err), http.StatusBadRequest)
+				return
+			}
+			for _, job := range jobs {
+				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+					filtered = append(filtered, job)
+				}
+			}
+		}
+
+		var clonedIDs []string
+		for i, job := range filtered {
+			newItem := job.WorkItem
+			newItem.ID = fmt.Sprintf("%s-clone-%d-%d", newItem.ID, time.Now().UnixNano(), i)
+
+			if job.WorkItem.EnvVars != nil {
+				newItem.EnvVars = make(map[string]string)
+				for k, v := range job.WorkItem.EnvVars {
+					newItem.EnvVars[k] = v
+				}
+			}
+			if overrides.EnvVars != nil {
+				if newItem.EnvVars == nil {
+					newItem.EnvVars = make(map[string]string)
+				}
+				for k, v := range overrides.EnvVars {
+					newItem.EnvVars[k] = v
+				}
+			}
+
+			if overrides.Priority != nil {
+				newItem.Priority = *overrides.Priority
+			}
+
+			if overrides.DependsOn != nil {
+				newItem.DependsOn = make([]string, len(overrides.DependsOn))
+				copy(newItem.DependsOn, overrides.DependsOn)
+			} else if job.WorkItem.DependsOn != nil {
+				newItem.DependsOn = make([]string, len(job.WorkItem.DependsOn))
+				copy(newItem.DependsOn, job.WorkItem.DependsOn)
+			}
+
+			if err := orch.SubmitJob(baseCtx, newItem, logger); err != nil {
+				logger.Error("Failed to submit bulk cloned job", "job_id", newItem.ID, "error", err)
+				continue
+			}
+			clonedIDs = append(clonedIDs, newItem.ID)
+		}
+
+		respData := map[string]interface{}{
+			"cloned":         len(clonedIDs),
+			"cloned_job_ids": clonedIDs,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		if err := json.NewEncoder(w).Encode(respData); err != nil {
+			logger.Error("Failed to encode bulk clone response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/clone", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 
