@@ -4,7 +4,26 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 )
+
+// SafeBuffer provides a thread-safe strings.Builder implementation
+type SafeBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *SafeBuffer) Write(p []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *SafeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
 
 func checkAgentBranchExists(repoPath string) error {
 	cmd := exec.Command("git", "branch", "-r")

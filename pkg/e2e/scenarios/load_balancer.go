@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -106,12 +107,29 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	// 2. Start the Load Balancer
 	var runCmd *exec.Cmd
 	// Heuristic to find how to run
-	if _, err := exec.LookPath("go"); err == nil {
-		runCmd = exec.Command("go", "run", ".")
-		runCmd.Dir = repoPath
-	} else if _, err := exec.LookPath("python3"); err == nil {
-		runCmd = exec.Command("python3", "main.py")
-		runCmd.Dir = repoPath
+	// Look for existing files first to determine execution strategy
+	_, goErr := os.Stat(repoPath + "/main.go")
+	_, pyErr := os.Stat(repoPath + "/main.py")
+
+	if goErr == nil {
+		if _, err := exec.LookPath("go"); err == nil {
+			runCmd = exec.Command("go", "run", ".")
+			runCmd.Dir = repoPath
+		}
+	} else if pyErr == nil {
+		if _, err := exec.LookPath("python3"); err == nil {
+			runCmd = exec.Command("python3", "main.py")
+			runCmd.Dir = repoPath
+		}
+	} else {
+		// Fallback to old heuristic
+		if _, err := exec.LookPath("go"); err == nil {
+			runCmd = exec.Command("go", "run", ".")
+			runCmd.Dir = repoPath
+		} else if _, err := exec.LookPath("python3"); err == nil {
+			runCmd = exec.Command("python3", "main.py")
+			runCmd.Dir = repoPath
+		}
 	}
 
 	if runCmd == nil {
@@ -119,8 +137,15 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	}
 
 	runCmd.Env = append(runCmd.Environ(), "BACKENDS="+backends)
+	// Capturing stdout/stderr to help debug startup failures safely
+	outBytes := &SafeBuffer{}
+	errBytes := &SafeBuffer{}
+
+	runCmd.Stdout = outBytes
+	runCmd.Stderr = errBytes
+
 	if err := runCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start LB: %v", err)
+		return fmt.Errorf("failed to start LB: %v\nStdout: %s\nStderr: %s", err, outBytes.String(), errBytes.String())
 	}
 	defer func() {
 		if runCmd.Process != nil {
@@ -142,7 +167,7 @@ func (s *LoadBalancerScenario) Verify(repoPath string, ticketKeys map[string]str
 	}
 
 	if !ready {
-		return fmt.Errorf("load balancer failed to start on %s", lbURL)
+		return fmt.Errorf("load balancer failed to start on %s\nStdout: %s\nStderr: %s", lbURL, outBytes.String(), errBytes.String())
 	}
 
 	// 3. Test Round-Robin
