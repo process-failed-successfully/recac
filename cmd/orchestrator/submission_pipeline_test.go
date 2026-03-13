@@ -110,7 +110,7 @@ func TestSubmitPipelineJob_Success(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false)
+	submitPipelineJob(server.URL, f.Name(), false, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -132,7 +132,7 @@ func TestSubmitPipelineJob_InvalidFile(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob("http://localhost", "non_existent_pipeline_file.yaml", false)
+	submitPipelineJob("http://localhost", "non_existent_pipeline_file.yaml", false, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -159,7 +159,7 @@ func TestSubmitPipelineJob_ConnectionError(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob("http://localhost:123456", f.Name(), false)
+	submitPipelineJob("http://localhost:123456", f.Name(), false, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -192,7 +192,7 @@ func TestSubmitPipelineJob_ErrorResponse(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false)
+	submitPipelineJob(server.URL, f.Name(), false, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -225,7 +225,7 @@ func TestSubmitPipelineJob_InvalidJSON(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false)
+	submitPipelineJob(server.URL, f.Name(), false, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -258,7 +258,7 @@ func TestSubmitPipelineJob_WithErrors(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false)
+	submitPipelineJob(server.URL, f.Name(), false, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -300,7 +300,7 @@ func TestSubmitPipelineJob_WaitFailed(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), true)
+	submitPipelineJob(server.URL, f.Name(), true, false)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -308,4 +308,35 @@ func TestSubmitPipelineJob_WaitFailed(t *testing.T) {
 	assert.Contains(t, string(out), "Job JOB-WAIT failed: job failed with error: test pipeline failure")
 	assert.Equal(t, 1, exitCode)
 	assert.Greater(t, callCount, 0)
+}
+
+func TestSubmitPipelineJob_DryRun(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// We don't even need a server because dryRun=true avoids network requests
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline-dry-run\njobs:\n  test-job:\n    summary: Test Job Summary\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	submitPipelineJob("http://invalid-url-should-not-be-called", f.Name(), false, true)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+	outStr := string(out)
+
+	assert.Contains(t, outStr, "Pipeline valid. Dry run generated 1 jobs:")
+	// Assert the JSON encoding of the parsed items is present
+	assert.Contains(t, outStr, `"summary": "Test Job Summary"`)
+	assert.Equal(t, 0, exitCode)
 }
