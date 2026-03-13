@@ -245,6 +245,43 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/export/graph", func(w http.ResponseWriter, r *http.Request) {
+		state := r.URL.Query().Get("state")
+		format := r.URL.Query().Get("format")
+		if format == "" {
+			format = "mermaid"
+		}
+
+		var jobs []JobInfo
+		switch state {
+		case "completed":
+			jobs = orch.GetCompletedJobs()
+		case "active":
+			jobs = orch.GetActiveJobs()
+		case "pending":
+			jobs = orch.GetPendingJobs()
+		default: // default active+pending+completed for graph
+			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
+			jobs = append(jobs, orch.GetCompletedJobs()...)
+		}
+
+		var graphStr string
+		switch strings.ToLower(format) {
+		case "dot":
+			w.Header().Set("Content-Type", "text/vnd.graphviz")
+			graphStr = ExportGraphToDOT(jobs)
+		case "mermaid":
+			w.Header().Set("Content-Type", "text/plain")
+			graphStr = ExportGraphToMermaid(jobs)
+		default:
+			http.Error(w, "Invalid format. Supported formats: mermaid, dot", http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(graphStr))
+	})
+
 	mux.HandleFunc("GET /jobs/export/pipeline", func(w http.ResponseWriter, r *http.Request) {
 		name := r.URL.Query().Get("name")
 		if name == "" {
