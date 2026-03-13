@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -78,4 +80,75 @@ func TestUpdateAgentCommand(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, out.String(), "Job JOB-AGENT-UPDATE agent updated to provider=openai model=gpt-4o")
+}
+
+func TestUpdateAgent_Success(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-123/agent", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+
+		var reqBody struct {
+			AgentProvider string `json:"agent_provider"`
+			AgentModel    string `json:"agent_model"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&reqBody)
+		assert.NoError(t, err)
+		assert.Equal(t, "openai", reqBody.AgentProvider)
+		assert.Equal(t, "gpt-4", reqBody.AgentModel)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"agent_provider": "openai", "agent_model": "gpt-4"}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateAgent(server.URL, "JOB-123", "openai", "gpt-4")
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Job JOB-123 agent updated to provider=openai model=gpt-4")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestUpdateAgent_Error(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-123/agent", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`invalid model`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateAgent(server.URL, "JOB-123", "openai", "gpt-4")
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to update agent: invalid model")
+	assert.Equal(t, 1, exitCode)
 }
