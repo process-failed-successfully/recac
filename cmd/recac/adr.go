@@ -20,6 +20,10 @@ import (
 var (
 	adrTitle  string
 	adrStatus string
+
+	adrIDRe     = regexp.MustCompile(`^(\d{4})-`)
+	adrSlugRe   = regexp.MustCompile(`[^a-z0-9\-]`)
+	adrStatusRe = regexp.MustCompile(`(?i)##\s+Status\s*\n+\s*(\w+)`)
 )
 
 var adrCmd = &cobra.Command{
@@ -141,13 +145,12 @@ func createAdr(title, status, content string) error {
 	}
 
 	maxID := 0
-	re := regexp.MustCompile(`^(\d{4})-`)
 
 	for _, f := range files {
 		if f.IsDir() {
 			continue
 		}
-		matches := re.FindStringSubmatch(f.Name())
+		matches := adrIDRe.FindStringSubmatch(f.Name())
 		if len(matches) > 1 {
 			id, _ := strconv.Atoi(matches[1])
 			if id > maxID {
@@ -159,8 +162,7 @@ func createAdr(title, status, content string) error {
 	nextID := maxID + 1
 	slug := strings.ToLower(title)
 	slug = strings.ReplaceAll(slug, " ", "-")
-	reg := regexp.MustCompile(`[^a-z0-9\-]`)
-	slug = reg.ReplaceAllString(slug, "")
+	slug = adrSlugRe.ReplaceAllString(slug, "")
 	if len(slug) > 50 {
 		slug = slug[:50]
 	}
@@ -253,8 +255,7 @@ func runAdrList(cmd *cobra.Command, args []string) error {
 		}
 
         // Scan for status more robustly
-        statusRegex := regexp.MustCompile(`(?i)##\s+Status\s*\n+\s*(\w+)`)
-        matches := statusRegex.FindStringSubmatch(string(content))
+        matches := adrStatusRe.FindStringSubmatch(string(content))
         if len(matches) > 1 {
             status = matches[1]
         }

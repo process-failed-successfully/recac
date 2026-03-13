@@ -15,6 +15,8 @@ var (
 	timelineDays   int
 	timelineOutput string
 	timelineFocus  string
+
+	timelineCommitRe = regexp.MustCompile(`^(\w+)(\(([\w\-\./]+)\))?:\s*(.+)$`)
 )
 
 var timelineCmd = &cobra.Command{
@@ -98,11 +100,6 @@ func processCommits(lines []string) []TimelineEvent {
 	// Map: Scope -> Event
 	eventMap := make(map[string]*TimelineEvent)
 
-	// Regex for Conventional Commits
-	// type(scope): subject
-	// Group 1: type, Group 3: scope, Group 4: subject
-	re := regexp.MustCompile(`^(\w+)(\(([\w\-\./]+)\))?:\s*(.+)$`)
-
 	for _, line := range lines {
 		parts := strings.SplitN(line, "|", 3)
 		if len(parts) < 3 {
@@ -119,7 +116,7 @@ func processCommits(lines []string) []TimelineEvent {
 		}
 
 		// Parse message
-		matches := re.FindStringSubmatch(msg)
+		matches := timelineCommitRe.FindStringSubmatch(msg)
 		var scope, commitType string
 
 		if len(matches) > 0 {

@@ -16,6 +16,8 @@ import (
 var (
 	healCommand string
 	healRetries int
+
+	healErrRe = regexp.MustCompile(`(?m)^\s*([a-zA-Z0-9_\-\./\\]+\.[a-zA-Z0-9]+):\d+`)
 )
 
 var healCmd = &cobra.Command{
@@ -148,8 +150,7 @@ func extractFailedFiles(output string) []string {
 	// Common pattern: path/to/file.go:line:col
 	// We capture the file path.
 	// Allow leading whitespace for indented test output.
-	re := regexp.MustCompile(`(?m)^\s*([a-zA-Z0-9_\-\./\\]+\.[a-zA-Z0-9]+):\d+`)
-	matches := re.FindAllStringSubmatch(output, -1)
+	matches := healErrRe.FindAllStringSubmatch(output, -1)
 
 	unique := make(map[string]bool)
 	var files []string

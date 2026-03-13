@@ -17,6 +17,8 @@ var (
 	contPort      string
 	contDB        string
 	contForce     bool
+
+	containerizeFileRe = regexp.MustCompile(`(?s)<file\s+path="([^"]+)">\s*(.*?)\s*</file>`)
 )
 
 var containerizeCmd = &cobra.Command{
@@ -187,8 +189,7 @@ func parseXMLFiles(text string) map[string]string {
 	result := make(map[string]string)
 	// Regex to match <file path="...">...</file>
 	// (?s) enables dot matching newline
-	re := regexp.MustCompile(`(?s)<file\s+path="([^"]+)">\s*(.*?)\s*</file>`)
-	matches := re.FindAllStringSubmatch(text, -1)
+	matches := containerizeFileRe.FindAllStringSubmatch(text, -1)
 
 	for _, match := range matches {
 		if len(match) == 3 {
