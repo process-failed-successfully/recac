@@ -298,6 +298,81 @@ func submitBatchJob(host, filePath string, wait bool) {
 	}
 }
 
+func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars map[string]string, dependsOn []string) {
+	overrides := struct {
+		EnvVars   map[string]string `json:"env_vars,omitempty"`
+		Priority  *int              `json:"priority,omitempty"`
+		DependsOn []string          `json:"depends_on,omitempty"`
+	}{
+		EnvVars:   envVars,
+		Priority:  priority,
+		DependsOn: dependsOn,
+	}
+
+	payload, err := json.Marshal(overrides)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal overrides: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/clone/bulk", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	if match != "" {
+		q.Set("match", match)
+	}
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	u.RawQuery = q.Encode()
+
+	resp, err := http.Post(u.String(), "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		fmt.Fprintf(stdout, "Failed to clone jobs: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Cloned       int      `json:"cloned"`
+		ClonedJobIDs []string `json:"cloned_job_ids"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully cloned %d jobs.\n", result.Cloned)
+	for _, id := range result.ClonedJobIDs {
+		fmt.Fprintf(stdout, "- %s\n", id)
+	}
+
+	if wait && len(result.ClonedJobIDs) > 0 {
+		for _, id := range result.ClonedJobIDs {
+			if err := waitForJob(host, id, stdout); err != nil {
+				fmt.Fprintf(stdout, "Job failed: %v\n", err)
+				exitFunc(1)
+				return
+			}
+		}
+	}
+}
+
 func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars map[string]string, dependsOn []string) {
 	overrides := struct {
 		NewID     string            `json:"new_id,omitempty"`

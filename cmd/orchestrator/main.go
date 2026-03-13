@@ -116,6 +116,8 @@ func main() {
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
 	pflag.String("clone-job", "", "Clone an existing job by ID")
+	pflag.String("clone-match", "", "Clone all jobs matching the given regex")
+	pflag.String("clone-tag", "", "Clone all jobs with the specified tag")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
 	pflag.String("retry-tag", "", "Retry all failed jobs from history with the specified tag")
@@ -334,6 +336,8 @@ func main() {
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
+	viper.BindPFlag("orchestrator.clone_match", pflag.Lookup("clone-match"))
+	viper.BindPFlag("orchestrator.clone_tag", pflag.Lookup("clone-tag"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
 	viper.BindPFlag("orchestrator.retry_tag", pflag.Lookup("retry-tag"))
@@ -727,6 +731,39 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		cloneJob(host, jobID, id, priorityPtr, wait, envMap, submitDepsPtr)
+		return nil
+	}
+
+	cloneMatch := viper.GetString("orchestrator.clone_match")
+	cloneTag := viper.GetString("orchestrator.clone_tag")
+	if cloneMatch != "" || cloneTag != "" {
+		host := viper.GetString("orchestrator.host")
+		priority := viper.GetInt("orchestrator.submit_priority")
+		wait := viper.GetBool("orchestrator.wait")
+		envPairs := viper.GetStringSlice("orchestrator.env")
+		submitDeps := viper.GetStringSlice("orchestrator.submit_deps")
+
+		envMap := make(map[string]string)
+		for _, pair := range envPairs {
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			} else {
+				logger.Warn("Invalid environment variable format", "input", pair)
+			}
+		}
+
+		priorityPtr := &priority
+		if !viper.IsSet("orchestrator.submit_priority") {
+			priorityPtr = nil
+		}
+
+		var submitDepsPtr []string
+		if viper.IsSet("orchestrator.submit_deps") {
+			submitDepsPtr = submitDeps
+		}
+
+		cloneBulkJobs(host, cloneMatch, cloneTag, priorityPtr, wait, envMap, submitDepsPtr)
 		return nil
 	}
 
