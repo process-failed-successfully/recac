@@ -299,6 +299,76 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/archive/bulk", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk archive", http.StatusBadRequest)
+			return
+		}
+
+		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		var filtered []JobInfo
+
+		if tag != "" {
+			lowerTag := strings.ToLower(tag)
+			for _, job := range jobs {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.ToLower(t) == lowerTag {
+						hasTag = true
+						break
+					}
+				}
+				if hasTag {
+					filtered = append(filtered, job)
+				}
+			}
+		} else if match != "" {
+			matcher, err := regexp.Compile("(?i)" + match)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid match regex: %v", err), http.StatusBadRequest)
+				return
+			}
+			for _, job := range jobs {
+				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+					filtered = append(filtered, job)
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/gzip")
+		w.Header().Set("Content-Disposition", "attachment; filename=\"bulk_archive.tar.gz\"")
+
+		gzWriter := gzip.NewWriter(w)
+		defer gzWriter.Close()
+
+		tarWriter := archive_tar.NewWriter(gzWriter)
+		defer tarWriter.Close()
+
+		for _, job := range filtered {
+			jobData, err := json.MarshalIndent(job, "", "  ")
+			if err == nil {
+				hdr := &archive_tar.Header{Name: fmt.Sprintf("%s/job.json", job.ID), Mode: 0600, Size: int64(len(jobData))}
+				if err := tarWriter.WriteHeader(hdr); err == nil {
+					tarWriter.Write(jobData)
+				}
+			}
+			logStream, err := orch.GetLogs(r.Context(), job.ID)
+			if err == nil {
+				logData, err := io.ReadAll(logStream)
+				logStream.Close()
+				if err == nil {
+					hdr := &archive_tar.Header{Name: fmt.Sprintf("%s/logs.txt", job.ID), Mode: 0600, Size: int64(len(logData))}
+					if err := tarWriter.WriteHeader(hdr); err == nil {
+						tarWriter.Write(logData)
+					}
+				}
+			}
+		}
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/metrics", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 
