@@ -193,6 +193,8 @@ func main() {
 	pflag.String("import-jobs", "", "Import jobs from an exported JSON file")
 	pflag.String("export-format", "json", "Format for exported jobs ('json' or 'csv')")
 	pflag.String("export-pipeline", "", "Export active and pending jobs as a pipeline YAML (use '-' for stdout)")
+	pflag.String("export-graph", "", "Export the job dependency graph (use '-' for stdout)")
+	pflag.String("export-graph-format", "mermaid", "Format for exported graph ('mermaid' or 'dot')")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -419,6 +421,8 @@ func main() {
 	viper.BindPFlag("orchestrator.import_jobs", pflag.Lookup("import-jobs"))
 	viper.BindPFlag("orchestrator.export_format", pflag.Lookup("export-format"))
 	viper.BindPFlag("orchestrator.export_pipeline", pflag.Lookup("export-pipeline"))
+	viper.BindPFlag("orchestrator.export_graph", pflag.Lookup("export-graph"))
+	viper.BindPFlag("orchestrator.export_graph_format", pflag.Lookup("export-graph-format"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -1071,6 +1075,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if exportPipelineFile := viper.GetString("orchestrator.export_pipeline"); exportPipelineFile != "" {
 		host := viper.GetString("orchestrator.host")
 		exportPipeline(host, exportPipelineFile)
+		return nil
+	}
+	if exportGraphFile := viper.GetString("orchestrator.export_graph"); exportGraphFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_graph_format")
+		exportGraph(host, exportGraphFile, format)
 		return nil
 	}
 
