@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"recac/internal/agent"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Tests for extractSQLiteSchema using sqlmock
@@ -186,4 +189,34 @@ func TestExtractPostgresSchema(t *testing.T) {
 	assert.NotNil(t, schema)
 	assert.Len(t, schema.Tables, 1)
 	assert.True(t, schema.Tables[0].Columns[0].PK)
+}
+
+type MockSchemaAgent struct {
+	Response string
+}
+
+func (m *MockSchemaAgent) Send(ctx context.Context, prompt string) (string, error) {
+	return m.Response, nil
+}
+
+func (m *MockSchemaAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	onChunk(m.Response)
+	return m.Response, nil
+}
+
+func TestDescribeSchemaWithAI(t *testing.T) {
+	mockAgent := &MockSchemaAgent{
+		Response: "Test Schema Analysis Response",
+	}
+
+	oldAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, path, name string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = oldAgentFactory }()
+
+	mermaid := "erDiagram\n    users {\n        INTEGER id PK\n    }"
+	desc, err := describeSchemaWithAI(context.Background(), mermaid)
+	require.NoError(t, err)
+	assert.Equal(t, "Test Schema Analysis Response", desc)
 }

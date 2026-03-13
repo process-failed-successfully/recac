@@ -175,3 +175,11 @@ func TestReportHTMLGeneration(t *testing.T) {
 
 // Mocking exec.Command for openBrowser is tricky in same package if not using a helper variable.
 // But openBrowser is not called if reportOpen is false.
+
+func TestOpenBrowser(t *testing.T) {
+	// Should not panic even if no browser or display is available
+	// Just executing the code path
+	assert.NotPanics(t, func() {
+		openBrowser("http://localhost:8080")
+	})
+}
