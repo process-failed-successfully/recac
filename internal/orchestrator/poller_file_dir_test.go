@@ -99,3 +99,96 @@ func TestFileDirPoller_Poll_ReadDirError(t *testing.T) {
 	_, err := poller.Poll(context.Background(), logger)
 	assert.Error(t, err)
 }
+
+func TestFileDirPoller_Ping_FileInsteadOfDir(t *testing.T) {
+	tempDir := t.TempDir()
+	f, err := os.CreateTemp(tempDir, "test")
+	require.NoError(t, err)
+	f.Close()
+	poller := &FileDirPoller{watchDir: f.Name()}
+	err = poller.Ping(context.Background())
+	assert.Error(t, err)
+}
+
+func TestFileDirPoller_Poll_MoveFail(t *testing.T) {
+	tempDir := t.TempDir()
+	poller, err := NewFileDirPoller(tempDir)
+	require.NoError(t, err)
+
+	// make processed dir unwritable
+	processedDir := filepath.Join(tempDir, "processed")
+	err = os.Chmod(processedDir, 0555)
+	require.NoError(t, err)
+	defer os.Chmod(processedDir, 0755)
+
+	item := WorkItem{ID: "task-1"}
+	itemData, _ := json.Marshal(item)
+	err = os.WriteFile(filepath.Join(tempDir, "task1.json"), itemData, 0644)
+	require.NoError(t, err)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	items, err := poller.Poll(context.Background(), logger)
+	assert.NoError(t, err)
+	assert.Empty(t, items)
+}
+
+func TestFileDirPoller_Poll_ReadFail(t *testing.T) {
+	tempDir := t.TempDir()
+	poller, err := NewFileDirPoller(tempDir)
+	require.NoError(t, err)
+
+	itemFile := filepath.Join(tempDir, "task1.json")
+	err = os.WriteFile(itemFile, []byte("{}"), 0000)
+	require.NoError(t, err)
+	defer os.Chmod(itemFile, 0644)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	items, err := poller.Poll(context.Background(), logger)
+	assert.NoError(t, err)
+	assert.Empty(t, items)
+}
+
+func TestFileDirPoller_New_Error(t *testing.T) {
+	tempDir := t.TempDir()
+	invalidDir := filepath.Join(tempDir, "new")
+	err := os.MkdirAll(invalidDir, 0755) // Read and execute only, no write
+	require.NoError(t, err)
+
+	// Create a file in that directory so processed can't be created
+	conflictPath := filepath.Join(invalidDir, "processed")
+	err = os.WriteFile(conflictPath, []byte(""), 0644)
+	require.NoError(t, err)
+
+	poller, err := NewFileDirPoller(invalidDir)
+	assert.Error(t, err)
+	assert.Nil(t, poller)
+}
+
+
+func TestFileDirPoller_Poll_EmptyDir(t *testing.T) {
+	tempDir := t.TempDir()
+	poller, err := NewFileDirPoller(tempDir)
+	require.NoError(t, err)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	items, err := poller.Poll(context.Background(), logger)
+	assert.NoError(t, err)
+	assert.Empty(t, items)
+}
+
+func TestFileDirPoller_Poll_IgnoresDirAndNonJson(t *testing.T) {
+	tempDir := t.TempDir()
+	poller, err := NewFileDirPoller(tempDir)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(filepath.Join(tempDir, "subdir.json"), 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(tempDir, "test.txt"), []byte("test"), 0644)
+	require.NoError(t, err)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	items, err := poller.Poll(context.Background(), logger)
+	assert.NoError(t, err)
+	assert.Empty(t, items)
+}

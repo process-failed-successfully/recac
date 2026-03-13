@@ -210,3 +210,106 @@ func TestGitLabPoller_UpdateStatus(t *testing.T) {
 	err = pollerErr.UpdateStatus(context.Background(), WorkItem{ID: "gl-123"}, "Done", "")
 	assert.Error(t, err)
 }
+
+func TestGitLabPoller_Poll_RequestError(t *testing.T) {
+	p := NewGitLabPoller("token", "123", "label", "http://\x00invalid")
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create request")
+}
+
+func TestGitLabPoller_Poll_ClientError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to execute request")
+}
+
+func TestGitLabPoller_Poll_BadJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{invalid json}"))
+	}))
+	defer server.Close()
+
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode response")
+}
+
+func TestGitLabPoller_closeIssue_ClientError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	err := p.closeIssue(context.Background(), "123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close issue")
+}
+
+func TestGitLabPoller_postComment_ClientError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	err := p.postComment(context.Background(), "123", "test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post comment")
+}
+
+func TestGitLabPoller_Ping_ClientError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	err := p.Ping(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to reach gitlab")
+}
+
+func TestGitLabPoller_RequestErrors(t *testing.T) {
+	p := NewGitLabPoller("http://\x00invalid", "token", "123", "label")
+	err := p.postComment(context.Background(), "123", "test")
+	assert.Error(t, err)
+
+	err = p.closeIssue(context.Background(), "123")
+	assert.Error(t, err)
+
+	err = p.Ping(context.Background())
+	assert.Error(t, err)
+}
+
+
+func TestGitLabPoller_UpdateStatus_CloseError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.WriteHeader(http.StatusCreated)
+		} else if r.Method == "PUT" {
+			w.WriteHeader(http.StatusBadRequest) // Fail close
+		}
+	}))
+	defer server.Close()
+
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	item := WorkItem{ID: "gl-1"}
+	err := p.UpdateStatus(context.Background(), item, "Done", "Job Done")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close issue: 400")
+}
+
+func TestGitLabPoller_UpdateStatus_NoComment(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	p := NewGitLabPoller(server.URL, "token", "123", "label")
+	item := WorkItem{ID: "gl-1"}
+	err := p.UpdateStatus(context.Background(), item, "InProgress", "")
+	assert.NoError(t, err)
+}
+
+func TestGitLabPoller_UpdateStatus_PostCommentError(t *testing.T) {
+	p := NewGitLabPoller("http://\x00invalid", "token", "123", "label")
+	item := WorkItem{ID: "gl-1"}
+	err := p.UpdateStatus(context.Background(), item, "InProgress", "comment")
+	assert.Error(t, err)
+}

@@ -232,3 +232,58 @@ func TestJiraPoller_Poll(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 }
+
+func TestJiraPoller_ExtractRequiredFeatures_Coverage(t *testing.T) {
+	text := `
+REQUIRED FEATURES:
+- Feature 1
+# comment
+- Feature 2
+Other section:
+- Feature 3
+`
+	features := extractRequiredFeatures(text)
+	assert.Len(t, features, 2)
+	assert.Equal(t, "Feature 1", features[0].Description)
+	assert.Equal(t, "Feature 2", features[1].Description)
+}
+
+func TestJiraPoller_ExtractRepoURL_NilRegex(t *testing.T) {
+	url := extractRepoURL("Repo: https://example.com", nil)
+	assert.Equal(t, "", url)
+}
+
+
+func TestJiraPoller_Ping_WithJQL(t *testing.T) {
+	mockClient := new(MockJiraClient)
+	p := NewJiraPoller(mockClient, "custom jql")
+	mockClient.On("SearchIssues", mock.Anything, "custom jql").Return([]map[string]interface{}{}, nil).Once()
+	assert.NoError(t, p.Ping(context.Background()))
+}
+
+func TestJiraPoller_ExtractRequiredFeatures_LongSlug(t *testing.T) {
+	text := "REQUIRED FEATURES:\n- This is a very very very long feature description that should exceed thirty characters"
+	features := extractRequiredFeatures(text)
+	assert.Len(t, features, 1)
+	assert.Len(t, features[0].ID, 34) // "req-" + 30 chars
+}
+
+func TestJiraPoller_UpdateStatus_NoComment(t *testing.T) {
+	mockClient := new(MockJiraClient)
+	p := NewJiraPoller(mockClient, "")
+	item := WorkItem{ID: "JIRA-1"}
+
+	mockClient.On("SmartTransition", mock.Anything, "JIRA-1", "Done").Return(nil).Once()
+	err := p.UpdateStatus(context.Background(), item, "Done", "")
+	assert.NoError(t, err)
+}
+
+func TestJiraPoller_UpdateStatus_NoStatus(t *testing.T) {
+	mockClient := new(MockJiraClient)
+	p := NewJiraPoller(mockClient, "")
+	item := WorkItem{ID: "JIRA-1"}
+
+	mockClient.On("AddComment", mock.Anything, "JIRA-1", "comment").Return(nil).Once()
+	err := p.UpdateStatus(context.Background(), item, "", "comment")
+	assert.NoError(t, err)
+}

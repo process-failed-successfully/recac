@@ -197,3 +197,119 @@ func TestGitHubPoller_Ping_API_Error(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "github ping failed")
 }
+
+func TestGitHubPoller_Poll_RequestError(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	// Using a bad URL to cause http request creation/execution failure
+	p.BaseURL = "http://\x00invalid"
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create request")
+}
+
+func TestGitHubPoller_Poll_ClientError(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	// Use closed server to cause client.Do to fail
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p.BaseURL = server.URL
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to execute request")
+}
+
+func TestGitHubPoller_Poll_BadJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{invalid json}"))
+	}))
+	defer server.Close()
+
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	p.BaseURL = server.URL
+	_, err := p.Poll(context.Background(), slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode response")
+}
+
+func TestGitHubPoller_UpdateStatus_CloseError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.WriteHeader(http.StatusCreated)
+		} else if r.Method == "PATCH" {
+			w.WriteHeader(http.StatusBadRequest) // Fail close
+		}
+	}))
+	defer server.Close()
+
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	p.BaseURL = server.URL
+	item := WorkItem{ID: "gh-1"}
+	err := p.UpdateStatus(context.Background(), item, "Done", "Job Done")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close issue: 400")
+}
+
+func TestGitHubPoller_UpdateStatus_NoComment(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	p.BaseURL = server.URL
+	item := WorkItem{ID: "gh-1"}
+	// Empty comment should not trigger comment code
+	err := p.UpdateStatus(context.Background(), item, "InProgress", "")
+	assert.NoError(t, err)
+}
+
+func TestGitHubPoller_closeIssue_ClientError(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p.BaseURL = server.URL
+	err := p.closeIssue(context.Background(), "123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to close issue")
+}
+
+func TestGitHubPoller_postComment_ClientError(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p.BaseURL = server.URL
+	err := p.postComment(context.Background(), "123", "test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to post comment")
+}
+
+func TestGitHubPoller_Ping_ClientError(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
+	p.BaseURL = server.URL
+	err := p.Ping(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to reach github")
+}
+
+func TestGitHubPoller_RequestErrors(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	p.BaseURL = "http://\x00invalid"
+	err := p.postComment(context.Background(), "123", "test")
+	assert.Error(t, err)
+
+	err = p.closeIssue(context.Background(), "123")
+	assert.Error(t, err)
+
+	err = p.Ping(context.Background())
+	assert.Error(t, err)
+}
+
+
+func TestGitHubPoller_UpdateStatus_PostCommentError(t *testing.T) {
+	p := NewGitHubPoller("token", "owner", "repo", "label")
+	p.BaseURL = "http://\x00invalid"
+	item := WorkItem{ID: "gh-1"}
+	err := p.UpdateStatus(context.Background(), item, "InProgress", "comment")
+	assert.Error(t, err)
+}
