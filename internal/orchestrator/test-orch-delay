@@ -1,6 +1,0 @@
-{"time":"2026-03-13T02:07:13.526964472Z","level":"INFO","msg":"Job pending dependencies","id":"JOB-2","depends_on":["JOB-1"]}
-{"time":"2026-03-13T02:07:13.527044377Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-1"}
-{"time":"2026-03-13T02:07:13.527104758Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-1"}
-{"time":"2026-03-13T02:07:13.527128436Z","level":"INFO","msg":"Job dependencies met, applying delay","id":"JOB-2","delay":499999583}
-{"time":"2026-03-13T02:07:14.02821302Z","level":"INFO","msg":"Spawning agent for item","id":"JOB-2"}
-{"time":"2026-03-13T02:07:14.028374089Z","level":"INFO","msg":"Agent spawned successfully","id":"JOB-2"}
