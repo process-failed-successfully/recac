@@ -102,6 +102,7 @@ func main() {
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("edit-job", "", "Edit a pending job interactively using $EDITOR")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
+	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
 	pflag.String("cancel-tag", "", "Cancel all active and pending jobs with the specified tag")
@@ -322,6 +323,7 @@ func main() {
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.edit_job", pflag.Lookup("edit-job"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
+	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
 	viper.BindPFlag("orchestrator.cancel_tag", pflag.Lookup("cancel-tag"))
@@ -621,6 +623,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.inspect_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		inspectJob(host, jobID)
+		return nil
+	}
+
+	if jobID := viper.GetString("orchestrator.explain_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		provider := viper.GetString("orchestrator.agent_provider")
+		model := viper.GetString("orchestrator.agent_model")
+		explainJob(host, jobID, provider, model)
 		return nil
 	}
 
