@@ -113,3 +113,30 @@ func TestThreatCmd(t *testing.T) {
 		assert.Contains(t, string(content), "Attacker impersonates user")
 	})
 }
+
+func TestPrintThreatTable(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	report := ThreatReport{
+		SystemDescription: "Test System",
+		Threats: []Threat{
+			{
+				ID:          "T-1",
+				Category:    "Spoofing",
+				Component:   "Login",
+				Description: "A very long description that should be truncated because it exceeds the max length",
+				Severity:    "High",
+			},
+		},
+	}
+
+	printThreatTable(cmd, report)
+
+	output := buf.String()
+	assert.Contains(t, output, "Test System")
+	assert.Contains(t, output, "Identified Threats: 1")
+	assert.Contains(t, output, "ID   SEVERITY")
+	assert.Contains(t, output, "A very long description that should be truncated because ...")
+}

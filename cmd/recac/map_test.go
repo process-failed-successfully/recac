@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
+	"recac/internal/agent"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -177,4 +180,42 @@ func Serve() {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid ignore pattern")
 	})
+}
+
+type MockMapAgent struct {
+	Response string
+}
+
+func (m *MockMapAgent) Send(ctx context.Context, prompt string) (string, error) {
+	return m.Response, nil
+}
+
+func (m *MockMapAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	onChunk(m.Response)
+	return m.Response, nil
+}
+
+func TestExplainArchitecture(t *testing.T) {
+	// Setup Mocks
+	mockAgent := &MockMapAgent{
+		Response: "Architecture Summary",
+	}
+
+	oldAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, path, name string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = oldAgentFactory }()
+
+	// Execute
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err := explainArchitecture(cmd, "graph TD\nA --> B")
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "Architecture Summary")
+	assert.Contains(t, output, "🤖 Analyzing architecture...")
 }

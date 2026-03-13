@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,4 +124,33 @@ func TestTourModel_View(t *testing.T) {
 	view := m.View()
 	assert.Contains(t, view, "Slide 1")
 	assert.Contains(t, view, "Desc 1")
+}
+
+func TestTourModel_Init(t *testing.T) {
+	slides := []TourSlide{
+		{Title: "Slide 1", Description: "Desc 1"},
+	}
+	m := initialModel(slides)
+	cmd := m.Init()
+	assert.Nil(t, cmd) // Init should return nil
+}
+
+func TestRunTour_EmptySlides(t *testing.T) {
+	// Provide empty json
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "tour.json")
+
+	// Save original global var
+	origTourFile := tourFile
+	tourFile = tmpFile
+	defer func() { tourFile = origTourFile }()
+
+	// Write empty array to the file
+	os.WriteFile(tmpFile, []byte("[]"), 0644)
+
+	cmd := &cobra.Command{}
+	err := runTour(cmd, []string{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "tour is empty")
 }
