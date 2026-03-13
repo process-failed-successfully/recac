@@ -88,7 +88,7 @@ func lintPipelineJob(filePath string) {
 	fmt.Fprintf(stdout, "Pipeline is valid. Parsed %d jobs.\n", len(items))
 }
 
-func submitPipelineJob(host, filePath string, wait bool) {
+func submitPipelineJob(host, filePath string, wait bool, dryRun bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
@@ -96,6 +96,32 @@ func submitPipelineJob(host, filePath string, wait bool) {
 		return
 	}
 	defer file.Close()
+
+	if dryRun {
+		fileData, err := io.ReadAll(file)
+		if err != nil {
+			fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
+			exitFunc(1)
+			return
+		}
+
+		items, err := orchestrator.ParsePipelineToWorkItems(fileData)
+		if err != nil {
+			fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
+			exitFunc(1)
+			return
+		}
+
+		fmt.Fprintf(stdout, "Pipeline valid. Dry run generated %d jobs:\n", len(items))
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(items); err != nil {
+			fmt.Fprintf(stdout, "Failed to encode items to JSON: %v\n", err)
+			exitFunc(1)
+			return
+		}
+		return
+	}
 
 	resp, err := http.Post(fmt.Sprintf("%s/jobs/pipeline", host), "application/x-yaml", file)
 	if err != nil {
