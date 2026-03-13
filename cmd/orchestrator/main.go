@@ -148,6 +148,8 @@ func main() {
 	pflag.String("progress-msg", "", "Optional status message to set along with progress")
 	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
 	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
+	pflag.String("update-tags-job", "", "Update the tags of a specific pending job")
+	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("wait-tag", "", "Wait for all jobs with a specific tag to complete")
 	pflag.String("wait-match", "", "Wait for all jobs matching a regex to complete")
@@ -369,6 +371,8 @@ func main() {
 	viper.BindPFlag("orchestrator.progress_msg", pflag.Lookup("progress-msg"))
 	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
+	viper.BindPFlag("orchestrator.update_tags_job", pflag.Lookup("update-tags-job"))
+	viper.BindPFlag("orchestrator.set_tags", pflag.Lookup("set-tags"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.wait_tag", pflag.Lookup("wait-tag"))
 	viper.BindPFlag("orchestrator.wait_match", pflag.Lookup("wait-match"))
@@ -921,6 +925,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			setDepsPtr = []string{}
 		}
 		updateDependencies(host, updateDepsJob, setDepsPtr)
+		return nil
+	}
+
+	if updateTagsJob := viper.GetString("orchestrator.update_tags_job"); updateTagsJob != "" {
+		host := viper.GetString("orchestrator.host")
+		var setTagsPtr []string
+		if viper.IsSet("orchestrator.set_tags") {
+			setTagsPtr = viper.GetStringSlice("orchestrator.set_tags")
+		} else {
+			setTagsPtr = []string{}
+		}
+		updateTags(host, updateTagsJob, setTagsPtr)
 		return nil
 	}
 

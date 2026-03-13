@@ -1030,6 +1030,47 @@ func purgeJobsByMatch(host, match string) {
 	fmt.Fprintf(stdout, "Successfully purged %d jobs matching '%s'.\n", int(cleared), match)
 }
 
+func updateTags(host, jobID string, tags []string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s/tags", host, url.PathEscape(jobID))
+
+	reqBody := struct {
+		Tags []string `json:"tags"`
+	}{
+		Tags: tags,
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal tags data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update tags: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s tags updated to: %s\n", jobID, strings.Join(tags, ", "))
+}
+
 func updateDependencies(host, jobID string, deps []string) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/dependencies", host, url.PathEscape(jobID))
 
