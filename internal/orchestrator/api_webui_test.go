@@ -64,6 +64,21 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "fetch('/jobs', {")
 	assert.Contains(t, html, "tags: tags,")
 
+	// Verify Submit Pipeline Modal HTML exists
+	assert.Contains(t, html, "+ Submit Pipeline")
+	assert.Contains(t, html, "id=\"submitPipelineModal\"")
+	assert.Contains(t, html, "id=\"pipeline-yaml\"")
+	assert.Contains(t, html, "onclick=\"submitPipeline()\"")
+
+	// Verify JS submitPipeline function exists
+	assert.Contains(t, html, "async function submitPipeline()")
+	assert.Contains(t, html, "fetch('/jobs/pipeline', {")
+
+	// Verify JS dryRunPipeline function exists
+	assert.Contains(t, html, "onclick=\"dryRunPipeline()\"")
+	assert.Contains(t, html, "async function dryRunPipeline()")
+	assert.Contains(t, html, "fetch('/jobs/pipeline/dry-run', {")
+
 	// Verify Set Deps Modal HTML exists
 	assert.Contains(t, html, "id=\"editDepsModal\"")
 	assert.Contains(t, html, "function editDependencies(encodedJobJson)")

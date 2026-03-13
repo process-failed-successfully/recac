@@ -982,6 +982,26 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("POST /jobs/pipeline/dry-run", func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read body", http.StatusBadRequest)
+			return
+		}
+
+		items, err := ParsePipelineToWorkItems(bodyBytes)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(items); err != nil {
+			logger.Error("Failed to encode pipeline dry-run response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("POST /jobs/matrix", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			BaseItem WorkItem            `json:"base_item"`
