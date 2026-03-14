@@ -30,8 +30,9 @@ const DashboardHTML = `
         button:hover { background: #0056b3; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+        .close { background: none; border: none; padding: 0; color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; outline: none; }
+        .close:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; border-radius: 2px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .form-group input[type="text"], .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
@@ -63,7 +64,7 @@ const DashboardHTML = `
 
         <div id="submitPipelineModal" class="modal">
             <div class="modal-content">
-                <span class="close" onclick="document.getElementById('submitPipelineModal').style.display='none'">&times;</span>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitPipelineModal').style.display='none'">&times;</button>
                 <h2>Submit Pipeline (YAML)</h2>
                 <div class="form-group">
                     <label for="pipeline-yaml">Pipeline Definition</label>
@@ -82,7 +83,7 @@ const DashboardHTML = `
 
         <div id="submitModal" class="modal">
             <div class="modal-content">
-                <span class="close" onclick="document.getElementById('submitModal').style.display='none'">&times;</span>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitModal').style.display='none'">&times;</button>
                 <h2>Submit Ad-hoc Job</h2>
                 <div class="form-group">
                     <label for="job-id">Job ID (Optional, auto-generated if empty)</label>
@@ -136,7 +137,7 @@ const DashboardHTML = `
 
         <div id="editDepsModal" class="modal">
             <div class="modal-content">
-                <span class="close" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</span>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</button>
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <input type="hidden" id="edit-deps-job-id">
                 <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
@@ -146,7 +147,7 @@ const DashboardHTML = `
 
         <div id="logsModal" class="modal">
             <div class="modal-content modal-large">
-                <span class="close" onclick="closeLogs()">&times;</span>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()">&times;</button>
                 <h2 id="logs-title">Job Logs</h2>
                 <pre id="logs-output"></pre>
             </div>
