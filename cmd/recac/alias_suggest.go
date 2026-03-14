@@ -23,6 +23,10 @@ var (
 	aliasSuggestShell       string
 	aliasSuggestMinFreq     int
 	aliasSuggestJSON        bool
+
+	// Pre-compile regex for Zsh timestamp stripping
+	// Zsh extended history: : 1678900000:0;command
+	zshRe = regexp.MustCompile(`^: \d+:\d+;(.*)$`)
 )
 
 var aliasSuggestCmd = &cobra.Command{
@@ -137,10 +141,6 @@ func parseHistory(shell, path string) ([]string, error) {
 
 	var commands []string
 	scanner := bufio.NewScanner(f)
-
-	// Pre-compile regex for Zsh timestamp stripping
-	// Zsh extended history: : 1678900000:0;command
-	zshRe := regexp.MustCompile(`^: \d+:\d+;(.*)$`)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

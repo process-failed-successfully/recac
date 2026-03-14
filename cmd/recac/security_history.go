@@ -21,6 +21,9 @@ var (
 	securityHistoryAll     bool
 	securityHistoryJSON    bool
 	securityHistoryFail    bool
+
+	// Regex for hunk header: @@ -old,n +new,n @@
+	hunkRe = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
 )
 
 type HistorySecurityResult struct {
@@ -134,9 +137,6 @@ func parseGitLogStream(r io.Reader) []HistorySecurityResult {
 	var currentDate string
 	var currentFile string
 	var currentLine int
-
-	// Regex for hunk header: @@ -old,n +new,n @@
-	hunkRe := regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
