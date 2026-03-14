@@ -2385,3 +2385,51 @@ func TestUnholdJobs_ConnectionError(t *testing.T) {
 	assert.Contains(t, string(out), "Failed to connect to orchestrator")
 	assert.True(t, exitCalled)
 }
+
+func TestRetryEditJob_Success(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/jobs/MY-JOB" {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Failed",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		} else if r.Method == http.MethodPost && r.URL.Path == "/jobs" {
+			var item orchestrator.WorkItem
+			json.NewDecoder(r.Body).Decode(&item)
+			assert.Equal(t, "MY-JOB-retry", item.ID)
+			assert.Equal(t, "Edited Summary", item.Summary)
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte("Job MY-JOB-retry accepted"))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	retryEditJob(server.URL, "MY-JOB", false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Job MY-JOB-retry submitted successfully.")
+	assert.Equal(t, 0, exitCode)
+}

@@ -1426,57 +1426,43 @@ func exportJobs(host, path, format string) {
 	}
 }
 
-func editJob(host, jobID string) {
+func editJobInteractive(host, jobID string, requirePending bool) (*orchestrator.WorkItem, []byte, error) {
 	// 1. Fetch current job
 	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to connect to orchestrator at %s: %w", host, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(stdout, "Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to fetch job details: %s", strings.TrimSpace(string(body)))
 	}
 
 	var job orchestrator.JobInfo
 	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
-		fmt.Fprintf(stdout, "Failed to decode job response: %v\n", err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to decode job response: %w", err)
 	}
 
-	if job.Status != "Pending" && job.Status != "Pending Approval" {
-		fmt.Fprintf(stdout, "Cannot edit job %s. It is currently %s.\n", jobID, job.Status)
-		exitFunc(1)
-		return
+	if requirePending && job.Status != "Pending" && job.Status != "Pending Approval" {
+		return nil, nil, fmt.Errorf("Cannot edit job %s. It is currently %s.", jobID, job.Status)
 	}
 
 	// 2. Format WorkItem as JSON
 	jobJSON, err := json.MarshalIndent(job.WorkItem, "", "  ")
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to format job JSON: %v\n", err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to format job JSON: %w", err)
 	}
 
 	// 3. Create temp file
 	tmpFile, err := os.CreateTemp("", fmt.Sprintf("recac-job-%s-*.json", jobID))
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to create temp file: %v\n", err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to create temp file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name()) // Clean up after we're done
 
 	if _, err := tmpFile.Write(jobJSON); err != nil {
-		fmt.Fprintf(stdout, "Failed to write to temp file: %v\n", err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to write to temp file: %w", err)
 	}
 	tmpFile.Close()
 
@@ -1494,23 +1480,73 @@ func editJob(host, jobID string) {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(stdout, "Editor exited with error: %v\n", err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Editor exited with error: %w", err)
 	}
 
 	// 5. Read back modified JSON
 	modifiedJSON, err := os.ReadFile(tmpFile.Name())
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to read modified JSON: %v\n", err)
-		exitFunc(1)
-		return
+		return nil, nil, fmt.Errorf("Failed to read modified JSON: %w", err)
 	}
 
 	// 6. Validate
 	var updatedItem orchestrator.WorkItem
 	if err := json.Unmarshal(modifiedJSON, &updatedItem); err != nil {
-		fmt.Fprintf(stdout, "Failed to parse modified JSON: %v\n", err)
+		return nil, nil, fmt.Errorf("Failed to parse modified JSON: %w", err)
+	}
+
+	return &updatedItem, modifiedJSON, nil
+}
+
+func retryEditJob(host, jobID string, wait bool) {
+	updatedItem, _, err := editJobInteractive(host, jobID, false)
+	if err != nil {
+		fmt.Fprintf(stdout, "%v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if updatedItem.ID == jobID {
+		updatedItem.ID = updatedItem.ID + "-retry"
+	}
+
+	payload, err := json.Marshal(updatedItem)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal modified job: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		fmt.Fprintf(stdout, "Failed to submit retried job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s submitted successfully.\n", updatedItem.ID)
+
+	if wait {
+		if err := waitForJob(host, updatedItem.ID, stdout); err != nil {
+			fmt.Fprintf(stdout, "Job failed: %v\n", err)
+			exitFunc(1)
+			return
+		}
+	}
+}
+
+func editJob(host, jobID string) {
+	updatedItem, modifiedJSON, err := editJobInteractive(host, jobID, true)
+	if err != nil {
+		fmt.Fprintf(stdout, "%v\n", err)
 		exitFunc(1)
 		return
 	}
