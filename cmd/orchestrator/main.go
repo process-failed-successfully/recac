@@ -130,6 +130,9 @@ func main() {
 	pflag.String("hold-match", "", "Hold all pending jobs matching the given regex")
 	pflag.String("unhold-tag", "", "Unhold all pending jobs with the specified tag")
 	pflag.String("unhold-match", "", "Unhold all pending jobs matching the given regex")
+	pflag.String("skip-job", "", "Skip a specific pending job by ID")
+	pflag.String("skip-tag", "", "Skip all pending jobs with the specified tag")
+	pflag.String("skip-match", "", "Skip all pending jobs matching the given regex")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
@@ -360,6 +363,9 @@ func main() {
 	viper.BindPFlag("orchestrator.hold_match", pflag.Lookup("hold-match"))
 	viper.BindPFlag("orchestrator.unhold_tag", pflag.Lookup("unhold-tag"))
 	viper.BindPFlag("orchestrator.unhold_match", pflag.Lookup("unhold-match"))
+	viper.BindPFlag("orchestrator.skip_job", pflag.Lookup("skip-job"))
+	viper.BindPFlag("orchestrator.skip_tag", pflag.Lookup("skip-tag"))
+	viper.BindPFlag("orchestrator.skip_match", pflag.Lookup("skip-match"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.drain", pflag.Lookup("drain"))
@@ -834,6 +840,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if unholdTag != "" || unholdMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		unholdJobs(host, unholdMatch, unholdTag)
+		return nil
+	}
+
+	if skipJobID := viper.GetString("orchestrator.skip_job"); skipJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		skipJob(host, skipJobID)
+		return nil
+	}
+
+	skipTag := viper.GetString("orchestrator.skip_tag")
+	skipMatch := viper.GetString("orchestrator.skip_match")
+	if skipTag != "" || skipMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		skipJobs(host, skipMatch, skipTag)
 		return nil
 	}
 

@@ -88,6 +88,7 @@ type Analytics struct {
 	SuccessfulJobs  int                `json:"successful_jobs"`
 	FailedJobs      int                `json:"failed_jobs"`
 	CanceledJobs    int                `json:"canceled_jobs"`
+	SkippedJobs     int                `json:"skipped_jobs"`
 	SuccessRate     float64            `json:"success_rate"`
 	AverageDuration time.Duration      `json:"average_duration"`
 	TotalMetrics    map[string]float64 `json:"total_metrics,omitempty"`
@@ -554,6 +555,8 @@ func (o *Orchestrator) GetAnalytics() Analytics {
 			stats.FailedJobs++
 		} else if job.Status == "Canceled" {
 			stats.CanceledJobs++
+		} else if job.Status == "Skipped" {
+			stats.SkippedJobs++
 		}
 
 		if job.Metrics != nil {
@@ -572,6 +575,77 @@ func (o *Orchestrator) GetAnalytics() Analytics {
 	}
 
 	return stats
+}
+
+// SkipJob forcefully marks a pending job as Skipped, bypassing execution.
+func (o *Orchestrator) SkipJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if job, exists := o.pendingJobs[jobID]; exists {
+		delete(o.pendingJobs, jobID)
+		job.Status = "Skipped"
+		job.EndTime = time.Now()
+		job.Error = "Skipped by user"
+		o.addToHistory(job, logger)
+		o.BroadcastEvent("job_skipped", job)
+		if logger != nil {
+			logger.Info("Job skipped", "jobID", jobID)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("job %s not found in pending queue", jobID)
+}
+
+// SkipJobsByTag marks all pending jobs with the specified tag as Skipped.
+func (o *Orchestrator) SkipJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				delete(o.pendingJobs, id)
+				job.Status = "Skipped"
+				job.EndTime = time.Now()
+				job.Error = "Skipped by tag: " + tag
+				o.addToHistory(job, logger)
+				o.BroadcastEvent("job_skipped", job)
+				count++
+				break
+			}
+		}
+	}
+	return count, nil
+}
+
+// SkipJobsByMatch marks all pending jobs matching the regex as Skipped.
+func (o *Orchestrator) SkipJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			delete(o.pendingJobs, id)
+			job.Status = "Skipped"
+			job.EndTime = time.Now()
+			job.Error = "Skipped by match"
+			o.addToHistory(job, logger)
+			o.BroadcastEvent("job_skipped", job)
+			count++
+		}
+	}
+	return count, nil
 }
 
 // GetStatus returns the current status of the orchestrator.
@@ -1335,7 +1409,7 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 		for i := len(o.completedJobs) - 1; i >= 0; i-- {
 			completed := o.completedJobs[i]
 			if completed.ID == dep {
-				if completed.Status == "Completed" {
+				if completed.Status == "Completed" || completed.Status == "Skipped" {
 					met = true
 					depJob = completed
 				} else if completed.Status == "Failed" || completed.Status == "Canceled" {
@@ -1349,7 +1423,7 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 		if !met && o.Persistence != nil {
 			job, err := o.Persistence.GetJob(dep)
 			if err == nil {
-				if job.Status == "Completed" {
+				if job.Status == "Completed" || job.Status == "Skipped" {
 					met = true
 					depJob = *job
 				} else if job.Status == "Failed" || job.Status == "Canceled" {
