@@ -1125,6 +1125,100 @@ func (o *Orchestrator) HoldJobsByMatch(ctx context.Context, match string, logger
 	return count, nil
 }
 
+// RenameJob renames a pending job and cascades the ID change to dependent jobs.
+func (o *Orchestrator) RenameJob(ctx context.Context, oldID, newID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if oldID == newID {
+		return nil
+	}
+
+	// Ensure old job exists in pendingJobs
+	job, exists := o.pendingJobs[oldID]
+	if !exists {
+		return fmt.Errorf("job %s not found in pending queue", oldID)
+	}
+
+	// Ensure new ID does not already exist
+	if _, ok := o.pendingJobs[newID]; ok {
+		return fmt.Errorf("job with new ID %s already exists in pending queue", newID)
+	}
+	for id := range o.activeJobs {
+		if id == newID {
+			return fmt.Errorf("job with new ID %s already active", newID)
+		}
+	}
+	for _, cJob := range o.completedJobs {
+		if cJob.ID == newID {
+			return fmt.Errorf("job with new ID %s already completed", newID)
+		}
+	}
+
+	// Restart delay timer if it exists before we modify job
+	if t, ok := o.delayTimers[oldID]; ok {
+		t.Stop()
+		delete(o.delayTimers, oldID)
+
+		// Re-schedule the delay timer for the new ID
+		remaining := time.Until(job.WorkItem.RunAfter)
+		if remaining > 0 {
+			o.delayTimers[newID] = time.AfterFunc(remaining, func() {
+				o.mu.Lock()
+				defer o.mu.Unlock()
+				if j, ok := o.pendingJobs[newID]; ok {
+					j.WorkItem.RunAfter = time.Time{}
+					o.pendingJobs[newID] = j
+				}
+				delete(o.delayTimers, newID)
+				o.ForcePoll()
+			})
+		} else {
+			job.WorkItem.RunAfter = time.Time{}
+		}
+	}
+
+	// Update the job itself
+	job.ID = newID
+	job.WorkItem.ID = newID
+
+	// Move in map
+	delete(o.pendingJobs, oldID)
+	o.pendingJobs[newID] = job
+
+	// Cascade dependency rename
+	for pid, pJob := range o.pendingJobs {
+		updated := false
+		for i, dep := range pJob.WorkItem.DependsOn {
+			if dep == oldID {
+				pJob.WorkItem.DependsOn[i] = newID
+				updated = true
+			}
+		}
+		if updated {
+			o.pendingJobs[pid] = pJob
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(pJob)
+			}
+		}
+	}
+
+	if logger != nil {
+		logger.Info("Job renamed", "old_id", oldID, "new_id", newID)
+	}
+	o.BroadcastEvent("job_renamed", map[string]interface{}{
+		"old_id": oldID,
+		"new_id": newID,
+	})
+
+	if o.Persistence != nil {
+		o.Persistence.PurgeJob(oldID)
+		o.Persistence.SaveJob(job)
+	}
+
+	return nil
+}
+
 // HoldJob holds a pending job.
 func (o *Orchestrator) HoldJob(ctx context.Context, jobID string, logger *slog.Logger) error {
 	o.mu.Lock()

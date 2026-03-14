@@ -1650,6 +1650,33 @@ func unholdJobs(host, match, tag string) {
 	fmt.Fprintf(stdout, "Successfully unheld %d jobs.\n", result.Unheld)
 }
 
+func renameJob(host, jobID, newID string) {
+	reqBody := fmt.Sprintf(`{"new_id": "%s"}`, newID)
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/jobs/%s/rename", host, jobID), strings.NewReader(reqBody))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to rename job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s renamed successfully to %s.\n", jobID, newID)
+}
+
 func skipJob(host, jobID string) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/skip", host, jobID), nil)
 	if err != nil {

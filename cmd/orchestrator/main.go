@@ -130,6 +130,8 @@ func main() {
 	pflag.String("hold-match", "", "Hold all pending jobs matching the given regex")
 	pflag.String("unhold-tag", "", "Unhold all pending jobs with the specified tag")
 	pflag.String("unhold-match", "", "Unhold all pending jobs matching the given regex")
+	pflag.String("rename-job", "", "Rename a pending job by ID")
+	pflag.String("new-job-id", "", "New ID for the job (requires --rename-job)")
 	pflag.String("skip-job", "", "Skip a specific pending job by ID")
 	pflag.String("skip-tag", "", "Skip all pending jobs with the specified tag")
 	pflag.String("skip-match", "", "Skip all pending jobs matching the given regex")
@@ -363,6 +365,8 @@ func main() {
 	viper.BindPFlag("orchestrator.hold_match", pflag.Lookup("hold-match"))
 	viper.BindPFlag("orchestrator.unhold_tag", pflag.Lookup("unhold-tag"))
 	viper.BindPFlag("orchestrator.unhold_match", pflag.Lookup("unhold-match"))
+	viper.BindPFlag("orchestrator.rename_job", pflag.Lookup("rename-job"))
+	viper.BindPFlag("orchestrator.new_job_id", pflag.Lookup("new-job-id"))
 	viper.BindPFlag("orchestrator.skip_job", pflag.Lookup("skip-job"))
 	viper.BindPFlag("orchestrator.skip_tag", pflag.Lookup("skip-tag"))
 	viper.BindPFlag("orchestrator.skip_match", pflag.Lookup("skip-match"))
@@ -840,6 +844,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if unholdTag != "" || unholdMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		unholdJobs(host, unholdMatch, unholdTag)
+		return nil
+	}
+
+	if renameJobID := viper.GetString("orchestrator.rename_job"); renameJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		newJobID := viper.GetString("orchestrator.new_job_id")
+		if newJobID == "" {
+			fmt.Fprintf(stdout, "Error: --new-job-id is required when using --rename-job\n")
+			exitFunc(1)
+			return nil
+		}
+		renameJob(host, renameJobID, newJobID)
 		return nil
 	}
 
