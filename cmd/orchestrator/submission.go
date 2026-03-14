@@ -1650,6 +1650,81 @@ func unholdJobs(host, match, tag string) {
 	fmt.Fprintf(stdout, "Successfully unheld %d jobs.\n", result.Unheld)
 }
 
+func skipJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/skip", host, jobID), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to skip job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s skipped successfully.\n", jobID)
+}
+
+func skipJobs(host, match, tag string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/skip", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	if match != "" {
+		q.Set("match", match)
+	}
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to skip jobs: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]int
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully skipped %d jobs.\n", result["skipped"])
+}
+
 func importJobs(host, path string) {
 	file, err := os.Open(path)
 	if err != nil {
