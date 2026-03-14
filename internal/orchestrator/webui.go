@@ -7,6 +7,10 @@ const DashboardHTML = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orchestrator Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: false });
+    </script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f4f4f4; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
@@ -57,6 +61,7 @@ const DashboardHTML = `
                 <!-- Buttons will be injected here if supported -->
             </div>
             <div>
+                <button onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
                 <button onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
             </div>
@@ -150,6 +155,16 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()">&times;</button>
                 <h2 id="logs-title">Job Logs</h2>
                 <pre id="logs-output"></pre>
+            </div>
+        </div>
+
+        <div id="graphModal" class="modal">
+            <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeGraph()">&times;</button>
+                <h2 style="margin-bottom: 0;">Dependency Graph</h2>
+                <div id="graphDiv" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
+                    Loading graph...
+                </div>
             </div>
         </div>
 
@@ -701,6 +716,37 @@ const DashboardHTML = `
                 currentLogController.abort();
                 currentLogController = null;
             }
+        }
+
+        async function viewGraph() {
+            const modal = document.getElementById('graphModal');
+            const graphDiv = document.getElementById('graphDiv');
+            modal.style.display = 'block';
+            graphDiv.innerHTML = 'Loading graph...';
+
+            try {
+                const res = await fetch('/jobs/export/graph?format=mermaid');
+                if (!res.ok) {
+                    graphDiv.innerHTML = '<span style="color:red">Failed to load graph: ' + await res.text() + '</span>';
+                    return;
+                }
+                const graphText = await res.text();
+                if (!graphText.trim()) {
+                    graphDiv.innerHTML = '<span>No jobs to display</span>';
+                    return;
+                }
+
+                // Render mermaid
+                const { svg } = await mermaid.render('mermaidGraph', graphText);
+                graphDiv.innerHTML = svg;
+            } catch (err) {
+                console.error(err);
+                graphDiv.innerHTML = '<span style="color:red">Error rendering graph: ' + err.message + '</span>';
+            }
+        }
+
+        function closeGraph() {
+            document.getElementById('graphModal').style.display = 'none';
         }
 
         // Setup SSE for real-time updates
