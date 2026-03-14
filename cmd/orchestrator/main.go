@@ -148,6 +148,8 @@ func main() {
 	pflag.String("progress-msg", "", "Optional status message to set along with progress")
 	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
 	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
+	pflag.String("update-env-job", "", "Update the environment variables of a specific pending job")
+	pflag.StringSlice("set-env", []string{}, "Comma-separated list of new environment variables (requires --update-env-job)")
 	pflag.String("update-tags-job", "", "Update the tags of a specific pending job")
 	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
@@ -376,6 +378,8 @@ func main() {
 	viper.BindPFlag("orchestrator.progress_msg", pflag.Lookup("progress-msg"))
 	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
+	viper.BindPFlag("orchestrator.update_env_job", pflag.Lookup("update-env-job"))
+	viper.BindPFlag("orchestrator.set_env", pflag.Lookup("set-env"))
 	viper.BindPFlag("orchestrator.update_tags_job", pflag.Lookup("update-tags-job"))
 	viper.BindPFlag("orchestrator.set_tags", pflag.Lookup("set-tags"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
@@ -935,6 +939,29 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			setDepsPtr = []string{}
 		}
 		updateDependencies(host, updateDepsJob, setDepsPtr)
+		return nil
+	}
+
+	if updateEnvJob := viper.GetString("orchestrator.update_env_job"); updateEnvJob != "" {
+		host := viper.GetString("orchestrator.host")
+		var setEnvSlice []string
+		if viper.IsSet("orchestrator.set_env") {
+			setEnvSlice = viper.GetStringSlice("orchestrator.set_env")
+		} else {
+			setEnvSlice = []string{}
+		}
+
+		envMap := make(map[string]string)
+		for _, pair := range setEnvSlice {
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			} else {
+				logger.Warn("Invalid environment variable format", "input", pair)
+			}
+		}
+
+		updateEnvVars(host, updateEnvJob, envMap)
 		return nil
 	}
 
