@@ -636,6 +636,39 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"priority": %d}`, req.Priority)
 	})
 
+	mux.HandleFunc("PUT /jobs/{id}/rename", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			NewID string `json:"new_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if req.NewID == "" {
+			http.Error(w, "new_id is required", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.RenameJob(r.Context(), id, req.NewID, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") || strings.Contains(err.Error(), "already exists") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		respData, _ := json.Marshal(req)
+		w.Write(respData)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

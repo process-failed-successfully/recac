@@ -373,6 +373,47 @@ func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars ma
 	}
 }
 
+func renameJob(host, oldID, newID string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s/rename", host, url.PathEscape(oldID))
+
+	reqBody := struct {
+		NewID string `json:"new_id"`
+	}{
+		NewID: newID,
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal rename data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to rename job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Job %s renamed successfully to %s\n", oldID, newID)
+}
+
 func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars map[string]string, dependsOn []string) {
 	overrides := struct {
 		NewID     string            `json:"new_id,omitempty"`
