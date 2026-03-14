@@ -116,6 +116,8 @@ func main() {
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
+	pflag.String("rename-job", "", "Rename a pending job by ID")
+	pflag.String("new-job-id", "", "The new ID to use when renaming a job")
 	pflag.String("clone-job", "", "Clone an existing job by ID")
 	pflag.String("clone-match", "", "Clone all jobs matching the given regex")
 	pflag.String("clone-tag", "", "Clone all jobs with the specified tag")
@@ -346,6 +348,8 @@ func main() {
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
+	viper.BindPFlag("orchestrator.rename_job", pflag.Lookup("rename-job"))
+	viper.BindPFlag("orchestrator.new_job_id", pflag.Lookup("new-job-id"))
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
 	viper.BindPFlag("orchestrator.clone_match", pflag.Lookup("clone-match"))
 	viper.BindPFlag("orchestrator.clone_tag", pflag.Lookup("clone-tag"))
@@ -727,6 +731,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.retry_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		retryJob(host, jobID)
+		return nil
+	}
+
+	if jobID := viper.GetString("orchestrator.rename_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		newID := viper.GetString("orchestrator.new_job_id")
+		if newID == "" {
+			fmt.Fprintf(stdout, "Error: --new-job-id is required when using --rename-job\n")
+			exitFunc(1)
+			return nil
+		}
+		renameJob(host, jobID, newID)
 		return nil
 	}
 

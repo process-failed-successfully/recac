@@ -912,6 +912,109 @@ func (o *Orchestrator) UpdateJobTimeout(ctx context.Context, jobID string, newTi
 	return nil
 }
 
+// RenameJob renames a job in the pending queue.
+func (o *Orchestrator) RenameJob(ctx context.Context, oldID string, newID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// 1. Check if the new ID is already in use
+	if _, exists := o.activeJobs[newID]; exists {
+		return fmt.Errorf("job %s already exists and is active", newID)
+	}
+	if _, exists := o.pendingJobs[newID]; exists {
+		return fmt.Errorf("job %s already exists in pending queue", newID)
+	}
+	for _, completed := range o.completedJobs {
+		if completed.ID == newID {
+			return fmt.Errorf("job %s already exists in history", newID)
+		}
+	}
+	if o.Persistence != nil {
+		if _, err := o.Persistence.GetJob(newID); err == nil {
+			return fmt.Errorf("job %s already exists in persistence", newID)
+		}
+	}
+
+	// 2. Check if the old ID exists and is in the correct state
+	job, exists := o.pendingJobs[oldID]
+	if !exists {
+		// Check if active or completed to return a more specific error
+		if _, active := o.activeJobs[oldID]; active {
+			return fmt.Errorf("job %s is already active and cannot be renamed", oldID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == oldID {
+				return fmt.Errorf("job %s is already completed", oldID)
+			}
+		}
+		return fmt.Errorf("job %s not found in pending queue", oldID)
+	}
+
+	// 3. Rename the job
+	delete(o.pendingJobs, oldID)
+	job.ID = newID
+	job.WorkItem.ID = newID
+	o.pendingJobs[newID] = job
+
+	// 4. Update dependencies
+	for i, j := range o.pendingJobs {
+		updated := false
+		for k, dep := range j.WorkItem.DependsOn {
+			if dep == oldID {
+				j.WorkItem.DependsOn[k] = newID
+				updated = true
+			}
+		}
+		if updated {
+			o.pendingJobs[i] = j
+		}
+	}
+	for i, j := range o.activeJobs {
+		updated := false
+		for k, dep := range j.WorkItem.DependsOn {
+			if dep == oldID {
+				j.WorkItem.DependsOn[k] = newID
+				updated = true
+			}
+		}
+		if updated {
+			o.activeJobs[i] = j
+		}
+	}
+
+	// 5. Recreate delay timer
+	if t, ok := o.delayTimers[oldID]; ok {
+		t.Stop()
+		delete(o.delayTimers, oldID)
+
+		delay := time.Until(job.WorkItem.RunAfter)
+		if delay < 0 {
+			delay = 0
+		}
+
+		// evaluatePendingJobs evaluates all jobs, but creating a timer here is correct
+		timer := time.AfterFunc(delay, func() {
+			o.evaluatePendingJobs(context.Background(), logger)
+		})
+		o.delayTimers[newID] = timer
+	}
+
+	// 6. Update persistence
+	if o.Persistence != nil {
+		_ = o.Persistence.PurgeJob(oldID)
+		_ = o.Persistence.SaveJob(job)
+	}
+
+	// Ensure we broadcast without holding the lock to avoid deadlocks. Use a goroutine.
+	go o.BroadcastEvent("job_renamed", map[string]string{"old_id": oldID, "new_id": newID})
+
+	if logger != nil {
+		logger.Info("Renamed job", "oldID", oldID, "newID", newID)
+	}
+
+	return nil
+}
+
 // UpdateJobWorkItem completely updates the WorkItem of a job in the pending queue.
 func (o *Orchestrator) UpdateJobWorkItem(ctx context.Context, jobID string, newItem WorkItem, logger *slog.Logger) error {
 	o.mu.Lock()
