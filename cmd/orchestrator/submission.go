@@ -1112,6 +1112,50 @@ func updateDependencies(host, jobID string, deps []string) {
 	fmt.Fprintf(stdout, "Job %s dependencies updated to: %s\n", jobID, strings.Join(deps, ", "))
 }
 
+func updateEnvVars(host, jobID string, envVars map[string]string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s/env", host, url.PathEscape(jobID))
+
+	reqBody := struct {
+		EnvVars map[string]string `json:"env_vars"`
+	}{
+		EnvVars: envVars,
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal environment variable data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update environment variables: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var pairs []string
+	for k, v := range envVars {
+		pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
+	}
+	fmt.Fprintf(stdout, "Job %s environment variables updated to: %s\n", jobID, strings.Join(pairs, ", "))
+}
+
 func updatePriority(host, jobID string, priority int) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/priority", host, jobID)
 	reqBody := fmt.Sprintf(`{"priority": %d}`, priority)

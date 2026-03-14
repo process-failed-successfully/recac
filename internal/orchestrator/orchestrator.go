@@ -769,6 +769,40 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 	return nil
 }
 
+// UpdateJobEnv updates the environment variables of a job in the pending queue.
+func (o *Orchestrator) UpdateJobEnv(ctx context.Context, jobID string, envVars map[string]string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have env updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	job.WorkItem.EnvVars = envVars
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_env_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job environment variables", "jobID", jobID, "envVars", envVars)
+	}
+
+	return nil
+}
+
 // UpdateJobTags updates the tags of a job in the pending queue.
 func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []string, logger *slog.Logger) error {
 	o.mu.Lock()
