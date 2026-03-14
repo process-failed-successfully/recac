@@ -18,6 +18,10 @@ defaults:
   agent_provider: openrouter
   agent_model: openai/gpt-4o-mini
   max_retries: 2
+  env_vars:
+    GLOBAL_VAR: "global_value"
+  tags:
+    - global_tag
 jobs:
   build:
     summary: Build application
@@ -25,6 +29,11 @@ jobs:
       npm install
       npm run build
     timeout: 30m
+    env_vars:
+      LOCAL_VAR: "local_value"
+      GLOBAL_VAR: "overridden_value"
+    tags:
+      - local_tag
   test:
     summary: Run tests
     depends_on: [build]
@@ -67,11 +76,15 @@ jobs:
 	assert.Empty(t, buildJob.DependsOn)
 	require.NotNil(t, buildJob.MaxRetries)
 	assert.Equal(t, 2, *buildJob.MaxRetries)
+	assert.Equal(t, map[string]string{"GLOBAL_VAR": "overridden_value", "LOCAL_VAR": "local_value"}, buildJob.EnvVars)
+	assert.Equal(t, []string{"global_tag", "local_tag"}, buildJob.Tags)
 
 	// Test Job
 	testJob, ok := jobMap["test"]
 	require.True(t, ok)
 	assert.Equal(t, "Run tests", testJob.Summary)
+	assert.Equal(t, map[string]string{"GLOBAL_VAR": "global_value"}, testJob.EnvVars)
+	assert.Equal(t, []string{"global_tag"}, testJob.Tags)
 	assert.Equal(t, 10, testJob.Priority)
 	assert.Len(t, testJob.DependsOn, 1)
 	assert.Equal(t, buildJob.ID, testJob.DependsOn[0])

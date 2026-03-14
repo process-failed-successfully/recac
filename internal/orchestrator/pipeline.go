@@ -12,12 +12,14 @@ import (
 type Pipeline struct {
 	Name     string `yaml:"name"`
 	Defaults struct {
-		RepoURL          string `yaml:"repo_url"`
-		AgentProvider    string `yaml:"agent_provider"`
-		AgentModel       string `yaml:"agent_model"`
-		ConcurrencyGroup string `yaml:"concurrency_group"`
-		Delay            string `yaml:"delay"`
-		MaxRetries       *int   `yaml:"max_retries"`
+		RepoURL          string            `yaml:"repo_url"`
+		AgentProvider    string            `yaml:"agent_provider"`
+		AgentModel       string            `yaml:"agent_model"`
+		ConcurrencyGroup string            `yaml:"concurrency_group"`
+		Delay            string            `yaml:"delay"`
+		MaxRetries       *int              `yaml:"max_retries"`
+		EnvVars          map[string]string `yaml:"env_vars"`
+		Tags             []string          `yaml:"tags"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -180,8 +182,13 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 				summary = fmt.Sprintf("%s [%s]", summary, strings.Join(suffixParts, ", "))
 			}
 
-			// Deep copy EnvVars
+			// Deep copy EnvVars and merge with defaults
 			envVars := make(map[string]string)
+			if p.Defaults.EnvVars != nil {
+				for k, v := range p.Defaults.EnvVars {
+					envVars[k] = v
+				}
+			}
 			if jobDef.EnvVars != nil {
 				for k, v := range jobDef.EnvVars {
 					envVars[k] = v
@@ -191,11 +198,13 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 				envVars[k] = v
 			}
 
-			// Deep copy Tags
+			// Deep copy Tags and merge with defaults
 			var tags []string
+			if p.Defaults.Tags != nil {
+				tags = append(tags, p.Defaults.Tags...)
+			}
 			if jobDef.Tags != nil {
-				tags = make([]string, len(jobDef.Tags))
-				copy(tags, jobDef.Tags)
+				tags = append(tags, jobDef.Tags...)
 			}
 
 			// Store ID for dependency resolution later
