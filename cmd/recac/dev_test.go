@@ -345,3 +345,107 @@ func TestCopyIO(t *testing.T) {
 
 	assert.Equal(t, input, w.String())
 }
+
+func TestRunDev_FullLogic(t *testing.T) {
+	// Setup test directory
+	tmpDir := t.TempDir()
+
+	// Mock execCommand to not actually run anything
+	oldDevExec := devExecCommand
+	devExecCommand = func(name string, arg ...string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess")
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		return cmd
+	}
+	defer func() { devExecCommand = oldDevExec }()
+
+	cmd, _, _ := newRootCmd()
+
+	// 1. Test auto-detect failure
+	cmd.Flags().Set("cmd", "")
+	cmd.Flags().Set("watch", tmpDir)
+	err := runDev(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "could not auto-detect command")
+
+	// Create fake file to pass auto detect
+	os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(""), 0644)
+
+	// Context for graceful cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd.SetContext(ctx)
+
+    // cmd.Flags().Set doesn't actually set the global variables devWatchDir, devCmdFlag, etc.
+    // We need to set them directly since they are bound to flags using StringVarP.
+
+    devWatchDir = tmpDir
+    devCmdFlag = "echo test"
+    devExtensions = "txt"
+    devRecursive = true
+    devDebounce = 10 * time.Millisecond
+
+	// Run Dev in a goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- runDev(cmd, []string{})
+	}()
+
+	// Wait for watcher to start and initial trigger to run
+	time.Sleep(50 * time.Millisecond)
+
+	// Create a new file to trigger the watcher
+	testFile := filepath.Join(tmpDir, "test.txt")
+	os.WriteFile(testFile, []byte("change 1"), 0644)
+
+	// Create a new directory to trigger recursive watch add
+	testDir := filepath.Join(tmpDir, "newdir")
+	os.Mkdir(testDir, 0755)
+
+	// Wait for debounce and execution
+	time.Sleep(100 * time.Millisecond)
+
+	// Write again to trigger again
+	os.WriteFile(testFile, []byte("change 2"), 0644)
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Cancel the context to stop dev
+	cancel()
+
+	// Wait for runDev to return
+	err = <-errCh
+	assert.NoError(t, err)
+}
+
+func TestRunDev_NotRecursive(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	oldDevExec := devExecCommand
+	devExecCommand = func(name string, arg ...string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess")
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		return cmd
+	}
+	defer func() { devExecCommand = oldDevExec }()
+
+	cmd, _, _ := newRootCmd()
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd.SetContext(ctx)
+
+    devWatchDir = tmpDir
+    devCmdFlag = "echo test"
+    devExtensions = ""
+    devRecursive = false
+    devDebounce = 10 * time.Millisecond
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- runDev(cmd, []string{})
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	cancel()
+	err := <-errCh
+	assert.NoError(t, err)
+}
