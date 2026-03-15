@@ -133,3 +133,192 @@ func TestExportJobs_Errors(t *testing.T) {
 		assert.Contains(t, buf.String(), "Failed to create output file")
 	})
 }
+
+func TestExportPipeline(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		exportPipeline("http://invalid-host", "out.yaml")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		exportPipeline(server.URL, "out.yaml")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to export pipeline")
+	})
+
+	t.Run("Stdout", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/export/pipeline", r.URL.Path)
+			assert.Equal(t, "exported-pipeline", r.URL.Query().Get("name"))
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`name: my-pipeline`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		exportPipeline(server.URL, "-")
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "name: my-pipeline")
+	})
+
+	t.Run("FileSuccess", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/export/pipeline", r.URL.Path)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`name: my-pipeline`))
+		}))
+		defer server.Close()
+
+		tmpDir := t.TempDir()
+		outFile := filepath.Join(tmpDir, "pipeline.yaml")
+
+		exitCode = 0
+		buf.Reset()
+		exportPipeline(server.URL, outFile)
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "Pipeline successfully exported")
+
+		content, err := os.ReadFile(outFile)
+		assert.NoError(t, err)
+		assert.Equal(t, "name: my-pipeline", string(content))
+	})
+
+	t.Run("FileCreationError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`name: my-pipeline`))
+		}))
+		defer server.Close()
+
+		badPath := filepath.Join("non-existent-dir", "pipeline.yaml")
+
+		exitCode = 0
+		buf.Reset()
+		exportPipeline(server.URL, badPath)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create output file")
+	})
+}
+
+func TestExportGraph(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("InvalidFormat", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		exportGraph("http://localhost", "out.dot", "xml")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Invalid format: xml")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		exportGraph("http://invalid-host", "out.dot", "dot")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		exportGraph(server.URL, "out.dot", "dot")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to export graph")
+	})
+
+	t.Run("Stdout", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/export/graph", r.URL.Path)
+			assert.Equal(t, "mermaid", r.URL.Query().Get("format"))
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`graph TD; A-->B;`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		exportGraph(server.URL, "-", "mermaid")
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "graph TD; A-->B;")
+	})
+
+	t.Run("FileSuccess", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/export/graph", r.URL.Path)
+			assert.Equal(t, "dot", r.URL.Query().Get("format"))
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`digraph G { A -> B; }`))
+		}))
+		defer server.Close()
+
+		tmpDir := t.TempDir()
+		outFile := filepath.Join(tmpDir, "graph.dot")
+
+		exitCode = 0
+		buf.Reset()
+		exportGraph(server.URL, outFile, "dot")
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "Graph successfully exported")
+
+		content, err := os.ReadFile(outFile)
+		assert.NoError(t, err)
+		assert.Equal(t, "digraph G { A -> B; }", string(content))
+	})
+
+	t.Run("FileCreationError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`digraph G { A -> B; }`))
+		}))
+		defer server.Close()
+
+		badPath := filepath.Join("non-existent-dir", "graph.dot")
+
+		exitCode = 0
+		buf.Reset()
+		exportGraph(server.URL, badPath, "dot")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create output file")
+	})
+}
