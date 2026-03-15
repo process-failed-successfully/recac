@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+    "os"
 	"recac/internal/agent"
 	"testing"
 
@@ -219,4 +220,100 @@ func TestDescribeSchemaWithAI(t *testing.T) {
 	desc, err := describeSchemaWithAI(context.Background(), mermaid)
 	require.NoError(t, err)
 	assert.Equal(t, "Test Schema Analysis Response", desc)
+}
+
+type mockSchemaAgentClient struct {
+	Response string
+}
+
+func (m *mockSchemaAgentClient) Send(ctx context.Context, prompt string) (string, error) {
+	return m.Response, nil
+}
+func (m *mockSchemaAgentClient) SendWithRetry(ctx context.Context, prompt string, retries int) (string, error) {
+	return m.Response, nil
+}
+func (m *mockSchemaAgentClient) SupportsVision() bool {
+	return false
+}
+func (m *mockSchemaAgentClient) SendStream(ctx context.Context, prompt string, cb func(string)) (string, error) {
+	return "", nil
+}
+
+func TestRunSchema_Outputs(t *testing.T) {
+	// Mock extractSchema
+	origExtract := extractSchema
+	defer func() { extractSchema = origExtract }()
+
+	extractSchema = func(connStr string) (*DatabaseSchema, error) {
+		return &DatabaseSchema{
+			Tables: []Table{{Name: "test"}},
+		}, nil
+	}
+
+    // Mock Agent
+	oldAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, dir, name string) (agent.Agent, error) {
+		return &mockSchemaAgentClient{
+			Response: "AI schema explanation",
+		}, nil
+	}
+	defer func() { agentClientFactory = oldAgentFactory }()
+
+    // cmd, out, _ := newRootCmd() does not attach flags defined in init() of schema.go
+    // Let's use schemaCmd and a buffer directly since runSchema expects its flags.
+
+    var outBuf bytes.Buffer
+    schemaCmd.SetOut(&outBuf)
+
+	tmpDir := t.TempDir()
+	cwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(cwd)
+
+    // Create fake db file to trigger implicit arg logic
+    os.WriteFile("recac.db", []byte(""), 0644)
+
+    err := runSchema(schemaCmd, []string{})
+    assert.NoError(t, err)
+    assert.Contains(t, outBuf.String(), "erDiagram")
+
+    // Output to file
+    tmpFile := "schema_out.md"
+
+    schemaCmd.Flags().Set("output", tmpFile)
+    schemaCmd.Flags().Set("ai", "true")
+
+    err = runSchema(schemaCmd, []string{"mydb.sqlite"})
+    assert.NoError(t, err)
+
+    content, _ := os.ReadFile(tmpFile)
+    assert.Contains(t, string(content), "AI schema explanation")
+    assert.Contains(t, string(content), "erDiagram")
+
+    schemaCmd.Flags().Set("ai", "false")
+    err = runSchema(schemaCmd, []string{"mydb.sqlite"})
+    assert.NoError(t, err)
+
+    content, _ = os.ReadFile(tmpFile)
+    assert.Contains(t, string(content), "erDiagram")
+}
+
+func TestRunSchema_NoArgsError(t *testing.T) {
+	cmd, _, _ := newRootCmd()
+
+    // Default no args error handling
+    err := runSchema(cmd, []string{})
+    assert.Error(t, err)
+}
+
+func TestDescribeSchemaWithAI_Error(t *testing.T) {
+	oldAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, dir, name string) (agent.Agent, error) {
+		return nil, errors.New("factory error")
+	}
+	defer func() { agentClientFactory = oldAgentFactory }()
+
+    _, err := describeSchemaWithAI(context.Background(), "erDiagram")
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "factory error")
 }

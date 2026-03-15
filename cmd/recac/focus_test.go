@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"os/exec"
 	"runtime"
@@ -50,34 +52,36 @@ func TestFocusHelperProcessFail(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS_FAIL") != "1" {
 		return
 	}
-	os.Exit(1)
+	os.Exit(1) // Fails!
 }
 
 func TestFocusModel_Update(t *testing.T) {
 	m := initialFocusModel(10*time.Second, "Test Task")
 
-	// Test Init
 	cmd := m.Init()
 	assert.NotNil(t, cmd)
 
-	// Test Tick (simulated)
 	assert.False(t, m.finished)
 
-	// Test Timeout
 	newM, cmd := m.Update(timer.TimeoutMsg{ID: 0})
 	fm := newM.(focusModel)
 	assert.True(t, fm.finished)
 	assert.Equal(t, tea.Quit(), cmd())
 
-	// Test Key Quit
+	newM, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	assert.Equal(t, tea.Quit(), cmd())
+
+	newM, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	assert.Equal(t, tea.Quit(), cmd())
+
 	newM, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC, Runes: []rune{'c'}})
 	assert.Equal(t, tea.Quit(), cmd())
 
-    // View
+	newM, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 100})
+
     viewStr := m.View()
     assert.Contains(t, viewStr, "Test Task")
 
-    // View Finished
     fm.finished = true
     viewStrDone := fm.View()
     assert.Contains(t, viewStrDone, "Done!")
@@ -89,7 +93,11 @@ func TestStartMusic(t *testing.T) {
 	defer func() { execCommand = oldExec }()
 
 	err := startMusic()
-	assert.NoError(t, err)
+    if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+	    assert.NoError(t, err)
+    } else {
+        assert.Error(t, err)
+    }
 }
 
 func TestToggleDND(t *testing.T) {
@@ -119,7 +127,6 @@ func TestToggleDND_Fail(t *testing.T) {
 	}
 }
 
-
 func TestFocus_RunFocus(t *testing.T) {
 	oldDuration := focusDuration
 	oldTask := focusTask
@@ -147,7 +154,8 @@ func TestFocus_RunFocus(t *testing.T) {
 	}
 	defer func() { startFocusTUIFunc = oldTUI }()
 
-	err := runFocus(focusCmd, []string{})
+    cmd, _, _ := newRootCmd()
+	err := runFocus(cmd, []string{})
 	assert.NoError(t, err)
 }
 
@@ -176,35 +184,72 @@ func TestFocus_RunFocus_Music_DND(t *testing.T) {
 	}
 	defer func() { startFocusTUIFunc = oldTUI }()
 
-	err := runFocus(focusCmd, []string{})
+    cmd, _, _ := newRootCmd()
+	err := runFocus(cmd, []string{})
 	assert.NoError(t, err)
 }
 
-func TestStartMusic_OSMocking(t *testing.T) {
+func TestFocus_RunFocus_Failures(t *testing.T) {
+	oldTask := focusTask
+	oldMusic := focusMusic
+	oldDND := focusDND
+
+	defer func() {
+		focusTask = oldTask
+		focusMusic = oldMusic
+		focusDND = oldDND
+	}()
+
+	focusTask = "A specific task"
+	focusMusic = true
+	focusDND = true
+
 	oldExec := execCommand
-	execCommand = fakeFocusExecCommand
+	execCommand = fakeFocusExecCommandFail
 	defer func() { execCommand = oldExec }()
 
-    // Because startMusic behaves differently based on runtime.GOOS we can only effectively test the current GOOS
-    // We mock that it doesn't fail.
-	err := startMusic()
-    if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
-	    assert.NoError(t, err)
-    } else {
-        assert.Error(t, err)
-    }
+	oldTUI := startFocusTUIFunc
+	startFocusTUIFunc = func(m tea.Model) error {
+		return errors.New("tui error")
+	}
+	defer func() { startFocusTUIFunc = oldTUI }()
+
+    cmd, _, _ := newRootCmd()
+    var errBuf bytes.Buffer
+    cmd.SetErr(&errBuf)
+
+	err := runFocus(cmd, []string{})
+	assert.Error(t, err)
+
 }
 
-func TestToggleDND_OSMocking(t *testing.T) {
-	oldExec := execCommand
-	execCommand = fakeFocusExecCommand
-	defer func() { execCommand = oldExec }()
+func TestFocus_RunFocus_NoTaskPrompt(t *testing.T) {
+	oldTask := focusTask
+	defer func() {
+		focusTask = oldTask
+	}()
 
-    // Because toggleDND behaves differently based on runtime.GOOS we can only effectively test the current GOOS
-	err := toggleDND(true)
-    if runtime.GOOS == "darwin" {
-	    assert.NoError(t, err)
-    } else {
-        assert.Error(t, err)
-    }
+	focusTask = ""
+    focusMusic = false
+    focusDND = false
+
+	oldTUI := startFocusTUIFunc
+	startFocusTUIFunc = func(m tea.Model) error {
+		return nil
+	}
+	defer func() { startFocusTUIFunc = oldTUI }()
+
+    oldStdin := os.Stdin
+    defer func() { os.Stdin = oldStdin }()
+
+    r, w, _ := os.Pipe()
+    w.WriteString("MyTask\n")
+    w.Close()
+
+    os.Stdin = r
+
+    cmd, _, _ := newRootCmd()
+	err := runFocus(cmd, []string{})
+	assert.NoError(t, err)
+    assert.Equal(t, "MyTask", focusTask)
 }
