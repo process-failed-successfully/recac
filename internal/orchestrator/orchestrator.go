@@ -843,6 +843,58 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 	return nil
 }
 
+// UpdateJobsDependenciesByTag updates the dependencies of pending jobs that match the given tag.
+func (o *Orchestrator) UpdateJobsDependenciesByTag(ctx context.Context, tag string, dependsOn []string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobDependencies(ctx, id, dependsOn, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// UpdateJobsDependenciesByMatch updates the dependencies of pending jobs that match the given regex.
+func (o *Orchestrator) UpdateJobsDependenciesByMatch(ctx context.Context, match string, dependsOn []string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	var jobIDs []string
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobDependencies(ctx, id, dependsOn, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // UpdateJobEnv updates the environment variables of a job in the pending queue.
 func (o *Orchestrator) UpdateJobEnv(ctx context.Context, jobID string, envVars map[string]string, logger *slog.Logger) error {
 	o.mu.Lock()
