@@ -81,8 +81,17 @@ func runMockServer(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "📘 Loaded spec: %s\n", mockServerSpec)
 	}
 
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
 	// Use http.Server for control if needed, but simple ListenAndServe is fine for CLI
-	return http.ListenAndServe(addr, handler)
+	return server.ListenAndServe()
 }
 
 // NewMockServerHandler creates the HTTP handler for the mock server.

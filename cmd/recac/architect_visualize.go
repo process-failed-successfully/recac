@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"recac/internal/architecture"
 
@@ -26,7 +27,17 @@ func init() {
 }
 
 // listenAndServeFunc mocks http.ListenAndServe
-var listenAndServeFunc = http.ListenAndServe
+var listenAndServeFunc = func(addr string, handler http.Handler) error {
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	return server.ListenAndServe()
+}
 
 // openBrowserFunc mocks opening the browser
 var openBrowserFunc = openBrowserForVis
