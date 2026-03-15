@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -51,6 +52,7 @@ const (
 	viewAnalytics
 	viewTree
 	viewTimeoutInput
+	viewDepsInput
 )
 
 type DashboardModel struct {
@@ -82,6 +84,9 @@ type DashboardModel struct {
 
 	// Timeout input field
 	timeoutInput textinput.Model
+
+	// Deps input field
+	depsInput textinput.Model
 }
 
 type tickMsg time.Time
@@ -289,6 +294,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewTimeoutInput:
 		m, cmd = m.updateTimeoutInput(msg)
+		cmds = append(cmds, cmd)
+	case viewDepsInput:
+		m, cmd = m.updateDepsInput(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -553,6 +561,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.timeoutInput.SetValue("")
 				m.timeoutInput.Focus()
 				return m, textinput.Blink
+			}
+		case "D":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.pendingJobId = id
+						m.viewState = viewDepsInput
+						m.depsInput.SetValue(strings.Join(job.WorkItem.DependsOn, ", "))
+						m.depsInput.Focus()
+						return m, textinput.Blink
+					}
+				}
 			}
 		case "e":
 			selected := m.table.SelectedRow()
@@ -854,6 +876,40 @@ func (m DashboardModel) updateTimeoutInput(msg tea.Msg) (DashboardModel, tea.Cmd
 	return m, cmd
 }
 
+func (m DashboardModel) updateDepsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.depsInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "enter":
+			val := m.depsInput.Value()
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.depsInput.Blur()
+			m.pendingJobId = ""
+
+			var deps []string
+			if val != "" {
+				parts := strings.Split(val, ",")
+				for _, p := range parts {
+					trimmed := strings.TrimSpace(p)
+					if trimmed != "" {
+						deps = append(deps, trimmed)
+					}
+				}
+			}
+			return m, updateDependenciesCmd(m.host, id, deps)
+		}
+	}
+	m.depsInput, cmd = m.depsInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -938,7 +994,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T: timeout | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T: timeout | D: set deps | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1031,6 +1087,25 @@ func (m DashboardModel) View() string {
 			Padding(1, 2)
 
 		dialogContent := fmt.Sprintf("Update Timeout for %s\n\n%s", m.pendingJobId, m.timeoutInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		// Render the dialog centered
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewDepsInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(60).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Update Dependencies for %s\n\n%s", m.pendingJobId, m.depsInput.View())
 
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
@@ -1272,6 +1347,41 @@ func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Updated priority for job %s to %d", id, newPriority)}
+	}
+}
+
+func updateDependenciesCmd(host, id string, deps []string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/dependencies", host, id)
+
+		reqBody := struct {
+			DependsOn []string `json:"depends_on"`
+		}{
+			DependsOn: deps,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated dependencies for job %s", id)}
 	}
 }
 
@@ -1659,6 +1769,11 @@ func NewDashboardModel(host string) DashboardModel {
 	ti.Prompt = "New Timeout: "
 	ti.Width = 20
 
+	di := textinput.New()
+	di.Placeholder = "e.g., JOB-1, JOB-2"
+	di.Prompt = "Dependencies: "
+	di.Width = 40
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -1669,6 +1784,7 @@ func NewDashboardModel(host string) DashboardModel {
 		filterInput:  fi,
 		isFiltering:  false,
 		timeoutInput: ti,
+		depsInput:    di,
 		selectedJobs: make(map[string]bool),
 	}
 }

@@ -179,6 +179,35 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "PENDING", m.pendingJobId)
 	})
 
+	t.Run("Set Deps Key (D)", func(t *testing.T) {
+		// Ensure job has details
+		if len(model.jobs) > 0 {
+			model.jobs[0].WorkItem.DependsOn = []string{"dep-1", "dep-2"}
+		}
+
+		// Re-initialize model to get a fresh depsInput component
+		model = NewDashboardModel("http://localhost")
+		model.table = tModel
+		model.jobs = []orchestrator.JobInfo{
+			{
+				ID:        "JOB-1",
+				StartTime: time.Now(),
+				WorkItem: orchestrator.WorkItem{
+					DependsOn: []string{"dep-1", "dep-2"},
+				},
+			},
+		}
+
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("D")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewDepsInput, m.viewState)
+
+		// Verify fields are pre-filled
+		assert.Equal(t, "dep-1, dep-2", m.depsInput.Value())
+	})
+
 	t.Run("Edit/Clone Key (e)", func(t *testing.T) {
 		// Ensure job has details
 		if len(model.jobs) > 0 {

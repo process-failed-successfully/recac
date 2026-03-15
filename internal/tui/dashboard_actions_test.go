@@ -71,6 +71,26 @@ func TestToggleDrain(t *testing.T) {
 	}
 }
 
+func TestUpdateDependenciesCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+		assert.Equal(t, "/jobs/JOB-1/dependencies", r.URL.Path)
+		var body map[string][]string
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, []string{"DEP-1", "DEP-2"}, body["depends_on"])
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cmd := updateDependenciesCmd(server.URL, "JOB-1", []string{"DEP-1", "DEP-2"})
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Updated dependencies for job JOB-1", actionMsg.Message)
+}
+
 func TestScaleConcurrencyCmd(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
