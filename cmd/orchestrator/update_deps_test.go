@@ -80,3 +80,80 @@ func TestUpdateDependencies_Error(t *testing.T) {
 	assert.Contains(t, out, "Failed to update dependencies: invalid dependencies")
 	assert.Equal(t, 1, exitCode)
 }
+
+func TestUpdateBulkDependencies_Success(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/dependencies", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+		assert.True(t, tag == "tag-a" || match == "match-a")
+
+		var reqBody struct {
+			DependsOn []string `json:"depends_on"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&reqBody)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"DEP-1", "DEP-2"}, reqBody.DependsOn)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"updated": 3}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// Test Tag
+	updateBulkDependencies(server.URL, "", "tag-a", []string{"DEP-1", "DEP-2"})
+
+	// Test Match
+	updateBulkDependencies(server.URL, "match-a", "", []string{"DEP-1", "DEP-2"})
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Successfully updated dependencies for 3 jobs to: DEP-1, DEP-2")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestUpdateBulkDependencies_Error(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/dependencies", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`invalid dependencies`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkDependencies(server.URL, "", "tag-a", []string{"DEP-1"})
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to update dependencies: invalid dependencies")
+	assert.Equal(t, 1, exitCode)
+}

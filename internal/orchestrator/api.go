@@ -553,6 +553,50 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"status": "success", "job_id": "%s"}`, id)
 	})
 
+	mux.HandleFunc("PUT /jobs/dependencies", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk dependency update", http.StatusBadRequest)
+			return
+		}
+		if tag != "" && match != "" {
+			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk dependency update", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			DependsOn []string `json:"depends_on"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UpdateJobsDependenciesByTag(r.Context(), tag, req.DependsOn, logger)
+		} else if match != "" {
+			count, err = orch.UpdateJobsDependenciesByMatch(r.Context(), match, req.DependsOn, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"updated": %d}`, count)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/dependencies", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

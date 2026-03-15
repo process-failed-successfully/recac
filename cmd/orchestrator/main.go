@@ -153,7 +153,9 @@ func main() {
 	pflag.Int("progress-val", -1, "The progress value to set (0-100) (requires --set-progress-job)")
 	pflag.String("progress-msg", "", "Optional status message to set along with progress")
 	pflag.String("update-deps-job", "", "Update the dependencies of a specific pending job")
-	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job)")
+	pflag.String("update-deps-tag", "", "Update the dependencies of all pending jobs with the specified tag")
+	pflag.String("update-deps-match", "", "Update the dependencies of all pending jobs matching the given regex")
+	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job, --update-deps-tag, or --update-deps-match)")
 	pflag.String("update-env-job", "", "Update the environment variables of a specific pending job")
 	pflag.StringSlice("set-env", []string{}, "Comma-separated list of new environment variables (requires --update-env-job)")
 	pflag.String("update-tags-job", "", "Update the tags of a specific pending job")
@@ -389,6 +391,8 @@ func main() {
 	viper.BindPFlag("orchestrator.progress_val", pflag.Lookup("progress-val"))
 	viper.BindPFlag("orchestrator.progress_msg", pflag.Lookup("progress-msg"))
 	viper.BindPFlag("orchestrator.update_deps_job", pflag.Lookup("update-deps-job"))
+	viper.BindPFlag("orchestrator.update_deps_tag", pflag.Lookup("update-deps-tag"))
+	viper.BindPFlag("orchestrator.update_deps_match", pflag.Lookup("update-deps-match"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
 	viper.BindPFlag("orchestrator.update_env_job", pflag.Lookup("update-env-job"))
 	viper.BindPFlag("orchestrator.set_env", pflag.Lookup("set-env"))
@@ -975,7 +979,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updateDepsJob := viper.GetString("orchestrator.update_deps_job"); updateDepsJob != "" {
+	updateDepsJob := viper.GetString("orchestrator.update_deps_job")
+	updateDepsTag := viper.GetString("orchestrator.update_deps_tag")
+	updateDepsMatch := viper.GetString("orchestrator.update_deps_match")
+
+	depsFlagsSet := 0
+	if updateDepsJob != "" {
+		depsFlagsSet++
+	}
+	if updateDepsTag != "" {
+		depsFlagsSet++
+	}
+	if updateDepsMatch != "" {
+		depsFlagsSet++
+	}
+
+	if depsFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-deps-job, --update-deps-tag, and --update-deps-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updateDepsJob != "" {
 		host := viper.GetString("orchestrator.host")
 		var setDepsPtr []string
 		if viper.IsSet("orchestrator.set_deps") {
@@ -984,6 +1009,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			setDepsPtr = []string{}
 		}
 		updateDependencies(host, updateDepsJob, setDepsPtr)
+		return nil
+	}
+
+	if updateDepsTag != "" || updateDepsMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		var setDepsPtr []string
+		if viper.IsSet("orchestrator.set_deps") {
+			setDepsPtr = viper.GetStringSlice("orchestrator.set_deps")
+		} else {
+			setDepsPtr = []string{}
+		}
+		updateBulkDependencies(host, updateDepsMatch, updateDepsTag, setDepsPtr)
 		return nil
 	}
 
