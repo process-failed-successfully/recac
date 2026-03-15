@@ -233,3 +233,55 @@ func TestRunGymSession(t *testing.T) {
 	assert.True(t, res.Passed)
 	assert.Equal(t, "OK", res.Output)
 }
+
+func TestLoadChallenges_DirectoryAndSingle(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a single JSON file
+	jsonContent := `{"name": "Single JSON", "language": "go"}`
+	jsonPath := filepath.Join(tmpDir, "single.json")
+	err := os.WriteFile(jsonPath, []byte(jsonContent), 0644)
+	assert.NoError(t, err)
+
+	// Create a nested YAML file inside the directory
+	yamlContent := `
+- name: Nested YAML
+  language: python
+`
+	nestedDir := filepath.Join(tmpDir, "nested")
+	err = os.Mkdir(nestedDir, 0755)
+	assert.NoError(t, err)
+	yamlPath := filepath.Join(nestedDir, "nested.yml")
+	err = os.WriteFile(yamlPath, []byte(yamlContent), 0644)
+	assert.NoError(t, err)
+
+	// Load challenges from the root directory
+	challenges, err := loadChallenges(tmpDir)
+	assert.NoError(t, err)
+	assert.Len(t, challenges, 2)
+
+	// Check that both were loaded (order might depend on file system traversal, so check names)
+	var names []string
+	for _, c := range challenges {
+		names = append(names, c.Name)
+	}
+	assert.Contains(t, names, "Single JSON")
+	assert.Contains(t, names, "Nested YAML")
+}
+
+func TestLoadChallengesFile_Errors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Invalid YAML/JSON
+	invalidPath := filepath.Join(tmpDir, "invalid.yaml")
+	err := os.WriteFile(invalidPath, []byte(`[invalid json/yaml`), 0644)
+	assert.NoError(t, err)
+
+	_, err = loadChallengesFile(invalidPath)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse challenges file")
+
+	// Non-existent file
+	_, err = loadChallenges("non_existent_file.yaml")
+	assert.Error(t, err)
+}

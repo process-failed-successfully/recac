@@ -192,3 +192,41 @@ func TestWorkdiffTwoSessions(t *testing.T) {
 	require.Contains(t, output, "-hello world")
 	require.Contains(t, output, "+hello world again")
 }
+
+func TestGetSessionEndSHA_Cases(t *testing.T) {
+	sm, sessionName, repoDir, _, _ := setupWorkdiffTest(t)
+	defer os.RemoveAll(repoDir)
+
+	t.Run("with explicit EndCommitSHA", func(t *testing.T) {
+		session, err := sm.LoadSession(sessionName)
+		require.NoError(t, err)
+		session.EndCommitSHA = "abcdef123"
+
+		sha, err := getSessionEndSHA(session)
+		require.NoError(t, err)
+		require.Equal(t, "abcdef123", sha)
+	})
+
+	t.Run("without EndCommitSHA but completed", func(t *testing.T) {
+		session, err := sm.LoadSession(sessionName)
+		require.NoError(t, err)
+		session.EndCommitSHA = "" // Clear it
+		session.Status = "completed"
+        session.Workspace = repoDir
+
+		sha, err := getSessionEndSHA(session)
+		require.NoError(t, err)
+		require.NotEmpty(t, sha) // Should get HEAD from repo
+	})
+
+	t.Run("without EndCommitSHA and running", func(t *testing.T) {
+		session, err := sm.LoadSession(sessionName)
+		require.NoError(t, err)
+		session.EndCommitSHA = ""
+		session.Status = "running"
+
+		_, err = getSessionEndSHA(session)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is still running")
+	})
+}

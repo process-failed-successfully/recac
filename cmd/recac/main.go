@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 )
 
+var ExecuteFunc = Execute
+
 func main() {
 	// Recover from any panics in the application
 	defer func() {
@@ -19,5 +21,5 @@ func main() {
 		}
 	}()
 
-	Execute()
+	ExecuteFunc()
 }
