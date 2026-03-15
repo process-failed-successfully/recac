@@ -1648,6 +1648,71 @@ func editJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s updated successfully.\n", jobID)
 }
 
+func updateBulkEnvVars(host, match, tag string, envVars map[string]string) {
+	reqBody := struct {
+		EnvVars map[string]string `json:"env_vars"`
+	}{
+		EnvVars: envVars,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to encode request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/env", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	if match != "" {
+		q.Set("match", match)
+	}
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update bulk env vars: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Updated int `json:"updated"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully updated environment variables for %d pending jobs.\n", result.Updated)
+}
+
 func holdJobs(host, match, tag string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/hold", host))
 	if err != nil {

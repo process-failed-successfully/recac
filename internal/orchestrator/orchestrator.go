@@ -929,6 +929,60 @@ func (o *Orchestrator) UpdateJobEnv(ctx context.Context, jobID string, envVars m
 	return nil
 }
 
+// UpdateJobsEnvByTag updates the environment variables of pending jobs that match the given tag.
+func (o *Orchestrator) UpdateJobsEnvByTag(ctx context.Context, tag string, envVars map[string]string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		// UpdateJobEnv correctly acquires and releases the lock for each job.
+		// It also checks that the job is still pending.
+		if err := o.UpdateJobEnv(ctx, id, envVars, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// UpdateJobsEnvByMatch updates the environment variables of pending jobs that match the given regex.
+func (o *Orchestrator) UpdateJobsEnvByMatch(ctx context.Context, match string, envVars map[string]string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	var jobIDs []string
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobEnv(ctx, id, envVars, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // UpdateJobTags updates the tags of a job in the pending queue.
 func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []string, logger *slog.Logger) error {
 	o.mu.Lock()
