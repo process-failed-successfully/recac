@@ -15,6 +15,8 @@ import (
 
 	"recac/internal/utils"
 
+	"github.com/charmbracelet/glamour"
+
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -55,6 +57,7 @@ const (
 	viewDepsInput
 	viewEnvInput
 	viewTagsInput
+	viewExplain
 )
 
 type DashboardModel struct {
@@ -95,9 +98,16 @@ type DashboardModel struct {
 
 	// Tags input field
 	tagsInput textinput.Model
+
+	explain string
 }
 
 type tickMsg time.Time
+
+type explainMsg struct {
+	Explanation string
+	Err         error
+}
 
 type statusMsg struct {
 	Status orchestrator.Status
@@ -234,6 +244,17 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case explainMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.explain = msg.Explanation
+			m.viewState = viewExplain
+			m.viewport.SetContent(renderExplain(m.explain))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
 	case logFinishedMsg:
 		if m.logStream != nil {
 			m.logStream.Close()
@@ -291,7 +312,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -464,6 +485,12 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, toggleDrain(m.host, m.status.Draining)
 		case "f":
 			return m, forcePoll(m.host)
+		case "?":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				return m, fetchExplanation(m.host, id)
+			}
 		case "a":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_a"
@@ -1118,7 +1145,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1126,6 +1153,9 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewTree:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewExplain:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewLogs:
@@ -1346,6 +1376,47 @@ func fetchJobDetails(host, id string) tea.Cmd {
 		}
 		return detailsMsg{Job: job}
 	}
+}
+
+func fetchExplanation(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/explain", host, id))
+		if err != nil {
+			return explainMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return explainMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var result struct {
+			Explanation string `json:"explanation"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return explainMsg{Err: err}
+		}
+
+		return explainMsg{Explanation: result.Explanation}
+	}
+}
+
+func renderExplain(explanation string) string {
+	r, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(100),
+	)
+	if err != nil {
+		return explanation
+	}
+
+	out, err := r.Render(explanation)
+	if err != nil {
+		return explanation
+	}
+
+	return out
 }
 
 func streamJobLogs(host, id string) tea.Cmd {

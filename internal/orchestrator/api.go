@@ -20,8 +20,12 @@ import (
 	"strings"
 	"time"
 
+	"recac/internal/agent"
+
 	"github.com/spf13/viper"
 )
+
+var newAgentFunc = agent.NewAgent
 
 // RegisterAPI registers the orchestrator API handlers on the provided ServeMux.
 func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, baseCtx context.Context) {
@@ -352,6 +356,73 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			if err := json.NewEncoder(w).Encode(jobs); err != nil {
 				logger.Error("Failed to encode jobs for export", "error", err)
 			}
+		}
+	})
+
+	mux.HandleFunc("GET /jobs/{id}/explain", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		job, err := orch.GetJob(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		provider := r.URL.Query().Get("provider")
+		model := r.URL.Query().Get("model")
+
+		logStream, err := orch.GetLogs(r.Context(), id)
+		var logsText string
+		if err == nil {
+			logBytes, _ := io.ReadAll(logStream)
+			logsText = string(logBytes)
+			logStream.Close()
+		}
+
+		logLines := strings.Split(logsText, "\n")
+		if len(logLines) > 1000 {
+			logLines = logLines[len(logLines)-1000:]
+			logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
+		}
+
+		apiKey := viper.GetString("api_key")
+		if apiKey == "" {
+			apiKey = viper.GetString("secrets.api_key")
+		}
+		if provider == "" {
+			provider = viper.GetString("orchestrator.agent_provider")
+		}
+		if model == "" {
+			model = viper.GetString("orchestrator.agent_model")
+		}
+
+		aiClient, err := newAgentFunc(provider, apiKey, model, "", "")
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to initialize AI agent: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		prompt := fmt.Sprintf(`You are an expert software engineer and debugger analyzing a failed or problematic job in an autonomous coding orchestrator.
+
+Job ID: %s
+Summary: %s
+Status: %s
+Error: %s
+
+Here are the last log lines from the job execution:
+%s
+
+Analyze why the job failed or had issues, explain the root cause clearly, and suggest concrete steps to fix it.`,
+			job.ID, job.Summary, job.Status, job.Error, logsText)
+
+		explanation, err := aiClient.Send(r.Context(), prompt)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get explanation from AI: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{"explanation": explanation}); err != nil {
+			logger.Error("Failed to encode explanation", "error", err)
 		}
 	})
 
