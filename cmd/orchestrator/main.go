@@ -179,6 +179,8 @@ func main() {
 	pflag.String("archive-out", "", "Output path for the archive file (default is {jobID}.tar.gz) (used with --archive-job)")
 	pflag.String("archive-tag", "", "Download a compressed archive containing job details and logs for all jobs with a specific tag")
 	pflag.String("archive-match", "", "Download a compressed archive containing job details and logs for all jobs matching a regex")
+	pflag.Bool("archive-failed", false, "Download a compressed archive containing job details and logs for all failed jobs")
+	pflag.String("archive-status", "", "Download a compressed archive containing job details and logs for all jobs with a specific status")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-matrix", "", "Submit a matrix job from a JSON file path")
@@ -423,6 +425,8 @@ func main() {
 	viper.BindPFlag("orchestrator.archive_out", pflag.Lookup("archive-out"))
 	viper.BindPFlag("orchestrator.archive_tag", pflag.Lookup("archive-tag"))
 	viper.BindPFlag("orchestrator.archive_match", pflag.Lookup("archive-match"))
+	viper.BindPFlag("orchestrator.archive_failed", pflag.Lookup("archive-failed"))
+	viper.BindPFlag("orchestrator.archive_status", pflag.Lookup("archive-status"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.submit_batch", pflag.Lookup("submit-batch"))
 	viper.BindPFlag("orchestrator.submit_matrix", pflag.Lookup("submit-matrix"))
@@ -631,14 +635,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if archiveTag := viper.GetString("orchestrator.archive_tag"); archiveTag != "" {
 		host := viper.GetString("orchestrator.host")
 		outPath := viper.GetString("orchestrator.archive_out")
-		archiveBulkJobs(host, archiveTag, "", outPath)
+		archiveBulkJobs(host, archiveTag, "", "", outPath)
 		return nil
 	}
 
 	if archiveMatch := viper.GetString("orchestrator.archive_match"); archiveMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		outPath := viper.GetString("orchestrator.archive_out")
-		archiveBulkJobs(host, "", archiveMatch, outPath)
+		archiveBulkJobs(host, "", archiveMatch, "", outPath)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.archive_failed") {
+		host := viper.GetString("orchestrator.host")
+		outPath := viper.GetString("orchestrator.archive_out")
+		archiveBulkJobs(host, "", "", "Failed", outPath)
+		return nil
+	}
+
+	if archiveStatus := viper.GetString("orchestrator.archive_status"); archiveStatus != "" {
+		host := viper.GetString("orchestrator.host")
+		outPath := viper.GetString("orchestrator.archive_out")
+		archiveBulkJobs(host, "", "", archiveStatus, outPath)
 		return nil
 	}
 
