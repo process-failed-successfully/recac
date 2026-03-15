@@ -109,3 +109,214 @@ func TestExplainJob_JobNotFound(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "Failed to fetch job details: Job not found")
 }
+
+func TestExplainJob_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob("http://invalid-url:12345", "TEST-123", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+}
+
+func TestExplainJob_InvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob(server.URL, "TEST-123", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to decode response:")
+}
+
+func TestExplainJob_LogsErrorAndTruncation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/TEST-123" {
+			job := orchestrator.JobInfo{ID: "TEST-123"}
+			json.NewEncoder(w).Encode(job)
+			return
+		}
+
+		if r.URL.Path == "/jobs/TEST-123/logs" {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal Server Error"))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	originalNewAgentFunc := newAgentFunc
+	defer func() { newAgentFunc = originalNewAgentFunc }()
+
+	mockAgent := agent.NewMockAgent()
+	mockAgent.SetResponse("Mock explanation")
+	newAgentFunc = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob(server.URL, "TEST-123", "", "")
+
+	assert.False(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Warning: Failed to fetch logs, status 500")
+}
+
+func TestExplainJob_LogsTruncation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/TEST-123" {
+			job := orchestrator.JobInfo{ID: "TEST-123"}
+			json.NewEncoder(w).Encode(job)
+			return
+		}
+
+		if r.URL.Path == "/jobs/TEST-123/logs" {
+			w.WriteHeader(http.StatusOK)
+			// Create string with 1005 lines
+			var logs string
+			for i := 0; i < 1005; i++ {
+				logs += "Log line\n"
+			}
+			w.Write([]byte(logs))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	originalNewAgentFunc := newAgentFunc
+	defer func() { newAgentFunc = originalNewAgentFunc }()
+
+	mockAgent := agent.NewMockAgent()
+	mockAgent.SetResponse("Mock explanation")
+	newAgentFunc = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob(server.URL, "TEST-123", "", "")
+
+	assert.False(t, exitCalled)
+}
+
+func TestExplainJob_AIFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/TEST-123" {
+			job := orchestrator.JobInfo{ID: "TEST-123"}
+			json.NewEncoder(w).Encode(job)
+			return
+		}
+
+		if r.URL.Path == "/jobs/TEST-123/logs" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("logs"))
+			return
+		}
+	}))
+	defer server.Close()
+
+	originalNewAgentFunc := newAgentFunc
+	defer func() { newAgentFunc = originalNewAgentFunc }()
+
+	mockAgent := agent.NewMockAgent()
+	mockAgent.SetError(assert.AnError)
+	newAgentFunc = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob(server.URL, "TEST-123", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to get explanation from AI:")
+}
+
+func TestExplainJob_AIInitFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/TEST-123" {
+			job := orchestrator.JobInfo{ID: "TEST-123"}
+			json.NewEncoder(w).Encode(job)
+			return
+		}
+
+		if r.URL.Path == "/jobs/TEST-123/logs" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("logs"))
+			return
+		}
+	}))
+	defer server.Close()
+
+	originalNewAgentFunc := newAgentFunc
+	defer func() { newAgentFunc = originalNewAgentFunc }()
+
+	newAgentFunc = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return nil, assert.AnError
+	}
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob(server.URL, "TEST-123", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to initialize AI agent:")
+}
