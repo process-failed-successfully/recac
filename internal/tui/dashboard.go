@@ -53,6 +53,8 @@ const (
 	viewTree
 	viewTimeoutInput
 	viewDepsInput
+	viewEnvInput
+	viewTagsInput
 )
 
 type DashboardModel struct {
@@ -87,6 +89,12 @@ type DashboardModel struct {
 
 	// Deps input field
 	depsInput textinput.Model
+
+	// Env input field
+	envInput textinput.Model
+
+	// Tags input field
+	tagsInput textinput.Model
 }
 
 type tickMsg time.Time
@@ -297,6 +305,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewDepsInput:
 		m, cmd = m.updateDepsInput(msg)
+		cmds = append(cmds, cmd)
+	case viewEnvInput:
+		m, cmd = m.updateEnvInput(msg)
+		cmds = append(cmds, cmd)
+	case viewTagsInput:
+		m, cmd = m.updateTagsInput(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -572,6 +586,45 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 						m.viewState = viewDepsInput
 						m.depsInput.SetValue(strings.Join(job.WorkItem.DependsOn, ", "))
 						m.depsInput.Focus()
+						return m, textinput.Blink
+					}
+				}
+			}
+		case "E":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.pendingJobId = id
+						m.viewState = viewEnvInput
+
+						var envPairs []string
+						var keys []string
+						for k := range job.WorkItem.EnvVars {
+							keys = append(keys, k)
+						}
+						sort.Strings(keys)
+						for _, k := range keys {
+							envPairs = append(envPairs, fmt.Sprintf("%s=%s", k, job.WorkItem.EnvVars[k]))
+						}
+
+						m.envInput.SetValue(strings.Join(envPairs, ", "))
+						m.envInput.Focus()
+						return m, textinput.Blink
+					}
+				}
+			}
+		case "G":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.pendingJobId = id
+						m.viewState = viewTagsInput
+						m.tagsInput.SetValue(strings.Join(job.WorkItem.Tags, ", "))
+						m.tagsInput.Focus()
 						return m, textinput.Blink
 					}
 				}
@@ -910,6 +963,77 @@ func (m DashboardModel) updateDepsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	return m, cmd
 }
 
+func (m DashboardModel) updateEnvInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.envInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "enter":
+			val := m.envInput.Value()
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.envInput.Blur()
+			m.pendingJobId = ""
+
+			env := make(map[string]string)
+			if val != "" {
+				parts := strings.Split(val, ",")
+				for _, p := range parts {
+					trimmed := strings.TrimSpace(p)
+					if trimmed != "" {
+						kv := strings.SplitN(trimmed, "=", 2)
+						if len(kv) == 2 {
+							env[kv[0]] = kv[1]
+						}
+					}
+				}
+			}
+			return m, updateEnvCmd(m.host, id, env)
+		}
+	}
+	m.envInput, cmd = m.envInput.Update(msg)
+	return m, cmd
+}
+
+func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.tagsInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "enter":
+			val := m.tagsInput.Value()
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.tagsInput.Blur()
+			m.pendingJobId = ""
+
+			var tags []string
+			if val != "" {
+				parts := strings.Split(val, ",")
+				for _, p := range parts {
+					trimmed := strings.TrimSpace(p)
+					if trimmed != "" {
+						tags = append(tags, trimmed)
+					}
+				}
+			}
+			return m, updateTagsCmd(m.host, id, tags)
+		}
+	}
+	m.tagsInput, cmd = m.tagsInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -994,7 +1118,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T: timeout | D: set deps | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | h: history | A: analytics | t: tree | enter: details | l: logs | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1087,6 +1211,44 @@ func (m DashboardModel) View() string {
 			Padding(1, 2)
 
 		dialogContent := fmt.Sprintf("Update Timeout for %s\n\n%s", m.pendingJobId, m.timeoutInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		// Render the dialog centered
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewEnvInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(60).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Update Environment for %s\n\n%s", m.pendingJobId, m.envInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		// Render the dialog centered
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewTagsInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(60).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Update Tags for %s\n\n%s", m.pendingJobId, m.tagsInput.View())
 
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
@@ -1382,6 +1544,76 @@ func updateDependenciesCmd(host, id string, deps []string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Updated dependencies for job %s", id)}
+	}
+}
+
+func updateEnvCmd(host, id string, env map[string]string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/env", host, id)
+
+		reqBody := struct {
+			EnvVars map[string]string `json:"env_vars"`
+		}{
+			EnvVars: env,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated environment variables for job %s", id)}
+	}
+}
+
+func updateTagsCmd(host, id string, tags []string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/tags", host, id)
+
+		reqBody := struct {
+			Tags []string `json:"tags"`
+		}{
+			Tags: tags,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated tags for job %s", id)}
 	}
 }
 
@@ -1774,6 +2006,16 @@ func NewDashboardModel(host string) DashboardModel {
 	di.Prompt = "Dependencies: "
 	di.Width = 40
 
+	ei := textinput.New()
+	ei.Placeholder = "e.g., KEY=VAL, ANOTHER=VAL2"
+	ei.Prompt = "Env Vars: "
+	ei.Width = 60
+
+	gi := textinput.New()
+	gi.Placeholder = "e.g., bug, feature"
+	gi.Prompt = "Tags: "
+	gi.Width = 40
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -1785,6 +2027,8 @@ func NewDashboardModel(host string) DashboardModel {
 		isFiltering:  false,
 		timeoutInput: ti,
 		depsInput:    di,
+		envInput:     ei,
+		tagsInput:    gi,
 		selectedJobs: make(map[string]bool),
 	}
 }

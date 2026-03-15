@@ -155,6 +155,60 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "retry", m.pendingAction)
 	})
 
+	t.Run("Update Env", func(t *testing.T) {
+		m := NewDashboardModel("http://localhost:2112")
+		m.jobs = []orchestrator.JobInfo{
+			{ID: "job-1", WorkItem: orchestrator.WorkItem{EnvVars: map[string]string{"K": "V"}}},
+		}
+		m.updateTableContent()
+		m.table.SetCursor(0)
+
+		// Send 'E'
+		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("E"), Alt: false})
+		m = newModel.(DashboardModel)
+
+		// Verify view state changes
+		assert.Equal(t, viewEnvInput, m.viewState)
+		assert.Equal(t, "job-1", m.pendingJobId)
+		assert.Equal(t, "K=V", m.envInput.Value())
+
+		// Test Enter to confirm env
+		m.envInput.SetValue("A=B, C=D")
+		newModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter"), Alt: false})
+		m = newModel.(DashboardModel)
+
+		assert.NotNil(t, cmd) // Should return the updateEnvCmd
+		assert.Equal(t, viewMain, m.viewState)
+		assert.Equal(t, "", m.pendingJobId)
+	})
+
+	t.Run("Update Tags", func(t *testing.T) {
+		m := NewDashboardModel("http://localhost:2112")
+		m.jobs = []orchestrator.JobInfo{
+			{ID: "job-1", WorkItem: orchestrator.WorkItem{Tags: []string{"t1", "t2"}}},
+		}
+		m.updateTableContent()
+		m.table.SetCursor(0)
+
+		// Send 'G'
+		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G"), Alt: false})
+		m = newModel.(DashboardModel)
+
+		// Verify view state changes
+		assert.Equal(t, viewTagsInput, m.viewState)
+		assert.Equal(t, "job-1", m.pendingJobId)
+		assert.Equal(t, "t1, t2", m.tagsInput.Value())
+
+		// Test Enter to confirm tags
+		m.tagsInput.SetValue("new-t1, new-t2")
+		newModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter"), Alt: false})
+		m = newModel.(DashboardModel)
+
+		assert.NotNil(t, cmd) // Should return the updateTagsCmd
+		assert.Equal(t, viewMain, m.viewState)
+		assert.Equal(t, "", m.pendingJobId)
+	})
+
 	t.Run("Retry Failed Key (R)", func(t *testing.T) {
 		// Reset state
 		model.viewState = viewMain
