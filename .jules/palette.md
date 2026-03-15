@@ -16,3 +16,7 @@
 ## 2026-03-05 - Overlay Actionable Empty States
 **Learning:** When displaying actionable empty states in overlay views (like `viewTree` in the Orchestrator dashboard) where primary actions (like 's' to submit) are only handled by the main view, the empty state instruction must explicitly guide the user to return to the main view first.
 **Action:** Use phrasing like "Press 'q' or 'esc' to go back, then press 's' to submit a new job" rather than just "Press 's' to submit", which would falsely imply the key works directly in the overlay.
+## Palette's Journal
+## 2024-03-14 - Modal Close Buttons Accessibility
+**Learning:** In the orchestrator dashboard, modal close buttons were previously implemented as `<span class="close">` elements, which lack native focusability, keyboard event handling (Space/Enter), and semantic meaning for screen readers. Using `span` for interactive elements causes severe accessibility barriers.
+**Action:** Always replace interactive `<span onclick="...">` elements with `<button type="button">` and apply an `aria-label` (e.g., `aria-label="Close modal"`) when the content is purely visual (like `&times;`). Additionally, ensure a `:focus-visible` CSS rule is added for clear keyboard navigation cues.
