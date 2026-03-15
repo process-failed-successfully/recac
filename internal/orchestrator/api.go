@@ -436,9 +436,10 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	mux.HandleFunc("GET /jobs/archive/bulk", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		status := r.URL.Query().Get("status")
 
-		if tag == "" && match == "" {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk archive", http.StatusBadRequest)
+		if tag == "" && match == "" && status == "" {
+			http.Error(w, "Either 'tag', 'match', or 'status' query parameter is required for bulk archive", http.StatusBadRequest)
 			return
 		}
 
@@ -467,6 +468,13 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			}
 			for _, job := range jobs {
 				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+					filtered = append(filtered, job)
+				}
+			}
+		} else if status != "" {
+			lowerStatus := strings.ToLower(status)
+			for _, job := range jobs {
+				if strings.ToLower(job.Status) == lowerStatus {
 					filtered = append(filtered, job)
 				}
 			}

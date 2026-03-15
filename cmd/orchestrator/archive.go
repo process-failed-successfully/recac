@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func archiveJob(host, jobID, outPath string) {
@@ -58,13 +59,19 @@ func archiveJob(host, jobID, outPath string) {
 	fmt.Fprintf(stdout, "Successfully saved job archive to %s\n", outPath)
 }
 
-func archiveBulkJobs(host, tag, match, outPath string) {
+func archiveBulkJobs(host, tag, match, status, outPath string) {
 	urlStr := fmt.Sprintf("%s/jobs/archive/bulk?", host)
+	params := []string{}
 	if tag != "" {
-		urlStr += "tag=" + url.QueryEscape(tag)
-	} else if match != "" {
-		urlStr += "match=" + url.QueryEscape(match)
+		params = append(params, "tag="+url.QueryEscape(tag))
 	}
+	if match != "" {
+		params = append(params, "match="+url.QueryEscape(match))
+	}
+	if status != "" {
+		params = append(params, "status="+url.QueryEscape(status))
+	}
+	urlStr += strings.Join(params, "&")
 
 	resp, err := http.Get(urlStr)
 	if err != nil {
