@@ -91,6 +91,46 @@ func TestUpdateDependenciesCmd(t *testing.T) {
 	assert.Equal(t, "Updated dependencies for job JOB-1", actionMsg.Message)
 }
 
+func TestUpdateEnvCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+		assert.Equal(t, "/jobs/JOB-1/env", r.URL.Path)
+		var body map[string]map[string]string
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, map[string]string{"KEY": "VAL", "OTHER": "YES"}, body["env_vars"])
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cmd := updateEnvCmd(server.URL, "JOB-1", map[string]string{"KEY": "VAL", "OTHER": "YES"})
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Updated environment variables for job JOB-1", actionMsg.Message)
+}
+
+func TestUpdateTagsCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+		assert.Equal(t, "/jobs/JOB-1/tags", r.URL.Path)
+		var body map[string][]string
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, []string{"bug", "fix"}, body["tags"])
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cmd := updateTagsCmd(server.URL, "JOB-1", []string{"bug", "fix"})
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Updated tags for job JOB-1", actionMsg.Message)
+}
+
 func TestScaleConcurrencyCmd(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
