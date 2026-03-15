@@ -597,6 +597,50 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, `{"updated": %d}`, count)
 	})
 
+	mux.HandleFunc("PUT /jobs/env", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk env update", http.StatusBadRequest)
+			return
+		}
+		if tag != "" && match != "" {
+			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk env update", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			EnvVars map[string]string `json:"env_vars"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UpdateJobsEnvByTag(r.Context(), tag, req.EnvVars, logger)
+		} else if match != "" {
+			count, err = orch.UpdateJobsEnvByMatch(r.Context(), match, req.EnvVars, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"updated": %d}`, count)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/dependencies", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

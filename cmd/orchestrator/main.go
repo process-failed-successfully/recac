@@ -159,7 +159,9 @@ func main() {
 	pflag.String("update-deps-match", "", "Update the dependencies of all pending jobs matching the given regex")
 	pflag.StringSlice("set-deps", []string{}, "Comma-separated list of new dependencies (requires --update-deps-job, --update-deps-tag, or --update-deps-match)")
 	pflag.String("update-env-job", "", "Update the environment variables of a specific pending job")
-	pflag.StringSlice("set-env", []string{}, "Comma-separated list of new environment variables (requires --update-env-job)")
+	pflag.String("update-env-tag", "", "Update the environment variables of all pending jobs with the specified tag")
+	pflag.String("update-env-match", "", "Update the environment variables of all pending jobs matching the given regex")
+	pflag.StringSlice("set-env", []string{}, "Comma-separated list of new environment variables (requires --update-env-job, --update-env-tag, or --update-env-match)")
 	pflag.String("update-tags-job", "", "Update the tags of a specific pending job")
 	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
@@ -399,6 +401,8 @@ func main() {
 	viper.BindPFlag("orchestrator.update_deps_match", pflag.Lookup("update-deps-match"))
 	viper.BindPFlag("orchestrator.set_deps", pflag.Lookup("set-deps"))
 	viper.BindPFlag("orchestrator.update_env_job", pflag.Lookup("update-env-job"))
+	viper.BindPFlag("orchestrator.update_env_tag", pflag.Lookup("update-env-tag"))
+	viper.BindPFlag("orchestrator.update_env_match", pflag.Lookup("update-env-match"))
 	viper.BindPFlag("orchestrator.set_env", pflag.Lookup("set-env"))
 	viper.BindPFlag("orchestrator.update_tags_job", pflag.Lookup("update-tags-job"))
 	viper.BindPFlag("orchestrator.set_tags", pflag.Lookup("set-tags"))
@@ -1036,7 +1040,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updateEnvJob := viper.GetString("orchestrator.update_env_job"); updateEnvJob != "" {
+	updateEnvJob := viper.GetString("orchestrator.update_env_job")
+	updateEnvTag := viper.GetString("orchestrator.update_env_tag")
+	updateEnvMatch := viper.GetString("orchestrator.update_env_match")
+
+	envFlagsSet := 0
+	if updateEnvJob != "" {
+		envFlagsSet++
+	}
+	if updateEnvTag != "" {
+		envFlagsSet++
+	}
+	if updateEnvMatch != "" {
+		envFlagsSet++
+	}
+
+	if envFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-env-job, --update-env-tag, and --update-env-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updateEnvJob != "" {
 		host := viper.GetString("orchestrator.host")
 		var setEnvSlice []string
 		if viper.IsSet("orchestrator.set_env") {
@@ -1056,6 +1081,29 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		updateEnvVars(host, updateEnvJob, envMap)
+		return nil
+	}
+
+	if updateEnvTag != "" || updateEnvMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		var setEnvSlice []string
+		if viper.IsSet("orchestrator.set_env") {
+			setEnvSlice = viper.GetStringSlice("orchestrator.set_env")
+		} else {
+			setEnvSlice = []string{}
+		}
+
+		envMap := make(map[string]string)
+		for _, pair := range setEnvSlice {
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			} else {
+				logger.Warn("Invalid environment variable format", "input", pair)
+			}
+		}
+
+		updateBulkEnvVars(host, updateEnvMatch, updateEnvTag, envMap)
 		return nil
 	}
 
