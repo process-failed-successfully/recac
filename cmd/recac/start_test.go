@@ -17,6 +17,7 @@ import (
 	"recac/internal/jira"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -187,12 +188,12 @@ func TestStartCommand_DirectTask(t *testing.T) {
 			// Simulate successful clone
 			return os.MkdirAll(directory, 0755)
 		},
-		RepoExistsFunc: func(repoPath string) bool { return true },
-		CurrentBranchFunc: func(repoPath string) (string, error) { return "main", nil },
-		ConfigFunc: func(directory, key, value string) error { return nil },
+		RepoExistsFunc:        func(repoPath string) bool { return true },
+		CurrentBranchFunc:     func(repoPath string) (string, error) { return "main", nil },
+		ConfigFunc:            func(directory, key, value string) error { return nil },
 		LocalBranchExistsFunc: func(directory, branch string) (bool, error) { return false, nil },
 		CheckoutNewBranchFunc: func(directory, branch string) error { return nil },
-		PushFunc: func(directory, branch string) error { return nil },
+		PushFunc:              func(directory, branch string) error { return nil },
 	}
 
 	// Override cmdutils.SetupWorkspace to not use the real git client if it's deeply nested, but since we mocked gitClientFactory, we need to ensure the code uses it.
@@ -228,12 +229,12 @@ func TestStartCommand_DirectTask(t *testing.T) {
 
 	// Configuration
 	cfg := SessionConfig{
-		RepoURL:     "https://github.com/example/repo.git",
-		Summary:     "Test task",
-		ProjectPath: tmpDir,
-		IsMock:      true,
+		RepoURL:       "https://github.com/example/repo.git",
+		Summary:       "Test task",
+		ProjectPath:   tmpDir,
+		IsMock:        true,
 		MaxIterations: 1,
-		SessionName: "direct-task-test",
+		SessionName:   "direct-task-test",
 	}
 
 	// Capture output
@@ -290,12 +291,12 @@ func TestStartCommand_ProcessJiraTicket(t *testing.T) {
 		CloneFunc: func(ctx context.Context, repoURL, directory string) error {
 			return os.MkdirAll(directory, 0755)
 		},
-		RepoExistsFunc: func(repoPath string) bool { return true },
-		CurrentBranchFunc: func(repoPath string) (string, error) { return "main", nil },
-		ConfigFunc: func(directory, key, value string) error { return nil },
+		RepoExistsFunc:        func(repoPath string) bool { return true },
+		CurrentBranchFunc:     func(repoPath string) (string, error) { return "main", nil },
+		ConfigFunc:            func(directory, key, value string) error { return nil },
 		LocalBranchExistsFunc: func(directory, branch string) (bool, error) { return false, nil },
 		CheckoutNewBranchFunc: func(directory, branch string) error { return nil },
-		PushFunc: func(directory, branch string) error { return nil },
+		PushFunc:              func(directory, branch string) error { return nil },
 	}
 	originalGitFactory := gitClientFactory
 	gitClientFactory = func() IGitClient {
@@ -310,9 +311,9 @@ func TestStartCommand_ProcessJiraTicket(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"key": "TEST-1",
 				"fields": map[string]interface{}{
-					"summary":     "Test ticket summary",
+					"summary": "Test ticket summary",
 					"description": map[string]interface{}{
-						"type": "doc",
+						"type":    "doc",
 						"version": 1,
 						"content": []interface{}{
 							map[string]interface{}{
@@ -347,11 +348,11 @@ func TestStartCommand_ProcessJiraTicket(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		IsMock: true,
+		ProjectPath:   tmpDir,
+		IsMock:        true,
 		MaxIterations: 1,
-		SessionName: "jira-test",
-		Cleanup: false,
+		SessionName:   "jira-test",
+		Cleanup:       false,
 	}
 	processJiraTicket(ctx, "TEST-1", jClient, cfg, make(map[string]bool))
 
@@ -401,11 +402,11 @@ func TestStartCommand_ProcessJiraTicketBlocked(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"key": "TEST-BLOCKED",
 				"fields": map[string]interface{}{
-					"summary":     "Test ticket summary",
+					"summary": "Test ticket summary",
 					"issuelinks": []interface{}{
 						map[string]interface{}{
 							"type": map[string]interface{}{
-								"name": "Blocks",
+								"name":   "Blocks",
 								"inward": "is blocked by",
 							},
 							"inwardIssue": map[string]interface{}{
@@ -433,11 +434,11 @@ func TestStartCommand_ProcessJiraTicketBlocked(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		IsMock: true,
+		ProjectPath:   tmpDir,
+		IsMock:        true,
 		MaxIterations: 1,
-		SessionName: "jira-test-blocked",
-		Cleanup: false,
+		SessionName:   "jira-test-blocked",
+		Cleanup:       false,
 	}
 	// processJiraTicket will return early due to blocker. We can verify no app_spec.txt is created
 	processJiraTicket(ctx, "TEST-BLOCKED", jClient, cfg, make(map[string]bool))
@@ -477,11 +478,11 @@ func TestRunWorkflow(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		IsMock: true,
+		ProjectPath:   tmpDir,
+		IsMock:        true,
 		MaxIterations: 1,
-		SessionName: "workflow-test",
-		Cleanup: false,
+		SessionName:   "workflow-test",
+		Cleanup:       false,
 	}
 	err := runWorkflow(ctx, cfg)
 	if err != nil && err.Error() != "maximum iterations reached" {
@@ -504,12 +505,12 @@ func TestRunWorkflow_Detached(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		IsMock: true,
+		ProjectPath:   tmpDir,
+		IsMock:        true,
 		MaxIterations: 1,
-		SessionName: "workflow-detached-test",
-		Detached: true,
-		Cleanup: false,
+		SessionName:   "workflow-detached-test",
+		Detached:      true,
+		Cleanup:       false,
 	}
 	err := runWorkflow(ctx, cfg)
 	assert.NoError(t, err)
@@ -538,12 +539,12 @@ func TestRunWorkflow_StartSHA(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		IsMock: true,
+		ProjectPath:   tmpDir,
+		IsMock:        true,
 		MaxIterations: 1,
-		SessionName: "workflow-sha-test",
-		Detached: true,
-		Cleanup: false,
+		SessionName:   "workflow-sha-test",
+		Detached:      true,
+		Cleanup:       false,
 	}
 	err := runWorkflow(ctx, cfg)
 	assert.NoError(t, err)
@@ -558,7 +559,7 @@ func TestRunWorkflow_MissingNameDetached(t *testing.T) {
 	ctx := context.Background()
 	cfg := SessionConfig{
 		ProjectPath: tmpDir,
-		Detached: true,
+		Detached:    true,
 		SessionName: "",
 	}
 	err := runWorkflow(ctx, cfg)
@@ -589,16 +590,72 @@ func TestRunWorkflow_NormalMode(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		IsMock: false, // Normal mode
+		ProjectPath:   tmpDir,
+		IsMock:        false, // Normal mode
 		MaxIterations: 1,
-		SessionName: "workflow-normal-test",
-		AllowDirty: true,
-		Cleanup: false,
+		SessionName:   "workflow-normal-test",
+		AllowDirty:    true,
+		Cleanup:       false,
 	}
 	err := runWorkflow(ctx, cfg)
 	if err != nil && err.Error() != "maximum iterations reached" && !strings.Contains(err.Error(), "maximum iterations reached") && !strings.Contains(err.Error(), "failed to create container") && !strings.Contains(err.Error(), "failed to start container") {
 		// Log but don't fail, might just hit the iteration limit, context cancel, or a mock container setup failure not critical to logic coverage
 		t.Logf("Unexpected error: %v", err)
 	}
+}
+
+func TestProcessDirectTask(t *testing.T) {
+	// Mock Git client
+	mockGit := &MockGitClient{
+		CloneFunc: func(ctx context.Context, repoURL, directory string) error {
+			return os.MkdirAll(directory, 0755)
+		},
+		RepoExistsFunc:        func(repoPath string) bool { return true },
+		CurrentBranchFunc:     func(repoPath string) (string, error) { return "main", nil },
+		ConfigFunc:            func(directory, key, value string) error { return nil },
+		LocalBranchExistsFunc: func(directory, branch string) (bool, error) { return false, nil },
+		CheckoutNewBranchFunc: func(directory, branch string) error { return nil },
+		PushFunc:              func(directory, branch string) error { return nil },
+	}
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	// Mock agentClientFactory to prevent any AI calls in runWorkflow
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		mockAgent := new(MockAgent)
+		mockAgent.On("Send", mock.Anything, mock.Anything).Return("Mock completion", nil)
+		mockAgent.On("SendStream", mock.Anything, mock.Anything, mock.Anything).Return("Mock completion", nil)
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// We create a mock config to test the task creation
+	cfg := SessionConfig{
+		SessionName: "test-direct",
+		RepoURL:     "http://example.com/repo",
+		Summary:     "Test Summary",
+		Description: "Test Description",
+	}
+
+	// This function creates a temp dir if cfg.ProjectPath is empty
+	processDirectTask(context.Background(), cfg)
+
+	// We cannot directly read the cfg.ProjectPath after calling processDirectTask because it uses a passed-by-value config.
+	// We should set cfg.ProjectPath beforehand or check temp dirs.
+	// Since setting cfg.ProjectPath makes it skip MkdirTemp, we test by setting it beforehand.
+	tmpDir := t.TempDir()
+	cfg.ProjectPath = tmpDir
+
+	processDirectTask(context.Background(), cfg)
+
+	// Now check if app_spec.txt is created
+	specContent, err := os.ReadFile(filepath.Join(tmpDir, "app_spec.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(specContent), "# Task Summary: Test Summary")
+	assert.Contains(t, string(specContent), "Test Description")
 }

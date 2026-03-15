@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"testing"
 
 	"recac/internal/orchestrator"
@@ -2072,7 +2074,6 @@ func TestEditJob_ConnectionErrorPUT(t *testing.T) {
 		}
 	}))
 
-
 	oldStdout := stdout
 	pr, pw, _ := os.Pipe()
 	stdout = pw
@@ -2432,4 +2433,105 @@ func TestRetryEditJob_Success(t *testing.T) {
 
 	assert.Contains(t, string(out), "Job MY-JOB-retry submitted successfully.")
 	assert.Equal(t, 0, exitCode)
+}
+
+func TestRenameJob_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/JOB-123/rename", r.URL.Path)
+		assert.Equal(t, http.MethodPut, r.Method)
+
+		body, _ := io.ReadAll(r.Body)
+		assert.Contains(t, string(body), `{"new_id": "NEW-JOB-123"}`)
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	renameJob(server.URL, "JOB-123", "NEW-JOB-123")
+
+	assert.Contains(t, buf.String(), "Job JOB-123 renamed successfully to NEW-JOB-123")
+}
+
+func TestRenameJob_Failure(t *testing.T) {
+	if os.Getenv("CRASH_TEST") == "1" {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal error"))
+		}))
+		defer server.Close()
+
+		// Temporarily replace exitFunc to just print and exit 1
+		exitFunc = func(code int) {
+			os.Exit(code)
+		}
+
+		renameJob(server.URL, "JOB-123", "NEW-JOB-123")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestRenameJob_Failure")
+	cmd.Env = append(os.Environ(), "CRASH_TEST=1")
+
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		assert.Contains(t, stdoutBuf.String(), "Failed to rename job: internal error")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestSkipJob_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/JOB-123/skip", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	skipJob(server.URL, "JOB-123")
+
+	assert.Contains(t, buf.String(), "Job JOB-123 skipped successfully")
+}
+
+func TestSkipJob_Failure(t *testing.T) {
+	if os.Getenv("CRASH_TEST") == "1" {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal error"))
+		}))
+		defer server.Close()
+
+		exitFunc = func(code int) {
+			os.Exit(code)
+		}
+
+		skipJob(server.URL, "JOB-123")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestSkipJob_Failure")
+	cmd.Env = append(os.Environ(), "CRASH_TEST=1")
+
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		assert.Contains(t, stdoutBuf.String(), "Failed to skip job: internal error")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
 }
