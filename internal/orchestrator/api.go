@@ -857,19 +857,40 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 	mux.HandleFunc("POST /jobs/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
+		downstream := r.URL.Query().Get("downstream") == "true"
+
 		// Use r.Context() but ensure logger is available
-		if err := orch.RetryJob(r.Context(), id, logger); err != nil {
-			if strings.Contains(err.Error(), "already active") {
-				http.Error(w, err.Error(), http.StatusConflict)
-			} else if strings.Contains(err.Error(), "not found") {
-				http.Error(w, err.Error(), http.StatusNotFound)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+		if downstream {
+			retriedJobs, err := orch.RetryJobDownstream(r.Context(), id, logger)
+			if err != nil {
+				if strings.Contains(err.Error(), "active") || strings.Contains(err.Error(), "pending") {
+					http.Error(w, err.Error(), http.StatusConflict)
+				} else if strings.Contains(err.Error(), "not found") {
+					http.Error(w, err.Error(), http.StatusNotFound)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
 			}
-			return
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{"retried_jobs": retriedJobs}); err != nil {
+				logger.Error("Failed to encode retried jobs response", "error", err)
+			}
+		} else {
+			if err := orch.RetryJob(r.Context(), id, logger); err != nil {
+				if strings.Contains(err.Error(), "already active") {
+					http.Error(w, err.Error(), http.StatusConflict)
+				} else if strings.Contains(err.Error(), "not found") {
+					http.Error(w, err.Error(), http.StatusNotFound)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+			w.WriteHeader(http.StatusAccepted)
+			fmt.Fprintf(w, "Job %s retry submitted", id)
 		}
-		w.WriteHeader(http.StatusAccepted)
-		fmt.Fprintf(w, "Job %s retry submitted", id)
 	})
 
 	mux.HandleFunc("POST /jobs/{id}/approve", func(w http.ResponseWriter, r *http.Request) {

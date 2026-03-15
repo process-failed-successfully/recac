@@ -117,6 +117,7 @@ func main() {
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
+	pflag.Bool("downstream", false, "Retry the job and all its downstream dependencies (with --retry-job)")
 	pflag.String("retry-edit-job", "", "Interactively edit and retry a failed job by ID")
 	pflag.String("clone-job", "", "Clone an existing job by ID")
 	pflag.String("clone-match", "", "Clone all jobs matching the given regex")
@@ -356,6 +357,7 @@ func main() {
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
+	viper.BindPFlag("orchestrator.downstream", pflag.Lookup("downstream"))
 	viper.BindPFlag("orchestrator.retry_edit_job", pflag.Lookup("retry-edit-job"))
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
 	viper.BindPFlag("orchestrator.clone_match", pflag.Lookup("clone-match"))
@@ -751,7 +753,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if jobID := viper.GetString("orchestrator.retry_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
-		retryJob(host, jobID)
+		downstream := viper.GetBool("orchestrator.downstream")
+		retryJob(host, jobID, downstream)
 		return nil
 	}
 
@@ -2172,8 +2175,13 @@ func scaleConcurrency(host string, max int) {
 	fmt.Fprintf(stdout, "Orchestrator concurrency limit scaled to %d.\n", max)
 }
 
-func retryJob(host, jobID string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, jobID), nil)
+func retryJob(host, jobID string, downstream bool) {
+	url := fmt.Sprintf("%s/jobs/%s/retry", host, jobID)
+	if downstream {
+		url += "?downstream=true"
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
 		exitFunc(1)
@@ -2195,7 +2203,22 @@ func retryJob(host, jobID string) {
 		return
 	}
 
-	fmt.Fprintf(stdout, "Job %s retry submitted successfully.\n", jobID)
+	if downstream {
+		var result struct {
+			RetriedJobs []string `json:"retried_jobs"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+			exitFunc(1)
+			return
+		}
+		fmt.Fprintf(stdout, "Job %s and its downstream dependencies retried successfully.\n", jobID)
+		if len(result.RetriedJobs) > 0 {
+			fmt.Fprintf(stdout, "Retried jobs: %s\n", strings.Join(result.RetriedJobs, ", "))
+		}
+	} else {
+		fmt.Fprintf(stdout, "Job %s retry submitted successfully.\n", jobID)
+	}
 }
 
 func retryFailedJobs(host, match string, tag string) {

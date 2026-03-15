@@ -428,10 +428,29 @@ func TestRetryJob(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		retryJob(server.URL, "job-1")
+		retryJob(server.URL, "job-1", false)
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "retry submitted")
+	})
+
+	t.Run("Success Downstream", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/jobs/job-1/retry", r.URL.Path)
+			assert.Equal(t, "true", r.URL.Query().Get("downstream"))
+			w.WriteHeader(http.StatusAccepted)
+			fmt.Fprint(w, `{"retried_jobs": ["job-1", "job-2"]}`)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		retryJob(server.URL, "job-1", true)
+
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "Job job-1 and its downstream dependencies retried successfully.")
+		assert.Contains(t, buf.String(), "job-1, job-2")
 	})
 
 	t.Run("Failure", func(t *testing.T) {
@@ -442,7 +461,7 @@ func TestRetryJob(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		retryJob(server.URL, "job-1")
+		retryJob(server.URL, "job-1", false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to retry job")
 	})
@@ -450,7 +469,7 @@ func TestRetryJob(t *testing.T) {
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		retryJob("http://invalid-host", "job-1")
+		retryJob("http://invalid-host", "job-1", false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})
