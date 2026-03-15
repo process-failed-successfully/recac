@@ -105,7 +105,14 @@ func runProxy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(cmd.OutOrStdout(), "Press Ctrl+C to stop recording and save.")
 
 	// Start Server
-	server := &http.Server{Addr: addr, Handler: proxy}
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           proxy,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 
 	// Handle graceful shutdown on interrupt is usually handled by main's signal handling,
 	// but here we are blocking. To allow saving on Ctrl-C, we need to handle signals or defer save?
