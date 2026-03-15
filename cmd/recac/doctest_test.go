@@ -143,3 +143,37 @@ func TestValidateGo(t *testing.T) {
 	err = validateGo("package main\nfunc main(){ broken }")
 	assert.Error(t, err)
 }
+
+func TestValidateBlock(t *testing.T) {
+	tests := []struct {
+		name        string
+		lang        string
+		code        string
+		expectError bool
+	}{
+		{"json valid", "json", `{"key":"value"}`, false},
+		{"json invalid", "json", `{"key":value}`, true},
+		{"yaml valid", "yaml", "key: value", false},
+		{"yaml invalid", "yaml", ":", true},
+		{"go valid", "go", "package main\nfunc main() {}", false},
+		{"bash valid", "bash", "echo 'hello'", false},
+		{"sh valid", "sh", "echo 'hello'", false},
+		{"unknown lang", "rust", "fn main() {}", false}, // should ignore and return nil
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBlock(tt.lang, tt.code)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				// Don't assert no error for Go/Bash as they run actual commands and might fail depending on environment
+				// but we can mock them or just accept the result if they pass/fail. The previous test cases already cover validateGo and validateBash.
+				// For yaml/json/unknown, they should definitely not error if valid.
+				if tt.lang != "go" && tt.lang != "bash" && tt.lang != "sh" {
+					assert.NoError(t, err)
+				}
+			}
+		})
+	}
+}

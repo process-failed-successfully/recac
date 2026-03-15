@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+	"bufio"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -199,4 +201,33 @@ echo "runbook test"
 	// Relax string check to partial match
 	assert.Contains(t, outBuf.String(), "Running runbook")
 	// assert.Contains(t, outBuf.String(), "Step completed")
+}
+
+func TestPromptUser(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"y\n", "y"},
+		{"yes\n", "y"},
+		{"Y\n", "y"},
+		{"n\n", "n"},
+		{"no\n", "n"},
+		{"q\n", "q"},
+		{"quit\n", "q"},
+		{"invalid\ny\n", "y"}, // should retry until valid
+	}
+
+	for _, tt := range tests {
+		t.Run(strings.TrimSpace(tt.input), func(t *testing.T) {
+			reader := bufio.NewReader(strings.NewReader(tt.input))
+			cmd := &cobra.Command{}
+			var buf bytes.Buffer
+			cmd.SetOut(&buf)
+
+			result, err := promptUser(cmd, reader)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

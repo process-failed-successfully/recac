@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"github.com/stretchr/testify/assert"
 	"time"
 
 	"recac/internal/agent"
@@ -520,4 +521,26 @@ func TestRunProxyGenerationErrors(t *testing.T) {
 			t.Errorf("expected success, got: %v", err)
 		}
 	})
+}
+
+func TestRunProxy_Errors(t *testing.T) {
+	// target is required
+	proxyTarget = ""
+	proxyGenerate = false
+	err := runProxy(proxyCmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--target is required")
+
+	// invalid target
+	proxyTarget = "http://[::1]:namedport" // invalid port
+	err = runProxy(proxyCmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid target URL")
+
+	// Generation without file
+	proxyTarget = ""
+	proxyGenerate = true
+	proxyRecordFile = "nonexistent_file.jsonl"
+	err = runProxy(proxyCmd, []string{})
+	assert.Error(t, err) // since file does not exist
 }

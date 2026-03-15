@@ -115,3 +115,25 @@ func TestTreeCmd_Sort(t *testing.T) {
 	idxSmall := strings.Index(output, "small.txt")
 	assert.Less(t, idxLarge, idxSmall, "large.txt should appear before small.txt when sorted by size")
 }
+
+func TestFormatSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		bytes    int64
+		expected string
+	}{
+		{"bytes", 500, "500B"},
+		{"kilobytes", 1500, "1.5K"},
+		{"megabytes", 1024 * 1024 * 2, "2.0M"},
+		{"gigabytes", 1024 * 1024 * 1024 * 3, "3.0G"},
+		{"terabytes", 1024 * 1024 * 1024 * 1024 * 4, "4.0T"},
+		{"petabytes", 1024 * 1024 * 1024 * 1024 * 1024 * 5, "5.0P"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatSize(tt.bytes)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
