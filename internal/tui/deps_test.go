@@ -137,3 +137,7 @@ func TestDepsModel_RenderInstabilityBar(t *testing.T) {
 	assert.Contains(t, renderInstabilityBar(0.8, 10), "█")
 	assert.Contains(t, renderInstabilityBar(0.4, 10), "█")
 }
+
+func TestStartDeps_Success(t *testing.T) {
+	// Dummy test
+}

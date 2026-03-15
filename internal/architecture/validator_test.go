@@ -276,3 +276,11 @@ func TestNewValidator(t *testing.T) {
 		t.Error("NewValidator(nil) did not default to RealFileSystem")
 	}
 }
+
+func TestRealFileSystem_Stat(t *testing.T) {
+	fs := RealFileSystem{}
+	_, err := fs.Stat("validator.go")
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}

@@ -101,3 +101,15 @@ func TestVerifier_Verify(t *testing.T) {
 		}
 	})
 }
+
+func TestViolation_String(t *testing.T) {
+	v := Violation{
+		SourceComponent: "src",
+		TargetComponent: "tgt",
+		Message:         "msg",
+	}
+	expected := "[src -> tgt] msg"
+	if v.String() != expected {
+		t.Errorf("expected %s, got %s", expected, v.String())
+	}
+}
