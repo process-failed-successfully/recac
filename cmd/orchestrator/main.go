@@ -213,6 +213,7 @@ func main() {
 	pflag.String("export-pipeline", "", "Export active and pending jobs as a pipeline YAML (use '-' for stdout)")
 	pflag.String("export-graph", "", "Export the job dependency graph (use '-' for stdout)")
 	pflag.String("export-graph-format", "mermaid", "Format for exported graph ('mermaid' or 'dot')")
+	pflag.String("compare-jobs", "", "Compare two jobs by providing their IDs comma-separated (e.g., job1,job2)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -459,6 +460,7 @@ func main() {
 	viper.BindPFlag("orchestrator.export_pipeline", pflag.Lookup("export-pipeline"))
 	viper.BindPFlag("orchestrator.export_graph", pflag.Lookup("export-graph"))
 	viper.BindPFlag("orchestrator.export_graph_format", pflag.Lookup("export-graph-format"))
+	viper.BindPFlag("orchestrator.compare_jobs", pflag.Lookup("compare-jobs"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -1305,6 +1307,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.export_graph_format")
 		exportGraph(host, exportGraphFile, format)
+		return nil
+	}
+
+	if compareJobsIDs := viper.GetString("orchestrator.compare_jobs"); compareJobsIDs != "" {
+		host := viper.GetString("orchestrator.host")
+		compareJobs(host, compareJobsIDs)
 		return nil
 	}
 
