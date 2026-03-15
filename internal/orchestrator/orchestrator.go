@@ -1473,6 +1473,103 @@ func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.
 	return o.processWorkItem(ctx, workItem, 0, logger)
 }
 
+// RetryJobDownstream resubmits a completed job and all its transitive downstream dependencies.
+func (o *Orchestrator) RetryJobDownstream(ctx context.Context, jobID string, logger *slog.Logger) ([]string, error) {
+	o.mu.RLock()
+
+	// 1. Verify the root job is not currently active or pending
+	if _, active := o.activeJobs[jobID]; active {
+		o.mu.RUnlock()
+		return nil, fmt.Errorf("job %s is active", jobID)
+	}
+	if _, pending := o.pendingJobs[jobID]; pending {
+		o.mu.RUnlock()
+		return nil, fmt.Errorf("job %s is pending", jobID)
+	}
+
+	// 2. Fetch all completed jobs from memory and persistence to build the graph
+	var allCompleted []JobInfo
+	if o.Persistence != nil {
+		if pJobs, err := o.Persistence.GetJobs(10000); err == nil {
+			allCompleted = pJobs
+		} else {
+			allCompleted = o.completedJobs
+		}
+	} else {
+		allCompleted = make([]JobInfo, len(o.completedJobs))
+		copy(allCompleted, o.completedJobs)
+	}
+
+	// 3. Build adjacency list for downstream dependencies (job -> jobs that depend on it)
+	// and map of ID to WorkItem for fast lookup
+	downstreamMap := make(map[string][]string)
+	workItemMap := make(map[string]WorkItem)
+	foundRoot := false
+
+	for _, job := range allCompleted {
+		workItemMap[job.ID] = job.WorkItem
+		if job.ID == jobID {
+			foundRoot = true
+		}
+		for _, dep := range job.WorkItem.DependsOn {
+			downstreamMap[dep] = append(downstreamMap[dep], job.ID)
+		}
+	}
+
+	if !foundRoot {
+		o.mu.RUnlock()
+		return nil, fmt.Errorf("job %s not found in history", jobID)
+	}
+
+	// 4. Find all transitive downstream jobs using BFS
+	visited := make(map[string]bool)
+	queue := []string{jobID}
+	var jobsToRetry []WorkItem
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		if visited[curr] {
+			continue
+		}
+		visited[curr] = true
+
+		// Add to retry list if not active/pending
+		_, active := o.activeJobs[curr]
+		_, pending := o.pendingJobs[curr]
+		if !active && !pending {
+			if item, exists := workItemMap[curr]; exists {
+				jobsToRetry = append(jobsToRetry, item)
+			}
+		}
+
+		// Enqueue downstream dependents
+		if dependents, hasDependents := downstreamMap[curr]; hasDependents {
+			queue = append(queue, dependents...)
+		}
+	}
+
+	o.mu.RUnlock()
+
+	// 5. Resubmit all found jobs
+	var retriedIDs []string
+	for _, item := range jobsToRetry {
+		if logger != nil {
+			logger.Info("Retrying job downstream", "id", item.ID, "root", jobID)
+		}
+		if err := o.processWorkItem(ctx, item, 0, logger); err == nil {
+			retriedIDs = append(retriedIDs, item.ID)
+		} else {
+			if logger != nil {
+				logger.Error("Failed to retry job downstream", "id", item.ID, "error", err)
+			}
+		}
+	}
+
+	return retriedIDs, nil
+}
+
 // RetryFailedJobs resubmits all failed jobs from history.
 func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag string, logger *slog.Logger) (int, error) {
 	var matcher *regexp.Regexp
