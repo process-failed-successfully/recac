@@ -80,3 +80,81 @@ func TestUpdateTags_Error(t *testing.T) {
 	assert.Contains(t, output, "job TEST-123 not found")
 	assert.True(t, exitCalled)
 }
+
+func TestUpdateBulkTags(t *testing.T) {
+	t.Run("UpdateTagsByTag_Success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/tags", r.URL.Path)
+			assert.Equal(t, "tag1", r.URL.Query().Get("tag"))
+			assert.Equal(t, http.MethodPut, r.Method)
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"updated": 2}`))
+		}))
+		defer server.Close()
+
+		var stdoutBuf bytes.Buffer
+		stdout = &stdoutBuf
+
+		oldExit := exitFunc
+		defer func() { exitFunc = oldExit }()
+		exitFunc = func(code int) {
+			t.Fatalf("unexpected exit: %d", code)
+		}
+
+		updateBulkTags(server.URL, "", "tag1", []string{"newtag"})
+
+		output := stdoutBuf.String()
+		assert.Contains(t, output, "Successfully updated tags for 2 pending jobs")
+	})
+
+	t.Run("UpdateTagsByMatch_Success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/tags", r.URL.Path)
+			assert.Equal(t, "regex", r.URL.Query().Get("match"))
+			assert.Equal(t, http.MethodPut, r.Method)
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"updated": 1}`))
+		}))
+		defer server.Close()
+
+		var stdoutBuf bytes.Buffer
+		stdout = &stdoutBuf
+
+		oldExit := exitFunc
+		defer func() { exitFunc = oldExit }()
+		exitFunc = func(code int) {
+			t.Fatalf("unexpected exit: %d", code)
+		}
+
+		updateBulkTags(server.URL, "regex", "", []string{"newtag"})
+
+		output := stdoutBuf.String()
+		assert.Contains(t, output, "Successfully updated tags for 1 pending jobs")
+	})
+
+	t.Run("ServerError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "server error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		var stdoutBuf bytes.Buffer
+		stdout = &stdoutBuf
+
+		exited := false
+		oldExit := exitFunc
+		defer func() { exitFunc = oldExit }()
+		exitFunc = func(code int) {
+			exited = true
+			assert.Equal(t, 1, code)
+		}
+
+		updateBulkTags(server.URL, "regex", "", []string{"newtag"})
+
+		assert.True(t, exited)
+		output := stdoutBuf.String()
+		assert.Contains(t, output, "Failed to update bulk tags:")
+	})
+}

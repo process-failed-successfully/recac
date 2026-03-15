@@ -163,7 +163,9 @@ func main() {
 	pflag.String("update-env-match", "", "Update the environment variables of all pending jobs matching the given regex")
 	pflag.StringSlice("set-env", []string{}, "Comma-separated list of new environment variables (requires --update-env-job, --update-env-tag, or --update-env-match)")
 	pflag.String("update-tags-job", "", "Update the tags of a specific pending job")
-	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job)")
+	pflag.String("update-tags-tag", "", "Update the tags of all pending jobs with the specified tag")
+	pflag.String("update-tags-match", "", "Update the tags of all pending jobs matching the given regex")
+	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job, --update-tags-tag, or --update-tags-match)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("wait-tag", "", "Wait for all jobs with a specific tag to complete")
 	pflag.String("wait-match", "", "Wait for all jobs matching a regex to complete")
@@ -405,6 +407,8 @@ func main() {
 	viper.BindPFlag("orchestrator.update_env_match", pflag.Lookup("update-env-match"))
 	viper.BindPFlag("orchestrator.set_env", pflag.Lookup("set-env"))
 	viper.BindPFlag("orchestrator.update_tags_job", pflag.Lookup("update-tags-job"))
+	viper.BindPFlag("orchestrator.update_tags_tag", pflag.Lookup("update-tags-tag"))
+	viper.BindPFlag("orchestrator.update_tags_match", pflag.Lookup("update-tags-match"))
 	viper.BindPFlag("orchestrator.set_tags", pflag.Lookup("set-tags"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.wait_tag", pflag.Lookup("wait-tag"))
@@ -1107,7 +1111,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updateTagsJob := viper.GetString("orchestrator.update_tags_job"); updateTagsJob != "" {
+	updateTagsJob := viper.GetString("orchestrator.update_tags_job")
+	updateTagsTag := viper.GetString("orchestrator.update_tags_tag")
+	updateTagsMatch := viper.GetString("orchestrator.update_tags_match")
+
+	tagsFlagsSet := 0
+	if updateTagsJob != "" {
+		tagsFlagsSet++
+	}
+	if updateTagsTag != "" {
+		tagsFlagsSet++
+	}
+	if updateTagsMatch != "" {
+		tagsFlagsSet++
+	}
+
+	if tagsFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-tags-job, --update-tags-tag, and --update-tags-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updateTagsJob != "" {
 		host := viper.GetString("orchestrator.host")
 		var setTagsPtr []string
 		if viper.IsSet("orchestrator.set_tags") {
@@ -1116,6 +1141,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			setTagsPtr = []string{}
 		}
 		updateTags(host, updateTagsJob, setTagsPtr)
+		return nil
+	}
+
+	if updateTagsTag != "" || updateTagsMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		var setTagsPtr []string
+		if viper.IsSet("orchestrator.set_tags") {
+			setTagsPtr = viper.GetStringSlice("orchestrator.set_tags")
+		} else {
+			setTagsPtr = []string{}
+		}
+		updateBulkTags(host, updateTagsMatch, updateTagsTag, setTagsPtr)
 		return nil
 	}
 
