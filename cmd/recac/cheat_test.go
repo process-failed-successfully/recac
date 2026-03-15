@@ -101,25 +101,79 @@ func TestCheatCmd(t *testing.T) {
 	})
 
 	t.Run("Context Detection", func(t *testing.T) {
-		// Create a go.mod file
-		if err := os.WriteFile("go.mod", []byte("module test"), 0644); err != nil {
+		contexts := map[string]string{
+			"go.mod":           "go",
+			"package.json":     "javascript",
+			"requirements.txt": "python",
+			"Cargo.toml":       "rust",
+			"Dockerfile":       "docker",
+			"Makefile":         "make",
+			"pom.xml":          "maven",
+			"build.gradle":     "gradle",
+			"main.tf":          "terraform",
+		}
+
+		for file, expectedCtx := range contexts {
+			t.Run(file, func(t *testing.T) {
+				if err := os.WriteFile(file, []byte("test"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				defer os.Remove(file)
+
+				cmd := cheatCmd
+				buf := new(bytes.Buffer)
+				cmd.SetOut(buf)
+
+				// Run without args
+				err := runCheat(cmd, []string{})
+				assert.NoError(t, err)
+				assert.Contains(t, buf.String(), "Detected context: "+expectedCtx)
+			})
+		}
+	})
+
+	t.Run("Context Detection Error", func(t *testing.T) {
+		// Skip on Windows or as root where permissions might not prevent reading
+		if os.Getuid() == 0 || os.PathSeparator == '\\' {
+			t.Skip("Skipping on root/Windows due to permission differences")
+		}
+
+		// Make current dir unreadable
+		tmpDir := t.TempDir()
+		unreadableDir := tmpDir + "/unreadable"
+		if err := os.Mkdir(unreadableDir, 0755); err != nil {
 			t.Fatal(err)
 		}
-		defer os.Remove("go.mod")
+
+		cwd, _ := os.Getwd()
+		defer os.Chdir(cwd)
+		if err := os.Chdir(unreadableDir); err != nil {
+			t.Fatalf("failed to change dir: %v", err)
+		}
+
+		// Now make it unreadable
+		if err := os.Chmod(".", 0000); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(".", 0755)
 
 		cmd := cheatCmd
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		// Run without args
 		err := runCheat(cmd, []string{})
-		assert.NoError(t, err)
-		assert.Contains(t, buf.String(), "Detected context: go")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to detect context")
 	})
 
 	t.Run("No Context No Args", func(t *testing.T) {
-		// Ensure empty dir
-		os.Remove("go.mod")
+		// Ensure empty dir by going to a new temp dir
+		emptyDir := t.TempDir()
+		cwd, _ := os.Getwd()
+		defer os.Chdir(cwd)
+		if err := os.Chdir(emptyDir); err != nil {
+			t.Fatalf("failed to change dir: %v", err)
+		}
 
 		cmd := cheatCmd
 		buf := new(bytes.Buffer)

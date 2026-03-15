@@ -88,8 +88,63 @@ func TestRegisterAliasCommands(t *testing.T) {
 	assert.Equal(t, "testalias", cmd.Name())
 	assert.Equal(t, "Alias for 'version'", cmd.Short)
 
+	// Verify executing alias works
+	// We don't need to actually test command output here if it's printing to
+	// standard out rather than cobra's OutOrStdout, just testing execution works
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"testalias"})
+	err = rootCmd.Execute()
+	assert.NoError(t, err)
+
 	// Clean up: remove the command to avoid polluting other tests
 	rootCmd.RemoveCommand(cmd)
+}
+
+func TestRegisterAliasCommands_Invalid(t *testing.T) {
+	viper.Reset()
+	// An alias with an unclosed quote to fail shellquote.Split
+	viper.Set("aliases", map[string]string{
+		"badalias": "echo 'unclosed",
+	})
+
+	registerAliasCommands()
+
+	cmd, _, err := rootCmd.Find([]string{"badalias"})
+	assert.NoError(t, err)
+
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"badalias"})
+	err = rootCmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid alias configuration for 'badalias'")
+
+	rootCmd.RemoveCommand(cmd)
+}
+
+func TestRegisterAliasCommands_OverrideSkip(t *testing.T) {
+	viper.Reset()
+	// Try to register an alias over an existing command, e.g., 'version'
+	viper.Set("aliases", map[string]string{
+		"version": "echo fake",
+	})
+
+	registerAliasCommands()
+
+	_, _, err := rootCmd.Find([]string{"version"})
+	assert.NoError(t, err)
+
+	// Verify it's still the original version command, not our alias
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"version"})
+	err = rootCmd.Execute()
+	assert.NoError(t, err)
+	assert.NotContains(t, buf.String(), "fake") // It should run the real version command
 }
 
 func TestCannotOverrideBuiltin(t *testing.T) {
