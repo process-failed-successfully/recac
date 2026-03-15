@@ -2435,6 +2435,140 @@ func TestRetryEditJob_Success(t *testing.T) {
 	assert.Equal(t, 0, exitCode)
 }
 
+func TestRetryEditJob_ConnectionErrorPOST(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/jobs/MY-JOB" {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Failed",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		} else {
+			// hijack connection on POST to simulate error
+			if hj, ok := w.(http.Hijacker); ok {
+				conn, _, _ := hj.Hijack()
+				conn.Close()
+			}
+		}
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	retryEditJob(server.URL, "MY-JOB", false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator at")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestRetryEditJob_ErrorResponsePOST(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/jobs/MY-JOB" {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Failed",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		} else if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("invalid request"))
+		}
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	retryEditJob(server.URL, "MY-JOB", false)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to submit retried job: invalid request")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestRetryEditJob_WaitError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/jobs/MY-JOB" {
+			w.WriteHeader(http.StatusOK)
+			job := orchestrator.JobInfo{
+				Status: "Failed",
+				WorkItem: orchestrator.WorkItem{
+					ID:      "MY-JOB",
+					Summary: "Original Summary",
+				},
+			}
+			json.NewEncoder(w).Encode(job)
+		} else if r.Method == http.MethodPost && r.URL.Path == "/jobs" {
+			w.WriteHeader(http.StatusAccepted)
+		} else if r.Method == http.MethodGet && r.URL.Path == "/jobs/MY-JOB-retry" {
+			callCount++
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": "Failed", "error": "test failure"}`))
+		}
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+
+	retryEditJob(server.URL, "MY-JOB", true)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Job failed: job failed with error: test failure")
+	assert.Equal(t, 1, exitCode)
+	assert.Greater(t, callCount, 0)
+}
+
 func TestRenameJob_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/jobs/JOB-123/rename", r.URL.Path)

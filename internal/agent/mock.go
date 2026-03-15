@@ -11,6 +11,7 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	forcedError    error
 }
 
 // NewMockAgent creates a new mock agent
@@ -25,9 +26,17 @@ func (m *MockAgent) SetResponse(response string) {
 	m.forcedResponse = response
 }
 
+// SetError forces a specific error from the agent
+func (m *MockAgent) SetError(err error) {
+	m.forcedError = err
+}
+
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	if m.forcedError != nil {
+		return "", m.forcedError
+	}
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}

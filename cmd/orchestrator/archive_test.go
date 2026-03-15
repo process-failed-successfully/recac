@@ -71,6 +71,32 @@ func TestArchiveJob_CLI(t *testing.T) {
 		assert.Equal(t, 1, exitCode)
 	})
 
+	t.Run("Connection Error", func(t *testing.T) {
+		archiveJob("http://invalid-url:12345", "JOB-123", "")
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("MkdirAll Error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a file where the directory should be
+		filePath := filepath.Join(tmpDir, "file_as_dir")
+		os.WriteFile(filePath, []byte("test"), 0644)
+		outPath := filepath.Join(filePath, "custom.tar.gz")
+
+		archiveJob(mockServer.URL, "JOB-123", outPath)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Create File Error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a directory where the file should be
+		outPath := filepath.Join(tmpDir, "custom.tar.gz")
+		os.Mkdir(outPath, 0755)
+
+		archiveJob(mockServer.URL, "JOB-123", outPath)
+		assert.Equal(t, 1, exitCode)
+	})
+
 	pw.Close()
 	io.ReadAll(pr) // clear stdout buffer
 }
@@ -129,6 +155,32 @@ func TestArchiveBulkJobs_CLI(t *testing.T) {
 
 	t.Run("API Error", func(t *testing.T) {
 		archiveBulkJobs(mockServer.URL, "not-found", "", "", "")
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Connection Error", func(t *testing.T) {
+		archiveBulkJobs("http://invalid-url:12345", "mytag", "", "", "")
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("MkdirAll Error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a file where the directory should be
+		filePath := filepath.Join(tmpDir, "file_as_dir")
+		os.WriteFile(filePath, []byte("test"), 0644)
+		outPath := filepath.Join(filePath, "custom.tar.gz")
+
+		archiveBulkJobs(mockServer.URL, "mytag", "", "", outPath)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Create File Error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a directory where the file should be
+		outPath := filepath.Join(tmpDir, "custom.tar.gz")
+		os.Mkdir(outPath, 0755)
+
+		archiveBulkJobs(mockServer.URL, "mytag", "", "", outPath)
 		assert.Equal(t, 1, exitCode)
 	})
 
