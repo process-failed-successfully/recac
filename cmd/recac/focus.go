@@ -123,12 +123,15 @@ func (m focusModel) View() string {
 	return s
 }
 
+// For testing purposes
+var runtimeGOOS = runtime.GOOS
+
 func startMusic() error {
 	url := "https://www.youtube.com/watch?v=jfKfPfyJRdk" // Lofi Girl
 	var cmdName string
 	var args []string
 
-	switch runtime.GOOS {
+	switch runtimeGOOS {
 	case "darwin":
 		cmdName = "open"
 		args = []string{url}
@@ -139,14 +142,14 @@ func startMusic() error {
 		cmdName = "cmd"
 		args = []string{"/c", "start", url}
 	default:
-		return fmt.Errorf("unsupported OS for music: %s", runtime.GOOS)
+		return fmt.Errorf("unsupported OS for music: %s", runtimeGOOS)
 	}
 
 	return execCommand(cmdName, args...).Start()
 }
 
 func toggleDND(enable bool) error {
-	if runtime.GOOS != "darwin" {
+	if runtimeGOOS != "darwin" {
 		return fmt.Errorf("DND is only supported on macOS")
 	}
 

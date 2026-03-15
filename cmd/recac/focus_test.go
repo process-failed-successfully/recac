@@ -93,11 +93,29 @@ func TestStartMusic(t *testing.T) {
 	defer func() { execCommand = oldExec }()
 
 	err := startMusic()
-    if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
-	    assert.NoError(t, err)
-    } else {
-        assert.Error(t, err)
-    }
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+		assert.NoError(t, err)
+	} else {
+		assert.Error(t, err)
+	}
+
+	// Override runtimeGOOS for testing all branches
+	origRuntimeGOOS := runtimeGOOS
+	defer func() { runtimeGOOS = origRuntimeGOOS }()
+
+	runtimeGOOS = "darwin"
+	assert.NoError(t, startMusic())
+
+	runtimeGOOS = "linux"
+	assert.NoError(t, startMusic())
+
+	runtimeGOOS = "windows"
+	assert.NoError(t, startMusic())
+
+	runtimeGOOS = "unknown"
+	err = startMusic()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported OS for music")
 }
 
 func TestToggleDND(t *testing.T) {
@@ -105,15 +123,20 @@ func TestToggleDND(t *testing.T) {
 	execCommand = fakeFocusExecCommand
 	defer func() { execCommand = oldExec }()
 
+	origRuntimeGOOS := runtimeGOOS
+	defer func() { runtimeGOOS = origRuntimeGOOS }()
+
+	runtimeGOOS = "darwin"
 	err := toggleDND(true)
-	if runtime.GOOS == "darwin" {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 
 	err = toggleDND(false)
-	if runtime.GOOS == "darwin" {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
+
+	runtimeGOOS = "linux"
+	err = toggleDND(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "only supported on macOS")
 }
 
 func TestToggleDND_Fail(t *testing.T) {
@@ -121,10 +144,37 @@ func TestToggleDND_Fail(t *testing.T) {
 	execCommand = fakeFocusExecCommandFail
 	defer func() { execCommand = oldExec }()
 
+	origRuntimeGOOS := runtimeGOOS
+	defer func() { runtimeGOOS = origRuntimeGOOS }()
+
+	runtimeGOOS = "darwin"
+
+	// If the shortcut fails, it falls back to osascript which we are also mocking to fail here,
+	// so it should return an error.
 	err := toggleDND(true)
-	if runtime.GOOS == "darwin" {
-		assert.Error(t, err)
+	assert.Error(t, err)
+}
+
+func TestToggleDND_Fallback(t *testing.T) {
+	oldExec := execCommand
+	defer func() { execCommand = oldExec }()
+
+	origRuntimeGOOS := runtimeGOOS
+	defer func() { runtimeGOOS = origRuntimeGOOS }()
+	runtimeGOOS = "darwin"
+
+	// Mock: First command (shortcuts) fails, second command (osascript) succeeds
+	var calls int
+	execCommand = func(name string, args ...string) *exec.Cmd {
+		calls++
+		if calls == 1 {
+			return fakeFocusExecCommandFail(name, args...)
+		}
+		return fakeFocusExecCommand(name, args...)
 	}
+
+	err := toggleDND(true)
+	assert.NoError(t, err) // the fallback succeeded
 }
 
 func TestFocus_RunFocus(t *testing.T) {

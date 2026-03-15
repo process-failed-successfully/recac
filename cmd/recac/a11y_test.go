@@ -155,6 +155,93 @@ func TestA11yCmd_Run(t *testing.T) {
 		}
 		assert.True(t, foundAI, "Should find AI suggestion")
 	})
+
+	t.Run("Fail Flag", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "a11y", tmpDir, "--fail")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "accessibility check failed")
+	})
+
+	t.Run("Bad Directory", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "a11y", "non_existent_dir_1234")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "scan failed")
+	})
+
+	t.Run("Ignore Flag", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "a11y", tmpDir, "--ignore", "Missing Alt Text", "--json")
+		require.NoError(t, err)
+
+		// `json.NewEncoder(cmd.OutOrStdout()).Encode(allFindings)` will write `null\n` if `allFindings` is `nil`
+		if strings.Contains(output, "null\n") {
+			// This means no findings
+			return
+		}
+
+		jsonStart := strings.Index(output, "[")
+		require.NotEqual(t, -1, jsonStart, "JSON array expected")
+
+		var findings []A11yFinding
+		jsonOutput := output[jsonStart:]
+		err = json.Unmarshal([]byte(jsonOutput), &findings)
+		require.NoError(t, err)
+
+		for _, f := range findings {
+			assert.NotEqual(t, "Missing Alt Text", f.Type)
+		}
+	})
+
+	t.Run("AI Review - Large File Skip", func(t *testing.T) {
+		largeFile := filepath.Join(tmpDir, "large.html")
+		content := strings.Repeat("<div>test</div>\n", 2000) // ~32KB
+		err := os.WriteFile(largeFile, []byte(content), 0644)
+		require.NoError(t, err)
+		defer os.Remove(largeFile)
+
+		output, err := executeCommand(rootCmd, "a11y", largeFile, "--ai", "--json")
+		require.NoError(t, err)
+
+		if strings.Contains(output, "null\n") {
+			// This means no findings
+			return
+		}
+
+		jsonStart := strings.Index(output, "[")
+		require.NotEqual(t, -1, jsonStart, "JSON array expected")
+		var findings []A11yFinding
+		jsonOutput := output[jsonStart:]
+		err = json.Unmarshal([]byte(jsonOutput), &findings)
+		require.NoError(t, err)
+
+		for _, f := range findings {
+			// Should not contain AI suggestions for large file
+			assert.NotContains(t, f.Type, "AI")
+		}
+	})
+
+	t.Run("AI Review - Malformed Output", func(t *testing.T) {
+		malformedAgent := agent.NewMockAgent()
+		malformedAgent.SetResponse(`{ this is not valid json ]`)
+		agentClientFactory = func(ctx context.Context, provider, model, path, project string) (agent.Agent, error) {
+			return malformedAgent, nil
+		}
+
+		output, err := executeCommand(rootCmd, "a11y", goodFile, "--ai", "--json")
+		require.NoError(t, err)
+
+		if strings.Contains(output, "null\n") {
+			// This means no findings
+			return
+		}
+
+		jsonStart := strings.Index(output, "[")
+		require.NotEqual(t, -1, jsonStart, "JSON array expected")
+		var findings []A11yFinding
+		jsonOutput := output[jsonStart:]
+		err = json.Unmarshal([]byte(jsonOutput), &findings)
+		require.NoError(t, err)
+		assert.Empty(t, findings) // Malformed output should just be ignored and return nil
+	})
 }
 
 // Helper to avoid polluting global state
