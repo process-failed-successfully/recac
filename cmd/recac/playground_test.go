@@ -217,3 +217,23 @@ func updateModel(m playgroundModel, msg tea.Msg) (playgroundModel, tea.Cmd) {
 	newM, cmd := m.Update(msg)
 	return newM.(playgroundModel), cmd
 }
+
+func TestNextLanguage(t *testing.T) {
+	tests := []struct {
+		input    playgroundLanguage
+		expected playgroundLanguage
+	}{
+		{langGo, langPython},
+		{langPython, langJS},
+		{langJS, langShell},
+		{langShell, langGo},
+		{playgroundLanguage("unknown"), langGo},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.input), func(t *testing.T) {
+			result := nextLanguage(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

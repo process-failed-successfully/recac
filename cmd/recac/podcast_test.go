@@ -127,3 +127,48 @@ func TestCleanForTTS(t *testing.T) {
 	assert.NotContains(t, result, "#")
 	assert.NotContains(t, result, "Header")
 }
+
+func TestSpeakScript(t *testing.T) {
+	originalExec := execCommand
+	defer func() { execCommand = originalExec }()
+
+	// Test 1: 'say' is found
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		if name == "which" && len(arg) > 0 && arg[0] == "say" {
+			return exec.Command("true")
+		}
+		if name == "which" {
+			return exec.Command("false")
+		}
+		if name == "say" {
+			return exec.Command("true")
+		}
+		return exec.Command("false")
+	}
+	err := speakScript("hello")
+	assert.NoError(t, err)
+
+	// Test 2: 'say' not found, 'espeak' found
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		if name == "which" && len(arg) > 0 && arg[0] == "say" {
+			return exec.Command("false")
+		}
+		if name == "which" && len(arg) > 0 && arg[0] == "espeak" {
+			return exec.Command("true")
+		}
+		if name == "espeak" {
+			return exec.Command("true")
+		}
+		return exec.Command("false")
+	}
+	err = speakScript("hello")
+	assert.NoError(t, err)
+
+	// Test 3: neither found
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("false")
+	}
+	err = speakScript("hello")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "neither 'say' nor 'espeak' found")
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"runtime"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -63,4 +64,20 @@ func TestFocusRun_Input(t *testing.T) {
 	view := m.View()
 	assert.Contains(t, view, "My Task")
 	assert.Contains(t, view, "Focus:")
+}
+
+func TestStartMusicOS_Extra(t *testing.T) {
+	originalExec := execCommand
+	defer func() { execCommand = originalExec }()
+
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("true")
+	}
+
+	err := startMusic()
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+		assert.NoError(t, err)
+	} else {
+		assert.Error(t, err)
+	}
 }
