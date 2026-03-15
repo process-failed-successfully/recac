@@ -30,8 +30,9 @@ const DashboardHTML = `
         .status-Running, .status-Active, .status-Spawning { color: blue; font-weight: bold; }
         .status-Pending { color: orange; font-weight: bold; }
         .actions { margin-top: 20px; display: flex; gap: 10px; }
-        button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
         button:hover { background: #0056b3; }
+        button:disabled { opacity: 0.65; cursor: not-allowed; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; }
         .close { background: none; border: none; padding: 0; color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
@@ -76,8 +77,8 @@ const DashboardHTML = `
                     <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
-                    <button onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
+                    <button id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
+                    <button id="btn-submit-pipeline" onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
                 </div>
                 <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
@@ -136,7 +137,7 @@ const DashboardHTML = `
                     <label for="job-desc">Description (Optional)</label>
                     <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
                 </div>
-                <button onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
+                <button id="btn-submit-adhoc" onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
             </div>
         </div>
 
@@ -146,7 +147,7 @@ const DashboardHTML = `
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <input type="hidden" id="edit-deps-job-id">
                 <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
-                <button onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+                <button id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
             </div>
         </div>
 
@@ -371,6 +372,10 @@ const DashboardHTML = `
         }
 
         async function submitEditDeps() {
+            const btn = document.getElementById('btn-submit-deps');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
             const id = document.getElementById('edit-deps-job-id').value;
             const depsStr = document.getElementById('edit-deps-input').value.trim();
             const deps = depsStr ? depsStr.split(',').map(s => s.trim()).filter(s => s) : [];
@@ -390,6 +395,9 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Dependencies';
             }
         }
 
@@ -399,6 +407,10 @@ const DashboardHTML = `
                 alert('Pipeline YAML is required.');
                 return;
             }
+
+            const btn = document.getElementById('btn-dry-run');
+            btn.disabled = true;
+            btn.innerText = 'Running...';
 
             try {
                 const res = await fetch('/jobs/pipeline/dry-run', {
@@ -431,6 +443,9 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Dry Run';
             }
         }
 
@@ -440,6 +455,10 @@ const DashboardHTML = `
                 alert('Pipeline YAML is required.');
                 return;
             }
+
+            const btn = document.getElementById('btn-submit-pipeline');
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
 
             try {
                 const res = await fetch('/jobs/pipeline', {
@@ -458,13 +477,26 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Submit Pipeline';
             }
         }
 
         async function submitAdHocJob() {
-            const id = document.getElementById('job-id').value.trim();
             const summary = document.getElementById('job-summary').value.trim();
             const repo = document.getElementById('job-repo').value.trim();
+
+            if (!summary || !repo) {
+                alert('Summary and Repository URL are required.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-submit-adhoc');
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
+
+            const id = document.getElementById('job-id').value.trim();
             const depsStr = document.getElementById('job-deps').value.trim();
             const tagsStr = document.getElementById('job-tags').value.trim();
             const concurrencyGroup = document.getElementById('job-concurrency-group').value.trim();
@@ -473,11 +505,6 @@ const DashboardHTML = `
             const agentModel = document.getElementById('job-agent-model').value.trim();
             const envStr = document.getElementById('job-env').value.trim();
             const desc = document.getElementById('job-desc').value.trim();
-
-            if (!summary || !repo) {
-                alert('Summary and Repository URL are required.');
-                return;
-            }
 
             const deps = depsStr ? depsStr.split(',').map(s => s.trim()).filter(s => s) : [];
             const tags = tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(s => s) : [];
@@ -536,6 +563,9 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Submit Job';
             }
         }
 
