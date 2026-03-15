@@ -149,3 +149,156 @@ func TestStartFlashcardsSession_NoCards(t *testing.T) {
 	err := StartFlashcardsSession(store)
 	assert.NoError(t, err) // Should just print and return nil
 }
+
+func TestFlashcardsModel_Update_QuitKeys(t *testing.T) {
+	store := NewMockStore()
+	card := flashcards.NewFlashcard("Q1", "A1", "ctx", "topic")
+	queue := []flashcards.Flashcard{card}
+	model := initialFlashcardsModel(store, queue)
+	model.ready = true
+
+	// Test q
+	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	assert.NotNil(t, cmd)
+
+	// Test ctrl+c
+	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	assert.NotNil(t, cmd)
+
+    // Test esc
+	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	assert.NotNil(t, cmd)
+}
+
+func TestFlashcardsModel_Update_Rate1(t *testing.T) {
+	store := NewMockStore()
+	card := flashcards.NewFlashcard("Q1", "A1", "ctx", "topic")
+	queue := []flashcards.Flashcard{card}
+	model := initialFlashcardsModel(store, queue)
+	model.ready = true
+	model.state = StateAnswer
+
+	updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+	m := updatedModel.(FlashcardsModel)
+	assert.Nil(t, cmd)
+	assert.Equal(t, StateFinished, m.state)
+    assert.Equal(t, 1, m.reviewed)
+    assert.Equal(t, 0, m.learned) // Rate 1 < Rate 2 (Hard)
+}
+
+func TestFlashcardsModel_Update_Rate2(t *testing.T) {
+	store := NewMockStore()
+	card := flashcards.NewFlashcard("Q1", "A1", "ctx", "topic")
+	queue := []flashcards.Flashcard{card}
+	model := initialFlashcardsModel(store, queue)
+	model.ready = true
+	model.state = StateAnswer
+
+	updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+	m := updatedModel.(FlashcardsModel)
+	assert.Nil(t, cmd)
+	assert.Equal(t, StateFinished, m.state)
+    assert.Equal(t, 1, m.reviewed)
+    assert.Equal(t, 1, m.learned) // Rate 2 == Hard
+}
+
+func TestFlashcardsModel_Update_WindowSize(t *testing.T) {
+	store := NewMockStore()
+	card := flashcards.NewFlashcard("Q1", "A1", "ctx", "topic")
+	queue := []flashcards.Flashcard{card}
+	model := initialFlashcardsModel(store, queue)
+
+	updatedModel, cmd := model.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	m := updatedModel.(FlashcardsModel)
+	assert.Nil(t, cmd)
+	assert.True(t, m.ready)
+    assert.Equal(t, 100, m.width)
+    assert.Equal(t, 50, m.height)
+}
+
+func TestFlashcardsModel_Update_TableDriven(t *testing.T) {
+	card := flashcards.NewFlashcard("Q1", "A1", "ctx", "topic")
+	queue := []flashcards.Flashcard{card}
+
+	tests := []struct {
+		name          string
+		initialState  FlashcardsState
+		msg           tea.Msg
+		expectedState FlashcardsState
+		expectedRev   int
+		expectedLearn int
+		expectCmd     bool
+	}{
+		{
+			name:          "quit with q",
+			initialState:  StateQuestion,
+			msg:           tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}},
+			expectedState: StateQuestion,
+			expectCmd:     true,
+		},
+		{
+			name:          "quit with ctrl+c",
+			initialState:  StateQuestion,
+			msg:           tea.KeyMsg{Type: tea.KeyCtrlC},
+			expectedState: StateQuestion,
+			expectCmd:     true,
+		},
+		{
+			name:          "quit with esc",
+			initialState:  StateQuestion,
+			msg:           tea.KeyMsg{Type: tea.KeyEsc},
+			expectedState: StateQuestion,
+			expectCmd:     true,
+		},
+		{
+			name:          "rate 1 (Again)",
+			initialState:  StateAnswer,
+			msg:           tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}},
+			expectedState: StateFinished,
+			expectedRev:   1,
+			expectedLearn: 0,
+		},
+		{
+			name:          "rate 2 (Hard)",
+			initialState:  StateAnswer,
+			msg:           tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}},
+			expectedState: StateFinished,
+			expectedRev:   1,
+			expectedLearn: 1,
+		},
+		{
+			name:          "window resize",
+			initialState:  StateQuestion,
+			msg:           tea.WindowSizeMsg{Width: 100, Height: 50},
+			expectedState: StateQuestion,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := NewMockStore()
+			model := initialFlashcardsModel(store, queue)
+			model.ready = true
+			model.state = tt.initialState
+
+			updatedModel, cmd := model.Update(tt.msg)
+			m := updatedModel.(FlashcardsModel)
+
+			if tt.expectCmd {
+				assert.NotNil(t, cmd)
+			} else {
+				assert.Nil(t, cmd)
+				assert.Equal(t, tt.expectedState, m.state)
+				if _, ok := tt.msg.(tea.KeyMsg); ok {
+					assert.Equal(t, tt.expectedRev, m.reviewed)
+					assert.Equal(t, tt.expectedLearn, m.learned)
+				}
+				if _, ok := tt.msg.(tea.WindowSizeMsg); ok {
+					assert.True(t, m.ready)
+					assert.Equal(t, 100, m.width)
+					assert.Equal(t, 50, m.height)
+				}
+			}
+		})
+	}
+}
