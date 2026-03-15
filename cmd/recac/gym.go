@@ -124,7 +124,7 @@ func loadChallenges(path string) ([]GymChallenge, error) {
 }
 
 func loadChallengesFile(path string) ([]GymChallenge, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFileFunc(path)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 	// Write Tests to Workspace
 	if challenge.Tests != "" && challenge.TestFile != "" {
 		testPath := filepath.Join(workspace, challenge.TestFile)
-		if err := os.WriteFile(testPath, []byte(challenge.Tests), 0644); err != nil {
+		if err := writeFileFunc(testPath, []byte(challenge.Tests), 0644); err != nil {
 			return nil, fmt.Errorf("failed to write test file: %w", err)
 		}
 	}
