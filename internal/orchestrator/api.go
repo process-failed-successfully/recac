@@ -783,6 +783,50 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Write(respData)
 	})
 
+	mux.HandleFunc("PUT /jobs/tags", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk tag update", http.StatusBadRequest)
+			return
+		}
+		if tag != "" && match != "" {
+			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk tag update", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UpdateJobsTagsByTag(r.Context(), tag, req.Tags, logger)
+		} else if match != "" {
+			count, err = orch.UpdateJobsTagsByMatch(r.Context(), match, req.Tags, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"updated": %d}`, count)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/tags", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

@@ -69,3 +69,84 @@ func TestUpdateJobTags(t *testing.T) {
 		assert.Contains(t, err.Error(), "not found")
 	})
 }
+
+func TestUpdateJobsTagsByTag(t *testing.T) {
+	orch := New(&MockPoller{}, &MockSpawner{}, 10*time.Second)
+
+	orch.pendingJobs["JOB-1"] = JobInfo{
+		ID: "JOB-1",
+		WorkItem: WorkItem{
+			ID:   "JOB-1",
+			Tags: []string{"backend", "urgent"},
+		},
+	}
+	orch.pendingJobs["JOB-2"] = JobInfo{
+		ID: "JOB-2",
+		WorkItem: WorkItem{
+			ID:   "JOB-2",
+			Tags: []string{"frontend"},
+		},
+	}
+	orch.pendingJobs["JOB-3"] = JobInfo{
+		ID: "JOB-3",
+		WorkItem: WorkItem{
+			ID:   "JOB-3",
+			Tags: []string{"backend", "low"},
+		},
+	}
+
+	count, err := orch.UpdateJobsTagsByTag(context.Background(), "backend", []string{"api", "v2"}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	job1, _ := orch.GetJob("JOB-1")
+	require.Equal(t, []string{"api", "v2"}, job1.WorkItem.Tags)
+
+	job3, _ := orch.GetJob("JOB-3")
+	require.Equal(t, []string{"api", "v2"}, job3.WorkItem.Tags)
+
+	job2, _ := orch.GetJob("JOB-2")
+	require.Equal(t, []string{"frontend"}, job2.WorkItem.Tags)
+}
+
+func TestUpdateJobsTagsByMatch(t *testing.T) {
+	orch := New(&MockPoller{}, &MockSpawner{}, 10*time.Second)
+
+	orch.pendingJobs["JOB-1"] = JobInfo{
+		ID:      "JOB-1",
+		Summary: "Fix bug in payment service",
+		WorkItem: WorkItem{
+			ID:   "JOB-1",
+			Tags: []string{"old"},
+		},
+	}
+	orch.pendingJobs["JOB-2"] = JobInfo{
+		ID:      "JOB-2",
+		Summary: "Update UI",
+		WorkItem: WorkItem{
+			ID:   "JOB-2",
+			Tags: []string{"old"},
+		},
+	}
+	orch.pendingJobs["JOB-3"] = JobInfo{
+		ID:    "JOB-3",
+		Error: "Payment gateway timeout",
+		WorkItem: WorkItem{
+			ID:   "JOB-3",
+			Tags: []string{"old"},
+		},
+	}
+
+	count, err := orch.UpdateJobsTagsByMatch(context.Background(), "payment", []string{"payment-team"}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	job1, _ := orch.GetJob("JOB-1")
+	require.Equal(t, []string{"payment-team"}, job1.WorkItem.Tags)
+
+	job3, _ := orch.GetJob("JOB-3")
+	require.Equal(t, []string{"payment-team"}, job3.WorkItem.Tags)
+
+	job2, _ := orch.GetJob("JOB-2")
+	require.Equal(t, []string{"old"}, job2.WorkItem.Tags)
+}
