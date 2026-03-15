@@ -179,3 +179,32 @@ func TestFocus_RunFocus_Music_DND(t *testing.T) {
 	err := runFocus(focusCmd, []string{})
 	assert.NoError(t, err)
 }
+
+func TestStartMusic_OSMocking(t *testing.T) {
+	oldExec := execCommand
+	execCommand = fakeFocusExecCommand
+	defer func() { execCommand = oldExec }()
+
+    // Because startMusic behaves differently based on runtime.GOOS we can only effectively test the current GOOS
+    // We mock that it doesn't fail.
+	err := startMusic()
+    if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+	    assert.NoError(t, err)
+    } else {
+        assert.Error(t, err)
+    }
+}
+
+func TestToggleDND_OSMocking(t *testing.T) {
+	oldExec := execCommand
+	execCommand = fakeFocusExecCommand
+	defer func() { execCommand = oldExec }()
+
+    // Because toggleDND behaves differently based on runtime.GOOS we can only effectively test the current GOOS
+	err := toggleDND(true)
+    if runtime.GOOS == "darwin" {
+	    assert.NoError(t, err)
+    } else {
+        assert.Error(t, err)
+    }
+}
