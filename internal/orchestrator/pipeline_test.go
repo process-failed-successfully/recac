@@ -158,6 +158,47 @@ jobs:
 	assert.Contains(t, err.Error(), "invalid delay format for job 'build'")
 }
 
+func TestParsePipelineToWorkItems_DefaultDependsOn(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Default Deps
+defaults:
+  repo_url: https://github.com/org/repo.git
+  depends_on: [setup]
+jobs:
+  setup:
+    summary: Setup env
+  build:
+    summary: Build application
+  test:
+    summary: Run tests
+    depends_on: [build]
+`)
+	items, err := ParsePipelineToWorkItems(yamlData)
+	require.NoError(t, err)
+	assert.Len(t, items, 3)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	setupJob := jobMap["setup"]
+	// Setup should ignore the global self-dependency
+	assert.Empty(t, setupJob.DependsOn)
+
+	buildJob := jobMap["build"]
+	// Build should inherit the global setup dependency
+	assert.Len(t, buildJob.DependsOn, 1)
+	assert.Equal(t, setupJob.ID, buildJob.DependsOn[0])
+
+	testJob := jobMap["test"]
+	// Test should have both setup (global) and build (local)
+	assert.Len(t, testJob.DependsOn, 2)
+	assert.ElementsMatch(t, []string{setupJob.ID, buildJob.ID}, testJob.DependsOn)
+}
+
 func TestParsePipelineToWorkItems_Delay(t *testing.T) {
 	yamlData := []byte(`
 name: Pipeline Delay

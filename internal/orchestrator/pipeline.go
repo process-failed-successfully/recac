@@ -20,6 +20,7 @@ type Pipeline struct {
 		MaxRetries       *int              `yaml:"max_retries"`
 		EnvVars          map[string]string `yaml:"env_vars"`
 		Tags             []string          `yaml:"tags"`
+		DependsOn        []string          `yaml:"depends_on"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -207,6 +208,29 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 				tags = append(tags, jobDef.Tags...)
 			}
 
+			// Deep copy DependsOn and merge with defaults
+			var dependsOn []string
+			if p.Defaults.DependsOn != nil {
+				dependsOn = append(dependsOn, p.Defaults.DependsOn...)
+			}
+			if jobDef.DependsOn != nil {
+				// We do a merge. But actually, if job itself lists dependencies,
+				// they just add to the default dependencies.
+				// However, a job can't depend on itself, so if jobKey is in p.Defaults.DependsOn,
+				// we should probably filter it out, but let Pass 2 handle invalid dependencies.
+				dependsOn = append(dependsOn, jobDef.DependsOn...)
+			}
+
+			// Remove duplicates in dependsOn and avoid self-dependency
+			uniqueDeps := make(map[string]bool)
+			var finalDependsOn []string
+			for _, dep := range dependsOn {
+				if dep != jobKey && !uniqueDeps[dep] {
+					uniqueDeps[dep] = true
+					finalDependsOn = append(finalDependsOn, dep)
+				}
+			}
+
 			// Store ID for dependency resolution later
 			jobGeneratedIDs[jobKey] = append(jobGeneratedIDs[jobKey], jobID)
 
@@ -216,7 +240,7 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 				Description:      description,
 				RepoURL:          repoURL,
 				EnvVars:          envVars,
-				DependsOn:        jobDef.DependsOn, // Store original names for now, resolve in pass 2
+				DependsOn:        finalDependsOn, // Store original names for now, resolve in pass 2
 				Priority:         jobDef.Priority,
 				Tags:             tags,
 				Timeout:          parsedTimeout,
