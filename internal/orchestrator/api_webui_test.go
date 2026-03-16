@@ -72,6 +72,17 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 
 	// Verify JS submitPipeline function exists
 	assert.Contains(t, html, "async function submitPipeline()")
+
+	// Verify Search Logs HTML exists
+	assert.Contains(t, html, ">Search Logs</button>")
+	assert.Contains(t, html, "id=\"searchLogsModal\"")
+	assert.Contains(t, html, "id=\"search-logs-query\"")
+	assert.Contains(t, html, "id=\"search-logs-tag\"")
+	assert.Contains(t, html, "id=\"search-logs-status\"")
+	assert.Contains(t, html, "onclick=\"performSearchLogs()\"")
+
+	// Verify JS performSearchLogs function exists
+	assert.Contains(t, html, "async function performSearchLogs()")
 	assert.Contains(t, html, "fetch('/jobs/pipeline', {")
 
 	// Verify JS dryRunPipeline function exists
