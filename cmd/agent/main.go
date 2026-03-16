@@ -123,16 +123,30 @@ func runApp(ctx context.Context) error {
 		CommandPrefix:     []string{}, // Agent binary doesn't use subcommands, unless needed.
 	}
 
+	// Load fallback summary and description from orchestrator if present
+	if sum := os.Getenv("RECAC_TASK_SUMMARY"); sum != "" && cfg.Summary == "" {
+		cfg.Summary = sum
+	}
+	if desc := os.Getenv("RECAC_TASK_DESCRIPTION"); desc != "" && cfg.Description == "" {
+		cfg.Description = desc
+	}
+
 	// Logic
 	if cfg.JiraTicketID != "" {
 		jClient, err := cmdutils.GetJiraClient(ctx)
-		if err != nil {
-			return err
+		if err == nil {
+			if err := workflow.ProcessJiraTicket(ctx, cfg.JiraTicketID, jClient, cfg, nil); err != nil {
+				return err
+			}
+			return nil
 		}
-		if err := workflow.ProcessJiraTicket(ctx, cfg.JiraTicketID, jClient, cfg, nil); err != nil {
-			return err
+		// If Jira client fails to initialize (e.g. missing JIRA_URL/JIRA_API_TOKEN),
+		// and we have a RepoURL and Description, gracefully fallback to direct task processing.
+		if cfg.RepoURL != "" && cfg.Description != "" {
+			logger.Warn("Jira client failed to initialize, falling back to direct task processing", "error", err)
+		} else {
+			return fmt.Errorf("failed to initialize Jira client and insufficient data for direct fallback: %w", err)
 		}
-		return nil
 	}
 
 	if cfg.RepoURL != "" {

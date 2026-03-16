@@ -74,6 +74,14 @@ func collectAgentEnvVars(item WorkItem, provider, model string) map[string]strin
 		env["RECAC_TASK_MAX_ITERATIONS"] = val
 	}
 
+	// 7. Task Context (For fallback when Jira is not used)
+	if item.Summary != "" {
+		env["RECAC_TASK_SUMMARY"] = item.Summary
+	}
+	if item.Description != "" {
+		env["RECAC_TASK_DESCRIPTION"] = item.Description
+	}
+
 	return env
 }
 
