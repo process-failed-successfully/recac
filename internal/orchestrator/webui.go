@@ -63,6 +63,7 @@ const DashboardHTML = `
                 <!-- Buttons will be injected here if supported -->
             </div>
             <div>
+                <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
                 <button type="button" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
@@ -157,6 +158,34 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()">&times;</button>
                 <h2 id="logs-title">Job Logs</h2>
                 <pre id="logs-output"></pre>
+            </div>
+        </div>
+
+        <div id="searchLogsModal" class="modal">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeSearchLogsModal()">&times;</button>
+                <h2>Search Logs</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 2; margin-bottom: 0;">
+                        <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)...">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <input type="text" id="search-logs-tag" placeholder="Filter by tag (optional)">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <select id="search-logs-status" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px;">
+                            <option value="">Any Status</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Failed">Failed</option>
+                            <option value="Running">Running</option>
+                            <option value="Canceled">Canceled</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="performSearchLogs()" style="background-color: #007bff; min-width: 100px;">Search</button>
+                </div>
+                <div id="search-logs-results" style="max-height: 500px; overflow-y: auto; background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; display: none;">
+                    <!-- Results will be injected here -->
+                </div>
             </div>
         </div>
 
@@ -778,6 +807,74 @@ const DashboardHTML = `
 
         function closeGraph() {
             document.getElementById('graphModal').style.display = 'none';
+        }
+
+        function openSearchLogsModal() {
+            document.getElementById('searchLogsModal').style.display = 'block';
+            document.getElementById('search-logs-query').focus();
+        }
+
+        function closeSearchLogsModal() {
+            document.getElementById('searchLogsModal').style.display = 'none';
+        }
+
+        async function performSearchLogs() {
+            const query = document.getElementById('search-logs-query').value.trim();
+            const tag = document.getElementById('search-logs-tag').value.trim();
+            const status = document.getElementById('search-logs-status').value;
+            const resultsDiv = document.getElementById('search-logs-results');
+
+            if (!query) {
+                alert("Please enter a regex query.");
+                return;
+            }
+
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = 'Searching...';
+
+            try {
+                let url = '/jobs/search/logs?q=' + encodeURIComponent(query);
+                if (tag) url += '&tag=' + encodeURIComponent(tag);
+                if (status) url += '&status=' + encodeURIComponent(status);
+
+                const res = await fetch(url);
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    resultsDiv.innerHTML = '<span style="color:red">Search failed: ' + errorText + '</span>';
+                    return;
+                }
+
+                const results = await res.json();
+
+                if (!results || results.length === 0) {
+                    resultsDiv.innerHTML = '<span style="color: #bbb;">No matching logs found.</span>';
+                    return;
+                }
+
+                let html = '';
+                results.forEach(job => {
+                    html += '<div style="margin-bottom: 20px;">';
+                    html += '<div style="color: #61dafb; font-weight: bold; font-size: 1.1em;">Job: ' + escapeHTML(job.job_id) + ' <span style="color: #aaa; font-size: 0.9em; font-weight: normal;">(' + escapeHTML(job.status) + ')</span></div>';
+                    html += '<div style="color: #ccc; margin-bottom: 5px;">Summary: ' + escapeHTML(job.summary) + '</div>';
+                    html += '<div style="background: #111; padding: 10px; border-radius: 3px; border-left: 3px solid #61dafb;">';
+
+                    job.matches.forEach(match => {
+                        html += '<div style="display: flex; margin-bottom: 4px;">';
+                        html += '<span style="color: #888; margin-right: 15px; user-select: none;">' + match.line_number + ':</span>';
+                        html += '<span style="color: #e6db74; white-space: pre-wrap; word-break: break-all;">' + escapeHTML(match.text.trim()) + '</span>';
+                        html += '</div>';
+                    });
+
+                    html += '</div></div>';
+                });
+
+                resultsDiv.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+                resultsDiv.innerHTML = '<span style="color:red">Error performing search: ' + err.message + '</span>';
+            }
         }
 
         // Setup SSE for real-time updates
