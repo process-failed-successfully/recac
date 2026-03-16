@@ -1766,6 +1766,97 @@ func (o *Orchestrator) RetryJobDownstream(ctx context.Context, jobID string, log
 	return retriedIDs, nil
 }
 
+// HealJobs attempts to recover failed jobs by appending failure context to their description and resubmitting them.
+func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *slog.Logger) (int, error) {
+	var matcher *regexp.Regexp
+	var err error
+	if match != "" {
+		matcher, err = regexp.Compile("(?i)" + match)
+		if err != nil {
+			return 0, fmt.Errorf("invalid match regex: %w", err)
+		}
+	}
+
+	lowerTag := strings.ToLower(tag)
+
+	o.mu.RLock()
+	var toHeal []JobInfo
+	for _, job := range o.completedJobs {
+		if job.Status == "Failed" || job.Status == "error" {
+			if matcher != nil && !matcher.MatchString(job.Summary) && !matcher.MatchString(job.Error) {
+				continue
+			}
+
+			if tag != "" {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.ToLower(t) == lowerTag {
+						hasTag = true
+						break
+					}
+				}
+				if !hasTag {
+					continue
+				}
+			}
+
+			// Check if already active
+			if _, active := o.activeJobs[job.ID]; !active {
+				toHeal = append(toHeal, job)
+			}
+		}
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	for _, job := range toHeal {
+		if logger != nil {
+			logger.Info("Healing failed job", "id", job.ID)
+		}
+
+		// Fetch logs
+		var logsText string
+		logStream, err := o.GetLogs(ctx, job.ID)
+		if err == nil && logStream != nil {
+			logBytes, _ := io.ReadAll(logStream)
+			logsText = string(logBytes)
+			logStream.Close()
+		} else if logger != nil {
+			logger.Warn("Failed to fetch logs for healing", "id", job.ID, "error", err)
+		}
+
+		logLines := strings.Split(logsText, "\n")
+		if len(logLines) > 500 {
+			logLines = logLines[len(logLines)-500:]
+			logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
+		}
+
+		newItem := job.WorkItem
+		newItem.ID = fmt.Sprintf("%s-healed", job.ID)
+
+		failureContext := fmt.Sprintf("\n\n---\nPrevious Job Failure Context:\nError: %s\nLogs:\n```\n%s\n```\n", job.Error, logsText)
+		newItem.Description = newItem.Description + failureContext
+
+		hasAutoHealTag := false
+		for _, t := range newItem.Tags {
+			if t == "auto-heal" {
+				hasAutoHealTag = true
+				break
+			}
+		}
+		if !hasAutoHealTag {
+			newItem.Tags = append(newItem.Tags, "auto-heal")
+		}
+
+		if err := o.SubmitJob(ctx, newItem, logger); err == nil {
+			count++
+		} else if logger != nil {
+			logger.Error("Failed to submit healed job", "id", job.ID, "error", err)
+		}
+	}
+	return count, nil
+}
+
 // RetryFailedJobs resubmits all failed jobs from history.
 func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag string, logger *slog.Logger) (int, error) {
 	var matcher *regexp.Regexp

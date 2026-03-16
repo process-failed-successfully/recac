@@ -1407,6 +1407,25 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"retried": %d}`, count)
 	})
 
+	mux.HandleFunc("POST /jobs/heal/bulk", func(w http.ResponseWriter, r *http.Request) {
+		match := r.URL.Query().Get("match")
+		tag := r.URL.Query().Get("tag")
+
+		if match == "" && tag == "" {
+			http.Error(w, "Either 'match' or 'tag' query parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		count, err := orch.HealJobs(r.Context(), match, tag, logger)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"healed": %d}`, count)
+	})
+
 	mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if err := orch.CancelJob(r.Context(), id); err != nil {
