@@ -1449,6 +1449,52 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"canceled": %d}`, count)
 	})
 
+	mux.HandleFunc("DELETE /jobs/{id}/pending", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.DeletePendingJob(r.Context(), id, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Pending job %s deleted", id)
+	})
+
+	mux.HandleFunc("DELETE /jobs/pending", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk delete pending jobs", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.DeletePendingJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.DeletePendingJobsByMatch(r.Context(), match, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"deleted": %d}`, count)
+	})
+
 	mux.HandleFunc("DELETE /pending", func(w http.ResponseWriter, r *http.Request) {
 		count := orch.ClearPendingJobs(r.Context(), logger)
 

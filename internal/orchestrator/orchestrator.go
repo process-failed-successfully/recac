@@ -299,6 +299,96 @@ func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
 	return o.Spawner.Cancel(ctx, jobID)
 }
 
+// DeletePendingJob removes a pending job without keeping history.
+func (o *Orchestrator) DeletePendingJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		// Check if active or completed to return a more specific error
+		if _, active := o.activeJobs[jobID]; active {
+			return fmt.Errorf("job %s is already active and cannot be deleted", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	if t, ok := o.delayTimers[jobID]; ok {
+		t.Stop()
+		delete(o.delayTimers, jobID)
+	}
+	delete(o.pendingJobs, jobID)
+	o.BroadcastEvent("job_deleted", job)
+
+	if logger != nil {
+		logger.Info("Job deleted from pending queue", "jobID", jobID)
+	}
+	return nil
+}
+
+// DeletePendingJobsByTag removes pending jobs matching the given tag.
+func (o *Orchestrator) DeletePendingJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				if t_timer, ok := o.delayTimers[id]; ok {
+					t_timer.Stop()
+					delete(o.delayTimers, id)
+				}
+				delete(o.pendingJobs, id)
+				o.BroadcastEvent("job_deleted", job)
+				count++
+				break
+			}
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Deleted jobs from pending queue by tag", "tag", tag, "count", count)
+	}
+	return count, nil
+}
+
+// DeletePendingJobsByMatch removes pending jobs matching the regex.
+func (o *Orchestrator) DeletePendingJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			if t_timer, ok := o.delayTimers[id]; ok {
+				t_timer.Stop()
+				delete(o.delayTimers, id)
+			}
+			delete(o.pendingJobs, id)
+			o.BroadcastEvent("job_deleted", job)
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Deleted jobs from pending queue by match", "match", match, "count", count)
+	}
+	return count, nil
+}
+
 // ClearPendingJobs cancels all jobs currently waiting for dependencies.
 func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger) int {
 	o.mu.Lock()

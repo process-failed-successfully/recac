@@ -27,6 +27,9 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--wait-job`       | `RECAC_ORCHESTRATOR_WAIT_JOB` | -            | Wait for a job to complete             |
 | `--wait-tag`       | `RECAC_ORCHESTRATOR_WAIT_TAG` | -            | Wait for jobs by tag                   |
 | `--wait-match`     | `RECAC_ORCHESTRATOR_WAIT_MATCH` | -            | Wait for jobs matching regex           |
+| `--delete-pending-job` | - | - | Delete a specific job from the pending queue |
+| `--delete-pending-tag` | - | - | Delete all pending jobs with the specified tag |
+| `--delete-pending-match` | - | - | Delete all pending jobs matching the given regex |
 
 ### Kubernetes Mode Flags
 
