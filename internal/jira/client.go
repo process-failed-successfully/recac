@@ -636,21 +636,52 @@ func isDoneStatus(status string) bool {
 // GetFirstProjectKey fetches the key of the first visible project.
 func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
 	url := fmt.Sprintf("%s/rest/api/3/project", c.BaseURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	req.SetBasicAuth(c.Username, c.APIToken)
-	req.Header.Set("Accept", "application/json")
+	var resp *http.Response
+	var err error
 
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to execute request: %w", err)
-	}
-	defer resp.Body.Close()
+	// Retry loop for transient 503 errors
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			time.Sleep(2 * time.Second)
+		}
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to list projects: status %d", resp.StatusCode)
+		req, reqErr := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if reqErr != nil {
+			return "", fmt.Errorf("failed to create request: %w", reqErr)
+		}
+		req.SetBasicAuth(c.Username, c.APIToken)
+		req.Header.Set("Accept", "application/json")
+
+		resp, err = c.HTTPClient.Do(req)
+		if err != nil {
+			// On transient network errors like EOF, connection reset, connection refused, retry
+			if attempt < 4 {
+				continue
+			}
+			return "", fmt.Errorf("failed to execute request: %w", err)
+		}
+
+		if resp.StatusCode == http.StatusServiceUnavailable || resp.StatusCode >= 500 {
+			resp.Body.Close()
+			if attempt < 4 {
+				continue // Retry on 50x
+			}
+		}
+
+		// Success or other non-retriable error (e.g. 401, 404, 200)
+		break
+	}
+
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+
+	if resp == nil || resp.StatusCode != http.StatusOK {
+		status := 0
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		return "", fmt.Errorf("failed to list projects: status %d", status)
 	}
 
 	var projects []map[string]interface{}

@@ -15,6 +15,7 @@ import (
 	"recac/internal/orchestrator"
 
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 )
 
 var (
@@ -1536,9 +1537,16 @@ func editJobInteractive(host, jobID string, requirePending bool) (*orchestrator.
 		editor = "vi" // Default fallback
 	}
 
-	// Wrap editor command in sh -c to properly support arguments in $EDITOR (e.g. "code --wait")
-	shellCmd := fmt.Sprintf("%s %s", editor, tmpFile.Name())
-	cmd := exec.Command("sh", "-c", shellCmd)
+	parts, err := shellquote.Split(editor)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to parse editor command: %w", err)
+	}
+	if len(parts) == 0 {
+		return nil, nil, fmt.Errorf("EDITOR variable is empty or invalid")
+	}
+
+	args := append(parts[1:], tmpFile.Name())
+	cmd := exec.Command(parts[0], args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr

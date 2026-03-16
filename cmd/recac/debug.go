@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 
+	"github.com/kballard/go-shellquote"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,20 +28,24 @@ Example:
 		commandStr := strings.Join(args, " ")
 		fmt.Printf("Running: %s\n", commandStr)
 
-		// Execute command using shell to support pipes/redirection
-		var execCmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			execCmd = exec.Command("cmd", "/C", commandStr)
-		} else {
-			execCmd = exec.Command("sh", "-c", commandStr)
+		// Parse the command string to properly handle quotes and spaces
+		parts, err := shellquote.Split(commandStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse command: %w", err)
 		}
+		if len(parts) == 0 {
+			return fmt.Errorf("empty command")
+		}
+
+		// Execute command using parsed parts
+		var execCmd = exec.Command(parts[0], parts[1:]...)
 
 		// Capture stdout and stderr together
 		var outputBuf bytes.Buffer
 		execCmd.Stdout = &outputBuf
 		execCmd.Stderr = &outputBuf
 
-		err := execCmd.Run()
+		err = execCmd.Run()
 		output := outputBuf.String()
 
 		// Print the output to the user so they see what happened

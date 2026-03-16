@@ -50,8 +50,9 @@ func TestDebugCmd_Failure(t *testing.T) {
 		return mockAgent, nil
 	}
 
-	// Command that fails
-	out, err := executeCommand(rootCmd, "debug", "echo 'fail me'; exit 1")
+	// Command that fails (using 'false' instead of 'exit 1' to avoid breaking test environments or command parsing)
+	// Passing a single string because debugCmd uses strings.Join(args, " ") to reconstruct the command.
+	out, err := executeCommand(rootCmd, "debug", "sh -c \"echo 'fail me'; false\"")
 
 	// Since the agent successfully runs, the command returns nil (success of the debug tool)
 	assert.NoError(t, err)
@@ -82,8 +83,7 @@ func TestDebugCmd_WithFiles(t *testing.T) {
 
 	// Command that fails and references the file
 	// We mimic output like "dummy.go:3: error"
-	cmdStr := "echo 'dummy.go:3: error'; exit 1"
-	out, err := executeCommand(rootCmd, "debug", cmdStr)
+	out, err := executeCommand(rootCmd, "debug", "sh -c \"echo 'dummy.go:3: error'; false\"")
 
 	assert.NoError(t, err)
 	assert.Contains(t, out, "Fixing dummy")
