@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var runbookEnvRe = regexp.MustCompile(`env > '([^']+)'`)
+
 func TestParseRunbook(t *testing.T) {
 	content := `
 # Title
@@ -138,8 +140,7 @@ func TestRunbookHelperProcess(t *testing.T) {
 	code := cmdArgs[2]
 	fmt.Printf("Helper received code: %s\n", code)
 	// We extract the filename.
-	re := regexp.MustCompile(`env > '([^']+)'`)
-	matches := re.FindStringSubmatch(code)
+	matches := runbookEnvRe.FindStringSubmatch(code)
 	if len(matches) < 2 {
 		fmt.Fprintf(os.Stderr, "Could not find output file in code: %s\n", code)
 		os.Exit(1)

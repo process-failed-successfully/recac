@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var metricsPortRe = regexp.MustCompile(`Metrics server started.*port=(\d+)`)
+
 func TestRun_ConfigValidation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ctx := context.Background()
@@ -375,12 +377,11 @@ func TestRun_MetricsServer(t *testing.T) {
 
 		// Find port
 		var port int
-		re := regexp.MustCompile(`Metrics server started.*port=(\d+)`)
 
 		ready := false
 		for i := 0; i < 50; i++ {
 			logs := logBuf.String()
-			matches := re.FindStringSubmatch(logs)
+			matches := metricsPortRe.FindStringSubmatch(logs)
 			if len(matches) > 1 {
 				port, _ = strconv.Atoi(matches[1])
 				ready = true

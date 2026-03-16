@@ -31,16 +31,19 @@ func setupStatusTest(t *testing.T) (*MockSessionManager, func()) {
 	}
 }
 
+var (
+	ansiRe  = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	spaceRe = regexp.MustCompile(`\s+`)
+)
+
 // stripAnsi removes ANSI escape codes from a string
 func stripAnsi(str string) string {
-	ansi := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	return ansi.ReplaceAllString(str, "")
+	return ansiRe.ReplaceAllString(str, "")
 }
 
 // normalizeSpace replaces multiple spaces/tabs with a single space
 func normalizeSpace(str string) string {
-	space := regexp.MustCompile(`\s+`)
-	return space.ReplaceAllString(str, " ")
+	return spaceRe.ReplaceAllString(str, " ")
 }
 
 func TestStatusCommand(t *testing.T) {
