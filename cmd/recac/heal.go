@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/kballard/go-shellquote"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -137,11 +138,15 @@ func runHeal(cmd *cobra.Command, args []string) error {
 }
 
 func runCommand(command string) (string, error) {
-	// Naive splitting handles spaces but not quotes.
-	// For "go test ./...", it's fine.
-	// For "go test -v 'foo bar'", it might break.
-	// Using sh -c is safer for complex commands.
-	cmd := exec.Command("sh", "-c", command)
+	parts, err := shellquote.Split(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse command: %w", err)
+	}
+	if len(parts) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
