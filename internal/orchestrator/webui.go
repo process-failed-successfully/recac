@@ -33,6 +33,7 @@ const DashboardHTML = `
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
         button:hover { background: #0056b3; }
         button:disabled { opacity: 0.65; cursor: not-allowed; }
+        button:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; }
         .close { background: none; border: none; padding: 0; color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
@@ -62,9 +63,9 @@ const DashboardHTML = `
                 <!-- Buttons will be injected here if supported -->
             </div>
             <div>
-                <button onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
-                <button onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
-                <button onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
+                <button type="button" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
+                <button type="button" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
+                <button type="button" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
             </div>
         </div>
 
@@ -77,8 +78,8 @@ const DashboardHTML = `
                     <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
-                    <button id="btn-submit-pipeline" onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
+                    <button type="button" id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
+                    <button type="button" id="btn-submit-pipeline" onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
                 </div>
                 <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
@@ -137,7 +138,7 @@ const DashboardHTML = `
                     <label for="job-desc">Description (Optional)</label>
                     <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
                 </div>
-                <button id="btn-submit-adhoc" onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
+                <button type="button" id="btn-submit-adhoc" onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
             </div>
         </div>
 
@@ -147,7 +148,7 @@ const DashboardHTML = `
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <input type="hidden" id="edit-deps-job-id">
                 <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
-                <button id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+                <button type="button" id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
             </div>
         </div>
 
@@ -190,7 +191,7 @@ const DashboardHTML = `
                         <option value="all">All Jobs</option>
                     </select>
                     <input type="text" id="job-search" placeholder="Search ID or Summary..." aria-label="Search jobs">
-                    <button id="refresh-jobs">Refresh</button>
+                    <button type="button" id="refresh-jobs">Refresh</button>
                 </div>
             </div>
             <div id="jobs-container">
@@ -250,19 +251,19 @@ const DashboardHTML = `
 
                 let actionsHTML = '';
                 if(data.paused) {
-                    actionsHTML += '<button onclick="postAction(\'/resume\')">Resume</button>';
+                    actionsHTML += '<button type="button" onclick="postAction(\'/resume\')">Resume</button>';
                 } else {
-                    actionsHTML += '<button onclick="postAction(\'/pause\')">Pause</button>';
+                    actionsHTML += '<button type="button" onclick="postAction(\'/pause\')">Pause</button>';
                 }
 
                 if(data.draining) {
-                    actionsHTML += '<button onclick="postAction(\'/undrain\')">Undrain</button>';
+                    actionsHTML += '<button type="button" onclick="postAction(\'/undrain\')">Undrain</button>';
                 } else {
-                    actionsHTML += '<button class="danger" onclick="postAction(\'/drain\')">Drain</button>';
+                    actionsHTML += '<button type="button" class="danger" onclick="postAction(\'/drain\')">Drain</button>';
                 }
 
-                actionsHTML += '<button onclick="postAction(\'/poll\')">Force Poll</button>';
-                actionsHTML += '<button class="danger" onclick="deleteAction(\'/pending\')">Clear Pending</button>';
+                actionsHTML += '<button type="button" onclick="postAction(\'/poll\')">Force Poll</button>';
+                actionsHTML += '<button type="button" class="danger" onclick="deleteAction(\'/pending\')">Clear Pending</button>';
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
@@ -593,7 +594,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button onclick="document.getElementById(\'submitModal\').style.display=\'block\'" style="background-color: #28a745;">+ Submit Job</button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button type="button" onclick="document.getElementById(\'submitModal\').style.display=\'block\'" style="background-color: #28a745;">+ Submit Job</button></td></tr>';
                     return;
                 }
 
@@ -619,25 +620,25 @@ const DashboardHTML = `
                     const lowerStatus = (j.status || '').toLowerCase();
 
                     if (lowerStatus === 'pending approval') {
-                        actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
+                        actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
                     } else if (lowerStatus === 'failed') {
-                        actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
+                        actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
                     }
 
                     if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {
-                        actionButtons += '<button class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
+                        actionButtons += '<button type="button" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
                     }
 
                     if (lowerStatus === 'completed' || lowerStatus === 'failed' || lowerStatus === 'canceled' || lowerStatus === 'error') {
-                        actionButtons += '<button class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
+                        actionButtons += '<button type="button" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
                     }
 
-                    actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
+                    actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
                     if (lowerStatus === 'pending') {
-                        actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
+                        actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
                     }
-                    actionButtons += '<button style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
+                    actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
                         '<td><strong>' + safeId + '</strong></td>' +
