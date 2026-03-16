@@ -654,15 +654,21 @@ func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
 
 		resp, err = c.HTTPClient.Do(req)
 		if err != nil {
+			// On transient network errors like EOF, connection reset, connection refused, retry
+			if attempt < 4 {
+				continue
+			}
 			return "", fmt.Errorf("failed to execute request: %w", err)
 		}
 
-		if resp.StatusCode == http.StatusServiceUnavailable {
+		if resp.StatusCode == http.StatusServiceUnavailable || resp.StatusCode >= 500 {
 			resp.Body.Close()
-			continue // Retry on 503
+			if attempt < 4 {
+				continue // Retry on 50x
+			}
 		}
 
-		// Success or other non-retriable error
+		// Success or other non-retriable error (e.g. 401, 404, 200)
 		break
 	}
 
