@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -49,9 +50,11 @@ func run() error {
 		exactImage   string
 		skipBuild    bool
 		skipCleanup  bool
+		pollerType   string
 	)
 
 	flag.StringVar(&scenarioName, "scenario", "http-proxy", "Scenario to run")
+	flag.StringVar(&pollerType, "poller", "jira", "Poller to use (jira or file)")
 	flag.StringVar(&provider, "provider", "openrouter", "AI Provider")
 	flag.StringVar(&model, "model", "openai/gpt-4o-mini", "AI Model")
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
@@ -178,34 +181,70 @@ func run() error {
 		return fmt.Errorf("failed to build recac CLI: %v\nOutput: %s", err, out)
 	}
 
-	// 2. Setup Jira
-	log.Println("=== Setting up Jira Scenario ===")
-	if _, ok := scenarios.Registry[scenarioName]; !ok {
+	// 2. Setup Scenario
+	log.Println("=== Setting up Scenario ===")
+	scenario, ok := scenarios.Registry[scenarioName]
+	if !ok {
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
 	}
 
-	// Use mock provider for generation step in prime-python to ensure stability
-	genProvider := provider
-	if scenarioName == "prime-python" {
-		log.Println("Using 'mock' provider for ticket generation step to avoid rate limits.")
-		genProvider = "mock"
-	}
+	var label string
+	var ticketMap map[string]string
+	var err error
 
-	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, genProvider, model)
-	if err != nil {
-		return fmt.Errorf("failed to generate scenario: %w", err)
-	}
-	log.Printf("Scenario generated with label: %s", label)
-
-	// Defer Cleanup
-	defer func() {
-		if !skipCleanup {
-			log.Println("=== Cleaning up Jira ===")
-			if err := mgr.Cleanup(context.Background(), label); err != nil {
-				log.Printf("Failed cleanup: %v", err)
-			}
+	if pollerType == "jira" {
+		// Use mock provider for generation step in prime-python to ensure stability
+		genProvider := provider
+		if scenarioName == "prime-python" {
+			log.Println("Using 'mock' provider for ticket generation step to avoid rate limits.")
+			genProvider = "mock"
 		}
-	}()
+
+		label, ticketMap, err = mgr.GenerateScenario(ctx, scenarioName, repoURL, genProvider, model)
+		if err != nil {
+			return fmt.Errorf("failed to generate scenario: %w", err)
+		}
+		log.Printf("Scenario generated with label: %s", label)
+
+		// Defer Cleanup
+		defer func() {
+			if !skipCleanup {
+				log.Println("=== Cleaning up Jira ===")
+				if err := mgr.Cleanup(context.Background(), label); err != nil {
+					log.Printf("Failed cleanup: %v", err)
+				}
+			}
+		}()
+	} else if pollerType == "file" {
+		log.Println("Using 'file' poller, bypassing Jira generation.")
+		// Generate local work_items.json
+		label = fmt.Sprintf("recac-e2e-file-%d", time.Now().Unix())
+		ticketMap = map[string]string{
+			"PRIMES": "TASK-1",
+		}
+
+		spec := scenario.AppSpec(repoURL)
+
+		workItem := map[string]interface{}{
+			"id": "TASK-1",
+			"summary": "Create Prime Number Script",
+			"description": spec,
+			"repo_url": repoURL,
+			"tags": []string{label},
+		}
+
+		workItemsData, err := json.Marshal([]interface{}{workItem})
+		if err != nil {
+			return fmt.Errorf("failed to marshal work items: %w", err)
+		}
+
+		err = os.WriteFile("work_items.json", workItemsData, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write work_items.json: %w", err)
+		}
+	} else {
+		return fmt.Errorf("unknown poller: %s", pollerType)
+	}
 
 	// 3. Prepare Repository
 	log.Println("=== Preparing Repository (Cleaning stale branches) ===")
@@ -309,11 +348,39 @@ func run() error {
 			"--set", fmt.Sprintf("image.tag=%s", tagPart),
 			"--set", fmt.Sprintf("image.pullPolicy=%s", pullPolicy),
 			"--set", "config.imagePullPolicy=IfNotPresent",
-			"--set", "config.poller=jira",
-			"--set", fmt.Sprintf("config.jira_label=%s", label),
-			"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
+			"--set", fmt.Sprintf("config.poller=%s", pollerType),
 			"--set", "config.verbose=true",
 			"--set", "config.interval=10s",
+		}
+
+		if pollerType == "jira" {
+			helmLargestCmd = append(helmLargestCmd,
+				"--set", fmt.Sprintf("config.jira_label=%s", label),
+				"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
+				"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
+				"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
+				"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
+			)
+		} else if pollerType == "file" {
+			// To mount the work_items.json file, we could use a configmap,
+			// but for simplicity in Helm test, we just create a configmap and mount it.
+
+			// Create configmap
+			_ = runCommand("kubectl", "delete", "configmap", "e2e-work-items", "-n", namespace)
+			if err := runCommand("kubectl", "create", "configmap", "e2e-work-items", "--from-file=work_items.json", "-n", namespace); err != nil {
+				return fmt.Errorf("failed to create configmap: %w", err)
+			}
+
+			helmLargestCmd = append(helmLargestCmd,
+				"--set", "config.work_file=/etc/recac/work_items.json",
+				"--set", "extraVolumes[0].name=work-items",
+				"--set", "extraVolumes[0].configMap.name=e2e-work-items",
+				"--set", "extraVolumeMounts[0].name=work-items",
+				"--set", "extraVolumeMounts[0].mountPath=/etc/recac",
+			)
+		}
+
+		helmLargestCmd = append(helmLargestCmd,
 			"--set", fmt.Sprintf("config.maxIterations=%s", getEnvOrDefault("MAX_ITERATIONS", "20")),
 			"--set", fmt.Sprintf("config.provider=%s", provider),
 			"--set", fmt.Sprintf("config.model=%s", model),
@@ -321,21 +388,18 @@ func run() error {
 			"--set", "postgresql.enabled=true",
 			"--set", "postgresql.image.repository=bitnami/postgresql",
 			"--set", "postgresql.image.tag=latest",
-			"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
-			"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
 			"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),
 			"--set", fmt.Sprintf("secrets.geminiApiKey=%s", os.Getenv("GEMINI_API_KEY")),
 			"--set", fmt.Sprintf("secrets.anthropicApiKey=%s", os.Getenv("ANTHROPIC_API_KEY")),
 			"--set", fmt.Sprintf("secrets.openaiApiKey=%s", os.Getenv("OPENAI_API_KEY")),
 			"--set", fmt.Sprintf("secrets.cursorApiKey=%s", os.Getenv("CURSOR_API_KEY")),
-			"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
 			"--set", fmt.Sprintf("secrets.ghApiKey=%s", os.Getenv("GITHUB_API_KEY")),
 			"--set", fmt.Sprintf("secrets.ghEmail=%s", os.Getenv("GITHUB_EMAIL")),
 			"--set", fmt.Sprintf("secrets.slackBotUserToken=%s", os.Getenv("SLACK_BOT_USER_TOKEN")),
 			"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
 			"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
 			"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
-		}
+		)
 
 		// Conditionally set postgres registry if we are assuming a local mirroring setup
 		if strings.HasPrefix(pullRepo, "localhost:5000") {
