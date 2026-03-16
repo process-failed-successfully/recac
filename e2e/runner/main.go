@@ -122,9 +122,12 @@ func run() error {
 			time.Sleep(5 * time.Second)
 		}
 		if err != nil {
-			return fmt.Errorf("missing JIRA_PROJECT_KEY and failed to fetch default after retries: %w", err)
+			log.Printf("Warning: failed to fetch default project key after retries: %v", err)
+			log.Println("Falling back to generic project key 'TEST'")
+			projectKey = "TEST"
+		} else {
+			log.Printf("Using default project key: %s", projectKey)
 		}
-		log.Printf("Using default project key: %s", projectKey)
 	}
 
 	mgr := manager.NewJiraManager(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"), projectKey)
