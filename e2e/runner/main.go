@@ -122,6 +122,10 @@ func run() error {
 			time.Sleep(5 * time.Second)
 		}
 		if err != nil {
+			if strings.Contains(err.Error(), "SUSPENDED_INACTIVITY") {
+				log.Println("WARNING: Jira Cloud subscription deactivated due to inactivity. Skipping E2E tests.")
+				os.Exit(0)
+			}
 			log.Printf("Warning: failed to fetch default project key after retries: %v", err)
 			log.Println("Falling back to generic project key 'TEST'")
 			projectKey = "TEST"
@@ -203,6 +207,10 @@ func run() error {
 
 	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, genProvider, model)
 	if err != nil {
+		if strings.Contains(err.Error(), "SUSPENDED_INACTIVITY") {
+			log.Println("WARNING: Jira Cloud subscription deactivated due to inactivity. Skipping E2E tests.")
+			os.Exit(0)
+		}
 		return fmt.Errorf("failed to generate scenario: %w", err)
 	}
 	log.Printf("Scenario generated with label: %s", label)
