@@ -113,7 +113,17 @@ func run() error {
 		log.Println("JIRA_PROJECT_KEY not set. Attempting to fetch default project...")
 		tmpClient := jira.NewClient(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"))
 		var err error
-		projectKey, err = tmpClient.GetFirstProjectKey(ctx)
+		// Retry logic for fetching the first project key to handle transient 503s
+		for attempt := 0; attempt < 5; attempt++ {
+			if attempt > 0 {
+				time.Sleep(5 * time.Second)
+			}
+			projectKey, err = tmpClient.GetFirstProjectKey(ctx)
+			if err == nil {
+				break
+			}
+			log.Printf("Attempt %d to fetch default project failed: %v", attempt+1, err)
+		}
 		if err != nil {
 			return fmt.Errorf("missing JIRA_PROJECT_KEY and failed to fetch default: %w", err)
 		}
