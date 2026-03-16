@@ -117,6 +117,9 @@ func main() {
 	pflag.Bool("purge-failed", false, "Purge all failed jobs from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
+	pflag.String("delete-pending-job", "", "Delete a specific job from the pending queue")
+	pflag.String("delete-pending-tag", "", "Delete all pending jobs with the specified tag")
+	pflag.String("delete-pending-match", "", "Delete all pending jobs matching the given regex")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
 	pflag.Bool("downstream", false, "Retry the job and all its downstream dependencies (with --retry-job)")
 	pflag.String("retry-edit-job", "", "Interactively edit and retry a failed job by ID")
@@ -364,6 +367,9 @@ func main() {
 	viper.BindPFlag("orchestrator.purge_failed", pflag.Lookup("purge-failed"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
+	viper.BindPFlag("orchestrator.delete_pending_job", pflag.Lookup("delete-pending-job"))
+	viper.BindPFlag("orchestrator.delete_pending_tag", pflag.Lookup("delete-pending-tag"))
+	viper.BindPFlag("orchestrator.delete_pending_match", pflag.Lookup("delete-pending-match"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.downstream", pflag.Lookup("downstream"))
 	viper.BindPFlag("orchestrator.retry_edit_job", pflag.Lookup("retry-edit-job"))
@@ -782,6 +788,24 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.clear_pending") {
 		host := viper.GetString("orchestrator.host")
 		clearPending(host)
+		return nil
+	}
+
+	if jobID := viper.GetString("orchestrator.delete_pending_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		deletePendingJob(host, jobID)
+		return nil
+	}
+
+	if deletePendingTag := viper.GetString("orchestrator.delete_pending_tag"); deletePendingTag != "" {
+		host := viper.GetString("orchestrator.host")
+		deletePendingJobsByTag(host, deletePendingTag)
+		return nil
+	}
+
+	if deletePendingMatch := viper.GetString("orchestrator.delete_pending_match"); deletePendingMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		deletePendingJobsByMatch(host, deletePendingMatch)
 		return nil
 	}
 
@@ -2459,4 +2483,121 @@ func unholdJob(host, jobID string) {
 	}
 
 	fmt.Fprintf(stdout, "Job %s unheld successfully.\n", jobID)
+}
+func deletePendingJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s/pending", host, jobID), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to delete pending job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Pending job %s deleted successfully.\n", jobID)
+}
+
+func deletePendingJobsByTag(host, tag string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/pending", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	q.Set("tag", tag)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to delete pending jobs by tag: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Deleted int `json:"deleted"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully deleted %d pending jobs by tag.\n", result.Deleted)
+}
+
+func deletePendingJobsByMatch(host, match string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/pending", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	q.Set("match", match)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to delete pending jobs by match: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Deleted int `json:"deleted"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully deleted %d pending jobs by match.\n", result.Deleted)
 }
