@@ -1732,16 +1732,16 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 
 var outputSanitizeRegex = regexp.MustCompile(`[^A-Z0-9_]`)
 
+// Helper to sanitize job ID for env var name
+func sanitizeJobID(id string) string {
+	s := strings.ToUpper(id)
+	s = strings.ReplaceAll(s, "-", "_")
+	s = outputSanitizeRegex.ReplaceAllString(s, "_")
+	return s
+}
+
 func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, string, map[string]string) {
 	outputs := make(map[string]string)
-
-	// Helper to sanitize job ID for env var name
-	sanitize := func(id string) string {
-		s := strings.ToUpper(id)
-		s = strings.ReplaceAll(s, "-", "_")
-		s = outputSanitizeRegex.ReplaceAllString(s, "_")
-		return s
-	}
 
 	for _, dep := range dependsOn {
 		met := false
@@ -1786,7 +1786,7 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 		}
 
 		// Accumulate outputs
-		prefix := fmt.Sprintf("DEP_%s_", sanitize(dep))
+		prefix := fmt.Sprintf("DEP_%s_", sanitizeJobID(dep))
 		for k, v := range depJob.Outputs {
 			outputs[prefix+strings.ToUpper(k)] = v
 		}
