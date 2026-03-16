@@ -104,6 +104,8 @@ func main() {
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
+	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
+	pflag.String("heal-tag", "", "Heal all failed jobs with the specified tag")
 	pflag.String("compare-jobs", "", "Compare two jobs by ID (comma-separated, e.g. job1,job2)")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
@@ -354,6 +356,8 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
+	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
+	viper.BindPFlag("orchestrator.heal_tag", pflag.Lookup("heal-tag"))
 	viper.BindPFlag("orchestrator.compare_jobs", pflag.Lookup("compare-jobs"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
@@ -710,6 +714,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		wait := viper.GetBool("orchestrator.wait")
 		healJob(host, jobID, wait)
+		return nil
+	}
+
+	healMatch := viper.GetString("orchestrator.heal_match")
+	healTag := viper.GetString("orchestrator.heal_tag")
+	if healMatch != "" || healTag != "" {
+		host := viper.GetString("orchestrator.host")
+		healBulkJobs(host, healMatch, healTag)
 		return nil
 	}
 
