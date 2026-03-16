@@ -604,6 +604,13 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				return m, textinput.Blink
 			}
 		case "D":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_deps"
+				m.viewState = viewDepsInput
+				m.depsInput.SetValue("")
+				m.depsInput.Focus()
+				return m, textinput.Blink
+			}
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
 				id := getRawID(selected[0])
@@ -618,6 +625,13 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				}
 			}
 		case "E":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_env"
+				m.viewState = viewEnvInput
+				m.envInput.SetValue("")
+				m.envInput.Focus()
+				return m, textinput.Blink
+			}
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
 				id := getRawID(selected[0])
@@ -643,6 +657,13 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				}
 			}
 		case "G":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_tags"
+				m.viewState = viewTagsInput
+				m.tagsInput.SetValue("")
+				m.tagsInput.Focus()
+				return m, textinput.Blink
+			}
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
 				id := getRawID(selected[0])
@@ -983,6 +1004,17 @@ func (m DashboardModel) updateDepsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 					}
 				}
 			}
+
+			if id == "MULTIPLE_deps" && len(m.selectedJobs) > 0 {
+				var cmds []tea.Cmd
+				for jobId := range m.selectedJobs {
+					cmds = append(cmds, updateDependenciesCmd(m.host, jobId, deps))
+				}
+				m.selectedJobs = make(map[string]bool)
+				m.updateTableContent()
+				return m, tea.Batch(cmds...)
+			}
+
 			return m, updateDependenciesCmd(m.host, id, deps)
 		}
 	}
@@ -1020,6 +1052,17 @@ func (m DashboardModel) updateEnvInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 					}
 				}
 			}
+
+			if id == "MULTIPLE_env" && len(m.selectedJobs) > 0 {
+				var cmds []tea.Cmd
+				for jobId := range m.selectedJobs {
+					cmds = append(cmds, updateEnvCmd(m.host, jobId, env))
+				}
+				m.selectedJobs = make(map[string]bool)
+				m.updateTableContent()
+				return m, tea.Batch(cmds...)
+			}
+
 			return m, updateEnvCmd(m.host, id, env)
 		}
 	}
@@ -1054,6 +1097,17 @@ func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 					}
 				}
 			}
+
+			if id == "MULTIPLE_tags" && len(m.selectedJobs) > 0 {
+				var cmds []tea.Cmd
+				for jobId := range m.selectedJobs {
+					cmds = append(cmds, updateTagsCmd(m.host, jobId, tags))
+				}
+				m.selectedJobs = make(map[string]bool)
+				m.updateTableContent()
+				return m, tea.Batch(cmds...)
+			}
+
 			return m, updateTagsCmd(m.host, id, tags)
 		}
 	}

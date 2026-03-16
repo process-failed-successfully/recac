@@ -262,6 +262,54 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "dep-1, dep-2", m.depsInput.Value())
 	})
 
+	t.Run("Set Deps Key (D) - Multiple", func(t *testing.T) {
+		model = NewDashboardModel("http://localhost")
+		model.table = tModel
+		model.jobs = []orchestrator.JobInfo{
+			{ID: "JOB-1"},
+		}
+		model.selectedJobs = map[string]bool{"JOB-1": true}
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("D")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewDepsInput, m.viewState)
+		assert.Equal(t, "MULTIPLE_deps", m.pendingJobId)
+		assert.Equal(t, "", m.depsInput.Value())
+	})
+
+	t.Run("Update Env (E) - Multiple", func(t *testing.T) {
+		model = NewDashboardModel("http://localhost")
+		model.table = tModel
+		model.jobs = []orchestrator.JobInfo{
+			{ID: "JOB-1"},
+		}
+		model.selectedJobs = map[string]bool{"JOB-1": true}
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("E")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewEnvInput, m.viewState)
+		assert.Equal(t, "MULTIPLE_env", m.pendingJobId)
+		assert.Equal(t, "", m.envInput.Value())
+	})
+
+	t.Run("Update Tags (G) - Multiple", func(t *testing.T) {
+		model = NewDashboardModel("http://localhost")
+		model.table = tModel
+		model.jobs = []orchestrator.JobInfo{
+			{ID: "JOB-1"},
+		}
+		model.selectedJobs = map[string]bool{"JOB-1": true}
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewTagsInput, m.viewState)
+		assert.Equal(t, "MULTIPLE_tags", m.pendingJobId)
+		assert.Equal(t, "", m.tagsInput.Value())
+	})
+
 	t.Run("Edit/Clone Key (e)", func(t *testing.T) {
 		// Ensure job has details
 		if len(model.jobs) > 0 {
