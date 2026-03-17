@@ -128,6 +128,7 @@ func main() {
 	pflag.String("clone-job", "", "Clone an existing job by ID")
 	pflag.String("clone-match", "", "Clone all jobs matching the given regex")
 	pflag.String("clone-tag", "", "Clone all jobs with the specified tag")
+	pflag.Bool("clone-remap-deps", false, "Remap dependencies between cloned jobs (used with clone-match or clone-tag)")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
 	pflag.String("retry-tag", "", "Retry all failed jobs from history with the specified tag")
@@ -384,6 +385,7 @@ func main() {
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
 	viper.BindPFlag("orchestrator.clone_match", pflag.Lookup("clone-match"))
 	viper.BindPFlag("orchestrator.clone_tag", pflag.Lookup("clone-tag"))
+	viper.BindPFlag("orchestrator.clone_remap_deps", pflag.Lookup("clone-remap-deps"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
 	viper.BindPFlag("orchestrator.retry_tag", pflag.Lookup("retry-tag"))
@@ -881,6 +883,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		priority := viper.GetInt("orchestrator.submit_priority")
 		wait := viper.GetBool("orchestrator.wait")
+		remapDeps := viper.GetBool("orchestrator.clone_remap_deps")
 		envPairs := viper.GetStringSlice("orchestrator.env")
 		submitDeps := viper.GetStringSlice("orchestrator.submit_deps")
 
@@ -904,7 +907,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			submitDepsPtr = submitDeps
 		}
 
-		cloneBulkJobs(host, cloneMatch, cloneTag, priorityPtr, wait, envMap, submitDepsPtr)
+		cloneBulkJobs(host, cloneMatch, cloneTag, priorityPtr, wait, envMap, submitDepsPtr, remapDeps)
 		return nil
 	}
 

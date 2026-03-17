@@ -1315,9 +1315,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 
 		var overrides struct {
-			EnvVars   map[string]string `json:"env_vars"`
-			Priority  *int              `json:"priority"`
-			DependsOn []string          `json:"depends_on"`
+			EnvVars           map[string]string `json:"env_vars"`
+			Priority          *int              `json:"priority"`
+			DependsOn         []string          `json:"depends_on"`
+			RemapDependencies bool              `json:"remap_dependencies"`
 		}
 
 		if r.Body != nil {
@@ -1360,10 +1361,17 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 		}
 
-		var clonedIDs []string
+		// Pre-generate new IDs and build mapping if remap is requested
+		idMap := make(map[string]string)
+		nowNano := time.Now().UnixNano()
 		for i, job := range filtered {
+			idMap[job.ID] = fmt.Sprintf("%s-clone-%d-%d", job.ID, nowNano, i)
+		}
+
+		var clonedIDs []string
+		for _, job := range filtered {
 			newItem := job.WorkItem
-			newItem.ID = fmt.Sprintf("%s-clone-%d-%d", newItem.ID, time.Now().UnixNano(), i)
+			newItem.ID = idMap[job.ID]
 
 			if job.WorkItem.EnvVars != nil {
 				newItem.EnvVars = make(map[string]string)
@@ -1390,6 +1398,14 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			} else if job.WorkItem.DependsOn != nil {
 				newItem.DependsOn = make([]string, len(job.WorkItem.DependsOn))
 				copy(newItem.DependsOn, job.WorkItem.DependsOn)
+
+				if overrides.RemapDependencies {
+					for idx, dep := range newItem.DependsOn {
+						if newDepID, exists := idMap[dep]; exists {
+							newItem.DependsOn[idx] = newDepID
+						}
+					}
+				}
 			}
 
 			if err := orch.SubmitJob(baseCtx, newItem, logger); err != nil {
