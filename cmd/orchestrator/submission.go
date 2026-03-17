@@ -70,7 +70,7 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
-func lintPipelineJob(filePath string) {
+func lintPipelineJob(filePath string, target string) {
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
@@ -78,7 +78,7 @@ func lintPipelineJob(filePath string) {
 		return
 	}
 
-	items, err := orchestrator.ParsePipelineToWorkItems(fileData)
+	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target)
 	if err != nil {
 		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 		exitFunc(1)
@@ -88,7 +88,7 @@ func lintPipelineJob(filePath string) {
 	fmt.Fprintf(stdout, "Pipeline is valid. Parsed %d jobs.\n", len(items))
 }
 
-func submitPipelineJob(host, filePath string, wait bool, dryRun bool) {
+func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target string) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
@@ -105,7 +105,7 @@ func submitPipelineJob(host, filePath string, wait bool, dryRun bool) {
 			return
 		}
 
-		items, err := orchestrator.ParsePipelineToWorkItems(fileData)
+		items, err := orchestrator.ParsePipelineToWorkItems(fileData, target)
 		if err != nil {
 			fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 			exitFunc(1)
@@ -123,7 +123,12 @@ func submitPipelineJob(host, filePath string, wait bool, dryRun bool) {
 		return
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs/pipeline", host), "application/x-yaml", file)
+	urlStr := fmt.Sprintf("%s/jobs/pipeline", host)
+	if target != "" {
+		urlStr = fmt.Sprintf("%s?target=%s", urlStr, url.QueryEscape(target))
+	}
+
+	resp, err := http.Post(urlStr, "application/x-yaml", file)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)

@@ -62,6 +62,47 @@ jobs:
 		}
 	})
 
+	t.Run("Pipeline with Target", func(t *testing.T) {
+		yamlData := []byte(`
+name: Deploy Web App Target
+jobs:
+  setup:
+    summary: Setup
+  build:
+    summary: Build application
+    depends_on: [setup]
+  test:
+    summary: Run tests
+    depends_on: [build]
+  deploy:
+    summary: Deploy
+    depends_on: [test]
+`)
+		req := httptest.NewRequest(http.MethodPost, "/jobs/pipeline?target=test", bytes.NewReader(yamlData))
+		req.Header.Set("Content-Type", "application/x-yaml")
+		rr := httptest.NewRecorder()
+
+		// Expect Spawn call for the setup, build, and test jobs
+		mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusAccepted, rr.Code)
+
+		var resp map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+
+		submitted := resp["submitted"].([]interface{})
+		// "setup", "build", "test" should be submitted. "deploy" should not.
+		assert.Len(t, submitted, 3)
+
+		errors := resp["errors"]
+		if errors != nil {
+			assert.Empty(t, errors.([]interface{}))
+		}
+	})
+
 	t.Run("Invalid YAML Pipeline", func(t *testing.T) {
 		yamlData := []byte(`
 name: Invalid Pipeline

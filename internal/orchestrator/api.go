@@ -1806,7 +1806,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			return
 		}
 
-		items, err := ParsePipelineToWorkItems(bodyBytes)
+		target := r.URL.Query().Get("target")
+		items, err := ParsePipelineToWorkItems(bodyBytes, target)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -1848,7 +1849,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			return
 		}
 
-		items, err := ParsePipelineToWorkItems(bodyBytes)
+		target := r.URL.Query().Get("target")
+		items, err := ParsePipelineToWorkItems(bodyBytes, target)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
