@@ -22,8 +22,8 @@ func NewMockStore() *MockStore {
 	}
 }
 
-func (s *MockStore) Load() error           { return nil }
-func (s *MockStore) Save() error           { return nil }
+func (s *MockStore) Load() error                { return nil }
+func (s *MockStore) Save() error                { return nil }
 func (s *MockStore) Add(c flashcards.Flashcard) { s.cards[c.ID] = c }
 func (s *MockStore) List() []flashcards.Flashcard {
 	var list []flashcards.Flashcard
@@ -165,7 +165,7 @@ func TestFlashcardsModel_Update_QuitKeys(t *testing.T) {
 	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	assert.NotNil(t, cmd)
 
-    // Test esc
+	// Test esc
 	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	assert.NotNil(t, cmd)
 }
@@ -182,8 +182,8 @@ func TestFlashcardsModel_Update_Rate1(t *testing.T) {
 	m := updatedModel.(FlashcardsModel)
 	assert.Nil(t, cmd)
 	assert.Equal(t, StateFinished, m.state)
-    assert.Equal(t, 1, m.reviewed)
-    assert.Equal(t, 0, m.learned) // Rate 1 < Rate 2 (Hard)
+	assert.Equal(t, 1, m.reviewed)
+	assert.Equal(t, 0, m.learned) // Rate 1 < Rate 2 (Hard)
 }
 
 func TestFlashcardsModel_Update_Rate2(t *testing.T) {
@@ -198,8 +198,8 @@ func TestFlashcardsModel_Update_Rate2(t *testing.T) {
 	m := updatedModel.(FlashcardsModel)
 	assert.Nil(t, cmd)
 	assert.Equal(t, StateFinished, m.state)
-    assert.Equal(t, 1, m.reviewed)
-    assert.Equal(t, 1, m.learned) // Rate 2 == Hard
+	assert.Equal(t, 1, m.reviewed)
+	assert.Equal(t, 1, m.learned) // Rate 2 == Hard
 }
 
 func TestFlashcardsModel_Update_WindowSize(t *testing.T) {
@@ -212,8 +212,8 @@ func TestFlashcardsModel_Update_WindowSize(t *testing.T) {
 	m := updatedModel.(FlashcardsModel)
 	assert.Nil(t, cmd)
 	assert.True(t, m.ready)
-    assert.Equal(t, 100, m.width)
-    assert.Equal(t, 50, m.height)
+	assert.Equal(t, 100, m.width)
+	assert.Equal(t, 50, m.height)
 }
 
 func TestFlashcardsModel_Update_TableDriven(t *testing.T) {
