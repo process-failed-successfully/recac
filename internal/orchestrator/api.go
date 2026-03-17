@@ -1571,6 +1571,52 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"cloned_job_id": "%s"}`, newItem.ID)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/force-complete", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.ForceCompleteJob(r.Context(), id, logger); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if strings.Contains(err.Error(), "already completed") || strings.Contains(err.Error(), "already skipped") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s force completed", id)
+	})
+
+	mux.HandleFunc("POST /jobs/force-complete", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.ForceCompleteJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.ForceCompleteJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk force complete", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"force_completed": %d}`, count)
+	})
+
 	mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
 		match := r.URL.Query().Get("match")
 		tag := r.URL.Query().Get("tag")

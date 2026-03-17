@@ -147,6 +147,9 @@ func main() {
 	pflag.String("skip-job", "", "Skip a specific pending job by ID")
 	pflag.String("skip-tag", "", "Skip all pending jobs with the specified tag")
 	pflag.String("skip-match", "", "Skip all pending jobs matching the given regex")
+	pflag.String("force-complete-job", "", "Force mark an active, pending, or failed job as completed by ID")
+	pflag.String("force-complete-tag", "", "Force mark jobs with the specified tag as completed")
+	pflag.String("force-complete-match", "", "Force mark jobs matching the given regex as completed")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
@@ -409,6 +412,9 @@ func main() {
 	viper.BindPFlag("orchestrator.skip_job", pflag.Lookup("skip-job"))
 	viper.BindPFlag("orchestrator.skip_tag", pflag.Lookup("skip-tag"))
 	viper.BindPFlag("orchestrator.skip_match", pflag.Lookup("skip-match"))
+	viper.BindPFlag("orchestrator.force_complete_job", pflag.Lookup("force-complete-job"))
+	viper.BindPFlag("orchestrator.force_complete_tag", pflag.Lookup("force-complete-tag"))
+	viper.BindPFlag("orchestrator.force_complete_match", pflag.Lookup("force-complete-match"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.drain", pflag.Lookup("drain"))
@@ -994,6 +1000,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if skipTag != "" || skipMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		skipJobs(host, skipMatch, skipTag)
+		return nil
+	}
+
+	if forceCompleteJobID := viper.GetString("orchestrator.force_complete_job"); forceCompleteJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		forceCompleteJob(host, forceCompleteJobID)
+		return nil
+	}
+
+	forceCompleteTag := viper.GetString("orchestrator.force_complete_tag")
+	forceCompleteMatch := viper.GetString("orchestrator.force_complete_match")
+	if forceCompleteTag != "" || forceCompleteMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		forceCompleteBulkJobs(host, forceCompleteMatch, forceCompleteTag)
 		return nil
 	}
 
