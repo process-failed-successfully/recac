@@ -28,7 +28,7 @@ func TestLintPipelineJob_Success(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	lintPipelineJob(f.Name())
+	lintPipelineJob(f.Name(), "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -50,7 +50,7 @@ func TestLintPipelineJob_InvalidFile(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	lintPipelineJob("non_existent_pipeline_file.yaml")
+	lintPipelineJob("non_existent_pipeline_file.yaml", "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -77,7 +77,7 @@ func TestLintPipelineJob_InvalidYaml(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	lintPipelineJob(f.Name())
+	lintPipelineJob(f.Name(), "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -110,7 +110,7 @@ func TestSubmitPipelineJob_Success(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false, false)
+	submitPipelineJob(server.URL, f.Name(), false, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -132,7 +132,7 @@ func TestSubmitPipelineJob_InvalidFile(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob("http://localhost", "non_existent_pipeline_file.yaml", false, false)
+	submitPipelineJob("http://localhost", "non_existent_pipeline_file.yaml", false, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -159,7 +159,7 @@ func TestSubmitPipelineJob_ConnectionError(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob("http://localhost:123456", f.Name(), false, false)
+	submitPipelineJob("http://localhost:123456", f.Name(), false, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -192,7 +192,7 @@ func TestSubmitPipelineJob_ErrorResponse(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false, false)
+	submitPipelineJob(server.URL, f.Name(), false, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -225,7 +225,7 @@ func TestSubmitPipelineJob_InvalidJSON(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false, false)
+	submitPipelineJob(server.URL, f.Name(), false, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -258,7 +258,7 @@ func TestSubmitPipelineJob_WithErrors(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), false, false)
+	submitPipelineJob(server.URL, f.Name(), false, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -300,7 +300,7 @@ func TestSubmitPipelineJob_WaitFailed(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob(server.URL, f.Name(), true, false)
+	submitPipelineJob(server.URL, f.Name(), true, false, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -329,7 +329,7 @@ func TestSubmitPipelineJob_DryRun(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	submitPipelineJob("http://invalid-url-should-not-be-called", f.Name(), false, true)
+	submitPipelineJob("http://invalid-url-should-not-be-called", f.Name(), false, true, "")
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)

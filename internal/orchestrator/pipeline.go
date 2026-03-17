@@ -53,7 +53,7 @@ func sanitizeName(name string) string {
 }
 
 // ParsePipelineToWorkItems converts a YAML pipeline definition into a list of WorkItems
-func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
+func ParsePipelineToWorkItems(yamlData []byte, targetJob string) ([]WorkItem, error) {
 	var p Pipeline
 	if err := yaml.Unmarshal(yamlData, &p); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pipeline YAML: %w", err)
@@ -64,6 +64,61 @@ func ParsePipelineToWorkItems(yamlData []byte) ([]WorkItem, error) {
 	}
 	if len(p.Jobs) == 0 {
 		return nil, fmt.Errorf("pipeline must have at least one job")
+	}
+
+	if targetJob != "" {
+		if _, ok := p.Jobs[targetJob]; !ok {
+			return nil, fmt.Errorf("target job '%s' not found in pipeline", targetJob)
+		}
+
+		// Build an adjacency list (job -> dependencies)
+		adj := make(map[string][]string)
+		for jobKey, jobDef := range p.Jobs {
+			var deps []string
+			if p.Defaults.DependsOn != nil {
+				deps = append(deps, p.Defaults.DependsOn...)
+			}
+			if jobDef.DependsOn != nil {
+				deps = append(deps, jobDef.DependsOn...)
+			}
+			// Avoid self-dependency
+			var validDeps []string
+			for _, dep := range deps {
+				if dep != jobKey {
+					validDeps = append(validDeps, dep)
+				}
+			}
+			adj[jobKey] = validDeps
+		}
+
+		// BFS/DFS to find all ancestors
+		visited := make(map[string]bool)
+		queue := []string{targetJob}
+
+		for len(queue) > 0 {
+			curr := queue[0]
+			queue = queue[1:]
+
+			if visited[curr] {
+				continue
+			}
+			visited[curr] = true
+
+			for _, dep := range adj[curr] {
+				if !visited[dep] {
+					queue = append(queue, dep)
+				}
+			}
+		}
+
+		// Filter p.Jobs
+		filteredJobs := make(map[string]PipelineJob)
+		for k, v := range p.Jobs {
+			if visited[k] {
+				filteredJobs[k] = v
+			}
+		}
+		p.Jobs = filteredJobs
 	}
 
 	pipelineIDPrefix := sanitizeName(p.Name)
