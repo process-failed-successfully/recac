@@ -1,10 +1,10 @@
 package tui
 
 import (
-	"testing"
-	"recac/internal/orchestrator"
-	"github.com/stretchr/testify/assert"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/assert"
+	"recac/internal/orchestrator"
+	"testing"
 )
 
 func TestDashboardUpdate_MultipleSelection(t *testing.T) {

@@ -60,6 +60,8 @@ const (
 	viewRenameInput
 	viewExplain
 	viewCompare
+	viewSearchLogsInput
+	viewSearchLogsResult
 )
 
 type DashboardModel struct {
@@ -104,8 +106,15 @@ type DashboardModel struct {
 	// Rename input field
 	renameInput textinput.Model
 
+	searchInput textinput.Model
+
 	explain     string
 	compareJobs [2]orchestrator.JobInfo
+}
+
+type searchLogsResultMsg struct {
+	Output string
+	Err    error
 }
 
 type tickMsg time.Time
@@ -266,6 +275,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case searchLogsResultMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewSearchLogsResult
+			m.viewport.SetContent(msg.Output)
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
 	case explainMsg:
 		if msg.Err != nil {
 			m.err = msg.Err
@@ -357,6 +376,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewRenameInput:
 		m, cmd = m.updateRenameInput(msg)
+		cmds = append(cmds, cmd)
+	case viewSearchLogsInput:
+		m, cmd = m.updateSearchLogsInput(msg)
+		cmds = append(cmds, cmd)
+	case viewSearchLogsResult:
+		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -506,6 +531,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "S":
+			m.viewState = viewSearchLogsInput
+			m.searchInput.SetValue("")
+			m.searchInput.Focus()
+			return m, textinput.Blink
 		case "t":
 			m.viewState = viewTree
 			m.viewport.SetContent(renderTree(m.jobs))
@@ -1215,6 +1245,29 @@ func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	return m, cmd
 }
 
+func (m DashboardModel) updateSearchLogsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.viewState = viewMain
+			m.searchInput.SetValue("")
+			m.searchInput.Blur()
+			return m, nil
+		case "enter":
+			val := m.searchInput.Value()
+			if val == "" {
+				return m, nil
+			}
+			m.searchInput.Blur()
+			return m, searchLogsCmd(m.host, val)
+		}
+	}
+	m.searchInput, cmd = m.searchInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -1310,6 +1363,17 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewTree:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewSearchLogsInput:
+		inputView := lipgloss.NewStyle().Margin(1, 2).Render(
+			titleStyle.Render("Search Logs (Regex):") + "\n" +
+				m.searchInput.View() + "\n\n" +
+				statusStyle.Render("enter: search | esc: cancel"),
+		)
+		contentView = baseStyle.Render(inputView)
+		helpView = statusStyle.Render("enter: search | esc: cancel")
+	case viewSearchLogsResult:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewExplain:
@@ -1651,6 +1715,65 @@ func waitForLogChunk(r io.Reader) tea.Cmd {
 		buf := make([]byte, 4096) // 4KB chunks
 		n, err := r.Read(buf)
 		return logChunkMsg{Chunk: string(buf[:n]), Err: err}
+	}
+}
+
+func searchLogsCmd(host, query string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/search/logs?q=%s", host, query))
+		if err != nil {
+			return searchLogsResultMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return searchLogsResultMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		type LogMatch struct {
+			LineNumber int    `json:"line_number"`
+			Text       string `json:"text"`
+		}
+		type JobLogResult struct {
+			JobID   string     `json:"job_id"`
+			Summary string     `json:"summary"`
+			Status  string     `json:"status"`
+			Matches []LogMatch `json:"matches"`
+		}
+
+		var results []JobLogResult
+		if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+			return searchLogsResultMsg{Err: err}
+		}
+
+		if len(results) == 0 {
+			return searchLogsResultMsg{Output: fmt.Sprintf("No matching logs found for query: %q", query)}
+		}
+
+		var sb strings.Builder
+		titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FAFAFA")).Background(lipgloss.Color("#7D56F4")).Padding(0, 1)
+		jobStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+		statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+		lineNumStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
+
+		sb.WriteString(titleStyle.Render(fmt.Sprintf("Log Search Results (query: %q)", query)) + "\n\n")
+
+		for _, job := range results {
+			sb.WriteString(fmt.Sprintf("Job: %s (%s)\n", jobStyle.Render(job.JobID), statusStyle.Render(job.Status)))
+			sb.WriteString(fmt.Sprintf("Summary: %s\n", job.Summary))
+
+			for _, match := range job.Matches {
+				sb.WriteString(fmt.Sprintf("  %s %s\n",
+					lineNumStyle.Render(fmt.Sprintf("Line %d:", match.LineNumber)),
+					textStyle.Render(strings.TrimSpace(match.Text)),
+				))
+			}
+			sb.WriteString("\n")
+		}
+
+		return searchLogsResultMsg{Output: sb.String()}
 	}
 }
 
@@ -2337,6 +2460,11 @@ func NewDashboardModel(host string) DashboardModel {
 	ri.Prompt = "New Job ID: "
 	ri.Width = 40
 
+	si := textinput.New()
+	si.Placeholder = "e.g., error|panic"
+	si.Prompt = "Query: "
+	si.Width = 40
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -2351,6 +2479,7 @@ func NewDashboardModel(host string) DashboardModel {
 		envInput:     ei,
 		tagsInput:    gi,
 		renameInput:  ri,
+		searchInput:  si,
 		selectedJobs: make(map[string]bool),
 	}
 }

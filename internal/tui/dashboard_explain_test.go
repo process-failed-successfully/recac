@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"recac/internal/orchestrator"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestDashboard_ExplainAction(t *testing.T) {
