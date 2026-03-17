@@ -155,6 +155,8 @@ func main() {
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout)")
 	pflag.String("update-agent-job", "", "Update the agent provider and model of a specific pending job")
+	pflag.String("update-agent-tag", "", "Update the agent provider and model of all pending jobs with the specified tag")
+	pflag.String("update-agent-match", "", "Update the agent provider and model of all pending jobs matching the given regex")
 	pflag.String("agent-provider-val", "", "The new agent provider to assign (requires --update-agent-job)")
 	pflag.String("agent-model-val", "", "The new agent model to assign (requires --update-agent-job)")
 	pflag.String("set-progress-job", "", "Set progress for a specific job")
@@ -407,6 +409,8 @@ func main() {
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.timeout_val", pflag.Lookup("timeout-val"))
 	viper.BindPFlag("orchestrator.update_agent_job", pflag.Lookup("update-agent-job"))
+	viper.BindPFlag("orchestrator.update_agent_tag", pflag.Lookup("update-agent-tag"))
+	viper.BindPFlag("orchestrator.update_agent_match", pflag.Lookup("update-agent-match"))
 	viper.BindPFlag("orchestrator.agent_provider_val", pflag.Lookup("agent-provider-val"))
 	viper.BindPFlag("orchestrator.agent_model_val", pflag.Lookup("agent-model-val"))
 	viper.BindPFlag("orchestrator.set_progress_job", pflag.Lookup("set-progress-job"))
@@ -1023,7 +1027,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updateAgentJob := viper.GetString("orchestrator.update_agent_job"); updateAgentJob != "" {
+	updateAgentJob := viper.GetString("orchestrator.update_agent_job")
+	updateAgentTag := viper.GetString("orchestrator.update_agent_tag")
+	updateAgentMatch := viper.GetString("orchestrator.update_agent_match")
+
+	agentFlagsSet := 0
+	if updateAgentJob != "" {
+		agentFlagsSet++
+	}
+	if updateAgentTag != "" {
+		agentFlagsSet++
+	}
+	if updateAgentMatch != "" {
+		agentFlagsSet++
+	}
+
+	if agentFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-agent-job, --update-agent-tag, and --update-agent-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updateAgentJob != "" {
 		host := viper.GetString("orchestrator.host")
 		providerVal := viper.GetString("orchestrator.agent_provider_val")
 		modelVal := viper.GetString("orchestrator.agent_model_val")
@@ -1033,6 +1058,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		updateAgent(host, updateAgentJob, providerVal, modelVal)
+		return nil
+	}
+
+	if updateAgentTag != "" || updateAgentMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		providerVal := viper.GetString("orchestrator.agent_provider_val")
+		modelVal := viper.GetString("orchestrator.agent_model_val")
+		if providerVal == "" && modelVal == "" {
+			fmt.Fprintf(stdout, "Error: --agent-provider-val or --agent-model-val is required when using --update-agent-tag or --update-agent-match\n")
+			exitFunc(1)
+			return nil
+		}
+		updateBulkAgent(host, updateAgentMatch, updateAgentTag, providerVal, modelVal)
 		return nil
 	}
 

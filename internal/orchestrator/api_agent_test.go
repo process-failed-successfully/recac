@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"io"
+	"log/slog"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -95,6 +97,84 @@ func TestUpdateJobAgentAPI(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err = http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAPIUpdateBulkAgent(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+
+	orch.pendingJobs["JOB-1"] = JobInfo{
+		ID:     "JOB-1",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:            "JOB-1",
+			Tags:          []string{"backend"},
+			AgentProvider: "openai",
+			AgentModel:    "gpt-3.5",
+			RunAfter:      time.Now().Add(1 * time.Hour),
+		},
+	}
+	orch.pendingJobs["JOB-2"] = JobInfo{
+		ID:     "JOB-2",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:            "JOB-2",
+			Tags:          []string{"frontend"},
+			AgentProvider: "openai",
+			AgentModel:    "gpt-3.5",
+			RunAfter:      time.Now().Add(1 * time.Hour),
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// 1. Update by tag
+	reqBody := `{"agent_provider": "anthropic", "agent_model": "claude-3"}`
+	req, err := http.NewRequest(http.MethodPut, server.URL+"/jobs/agent?tag=backend", bytes.NewReader([]byte(reqBody)))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var result map[string]int
+	json.NewDecoder(resp.Body).Decode(&result)
+	assert.Equal(t, 1, result["updated"])
+
+	assert.Equal(t, "anthropic", orch.pendingJobs["JOB-1"].WorkItem.AgentProvider)
+
+	// 2. Both tag and match (should fail)
+	req, _ = http.NewRequest(http.MethodPut, server.URL+"/jobs/agent?tag=backend&match=test", bytes.NewReader([]byte(reqBody)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = client.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	// 3. Neither tag nor match (should fail)
+	req, _ = http.NewRequest(http.MethodPut, server.URL+"/jobs/agent", bytes.NewReader([]byte(reqBody)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = client.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	// 4. Invalid match regex
+	req, _ = http.NewRequest(http.MethodPut, server.URL+"/jobs/agent?match=[invalid", bytes.NewReader([]byte(reqBody)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = client.Do(req)
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
