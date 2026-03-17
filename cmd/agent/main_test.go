@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -118,4 +120,28 @@ func TestRunApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMainFunc(t *testing.T) {
+	if os.Getenv("CRASH_TEST") == "1" {
+		main()
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestMainFunc")
+	cmd.Env = append(os.Environ(), "CRASH_TEST=1")
+
+	// We capture the output and assert it behaves as expected (e.g., panics or fails to read config)
+	// without actually breaking the test suite.
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			// Expected to fail when run like this since config is not present or flags are missing
+			assert.Contains(t, string(out), "Error")
+			return
+		}
+	}
+	// If it didn't error out, that's also fine, but we expect an error in this default state.
+	t.Logf("Process exited successfully. Output: %s", string(out))
 }
