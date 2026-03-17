@@ -298,15 +298,17 @@ func submitBatchJob(host, filePath string, wait bool) {
 	}
 }
 
-func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars map[string]string, dependsOn []string) {
+func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars map[string]string, dependsOn []string, remapDeps bool) {
 	overrides := struct {
-		EnvVars   map[string]string `json:"env_vars,omitempty"`
-		Priority  *int              `json:"priority,omitempty"`
-		DependsOn []string          `json:"depends_on,omitempty"`
+		EnvVars           map[string]string `json:"env_vars,omitempty"`
+		Priority          *int              `json:"priority,omitempty"`
+		DependsOn         []string          `json:"depends_on,omitempty"`
+		RemapDependencies bool              `json:"remap_dependencies,omitempty"`
 	}{
-		EnvVars:   envVars,
-		Priority:  priority,
-		DependsOn: dependsOn,
+		EnvVars:           envVars,
+		Priority:          priority,
+		DependsOn:         dependsOn,
+		RemapDependencies: remapDeps,
 	}
 
 	payload, err := json.Marshal(overrides)

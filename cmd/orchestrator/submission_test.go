@@ -2211,7 +2211,7 @@ func TestCloneBulkJobs_ConnectionError(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	cloneBulkJobs("http://localhost:12345", ".*", "tag-1", nil, false, nil, nil)
+	cloneBulkJobs("http://localhost:12345", ".*", "tag-1", nil, false, nil, nil, false)
 	pw.Close()
 
 	output, _ := io.ReadAll(pr)
@@ -2234,7 +2234,7 @@ func TestCloneBulkJobs_InvalidURL(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	cloneBulkJobs("://invalid-url", ".*", "tag-1", nil, false, nil, nil)
+	cloneBulkJobs("://invalid-url", ".*", "tag-1", nil, false, nil, nil, false)
 	pw.Close()
 
 	output, _ := io.ReadAll(pr)
@@ -2263,7 +2263,7 @@ func TestCloneBulkJobs_InvalidJSONResponse(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	cloneBulkJobs(server.URL, ".*", "tag-1", nil, false, nil, nil)
+	cloneBulkJobs(server.URL, ".*", "tag-1", nil, false, nil, nil, false)
 	pw.Close()
 
 	output, _ := io.ReadAll(pr)

@@ -25,7 +25,7 @@ func TestCloneBulkJobs_Tag(t *testing.T) {
 	stdout = w
 
 	var priority int = 10
-	cloneBulkJobs(server.URL, "", "bulk-test-tag", &priority, false, nil, nil)
+	cloneBulkJobs(server.URL, "", "bulk-test-tag", &priority, false, nil, nil, false)
 
 	w.Close()
 	buf := new(strings.Builder)
@@ -50,7 +50,7 @@ func TestCloneBulkJobs_Match(t *testing.T) {
 	r, w, _ := os.Pipe()
 	stdout = w
 
-	cloneBulkJobs(server.URL, "regex-test", "", nil, false, nil, nil)
+	cloneBulkJobs(server.URL, "regex-test", "", nil, false, nil, nil, false)
 
 	w.Close()
 	buf := new(strings.Builder)
@@ -76,7 +76,7 @@ func TestCloneBulkJobs_Overrides(t *testing.T) {
 	priority := 5
 	envVars := map[string]string{"TEST": "test"}
 	dependsOn := []string{"DEP-1"}
-	cloneBulkJobs(server.URL, "test", "", &priority, false, envVars, dependsOn)
+	cloneBulkJobs(server.URL, "test", "", &priority, false, envVars, dependsOn, false)
 
 	w.Close()
 	buf := new(strings.Builder)
@@ -108,7 +108,7 @@ func TestCloneBulkJobs_Error(t *testing.T) {
 	r, w, _ := os.Pipe()
 	stdout = w
 
-	cloneBulkJobs(server.URL, "bad-query", "", nil, false, nil, nil)
+	cloneBulkJobs(server.URL, "bad-query", "", nil, false, nil, nil, false)
 
 	w.Close()
 	buf := new(strings.Builder)
