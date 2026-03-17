@@ -148,7 +148,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</button>
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <input type="hidden" id="edit-deps-job-id">
-                <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
+                <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" aria-label="Job IDs" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
                 <button type="button" id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
             </div>
         </div>
@@ -167,13 +167,13 @@ const DashboardHTML = `
                 <h2>Search Logs</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <div class="form-group" style="flex: 2; margin-bottom: 0;">
-                        <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)...">
+                        <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)..." aria-label="Regex query">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <input type="text" id="search-logs-tag" placeholder="Filter by tag (optional)">
+                        <input type="text" id="search-logs-tag" placeholder="Filter by tag (optional)" aria-label="Filter by tag">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <select id="search-logs-status" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px;">
+                        <select id="search-logs-status" aria-label="Filter by status" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px;">
                             <option value="">Any Status</option>
                             <option value="Completed">Completed</option>
                             <option value="Failed">Failed</option>
@@ -649,25 +649,25 @@ const DashboardHTML = `
                     const lowerStatus = (j.status || '').toLowerCase();
 
                     if (lowerStatus === 'pending approval') {
-                        actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
+                        actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
                     } else if (lowerStatus === 'failed') {
-                        actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
+                        actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
                     }
 
                     if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
+                        actionButtons += '<button type="button" aria-label="Cancel job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
                     }
 
                     if (lowerStatus === 'completed' || lowerStatus === 'failed' || lowerStatus === 'canceled' || lowerStatus === 'error') {
-                        actionButtons += '<button type="button" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
+                        actionButtons += '<button type="button" aria-label="Purge job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
                     }
 
-                    actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
+                    actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
                     if (lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
+                        actionButtons += '<button type="button" aria-label="Set dependencies for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
                     }
-                    actionButtons += '<button type="button" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
+                    actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
                         '<td><strong>' + safeId + '</strong></td>' +
