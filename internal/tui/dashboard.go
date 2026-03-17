@@ -594,6 +594,13 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.viewState = viewConfirmation
 			return m, nil
 		case "T":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_timeout"
+				m.viewState = viewTimeoutInput
+				m.timeoutInput.SetValue("")
+				m.timeoutInput.Focus()
+				return m, textinput.Blink
+			}
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
 				id := getRawID(selected[0])
@@ -967,7 +974,18 @@ func (m DashboardModel) updateTimeoutInput(msg tea.Msg) (DashboardModel, tea.Cmd
 			m.viewState = viewMain
 			m.timeoutInput.Blur()
 			m.pendingJobId = ""
+
 			if val != "" {
+				if id == "MULTIPLE_timeout" && len(m.selectedJobs) > 0 {
+					var cmds []tea.Cmd
+					for jobId := range m.selectedJobs {
+						cmds = append(cmds, updateTimeoutCmd(m.host, jobId, val))
+					}
+					m.selectedJobs = make(map[string]bool)
+					m.updateTableContent()
+					return m, tea.Batch(cmds...)
+				}
+
 				return m, updateTimeoutCmd(m.host, id, val)
 			}
 			return m, nil
