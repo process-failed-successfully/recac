@@ -20,3 +20,6 @@
 ## 2024-03-14 - Modal Close Buttons Accessibility
 **Learning:** In the orchestrator dashboard, modal close buttons were previously implemented as `<span class="close">` elements, which lack native focusability, keyboard event handling (Space/Enter), and semantic meaning for screen readers. Using `span` for interactive elements causes severe accessibility barriers.
 **Action:** Always replace interactive `<span onclick="...">` elements with `<button type="button">` and apply an `aria-label` (e.g., `aria-label="Close modal"`) when the content is purely visual (like `&times;`). Additionally, ensure a `:focus-visible` CSS rule is added for clear keyboard navigation cues.
+## 2026-03-17 - Contextual aria-labels in data tables
+**Learning:** When generating repeating rows of data with action buttons, screen readers will announce every button as just its text content (e.g. "Cancel"). This forces visually impaired users to guess which row the button belongs to.
+**Action:** Always include contextual `aria-label` attributes on inline action buttons in data tables (e.g. `aria-label="Cancel job {id}"`) to explicitly link the action to the item.
