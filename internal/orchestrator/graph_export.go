@@ -5,22 +5,30 @@ import (
 	"strings"
 )
 
+// sanitizeMermaidNodeName is a helper to sanitize job IDs for Mermaid node names
+func sanitizeMermaidNodeName(id string) string {
+	var sb strings.Builder
+	sb.Grow(len(id))
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c == '-' || c == '.' {
+			sb.WriteByte('_')
+		} else {
+			sb.WriteByte(c)
+		}
+	}
+	return sb.String()
+}
+
 // ExportGraphToMermaid converts a list of jobs into a Mermaid.js flowchart representation.
 func ExportGraphToMermaid(jobs []JobInfo) string {
 	var builder strings.Builder
 
 	builder.WriteString("graph TD;\n")
 
-	// Helper to sanitize job IDs for Mermaid node names
-	sanitizeNodeName := func(id string) string {
-		s := strings.ReplaceAll(id, "-", "_")
-		s = strings.ReplaceAll(s, ".", "_")
-		return s
-	}
-
 	// Output nodes with styling classes based on status
 	for _, job := range jobs {
-		nodeName := sanitizeNodeName(job.ID)
+		nodeName := sanitizeMermaidNodeName(job.ID)
 
 		// Map status to Mermaid classes
 		statusClass := "default"
@@ -42,7 +50,7 @@ func ExportGraphToMermaid(jobs []JobInfo) string {
 
 	// Output edges
 	for _, job := range jobs {
-		nodeName := sanitizeNodeName(job.ID)
+		nodeName := sanitizeMermaidNodeName(job.ID)
 		for _, dep := range job.WorkItem.DependsOn {
 			// Find dependency in the job list to ensure it exists
 			depExists := false
@@ -53,7 +61,7 @@ func ExportGraphToMermaid(jobs []JobInfo) string {
 				}
 			}
 			if depExists {
-				depNodeName := sanitizeNodeName(dep)
+				depNodeName := sanitizeMermaidNodeName(dep)
 				builder.WriteString(fmt.Sprintf("    %s --> %s;\n", depNodeName, nodeName))
 			}
 		}
@@ -70,6 +78,23 @@ func ExportGraphToMermaid(jobs []JobInfo) string {
 	return builder.String()
 }
 
+// sanitizeDotNodeName is a helper to sanitize job IDs for DOT node names
+func sanitizeDotNodeName(id string) string {
+	var sb strings.Builder
+	sb.Grow(len(id) + 2)
+	sb.WriteByte('"')
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c == '-' || c == '.' {
+			sb.WriteByte('_')
+		} else {
+			sb.WriteByte(c)
+		}
+	}
+	sb.WriteByte('"')
+	return sb.String()
+}
+
 // ExportGraphToDOT converts a list of jobs into a Graphviz DOT representation.
 func ExportGraphToDOT(jobs []JobInfo) string {
 	var builder strings.Builder
@@ -77,16 +102,9 @@ func ExportGraphToDOT(jobs []JobInfo) string {
 	builder.WriteString("digraph G {\n")
 	builder.WriteString("    node [shape=box, style=filled];\n")
 
-	// Helper to sanitize job IDs for DOT node names
-	sanitizeNodeName := func(id string) string {
-		s := strings.ReplaceAll(id, "-", "_")
-		s = strings.ReplaceAll(s, ".", "_")
-		return "\"" + s + "\""
-	}
-
 	// Output nodes with styling based on status
 	for _, job := range jobs {
-		nodeName := sanitizeNodeName(job.ID)
+		nodeName := sanitizeDotNodeName(job.ID)
 
 		color := "lightgray"
 		switch strings.ToLower(job.Status) {
@@ -108,7 +126,7 @@ func ExportGraphToDOT(jobs []JobInfo) string {
 
 	// Output edges
 	for _, job := range jobs {
-		nodeName := sanitizeNodeName(job.ID)
+		nodeName := sanitizeDotNodeName(job.ID)
 		for _, dep := range job.WorkItem.DependsOn {
 			// Find dependency in the job list
 			depExists := false
@@ -119,7 +137,7 @@ func ExportGraphToDOT(jobs []JobInfo) string {
 				}
 			}
 			if depExists {
-				depNodeName := sanitizeNodeName(dep)
+				depNodeName := sanitizeDotNodeName(dep)
 				builder.WriteString(fmt.Sprintf("    %s -> %s;\n", depNodeName, nodeName))
 			}
 		}
