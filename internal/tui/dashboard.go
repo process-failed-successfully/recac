@@ -59,6 +59,7 @@ const (
 	viewTagsInput
 	viewRenameInput
 	viewExplain
+	viewCompare
 )
 
 type DashboardModel struct {
@@ -103,7 +104,8 @@ type DashboardModel struct {
 	// Rename input field
 	renameInput textinput.Model
 
-	explain string
+	explain     string
+	compareJobs [2]orchestrator.JobInfo
 }
 
 type tickMsg time.Time
@@ -111,6 +113,11 @@ type tickMsg time.Time
 type explainMsg struct {
 	Explanation string
 	Err         error
+}
+
+type compareMsg struct {
+	Jobs [2]orchestrator.JobInfo
+	Err  error
 }
 
 type statusMsg struct {
@@ -193,6 +200,17 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.analytics = msg.Analytics
 			m.viewState = viewAnalytics
 			m.viewport.SetContent(renderAnalytics(m.analytics))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case compareMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.compareJobs = msg.Jobs
+			m.viewState = viewCompare
+			m.viewport.SetContent(renderCompare(m.compareJobs[0], m.compareJobs[1]))
 			m.viewport.GotoTop()
 		}
 		return m, nil
@@ -316,7 +334,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -476,6 +494,16 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.isFiltering = true
 			m.filterInput.Focus()
 			return m, textinput.Blink
+		case "=":
+			if len(m.selectedJobs) == 2 {
+				var ids []string
+				for id := range m.selectedJobs {
+					ids = append(ids, id)
+				}
+				return m, fetchCompareJobs(m.host, ids[0], ids[1])
+			}
+			m.err = fmt.Errorf("Exactly 2 jobs must be selected to compare")
+			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
 		case "t":
@@ -1271,8 +1299,11 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewCompare:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalytics:
@@ -1521,6 +1552,40 @@ func fetchJobDetails(host, id string) tea.Cmd {
 		}
 		return detailsMsg{Job: job}
 	}
+}
+
+func fetchCompareJobs(host, id1, id2 string) tea.Cmd {
+	return func() tea.Msg {
+		job1, err := fetchJob(host, id1)
+		if err != nil {
+			return compareMsg{Err: err}
+		}
+		job2, err := fetchJob(host, id2)
+		if err != nil {
+			return compareMsg{Err: err}
+		}
+		return compareMsg{Jobs: [2]orchestrator.JobInfo{*job1, *job2}}
+	}
+}
+
+func fetchJob(host, jobID string) (*orchestrator.JobInfo, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to orchestrator: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("status %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &job, nil
 }
 
 func fetchExplanation(host, id string) tea.Cmd {
@@ -2511,4 +2576,129 @@ func renderDetails(job orchestrator.JobInfo) string {
 	}
 
 	return s.String()
+}
+func renderCompare(job1, job2 orchestrator.JobInfo) string {
+	var sb strings.Builder
+
+	// Styles
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(20)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		Width(30).
+		PaddingRight(2)
+
+	diffStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214")).
+		Width(30).
+		PaddingRight(2)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Comparing: %s vs %s", job1.ID, job2.ID)) + "\n")
+
+	printRow := func(label, v1, v2 string) {
+		s1 := valueStyle
+		s2 := valueStyle
+		if v1 != v2 {
+			s1 = diffStyle
+			s2 = diffStyle
+		}
+		sb.WriteString(fmt.Sprintf("%s %s | %s\n", headerStyle.Render(label+":"), s1.Render(limitString(v1, 28)), s2.Render(limitString(v2, 28))))
+	}
+
+	// Get durations
+	dur1 := "N/A"
+	if !job1.StartTime.IsZero() {
+		if !job1.EndTime.IsZero() {
+			dur1 = job1.EndTime.Sub(job1.StartTime).Round(time.Second).String()
+		} else {
+			dur1 = time.Since(job1.StartTime).Round(time.Second).String() + " (running)"
+		}
+	}
+
+	dur2 := "N/A"
+	if !job2.StartTime.IsZero() {
+		if !job2.EndTime.IsZero() {
+			dur2 = job2.EndTime.Sub(job2.StartTime).Round(time.Second).String()
+		} else {
+			dur2 = time.Since(job2.StartTime).Round(time.Second).String() + " (running)"
+		}
+	}
+
+	printRow("ID", job1.ID, job2.ID)
+	printRow("Summary", job1.Summary, job2.Summary)
+	printRow("Status", job1.Status, job2.Status)
+	printRow("Agent Provider", job1.WorkItem.AgentProvider, job2.WorkItem.AgentProvider)
+	printRow("Agent Model", job1.WorkItem.AgentModel, job2.WorkItem.AgentModel)
+	printRow("Duration", dur1, dur2)
+
+	// Outputs
+	sb.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("--- Outputs ---") + "\n")
+	allOutputKeys := make(map[string]bool)
+	for k := range job1.Outputs {
+		allOutputKeys[k] = true
+	}
+	for k := range job2.Outputs {
+		allOutputKeys[k] = true
+	}
+	if len(allOutputKeys) == 0 {
+		sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("No outputs for either job.") + "\n")
+	} else {
+		var keys []string
+		for k := range allOutputKeys {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v1, ok1 := job1.Outputs[k]
+			if !ok1 {
+				v1 = "<missing>"
+			}
+			v2, ok2 := job2.Outputs[k]
+			if !ok2 {
+				v2 = "<missing>"
+			}
+			printRow(k, v1, v2)
+		}
+	}
+
+	// Metrics
+	sb.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("--- Metrics ---") + "\n")
+	allMetricKeys := make(map[string]bool)
+	for k := range job1.Metrics {
+		allMetricKeys[k] = true
+	}
+	for k := range job2.Metrics {
+		allMetricKeys[k] = true
+	}
+	if len(allMetricKeys) == 0 {
+		sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("No metrics for either job.") + "\n")
+	} else {
+		var keys []string
+		for k := range allMetricKeys {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v1 := "<missing>"
+			if val, ok := job1.Metrics[k]; ok {
+				v1 = fmt.Sprintf("%.2f", val)
+			}
+			v2 := "<missing>"
+			if val, ok := job2.Metrics[k]; ok {
+				v2 = fmt.Sprintf("%.2f", val)
+			}
+			printRow(k, v1, v2)
+		}
+	}
+	return sb.String()
 }
