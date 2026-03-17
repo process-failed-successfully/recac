@@ -153,7 +153,9 @@ func main() {
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
-	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout)")
+	pflag.String("update-timeout-tag", "", "Update the timeout of all pending jobs with the specified tag")
+	pflag.String("update-timeout-match", "", "Update the timeout of all pending jobs matching the given regex")
+	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout, --update-timeout-tag, or --update-timeout-match)")
 	pflag.String("update-agent-job", "", "Update the agent provider and model of a specific pending job")
 	pflag.String("update-agent-tag", "", "Update the agent provider and model of all pending jobs with the specified tag")
 	pflag.String("update-agent-match", "", "Update the agent provider and model of all pending jobs matching the given regex")
@@ -407,6 +409,8 @@ func main() {
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
+	viper.BindPFlag("orchestrator.update_timeout_tag", pflag.Lookup("update-timeout-tag"))
+	viper.BindPFlag("orchestrator.update_timeout_match", pflag.Lookup("update-timeout-match"))
 	viper.BindPFlag("orchestrator.timeout_val", pflag.Lookup("timeout-val"))
 	viper.BindPFlag("orchestrator.update_agent_job", pflag.Lookup("update-agent-job"))
 	viper.BindPFlag("orchestrator.update_agent_tag", pflag.Lookup("update-agent-tag"))
@@ -1015,7 +1019,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updateTimeoutJob := viper.GetString("orchestrator.update_timeout"); updateTimeoutJob != "" {
+	updateTimeoutJob := viper.GetString("orchestrator.update_timeout")
+	updateTimeoutTag := viper.GetString("orchestrator.update_timeout_tag")
+	updateTimeoutMatch := viper.GetString("orchestrator.update_timeout_match")
+
+	timeoutFlagsSet := 0
+	if updateTimeoutJob != "" {
+		timeoutFlagsSet++
+	}
+	if updateTimeoutTag != "" {
+		timeoutFlagsSet++
+	}
+	if updateTimeoutMatch != "" {
+		timeoutFlagsSet++
+	}
+
+	if timeoutFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-timeout, --update-timeout-tag, and --update-timeout-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updateTimeoutJob != "" {
 		host := viper.GetString("orchestrator.host")
 		timeoutVal := viper.GetString("orchestrator.timeout_val")
 		if timeoutVal == "" {
@@ -1024,6 +1049,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		updateTimeout(host, updateTimeoutJob, timeoutVal)
+		return nil
+	}
+
+	if updateTimeoutTag != "" || updateTimeoutMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		timeoutVal := viper.GetString("orchestrator.timeout_val")
+		if timeoutVal == "" {
+			fmt.Fprintf(stdout, "Error: --timeout-val is required when using --update-timeout-tag or --update-timeout-match\n")
+			exitFunc(1)
+			return nil
+		}
+		updateBulkTimeout(host, updateTimeoutMatch, updateTimeoutTag, timeoutVal)
 		return nil
 	}
 
