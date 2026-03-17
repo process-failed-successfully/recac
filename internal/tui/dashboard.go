@@ -57,6 +57,7 @@ const (
 	viewDepsInput
 	viewEnvInput
 	viewTagsInput
+	viewRenameInput
 	viewExplain
 )
 
@@ -98,6 +99,9 @@ type DashboardModel struct {
 
 	// Tags input field
 	tagsInput textinput.Model
+
+	// Rename input field
+	renameInput textinput.Model
 
 	explain string
 }
@@ -332,6 +336,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewTagsInput:
 		m, cmd = m.updateTagsInput(msg)
+		cmds = append(cmds, cmd)
+	case viewRenameInput:
+		m, cmd = m.updateRenameInput(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -680,6 +687,24 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 						m.viewState = viewTagsInput
 						m.tagsInput.SetValue(strings.Join(job.WorkItem.Tags, ", "))
 						m.tagsInput.Focus()
+						return m, textinput.Blink
+					}
+				}
+			}
+		case "N":
+			if len(m.selectedJobs) > 0 {
+				m.err = fmt.Errorf("Cannot rename multiple jobs")
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.pendingJobId = id
+						m.viewState = viewRenameInput
+						m.renameInput.SetValue(id)
+						m.renameInput.Focus()
 						return m, textinput.Blink
 					}
 				}
@@ -1088,6 +1113,35 @@ func (m DashboardModel) updateEnvInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	return m, cmd
 }
 
+func (m DashboardModel) updateRenameInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.renameInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.renameInput.Value())
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.renameInput.Blur()
+			m.pendingJobId = ""
+
+			if val == "" {
+				m.err = fmt.Errorf("New ID cannot be empty")
+				return m, nil
+			}
+
+			return m, updateRenameCmd(m.host, id, val)
+		}
+	}
+	m.renameInput, cmd = m.renameInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -1313,6 +1367,25 @@ func (m DashboardModel) View() string {
 			Padding(1, 2)
 
 		dialogContent := fmt.Sprintf("Update Timeout for %s\n\n%s", m.pendingJobId, m.timeoutInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		// Render the dialog centered
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewRenameInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(60).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Rename Job %s\n\n%s", m.pendingJobId, m.renameInput.View())
 
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
@@ -1722,6 +1795,41 @@ func updateEnvCmd(host, id string, env map[string]string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Updated environment variables for job %s", id)}
+	}
+}
+
+func updateRenameCmd(host, id, newID string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/rename", host, id)
+
+		reqBody := struct {
+			NewID string `json:"new_id"`
+		}{
+			NewID: newID,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Renamed job %s to %s", id, newID)}
 	}
 }
 
@@ -2159,6 +2267,11 @@ func NewDashboardModel(host string) DashboardModel {
 	gi.Prompt = "Tags: "
 	gi.Width = 40
 
+	ri := textinput.New()
+	ri.Placeholder = "NEW-JOB-ID"
+	ri.Prompt = "New Job ID: "
+	ri.Width = 40
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -2172,6 +2285,7 @@ func NewDashboardModel(host string) DashboardModel {
 		depsInput:    di,
 		envInput:     ei,
 		tagsInput:    gi,
+		renameInput:  ri,
 		selectedJobs: make(map[string]bool),
 	}
 }
