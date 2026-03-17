@@ -53,3 +53,54 @@ func TestAPI_ApproveJob(t *testing.T) {
 		t.Errorf("Expected status 400 Bad Request, got %d", rr.Code)
 	}
 }
+
+func TestAPI_ApproveBulkJobs(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+	orch.RequireApproval = true
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, slog.Default(), context.Background())
+
+	// Submit jobs
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J1", Tags: []string{"tag1"}}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "FOO-1"}, nil)
+
+	// Test Approve by Tag
+	req := httptest.NewRequest(http.MethodPost, "/jobs/approve?tag=tag1", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200 OK, got %d", rr.Code)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	if !j1.Approved {
+		t.Errorf("J1 should be approved")
+	}
+
+	// Test Approve by Match
+	req = httptest.NewRequest(http.MethodPost, "/jobs/approve?match=FOO-.*", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200 OK, got %d", rr.Code)
+	}
+
+	foo1, _ := orch.GetJob("FOO-1")
+	if !foo1.Approved {
+		t.Errorf("FOO-1 should be approved")
+	}
+
+	// Test Missing Parameters
+	req = httptest.NewRequest(http.MethodPost, "/jobs/approve", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 Bad Request, got %d", rr.Code)
+	}
+}
