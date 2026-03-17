@@ -1292,6 +1292,71 @@ func updateAgent(host, jobID, providerStr, modelStr string) {
 	fmt.Fprintf(stdout, "Job %s agent updated to provider=%s model=%s\n", jobID, providerStr, modelStr)
 }
 
+func updateBulkTimeout(host, match, tag, timeoutStr string) {
+	reqBody := struct {
+		Timeout string `json:"timeout"`
+	}{
+		Timeout: timeoutStr,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to encode request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/timeout", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	if match != "" {
+		q.Set("match", match)
+	}
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update bulk timeouts: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Updated int `json:"updated"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully updated timeouts for %d pending jobs.\n", result.Updated)
+}
+
 func updateTimeout(host, jobID, timeoutStr string) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/timeout", host, jobID)
 	reqBody := fmt.Sprintf(`{"timeout": "%s"}`, timeoutStr)

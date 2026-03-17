@@ -1006,6 +1006,55 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		w.Write(respData)
 	})
 
+	mux.HandleFunc("PUT /jobs/timeout", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk timeout update", http.StatusBadRequest)
+			return
+		}
+		if tag != "" && match != "" {
+			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk timeout update", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Timeout string `json:"timeout"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		parsedTimeout, err := time.ParseDuration(req.Timeout)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid timeout format: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		var count int
+
+		if tag != "" {
+			count, err = orch.UpdateJobsTimeoutByTag(r.Context(), tag, parsedTimeout, logger)
+		} else if match != "" {
+			count, err = orch.UpdateJobsTimeoutByMatch(r.Context(), match, parsedTimeout, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"updated": %d}`, count)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/rename", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 
