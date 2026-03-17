@@ -96,3 +96,56 @@ func TestDashboard_TimeoutUpdateCancel(t *testing.T) {
 	assert.Equal(t, viewMain, m.viewState)
 	assert.Equal(t, "", m.pendingJobId)
 }
+
+func TestDashboard_TimeoutUpdateMultipleKeys(t *testing.T) {
+	m := NewDashboardModel("http://dummy")
+
+	// Setup multiple jobs
+	m.jobs = []orchestrator.JobInfo{
+		{ID: "TEST-TIMEOUT-1", StartTime: time.Now()},
+		{ID: "TEST-TIMEOUT-2", StartTime: time.Now()},
+	}
+	m.updateTableContent()
+
+	// Select both jobs
+	m.selectedJobs = map[string]bool{
+		"TEST-TIMEOUT-1": true,
+		"TEST-TIMEOUT-2": true,
+	}
+
+	// Trigger timeout update mode via 'T'
+	m2, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'T'}})
+	m = m2.(DashboardModel)
+
+	assert.NotNil(t, cmd)
+	assert.Equal(t, viewTimeoutInput, m.viewState)
+	assert.Equal(t, "MULTIPLE_timeout", m.pendingJobId)
+	assert.True(t, m.timeoutInput.Focused())
+
+	// Type "1h"
+	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+	m = m2.(DashboardModel)
+	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	m = m2.(DashboardModel)
+
+	assert.Equal(t, "1h", m.timeoutInput.Value())
+
+	// Submit via Enter
+	m2, submitCmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = m2.(DashboardModel)
+
+	assert.NotNil(t, submitCmd)
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Equal(t, "", m.pendingJobId)
+	assert.False(t, m.timeoutInput.Focused())
+
+	// Verify the batch command handles the multiple jobs.
+	// `tea.Batch` returns a `tea.BatchMsg` holding a slice of commands.
+	batchMsg := submitCmd()
+	batchMsgs, ok := batchMsg.(tea.BatchMsg)
+	assert.True(t, ok, "Expected a batch of commands for multiple selected jobs")
+	assert.Equal(t, 2, len(batchMsgs), "Expected 2 commands in the batch")
+
+	// Verify selection was cleared
+	assert.Empty(t, m.selectedJobs)
+}
