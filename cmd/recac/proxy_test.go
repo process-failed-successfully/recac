@@ -544,3 +544,133 @@ func TestRunProxy_Errors(t *testing.T) {
 	err = runProxy(proxyCmd, []string{})
 	assert.Error(t, err) // since file does not exist
 }
+
+func TestRunProxy_Server(t *testing.T) {
+	// Create Mock Target Server
+	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "proxy success"}`))
+	}))
+	defer targetServer.Close()
+
+	origPort := proxyPort
+	origTarget := proxyTarget
+	origRecord := proxyRecordFile
+	origGen := proxyGenerate
+
+	defer func() {
+		proxyPort = origPort
+		proxyTarget = origTarget
+		proxyRecordFile = origRecord
+		proxyGenerate = origGen
+	}()
+
+	proxyPort = -1 // invalid port
+	proxyTarget = targetServer.URL
+	proxyRecordFile = filepath.Join(t.TempDir(), "rec.json")
+	proxyGenerate = false
+
+	cmd := proxyCmd
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	err := runProxy(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid port")
+}
+
+
+func TestRunProxyGeneration_AdditionalCoverage(t *testing.T) {
+	origRecord := proxyRecordFile
+	origOut := proxyOutput
+	origGen := proxyGenerate
+	origTarget := proxyTarget
+	origLang := proxyLanguage
+
+	defer func() {
+		proxyRecordFile = origRecord
+		proxyOutput = origOut
+		proxyGenerate = origGen
+		proxyTarget = origTarget
+		proxyLanguage = origLang
+	}()
+
+	cmd := proxyCmd
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	t.Run("Valid JSON, not array, fallback to array fails", func(t *testing.T) {
+		proxyGenerate = true
+		proxyTarget = ""
+		recordFile := filepath.Join(t.TempDir(), "rec.json")
+		// write standard JSON object (not array, not JSONL)
+		os.WriteFile(recordFile, []byte(`{"invalid": "format"}`), 0644)
+		proxyRecordFile = recordFile
+
+		origFactory := agentClientFactory
+		defer func() { agentClientFactory = origFactory }()
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &mockAgent{
+				SendFunc: func(ctx context.Context, prompt string) (string, error) {
+					return "", fmt.Errorf("agent should not be called")
+				},
+			}, nil
+		}
+
+		err := runProxyGeneration(cmd)
+		if err == nil {
+			t.Errorf("expected error from agent call since invalid JSON doesn't result in 0 length when json.Unmarshal fallback parses `{}` into empty interaction, and then it tries to call the agent.")
+		} else if !strings.Contains(err.Error(), "agent should not be called") {
+			t.Errorf("expected agent error, got: %v", err)
+		}
+	})
+
+	t.Run("Empty valid JSON array", func(t *testing.T) {
+		proxyGenerate = true
+		proxyTarget = ""
+		recordFile := filepath.Join(t.TempDir(), "rec.json")
+		// write empty array
+		os.WriteFile(recordFile, []byte(`[]`), 0644)
+		proxyRecordFile = recordFile
+
+		origFactory := agentClientFactory
+		defer func() { agentClientFactory = origFactory }()
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &mockAgent{
+				SendFunc: func(ctx context.Context, prompt string) (string, error) {
+					return "", fmt.Errorf("agent should not be called")
+				},
+			}, nil
+		}
+
+		err := runProxyGeneration(cmd)
+		if err == nil || !strings.Contains(err.Error(), "recording is empty") {
+			t.Errorf("expected recording is empty error, got: %v", err)
+		}
+	})
+
+	t.Run("Ignore blank lines in JSONL", func(t *testing.T) {
+		proxyGenerate = true
+		proxyTarget = ""
+		recordFile := filepath.Join(t.TempDir(), "rec.json")
+		// write a blank line, then valid line
+		os.WriteFile(recordFile, []byte("\n{\"Request\":{\"Method\":\"GET\"}}\n"), 0644)
+		proxyRecordFile = recordFile
+		proxyOutput = filepath.Join(t.TempDir(), "out.go")
+
+		origFactory := agentClientFactory
+		defer func() { agentClientFactory = origFactory }()
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &mockAgent{
+				SendFunc: func(ctx context.Context, prompt string) (string, error) {
+					return "test", nil
+				},
+			}, nil
+		}
+
+		err := runProxyGeneration(cmd)
+		if err != nil {
+			t.Errorf("expected success, got: %v", err)
+		}
+	})
+}
