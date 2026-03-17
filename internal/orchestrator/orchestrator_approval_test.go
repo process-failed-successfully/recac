@@ -112,3 +112,93 @@ func TestOrchestratorApproveJob_NotPendingApproval(t *testing.T) {
 		t.Errorf("Expected not pending approval error, got %v", err)
 	}
 }
+
+func TestOrchestrator_ApproveJobsByTag(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+	orch.RequireApproval = true
+
+	// Submit jobs
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J1", Tags: []string{"tag1"}}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J2", Tags: []string{"tag1", "tag2"}}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J3", Tags: []string{"tag3"}}, nil)
+
+	// Verify all are pending approval
+	for _, id := range []string{"J1", "J2", "J3"} {
+		j, _ := orch.GetJob(id)
+		if j.Status != "Pending Approval" {
+			t.Fatalf("Job %s should be Pending Approval", id)
+		}
+	}
+
+	// Approve by tag
+	count, err := orch.ApproveJobsByTag(context.Background(), "tag1", nil)
+	if err != nil {
+		t.Fatalf("Failed to approve jobs by tag: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected 2 jobs to be approved, got %d", count)
+	}
+
+	// Verify statuses
+	j1, _ := orch.GetJob("J1")
+	if !j1.Approved {
+		t.Errorf("J1 should be approved")
+	}
+
+	j2, _ := orch.GetJob("J2")
+	if !j2.Approved {
+		t.Errorf("J2 should be approved")
+	}
+
+	j3, _ := orch.GetJob("J3")
+	if j3.Approved {
+		t.Errorf("J3 should NOT be approved")
+	}
+}
+
+func TestOrchestrator_ApproveJobsByMatch(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+	orch.RequireApproval = true
+
+	// Submit jobs
+	orch.SubmitJob(context.Background(), WorkItem{ID: "FOO-1"}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "FOO-2"}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "BAR-1"}, nil)
+
+	// Verify all are pending approval
+	for _, id := range []string{"FOO-1", "FOO-2", "BAR-1"} {
+		j, _ := orch.GetJob(id)
+		if j.Status != "Pending Approval" {
+			t.Fatalf("Job %s should be Pending Approval", id)
+		}
+	}
+
+	// Approve by match
+	count, err := orch.ApproveJobsByMatch(context.Background(), "FOO-.*", nil)
+	if err != nil {
+		t.Fatalf("Failed to approve jobs by match: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected 2 jobs to be approved, got %d", count)
+	}
+
+	// Verify statuses
+	f1, _ := orch.GetJob("FOO-1")
+	if !f1.Approved {
+		t.Errorf("FOO-1 should be approved")
+	}
+
+	f2, _ := orch.GetJob("FOO-2")
+	if !f2.Approved {
+		t.Errorf("FOO-2 should be approved")
+	}
+
+	b1, _ := orch.GetJob("BAR-1")
+	if b1.Approved {
+		t.Errorf("BAR-1 should NOT be approved")
+	}
+}

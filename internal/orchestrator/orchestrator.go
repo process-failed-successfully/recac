@@ -878,6 +878,88 @@ func (o *Orchestrator) ApproveJob(ctx context.Context, jobID string, logger *slo
 	return nil
 }
 
+// ApproveJobsByTag approves pending jobs that match the given tag and are pending approval.
+func (o *Orchestrator) ApproveJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		if job.Status != "Pending Approval" {
+			continue
+		}
+
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag {
+			job.Status = "Pending"
+			job.Approved = true
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_approved", job)
+			if logger != nil {
+				logger.Info("Job approved by tag", "id", id, "tag", tag)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Approved jobs by tag", "tag", tag, "count", count)
+	}
+
+	if count > 0 {
+		o.evaluatePendingJobs(ctx, logger)
+	}
+
+	return count, nil
+}
+
+// ApproveJobsByMatch approves pending jobs whose ID matches the given regular expression and are pending approval.
+func (o *Orchestrator) ApproveJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid regex pattern: %w", err)
+	}
+
+	o.mu.Lock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if job.Status != "Pending Approval" {
+			continue
+		}
+
+		if matcher.MatchString(id) {
+			job.Status = "Pending"
+			job.Approved = true
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_approved", job)
+			if logger != nil {
+				logger.Info("Job approved by match", "id", id, "match", match)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Approved jobs by match", "match", match, "count", count)
+	}
+
+	if count > 0 {
+		o.evaluatePendingJobs(ctx, logger)
+	}
+
+	return count, nil
+}
+
 // UpdateJobDependencies updates the dependencies of a job in the pending queue.
 func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, dependsOn []string, logger *slog.Logger) error {
 	o.mu.Lock()

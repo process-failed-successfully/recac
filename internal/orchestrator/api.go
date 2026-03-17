@@ -1195,6 +1195,32 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 	})
 
+	mux.HandleFunc("POST /jobs/approve", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.ApproveJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.ApproveJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk approve", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"approved": %d}`, count)
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/approve", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if err := orch.ApproveJob(r.Context(), id, logger); err != nil {
