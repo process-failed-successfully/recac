@@ -1691,6 +1691,74 @@ func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newP
 	return nil
 }
 
+// UpdateJobsPriorityByTag updates the priority of pending jobs that have a specific tag.
+func (o *Orchestrator) UpdateJobsPriorityByTag(ctx context.Context, tag string, newPriority int, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	lowerTag := strings.ToLower(tag)
+	updatedCount := 0
+
+	for id, job := range o.pendingJobs {
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag {
+			job.WorkItem.Priority = newPriority
+			o.pendingJobs[id] = job
+			updatedCount++
+			o.BroadcastEvent("job_priority_updated", job)
+			if logger != nil {
+				logger.Info("Updated job priority by tag", "jobID", id, "tag", tag, "newPriority", newPriority)
+			}
+		}
+	}
+
+	if updatedCount > 0 {
+		o.mu.Unlock()
+		o.evaluatePendingJobs(ctx, logger)
+		o.mu.Lock()
+	}
+	return updatedCount, nil
+}
+
+// UpdateJobsPriorityByMatch updates the priority of pending jobs that match a regular expression.
+func (o *Orchestrator) UpdateJobsPriorityByMatch(ctx context.Context, match string, newPriority int, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	updatedCount := 0
+
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			job.WorkItem.Priority = newPriority
+			o.pendingJobs[id] = job
+			updatedCount++
+			o.BroadcastEvent("job_priority_updated", job)
+			if logger != nil {
+				logger.Info("Updated job priority by match", "jobID", id, "match", match, "newPriority", newPriority)
+			}
+		}
+	}
+
+	if updatedCount > 0 {
+		o.mu.Unlock()
+		o.evaluatePendingJobs(ctx, logger)
+		o.mu.Lock()
+	}
+	return updatedCount, nil
+}
+
 // RetryJob resubmits a completed job from history.
 func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.Logger) error {
 	o.mu.RLock()
