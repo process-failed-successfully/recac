@@ -77,3 +77,120 @@ func TestUpdateJobAgent(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
+
+func TestUpdateJobsAgentByTag(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+
+	orch.pendingJobs["JOB-1"] = JobInfo{
+		ID:     "JOB-1",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:   "JOB-1",
+			Tags: []string{"backend", "urgent"},
+			AgentProvider: "openai",
+			AgentModel: "gpt-3.5",
+			RunAfter: time.Now().Add(1 * time.Hour),
+		},
+	}
+	orch.pendingJobs["JOB-2"] = JobInfo{
+		ID:     "JOB-2",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:   "JOB-2",
+			Tags: []string{"frontend"},
+			AgentProvider: "openai",
+			AgentModel: "gpt-3.5",
+			RunAfter: time.Now().Add(1 * time.Hour),
+		},
+	}
+	orch.pendingJobs["JOB-3"] = JobInfo{
+		ID:     "JOB-3",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:   "JOB-3",
+			Tags: []string{"Backend"}, // Case insensitive check
+			AgentProvider: "openai",
+			AgentModel: "gpt-3.5",
+			RunAfter: time.Now().Add(1 * time.Hour),
+		},
+	}
+
+	count, err := orch.UpdateJobsAgentByTag(ctx, "backend", "anthropic", "claude-3", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.Equal(t, "anthropic", orch.pendingJobs["JOB-1"].WorkItem.AgentProvider)
+	assert.Equal(t, "claude-3", orch.pendingJobs["JOB-1"].WorkItem.AgentModel)
+	assert.Equal(t, "anthropic", orch.pendingJobs["JOB-3"].WorkItem.AgentProvider)
+	assert.Equal(t, "claude-3", orch.pendingJobs["JOB-3"].WorkItem.AgentModel)
+
+	// JOB-2 should be unchanged
+	assert.Equal(t, "openai", orch.pendingJobs["JOB-2"].WorkItem.AgentProvider)
+	assert.Equal(t, "gpt-3.5", orch.pendingJobs["JOB-2"].WorkItem.AgentModel)
+}
+
+func TestUpdateJobsAgentByMatch(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+
+	orch.pendingJobs["JOB-1"] = JobInfo{
+		ID:      "JOB-1",
+		Status:  "Pending",
+		Summary: "Fix login issue",
+		WorkItem: WorkItem{
+			ID: "JOB-1",
+			AgentProvider: "openai",
+			AgentModel: "gpt-3.5",
+			RunAfter: time.Now().Add(1 * time.Hour),
+		},
+	}
+	orch.pendingJobs["JOB-2"] = JobInfo{
+		ID:      "JOB-2",
+		Status:  "Pending",
+		Summary: "Update dashboard",
+		WorkItem: WorkItem{
+			ID: "JOB-2",
+			AgentProvider: "openai",
+			AgentModel: "gpt-3.5",
+			RunAfter: time.Now().Add(1 * time.Hour),
+		},
+	}
+	orch.pendingJobs["JOB-3"] = JobInfo{
+		ID:      "JOB-3",
+		Status:  "Pending",
+		Summary: "Login page crash",
+		WorkItem: WorkItem{
+			ID: "JOB-3",
+			AgentProvider: "openai",
+			AgentModel: "gpt-3.5",
+			RunAfter: time.Now().Add(1 * time.Hour),
+		},
+	}
+
+	count, err := orch.UpdateJobsAgentByMatch(ctx, "login", "google", "gemini-1.5-pro", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.Equal(t, "google", orch.pendingJobs["JOB-1"].WorkItem.AgentProvider)
+	assert.Equal(t, "gemini-1.5-pro", orch.pendingJobs["JOB-1"].WorkItem.AgentModel)
+	assert.Equal(t, "google", orch.pendingJobs["JOB-3"].WorkItem.AgentProvider)
+	assert.Equal(t, "gemini-1.5-pro", orch.pendingJobs["JOB-3"].WorkItem.AgentModel)
+
+	// JOB-2 should be unchanged
+	assert.Equal(t, "openai", orch.pendingJobs["JOB-2"].WorkItem.AgentProvider)
+	assert.Equal(t, "gpt-3.5", orch.pendingJobs["JOB-2"].WorkItem.AgentModel)
+
+	// Test invalid regex
+	_, err = orch.UpdateJobsAgentByMatch(ctx, "[invalid", "anthropic", "claude-3", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid match regex")
+}

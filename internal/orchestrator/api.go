@@ -906,6 +906,51 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"updated": %d}`, count)
 	})
 
+	mux.HandleFunc("PUT /jobs/agent", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk agent update", http.StatusBadRequest)
+			return
+		}
+		if tag != "" && match != "" {
+			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk agent update", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			AgentProvider string `json:"agent_provider"`
+			AgentModel    string `json:"agent_model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UpdateJobsAgentByTag(r.Context(), tag, req.AgentProvider, req.AgentModel, logger)
+		} else if match != "" {
+			count, err = orch.UpdateJobsAgentByMatch(r.Context(), match, req.AgentProvider, req.AgentModel, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"updated": %d}`, count)
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}/tags", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

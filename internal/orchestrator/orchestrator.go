@@ -3157,3 +3157,55 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		}
 	}
 }
+
+// UpdateJobsAgentByTag updates the agent provider and model of pending jobs that match the given tag.
+func (o *Orchestrator) UpdateJobsAgentByTag(ctx context.Context, tag string, agentProvider string, agentModel string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobAgent(ctx, id, agentProvider, agentModel, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// UpdateJobsAgentByMatch updates the agent provider and model of pending jobs that match the given regex.
+func (o *Orchestrator) UpdateJobsAgentByMatch(ctx context.Context, match string, agentProvider string, agentModel string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	var jobIDs []string
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobAgent(ctx, id, agentProvider, agentModel, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}

@@ -152,3 +152,54 @@ func TestUpdateAgent_Error(t *testing.T) {
 	assert.Contains(t, out, "Failed to update agent: invalid model")
 	assert.Equal(t, 1, exitCode)
 }
+
+func TestUpdateBulkAgent(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/agent", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var req struct {
+			AgentProvider string `json:"agent_provider"`
+			AgentModel    string `json:"agent_model"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&req)
+		assert.NoError(t, err)
+
+		if req.AgentProvider == "anthropic" && req.AgentModel == "claude-3" && (tag == "backend" || match == "login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"updated": 2}`))
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// Test by tag
+	updateBulkAgent(server.URL, "", "backend", "anthropic", "claude-3")
+
+	// Test by match
+	updateBulkAgent(server.URL, "login", "", "anthropic", "claude-3")
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Successfully updated agents for 2 pending jobs")
+	assert.Equal(t, 0, exitCode)
+}
