@@ -531,6 +531,178 @@ func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *
 	return count, lastErr
 }
 
+// ForceCompleteJob forcefully marks an active, pending, or failed job as Completed, bypassing execution.
+func (o *Orchestrator) ForceCompleteJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+
+	var jobToComplete JobInfo
+	var found bool
+	var isActive bool
+
+	// 1. Check pending jobs
+	if job, exists := o.pendingJobs[jobID]; exists {
+		jobToComplete = job
+		found = true
+		delete(o.pendingJobs, jobID)
+		if t, ok := o.delayTimers[jobID]; ok {
+			t.Stop()
+			delete(o.delayTimers, jobID)
+		}
+	}
+
+	// 2. Check active jobs
+	if !found {
+		if job, exists := o.activeJobs[jobID]; exists {
+			jobToComplete = job
+			found = true
+			isActive = true
+			delete(o.activeJobs, jobID)
+			o.activeSpawns--
+		}
+	}
+
+	// 3. Check history
+	if !found {
+		for i := len(o.completedJobs) - 1; i >= 0; i-- {
+			if o.completedJobs[i].ID == jobID {
+				if o.completedJobs[i].Status == "Failed" || o.completedJobs[i].Status == "Canceled" {
+					jobToComplete = o.completedJobs[i]
+					found = true
+					// Remove from completed list so we can re-add it as completed
+					o.completedJobs = append(o.completedJobs[:i], o.completedJobs[i+1:]...)
+				} else if o.completedJobs[i].Status == "Completed" {
+					o.mu.Unlock()
+					return fmt.Errorf("job %s is already completed", jobID)
+				} else if o.completedJobs[i].Status == "Skipped" {
+					o.mu.Unlock()
+					return fmt.Errorf("job %s is already skipped", jobID)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		o.mu.Unlock()
+		return fmt.Errorf("job %s not found or not in a completable state", jobID)
+	}
+
+	jobToComplete.Status = "Completed"
+	jobToComplete.EndTime = time.Now()
+	jobToComplete.Error = ""
+	o.addToHistory(jobToComplete, logger)
+	o.mu.Unlock()
+
+	// 4. Cancel active spawner if it was active
+	if isActive {
+		// Attempt to cancel underlying resource, ignore error as we force complete
+		_ = o.Spawner.Cancel(ctx, jobID)
+	}
+
+	o.BroadcastEvent("job_completed", jobToComplete)
+
+	if logger != nil {
+		logger.Info("Job force completed", "jobID", jobID)
+	}
+
+	// 5. Trigger downstream jobs
+	o.evaluatePendingJobs(ctx, logger)
+
+	return nil
+}
+
+// ForceCompleteJobsByTag force completes jobs matching the given tag.
+func (o *Orchestrator) ForceCompleteJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.RLock()
+	var jobIDs []string
+	lowerTag := strings.ToLower(tag)
+
+	// We gather IDs to avoid locking while calling ForceCompleteJob
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	for id, job := range o.activeJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	for _, job := range o.completedJobs {
+		if job.Status == "Failed" || job.Status == "Canceled" {
+			for _, t := range job.WorkItem.Tags {
+				if strings.ToLower(t) == lowerTag {
+					jobIDs = append(jobIDs, job.ID)
+					break
+				}
+			}
+		}
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.ForceCompleteJob(ctx, id, logger); err == nil {
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Force completed jobs by tag", "tag", tag, "count", count)
+	}
+
+	return count, nil
+}
+
+// ForceCompleteJobsByMatch force completes jobs matching the given regex.
+func (o *Orchestrator) ForceCompleteJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.RLock()
+	var jobIDs []string
+
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.activeJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for _, job := range o.completedJobs {
+		if job.Status == "Failed" || job.Status == "Canceled" {
+			if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+				jobIDs = append(jobIDs, job.ID)
+			}
+		}
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.ForceCompleteJob(ctx, id, logger); err == nil {
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Force completed jobs by match", "match", match, "count", count)
+	}
+
+	return count, nil
+}
+
 // CancelAllJobs cancels all running jobs.
 func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
 	// Get all active and pending job IDs first to avoid holding the lock during cancellation
