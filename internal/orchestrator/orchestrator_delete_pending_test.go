@@ -132,3 +132,67 @@ func TestOrchestrator_DeletePendingJobsByMatch(t *testing.T) {
 	_, exists3 := orch.pendingJobs["TEST-3"]
 	assert.False(t, exists3)
 }
+
+func TestOrchestrator_DeletePendingJob_Completed(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	orch.completedJobs = []JobInfo{{ID: "TEST-1"}}
+
+	err := orch.DeletePendingJob(context.Background(), "TEST-1", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already completed")
+}
+
+func TestOrchestrator_DeletePendingJob_Timer(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	orch.pendingJobs["TEST-1"] = JobInfo{ID: "TEST-1"}
+	orch.delayTimers["TEST-1"] = time.AfterFunc(1*time.Hour, func() {})
+
+	err := orch.DeletePendingJob(context.Background(), "TEST-1", nil)
+	assert.NoError(t, err)
+
+	_, ok := orch.pendingJobs["TEST-1"]
+	assert.False(t, ok)
+	_, timerOk := orch.delayTimers["TEST-1"]
+	assert.False(t, timerOk)
+}
+
+func TestOrchestrator_DeletePendingJobsByMatch_InvalidRegex(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	_, err := orch.DeletePendingJobsByMatch(context.Background(), "[invalid", nil)
+	assert.Error(t, err)
+}
+
+func TestOrchestrator_DeletePendingJobsByMatch_Timer(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	orch.pendingJobs["TEST-1"] = JobInfo{ID: "TEST-1", Summary: "match me"}
+	orch.delayTimers["TEST-1"] = time.AfterFunc(1*time.Hour, func() {})
+
+	count, err := orch.DeletePendingJobsByMatch(context.Background(), "match", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	_, ok := orch.pendingJobs["TEST-1"]
+	assert.False(t, ok)
+	_, timerOk := orch.delayTimers["TEST-1"]
+	assert.False(t, timerOk)
+}
+
+func TestOrchestrator_DeletePendingJobsByTag_Timer(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	orch.pendingJobs["TEST-1"] = JobInfo{ID: "TEST-1", WorkItem: WorkItem{Tags: []string{"tag1"}}}
+	orch.delayTimers["TEST-1"] = time.AfterFunc(1*time.Hour, func() {})
+
+	count, err := orch.DeletePendingJobsByTag(context.Background(), "tag1", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	_, ok := orch.pendingJobs["TEST-1"]
+	assert.False(t, ok)
+	_, timerOk := orch.delayTimers["TEST-1"]
+	assert.False(t, timerOk)
+}
