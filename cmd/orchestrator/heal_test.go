@@ -13,6 +13,133 @@ import (
 	"recac/internal/orchestrator"
 )
 
+func TestHealBulkJobs(t *testing.T) {
+	tests := []struct {
+		name         string
+		match        string
+		tag          string
+		statusCode   int
+		response     string
+		expectedExit int
+		expectOutput []string
+	}{
+		{
+			name:         "Success Match",
+			match:        "failed-job",
+			tag:          "",
+			statusCode:   http.StatusOK,
+			response:     `{"healed": 3}`,
+			expectedExit: -1,
+			expectOutput: []string{
+				"Successfully healed 3 failed jobs.",
+			},
+		},
+		{
+			name:         "Error connection failed",
+			match:        "failed-job",
+			tag:          "",
+			statusCode:   -1, // Simulate connection error
+			response:     ``,
+			expectedExit: 1,
+			expectOutput: []string{
+				"Failed to connect to orchestrator",
+			},
+		},
+		{
+			name:         "Error invalid URL",
+			match:        "failed-job",
+			tag:          "",
+			statusCode:   -2, // Simulate invalid url
+			response:     ``,
+			expectedExit: 1,
+			expectOutput: []string{
+				"Failed to parse URL:",
+			},
+		},
+		{
+			name:         "Success Tag",
+			match:        "",
+			tag:          "bug",
+			statusCode:   http.StatusOK,
+			response:     `{"healed": 5}`,
+			expectedExit: -1,
+			expectOutput: []string{
+				"Successfully healed 5 failed jobs.",
+			},
+		},
+		{
+			name:         "API Error",
+			match:        "test",
+			tag:          "",
+			statusCode:   http.StatusInternalServerError,
+			response:     `internal error`,
+			expectedExit: 1,
+			expectOutput: []string{
+				"Failed to heal jobs: internal error",
+			},
+		},
+		{
+			name:         "Invalid JSON",
+			match:        "test",
+			tag:          "",
+			statusCode:   http.StatusOK,
+			response:     `{invalid json}`,
+			expectedExit: 1,
+			expectOutput: []string{
+				"Failed to decode response: invalid character",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/jobs/heal/bulk", r.URL.Path)
+
+				if tc.match != "" {
+					assert.Equal(t, tc.match, r.URL.Query().Get("match"))
+				}
+				if tc.tag != "" {
+					assert.Equal(t, tc.tag, r.URL.Query().Get("tag"))
+				}
+
+				w.WriteHeader(tc.statusCode)
+				w.Write([]byte(tc.response))
+			}))
+			defer server.Close()
+
+			var buf bytes.Buffer
+			originalStdout := stdout
+			stdout = &buf
+			defer func() { stdout = originalStdout }()
+
+			originalExitFunc := exitFunc
+			exitCode := -1
+			exitFunc = func(code int) {
+				exitCode = code
+			}
+			defer func() { exitFunc = originalExitFunc }()
+
+			if tc.statusCode == -2 {
+				healBulkJobs("http://[::1]:namedport", tc.match, tc.tag)
+			} else if tc.statusCode == -1 {
+				server.Close() // Force connection error
+				healBulkJobs(server.URL, tc.match, tc.tag)
+			} else {
+				healBulkJobs(server.URL, tc.match, tc.tag)
+			}
+
+			assert.Equal(t, tc.expectedExit, exitCode, "Exit code mismatch")
+
+			output := buf.String()
+			for _, expectedStr := range tc.expectOutput {
+				assert.Contains(t, output, expectedStr, "Output mismatch")
+			}
+		})
+	}
+}
+
 func TestHealJob(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -24,6 +151,7 @@ func TestHealJob(t *testing.T) {
 		postHandler   func(w http.ResponseWriter, r *http.Request)
 		expectedExit  int
 		expectOutput  []string
+		wait          bool
 	}{
 		{
 			name:  "Success",
@@ -117,6 +245,97 @@ func TestHealJob(t *testing.T) {
 			},
 		},
 		{
+			name:  "Error connection failed",
+			jobID: "TEST-CONN-FAIL",
+			jobResponse: orchestrator.JobInfo{
+				ID: "TEST-CONN-FAIL",
+			},
+			jobStatusCode: -1,
+			expectedExit:  1,
+			expectOutput: []string{
+				"Failed to connect to orchestrator",
+			},
+		},
+		{
+			name:  "Error get invalid url",
+			jobID: "TEST-URL-FAIL",
+			jobResponse: orchestrator.JobInfo{
+				ID: "TEST-URL-FAIL",
+			},
+			jobStatusCode: -2,
+			expectedExit:  1,
+			expectOutput: []string{
+				"Failed to connect to orchestrator",
+			},
+		},
+		{
+			name:  "Wait for job fails",
+			jobID: "TEST-WAIT",
+			jobResponse: orchestrator.JobInfo{
+				ID:      "TEST-WAIT",
+				Status:  "Failed",
+				Error:   "Unknown error",
+				Summary: "Fix bug",
+				WorkItem: orchestrator.WorkItem{
+					ID:          "TEST-WAIT",
+					Summary:     "Fix bug",
+					Description: "Original description",
+				},
+			},
+			jobStatusCode: http.StatusOK,
+			logResponse:   "logs available",
+			logStatusCode: http.StatusOK,
+			postHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusAccepted)
+				w.Write([]byte("Job submitted"))
+			},
+			expectedExit: 1,
+			expectOutput: []string{
+				"Submitting healed job TEST-WAIT-healed...",
+				"Healed job TEST-WAIT-healed submitted successfully.",
+				"Healed job failed",
+			},
+			wait: true,
+		},
+		{
+			name:  "Wait for job success",
+			jobID: "TEST-WAIT-SUCCESS",
+			jobResponse: orchestrator.JobInfo{
+				ID:      "TEST-WAIT-SUCCESS",
+				Status:  "Failed",
+				Error:   "Unknown error",
+				Summary: "Fix bug",
+				WorkItem: orchestrator.WorkItem{
+					ID:          "TEST-WAIT-SUCCESS",
+					Summary:     "Fix bug",
+					Description: "Original description",
+				},
+			},
+			jobStatusCode: http.StatusOK,
+			logResponse:   "logs available",
+			logStatusCode: http.StatusOK,
+			postHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusAccepted)
+				w.Write([]byte("Job submitted"))
+			},
+			expectedExit: -1,
+			expectOutput: []string{
+				"Submitting healed job TEST-WAIT-SUCCESS-healed...",
+				"Healed job TEST-WAIT-SUCCESS-healed submitted successfully.",
+			},
+			wait: true,
+		},
+		{
+			name:  "Invalid JSON in job details",
+			jobID: "TEST-BAD-JSON",
+			jobResponse: "invalid json string",
+			jobStatusCode: http.StatusOK,
+			expectedExit:  1,
+			expectOutput: []string{
+				"Failed to decode response:",
+			},
+		},
+		{
 			name:  "Submit API Error",
 			jobID: "TEST-FAIL",
 			jobResponse: orchestrator.JobInfo{
@@ -143,6 +362,20 @@ func TestHealJob(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet && r.URL.Path == "/jobs/TEST-WAIT-healed" {
+					json.NewEncoder(w).Encode(orchestrator.JobInfo{
+						ID:     "TEST-WAIT-healed",
+						Status: "Failed",
+					})
+					return
+				}
+				if r.Method == http.MethodGet && r.URL.Path == "/jobs/TEST-WAIT-SUCCESS-healed" {
+					json.NewEncoder(w).Encode(orchestrator.JobInfo{
+						ID:     "TEST-WAIT-SUCCESS-healed",
+						Status: "Completed",
+					})
+					return
+				}
 				if r.Method == http.MethodGet && r.URL.Path == "/jobs/"+tc.jobID {
 					w.WriteHeader(tc.jobStatusCode)
 					if strResp, ok := tc.jobResponse.(string); ok {
@@ -184,7 +417,14 @@ func TestHealJob(t *testing.T) {
 			}
 			defer func() { exitFunc = originalExitFunc }()
 
-			healJob(server.URL, tc.jobID, false)
+			if tc.jobStatusCode == -2 {
+				healJob("http://[::1]:namedport", tc.jobID, tc.wait)
+			} else if tc.jobStatusCode == -1 {
+				server.Close()
+				healJob(server.URL, tc.jobID, tc.wait)
+			} else {
+				healJob(server.URL, tc.jobID, tc.wait)
+			}
 
 			assert.Equal(t, tc.expectedExit, exitCode, "Exit code mismatch")
 

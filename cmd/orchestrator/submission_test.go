@@ -2640,6 +2640,104 @@ func TestSkipJob_Success(t *testing.T) {
 	assert.Contains(t, buf.String(), "Job JOB-123 skipped successfully")
 }
 
+func TestSkipJobs_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/skip", r.URL.Path)
+		assert.Equal(t, "tag=test", r.URL.RawQuery)
+		assert.Equal(t, http.MethodPost, r.Method)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"skipped": 2}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	skipJobs(server.URL, "", "test")
+
+	assert.Contains(t, buf.String(), "Successfully skipped 2 jobs")
+}
+
+func TestSkipJobs_Failure(t *testing.T) {
+	if os.Getenv("CRASH_TEST") == "1" {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal error"))
+		}))
+		defer server.Close()
+
+		exitFunc = func(code int) {
+			os.Exit(code)
+		}
+
+		skipJobs(server.URL, "", "test")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestSkipJobs_Failure")
+	cmd.Env = append(os.Environ(), "CRASH_TEST=1")
+
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		assert.Contains(t, stdoutBuf.String(), "Failed to skip jobs: internal error")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestSkipJobs_ConnectionError(t *testing.T) {
+	if os.Getenv("CRASH_TEST") == "1" {
+		exitFunc = func(code int) {
+			os.Exit(code)
+		}
+
+		skipJobs("http://localhost:12345", "", "test")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestSkipJobs_ConnectionError")
+	cmd.Env = append(os.Environ(), "CRASH_TEST=1")
+
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		assert.Contains(t, stdoutBuf.String(), "Failed to connect to orchestrator")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestSkipJob_ConnectionError(t *testing.T) {
+	if os.Getenv("CRASH_TEST") == "1" {
+		exitFunc = func(code int) {
+			os.Exit(code)
+		}
+
+		skipJob("http://localhost:12345", "test")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestSkipJob_ConnectionError")
+	cmd.Env = append(os.Environ(), "CRASH_TEST=1")
+
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		assert.Contains(t, stdoutBuf.String(), "Failed to connect to orchestrator")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
 func TestSkipJob_Failure(t *testing.T) {
 	if os.Getenv("CRASH_TEST") == "1" {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
