@@ -1537,8 +1537,9 @@ func editJobInteractive(host, jobID string, requirePending bool) (*orchestrator.
 	}
 
 	// Wrap editor command in sh -c to properly support arguments in $EDITOR (e.g. "code --wait")
-	shellCmd := fmt.Sprintf("%s %s", editor, tmpFile.Name())
-	cmd := exec.Command("sh", "-c", shellCmd)
+	// Pass the filename as an argument to avoid command injection via string interpolation
+	shellCmd := fmt.Sprintf("%s \"$1\"", editor)
+	cmd := exec.Command("sh", "-c", shellCmd, "--", tmpFile.Name())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
