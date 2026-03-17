@@ -152,6 +152,8 @@ func main() {
 	pflag.Bool("force-poll", false, "Force an immediate poll cycle")
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
+	pflag.String("update-priority-tag", "", "Update the priority of all pending jobs with the specified tag")
+	pflag.String("update-priority-match", "", "Update the priority of all pending jobs matching the given regex")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("update-timeout-tag", "", "Update the timeout of all pending jobs with the specified tag")
@@ -409,6 +411,8 @@ func main() {
 	viper.BindPFlag("orchestrator.force_poll", pflag.Lookup("force-poll"))
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
+	viper.BindPFlag("orchestrator.update_priority_tag", pflag.Lookup("update-priority-tag"))
+	viper.BindPFlag("orchestrator.update_priority_match", pflag.Lookup("update-priority-match"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.update_timeout_tag", pflag.Lookup("update-timeout-tag"))
@@ -1015,10 +1019,38 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updateJob := viper.GetString("orchestrator.update_priority"); updateJob != "" {
+	updatePriorityJob := viper.GetString("orchestrator.update_priority")
+	updatePriorityTag := viper.GetString("orchestrator.update_priority_tag")
+	updatePriorityMatch := viper.GetString("orchestrator.update_priority_match")
+
+	priorityFlagsSet := 0
+	if updatePriorityJob != "" {
+		priorityFlagsSet++
+	}
+	if updatePriorityTag != "" {
+		priorityFlagsSet++
+	}
+	if updatePriorityMatch != "" {
+		priorityFlagsSet++
+	}
+
+	if priorityFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-priority, --update-priority-tag, and --update-priority-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updatePriorityJob != "" {
 		host := viper.GetString("orchestrator.host")
 		priorityVal := viper.GetInt("orchestrator.priority_val")
-		updatePriority(host, updateJob, priorityVal)
+		updatePriority(host, updatePriorityJob, priorityVal)
+		return nil
+	}
+
+	if updatePriorityTag != "" || updatePriorityMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		priorityVal := viper.GetInt("orchestrator.priority_val")
+		updateBulkPriority(host, updatePriorityMatch, updatePriorityTag, priorityVal)
 		return nil
 	}
 

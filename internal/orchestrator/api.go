@@ -1,8 +1,8 @@
 package orchestrator
 
 import (
-	"bufio"
 	archive_tar "archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -152,8 +152,6 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			logger.Error("Failed to encode jobs", "error", err)
 		}
 	})
-
-
 
 	mux.HandleFunc("GET /jobs/search/logs", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
@@ -778,6 +776,49 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		w.Write(respData)
 	})
 
+	mux.HandleFunc("PUT /jobs/priority", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk priority update", http.StatusBadRequest)
+			return
+		}
+		if tag != "" && match != "" {
+			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk priority update", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Priority int `json:"priority"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UpdateJobsPriorityByTag(r.Context(), tag, req.Priority, logger)
+		} else if match != "" {
+			count, err = orch.UpdateJobsPriorityByMatch(r.Context(), match, req.Priority, logger)
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"updated": %d}`, count)
+	})
 	mux.HandleFunc("PUT /jobs/{id}/priority", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 

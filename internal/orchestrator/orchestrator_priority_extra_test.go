@@ -72,3 +72,47 @@ func TestUpdateJobPriority(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already completed")
 }
+
+func TestUpdateJobsPriorityByTag(t *testing.T) {
+	o := New(nil, nil, 1*time.Minute)
+
+	job1 := WorkItem{ID: "job1", Tags: []string{"backend"}, Priority: 1}
+	job2 := WorkItem{ID: "job2", Tags: []string{"frontend", "backend"}, Priority: 1}
+	job3 := WorkItem{ID: "job3", Tags: []string{"frontend"}, Priority: 1}
+
+	o.pendingJobs = map[string]JobInfo{
+		"job1": {ID: "job1", WorkItem: job1, RetryAfter: time.Now().Add(1 * time.Hour)},
+		"job2": {ID: "job2", WorkItem: job2, RetryAfter: time.Now().Add(1 * time.Hour)},
+		"job3": {ID: "job3", WorkItem: job3, RetryAfter: time.Now().Add(1 * time.Hour)},
+	}
+
+	count, err := o.UpdateJobsPriorityByTag(context.Background(), "backend", 5, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.Equal(t, 5, o.pendingJobs["job1"].WorkItem.Priority)
+	assert.Equal(t, 5, o.pendingJobs["job2"].WorkItem.Priority)
+	assert.Equal(t, 1, o.pendingJobs["job3"].WorkItem.Priority)
+}
+
+func TestUpdateJobsPriorityByMatch(t *testing.T) {
+	o := New(nil, nil, 1*time.Minute)
+
+	job1 := WorkItem{ID: "job1", Summary: "Fix backend bug", Priority: 1}
+	job2 := WorkItem{ID: "job2", Summary: "Fix frontend bug", Priority: 1}
+	job3 := WorkItem{ID: "job3", Summary: "Add new feature", Priority: 1}
+
+	o.pendingJobs = map[string]JobInfo{
+		"job1": {ID: "job1", WorkItem: job1, Summary: job1.Summary, RetryAfter: time.Now().Add(1 * time.Hour)},
+		"job2": {ID: "job2", WorkItem: job2, Summary: job2.Summary, RetryAfter: time.Now().Add(1 * time.Hour)},
+		"job3": {ID: "job3", WorkItem: job3, Summary: job3.Summary, RetryAfter: time.Now().Add(1 * time.Hour)},
+	}
+
+	count, err := o.UpdateJobsPriorityByMatch(context.Background(), "bug", 10, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.Equal(t, 10, o.pendingJobs["job1"].WorkItem.Priority)
+	assert.Equal(t, 10, o.pendingJobs["job2"].WorkItem.Priority)
+	assert.Equal(t, 1, o.pendingJobs["job3"].WorkItem.Priority)
+}
