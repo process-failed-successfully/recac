@@ -1911,18 +1911,27 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 	return count, nil
 }
 
-var outputSanitizeRegex = regexp.MustCompile(`[^A-Z0-9_]`)
+// sanitizeEnvVarName is a helper to sanitize job ID for env var name
+func sanitizeEnvVarName(id string) string {
+	var sb strings.Builder
+	sb.Grow(len(id))
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c >= 'a' && c <= 'z' {
+			sb.WriteByte(c - 32)
+		} else if (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			sb.WriteByte(c)
+		} else if c == '-' {
+			sb.WriteByte('_')
+		} else {
+			sb.WriteByte('_')
+		}
+	}
+	return sb.String()
+}
 
 func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, string, map[string]string) {
 	outputs := make(map[string]string)
-
-	// Helper to sanitize job ID for env var name
-	sanitize := func(id string) string {
-		s := strings.ToUpper(id)
-		s = strings.ReplaceAll(s, "-", "_")
-		s = outputSanitizeRegex.ReplaceAllString(s, "_")
-		return s
-	}
 
 	for _, dep := range dependsOn {
 		met := false
@@ -1967,7 +1976,7 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 		}
 
 		// Accumulate outputs
-		prefix := fmt.Sprintf("DEP_%s_", sanitize(dep))
+		prefix := fmt.Sprintf("DEP_%s_", sanitizeEnvVarName(dep))
 		for k, v := range depJob.Outputs {
 			outputs[prefix+strings.ToUpper(k)] = v
 		}
