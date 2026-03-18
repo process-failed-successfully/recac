@@ -99,6 +99,7 @@ func main() {
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
+	pflag.Bool("stream-events", false, "Stream real-time orchestrator events (SSE) to the console")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("edit-job", "", "Edit a pending job interactively using $EDITOR")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
@@ -364,6 +365,7 @@ func main() {
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
+	viper.BindPFlag("orchestrator.stream_events", pflag.Lookup("stream-events"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.edit_job", pflag.Lookup("edit-job"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
@@ -1502,6 +1504,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		if err := tui.StartDashboard(host); err != nil {
 			return fmt.Errorf("Dashboard failed: %w", err)
+		}
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.stream_events") {
+		host := viper.GetString("orchestrator.host")
+		if err := streamEvents(ctx, host); err != nil {
+			fmt.Fprintf(stdout, "Stream events failed: %v\n", err)
+			exitFunc(1)
 		}
 		return nil
 	}
