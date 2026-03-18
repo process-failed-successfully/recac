@@ -1079,3 +1079,72 @@ func TestAPI_ExportJobs(t *testing.T) {
 		assert.Contains(t, body, "COMPLETED-1,\"A completed job, with a comma\"")
 	})
 }
+
+func TestCancelJobDownstreamAPI(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
+
+	orch.mu.Lock()
+	orch.activeJobs["A"] = JobInfo{
+		ID:     "A",
+		Status: "Active",
+		WorkItem: WorkItem{
+			ID: "A",
+		},
+	}
+	orch.pendingJobs["B"] = JobInfo{
+		ID:     "B",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:        "B",
+			DependsOn: []string{"A"},
+		},
+	}
+	orch.mu.Unlock()
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodDelete, server.URL+"/jobs/A?downstream=true", nil)
+	assert.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var result struct {
+		CanceledJobs []string `json:"canceled_jobs"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"A", "B"}, result.CanceledJobs)
+}
+
+func TestCancelJobDownstreamAPI_NotFound(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodDelete, server.URL+"/jobs/UNKNOWN?downstream=true", nil)
+	assert.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
