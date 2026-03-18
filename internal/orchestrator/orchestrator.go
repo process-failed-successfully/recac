@@ -2433,17 +2433,43 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 
 	// Concurrency Group logic
 	var jobsToCancel []string
-	if item.CancelInProgress && item.ConcurrencyGroup != "" && retryCount == 0 && !bypassApproval {
+	var groupActive bool
+	if item.ConcurrencyGroup != "" && retryCount == 0 && !bypassApproval {
 		for id, activeJob := range o.activeJobs {
 			if activeJob.WorkItem.ConcurrencyGroup == item.ConcurrencyGroup && id != item.ID {
-				jobsToCancel = append(jobsToCancel, id)
+				if item.CancelInProgress {
+					jobsToCancel = append(jobsToCancel, id)
+				} else {
+					groupActive = true
+				}
 			}
 		}
 		for id, pendingJob := range o.pendingJobs {
 			if pendingJob.WorkItem.ConcurrencyGroup == item.ConcurrencyGroup && id != item.ID {
-				jobsToCancel = append(jobsToCancel, id)
+				if item.CancelInProgress {
+					jobsToCancel = append(jobsToCancel, id)
+				}
 			}
 		}
+	}
+
+	if groupActive {
+		job := JobInfo{
+			ID:         item.ID,
+			Summary:    item.Summary,
+			StartTime:  time.Now(),
+			Status:     "Pending",
+			WorkItem:   item,
+			RetryCount: retryCount,
+			Approved:   bypassApproval,
+		}
+		o.pendingJobs[item.ID] = job
+		o.mu.Unlock()
+		o.BroadcastEvent("job_pending", job)
+		if logger != nil {
+			logger.Info("Job pending due to active concurrency group", "id", item.ID, "group", item.ConcurrencyGroup)
+		}
+		return nil
 	}
 
 	if err := o.checkCircularDependencyLocked(item); err != nil {
@@ -2898,7 +2924,43 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		return toProcess[i].item.ID < toProcess[j].item.ID
 	})
 
+	// Build a map of currently active concurrency groups to prevent multiple jobs in the same group
+	// from starting in the same tick if CancelInProgress is false.
+	activeGroups := make(map[string]bool)
+	o.mu.Lock()
+	for _, activeJob := range o.activeJobs {
+		if activeJob.WorkItem.ConcurrencyGroup != "" {
+			activeGroups[activeJob.WorkItem.ConcurrencyGroup] = true
+		}
+	}
+	o.mu.Unlock()
+
+	var finalProcess []pendingJob
 	for _, pJob := range toProcess {
+		item := pJob.item
+		if item.ConcurrencyGroup != "" && !item.CancelInProgress {
+			if activeGroups[item.ConcurrencyGroup] {
+				// Re-add to pending jobs, it must wait for the current job in the group to finish
+				o.mu.Lock()
+				o.pendingJobs[item.ID] = JobInfo{
+					ID:         item.ID,
+					Summary:    item.Summary,
+					StartTime:  time.Now(),
+					Status:     "Pending",
+					WorkItem:   item,
+					RetryCount: pJob.retryCount,
+					Approved:   pJob.approved,
+				}
+				o.mu.Unlock()
+				continue
+			}
+			// Mark this group as active so subsequent pending jobs in the same group wait
+			activeGroups[item.ConcurrencyGroup] = true
+		}
+		finalProcess = append(finalProcess, pJob)
+	}
+
+	for _, pJob := range finalProcess {
 		item := pJob.item
 		if err := o.processWorkItemInternal(ctx, item, pJob.retryCount, pJob.approved, logger); err != nil {
 			if logger != nil {
