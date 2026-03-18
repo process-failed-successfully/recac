@@ -64,9 +64,9 @@ const DashboardHTML = `
             </div>
             <div>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
-                <button type="button" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
-                <button type="button" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
-                <button type="button" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
+                <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
+                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
+                <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
             </div>
         </div>
 
@@ -79,8 +79,8 @@ const DashboardHTML = `
                     <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button type="button" id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
-                    <button type="button" id="btn-submit-pipeline" onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
+                    <button type="button" aria-label="Dry Run Pipeline" id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
+                    <button type="button" aria-label="Submit Pipeline YAML" id="btn-submit-pipeline" onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
                 </div>
                 <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
@@ -139,7 +139,7 @@ const DashboardHTML = `
                     <label for="job-desc">Description (Optional)</label>
                     <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
                 </div>
-                <button type="button" id="btn-submit-adhoc" onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
+                <button type="button" aria-label="Submit Ad-hoc Job" id="btn-submit-adhoc" onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
             </div>
         </div>
 
@@ -149,7 +149,7 @@ const DashboardHTML = `
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <input type="hidden" id="edit-deps-job-id">
                 <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" aria-label="Job IDs" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
-                <button type="button" id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+                <button type="button" aria-label="Save Dependencies" id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
             </div>
         </div>
 
@@ -181,7 +181,7 @@ const DashboardHTML = `
                             <option value="Canceled">Canceled</option>
                         </select>
                     </div>
-                    <button type="button" onclick="performSearchLogs()" style="background-color: #007bff; min-width: 100px;">Search</button>
+                    <button type="button" aria-label="Execute Search" onclick="performSearchLogs()" style="background-color: #007bff; min-width: 100px;">Search</button>
                 </div>
                 <div id="search-logs-results" style="max-height: 500px; overflow-y: auto; background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; display: none;">
                     <!-- Results will be injected here -->
@@ -220,7 +220,7 @@ const DashboardHTML = `
                         <option value="all">All Jobs</option>
                     </select>
                     <input type="text" id="job-search" placeholder="Search ID or Summary..." aria-label="Search jobs">
-                    <button type="button" id="refresh-jobs">Refresh</button>
+                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs">Refresh</button>
                 </div>
             </div>
             <div id="jobs-container">
@@ -280,19 +280,19 @@ const DashboardHTML = `
 
                 let actionsHTML = '';
                 if(data.paused) {
-                    actionsHTML += '<button type="button" onclick="postAction(\'/resume\')">Resume</button>';
+                    actionsHTML += '<button type="button" aria-label="Resume polling" onclick="postAction(\'/resume\')">Resume</button>';
                 } else {
-                    actionsHTML += '<button type="button" onclick="postAction(\'/pause\')">Pause</button>';
+                    actionsHTML += '<button type="button" aria-label="Pause polling" onclick="postAction(\'/pause\')">Pause</button>';
                 }
 
                 if(data.draining) {
-                    actionsHTML += '<button type="button" onclick="postAction(\'/undrain\')">Undrain</button>';
+                    actionsHTML += '<button type="button" aria-label="Undrain agents" onclick="postAction(\'/undrain\')">Undrain</button>';
                 } else {
-                    actionsHTML += '<button type="button" class="danger" onclick="postAction(\'/drain\')">Drain</button>';
+                    actionsHTML += '<button type="button" aria-label="Drain agents" class="danger" onclick="postAction(\'/drain\')">Drain</button>';
                 }
 
-                actionsHTML += '<button type="button" onclick="postAction(\'/poll\')">Force Poll</button>';
-                actionsHTML += '<button type="button" class="danger" onclick="deleteAction(\'/pending\')">Clear Pending</button>';
+                actionsHTML += '<button type="button" aria-label="Force manual poll" onclick="postAction(\'/poll\')">Force Poll</button>';
+                actionsHTML += '<button type="button" aria-label="Clear all pending jobs" class="danger" onclick="deleteAction(\'/pending\')">Clear Pending</button>';
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
@@ -623,7 +623,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button type="button" onclick="document.getElementById(\'submitModal\').style.display=\'block\'" style="background-color: #28a745;">+ Submit Job</button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button type="button" aria-label="Submit a new job from empty state" onclick="document.getElementById(\'submitModal\').style.display=\'block\'" style="background-color: #28a745;">+ Submit Job</button></td></tr>';
                     return;
                 }
 
