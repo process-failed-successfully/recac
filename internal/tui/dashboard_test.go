@@ -327,3 +327,76 @@ func TestDashboardModel_UpdateFocus(t *testing.T) {
 	assert.False(t, m.inputs[2].Focused())
 	assert.True(t, m.textarea.Focused())
 }
+
+func TestDashboardModel_ForceCompleteKeybind(t *testing.T) {
+	// Setup a minimal model
+	columns := []table.Column{
+		{Title: "ID", Width: 10},
+		{Title: "Summary", Width: 40},
+		{Title: "Status", Width: 10},
+		{Title: "Wait Time", Width: 15},
+		{Title: "Run Time", Width: 15},
+	}
+	rows := []table.Row{
+		{"JOB-1", "Test Job 1", "Running", "10s", "5s"},
+	}
+	tbl := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+
+	m := DashboardModel{
+		table:     tbl,
+		viewState: viewMain,
+		selectedJobs: map[string]bool{},
+	}
+
+	// Send 'F' key message
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'F'}}
+	newModel, cmd := m.Update(msg)
+
+	assert.Nil(t, cmd)
+
+	updatedModel := newModel.(DashboardModel)
+	assert.Equal(t, viewConfirmation, updatedModel.viewState)
+	assert.Equal(t, "force complete", updatedModel.pendingAction)
+	assert.Equal(t, "JOB-1", updatedModel.pendingJobId)
+}
+
+func TestDashboardModel_ForceCompleteMultipleKeybind(t *testing.T) {
+	columns := []table.Column{
+		{Title: "ID", Width: 10},
+	}
+	rows := []table.Row{
+		{"JOB-1"},
+		{"JOB-2"},
+	}
+	tbl := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+
+	m := DashboardModel{
+		table:     tbl,
+		viewState: viewMain,
+		selectedJobs: map[string]bool{
+			"JOB-1": true,
+			"JOB-2": true,
+		},
+	}
+
+	// Send 'F' key message
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'F'}}
+	newModel, cmd := m.Update(msg)
+
+	assert.Nil(t, cmd)
+
+	updatedModel := newModel.(DashboardModel)
+	assert.Equal(t, viewConfirmation, updatedModel.viewState)
+	assert.Equal(t, "force complete multiple", updatedModel.pendingAction)
+	assert.Equal(t, "MULTIPLE_F", updatedModel.pendingJobId)
+}

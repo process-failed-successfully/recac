@@ -57,7 +57,7 @@ func TestForceCompleteJobsBulkAPI(t *testing.T) {
 	orch.mu.Lock()
 	orch.pendingJobs["j1"] = JobInfo{ID: "j1", Status: "Pending", WorkItem: WorkItem{ID: "j1", Tags: []string{"tag1"}}}
 	orch.activeJobs["j2"] = JobInfo{ID: "j2", Status: "Running", WorkItem: WorkItem{ID: "j2", Tags: []string{"tag1"}}}
-	orch.pendingJobs["j3"] = JobInfo{ID: "j3", Status: "Pending", WorkItem: WorkItem{ID: "j3", Tags: []string{"other"}}}
+	orch.pendingJobs["j3"] = JobInfo{ID: "j3", Status: "Pending", WorkItem: WorkItem{ID: "j3", Tags: []string{"other"}}, RetryAfter: time.Now().Add(1 * time.Hour)}
 	orch.mu.Unlock()
 
 	req, err := http.NewRequest(http.MethodPost, "/jobs/force-complete?tag=tag1", nil)

@@ -550,6 +550,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, toggleDrain(m.host, m.status.Draining)
 		case "f":
 			return m, forcePoll(m.host)
+		case "F":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_F"
+				m.pendingAction = "force complete multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "force complete"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "?":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -864,6 +878,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 					switch m.pendingAction {
 					case "cancel multiple":
 						cmds = append(cmds, cancelJob(m.host, id))
+					case "force complete multiple":
+						cmds = append(cmds, forceCompleteJobCmd(m.host, id))
 					case "purge multiple":
 						cmds = append(cmds, purgeJobCmd(m.host, id))
 					case "retry multiple":
@@ -898,6 +914,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 			var cmd tea.Cmd
 			if m.pendingAction == "cancel" {
 				cmd = cancelJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "force complete" {
+				cmd = forceCompleteJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "purge" {
 				cmd = purgeJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "cancel all" {
@@ -1352,7 +1370,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1400,6 +1418,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = "Are you sure you want to clear ALL pending jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "cancel multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "force complete multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to FORCE COMPLETE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "purge multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "retry multiple" {
@@ -2135,6 +2155,25 @@ func unholdJobCmd(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Unheld"}
+	}
+}
+
+func forceCompleteJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/force-complete", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Force Completed"}
 	}
 }
 
