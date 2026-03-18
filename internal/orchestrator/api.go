@@ -1651,12 +1651,31 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 
 	mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		if err := orch.CancelJob(r.Context(), id); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		downstream := r.URL.Query().Get("downstream") == "true"
+
+		if downstream {
+			canceledIDs, err := orch.CancelJobDownstream(r.Context(), id, logger)
+			if err != nil {
+				if strings.Contains(err.Error(), "not found") {
+					http.Error(w, err.Error(), http.StatusNotFound)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{"canceled_jobs": canceledIDs}); err != nil {
+				logger.Error("Failed to encode canceled jobs response", "error", err)
+			}
+		} else {
+			if err := orch.CancelJob(r.Context(), id); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Job %s cancellation requested", id)
 		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Job %s cancellation requested", id)
 	})
 
 	mux.HandleFunc("DELETE /jobs", func(w http.ResponseWriter, r *http.Request) {

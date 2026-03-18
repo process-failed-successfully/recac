@@ -761,7 +761,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if jobID := viper.GetString("orchestrator.cancel_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
-		cancelJob(host, jobID)
+		downstream := viper.GetBool("orchestrator.downstream")
+		cancelJob(host, jobID, downstream)
 		return nil
 	}
 
@@ -2296,8 +2297,13 @@ func purgeJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s purged successfully.\n", jobID)
 }
 
-func cancelJob(host, jobID string) {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
+func cancelJob(host, jobID string, downstream bool) {
+	url := fmt.Sprintf("%s/jobs/%s", host, jobID)
+	if downstream {
+		url += "?downstream=true"
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
 		exitFunc(1)
@@ -2319,7 +2325,22 @@ func cancelJob(host, jobID string) {
 		return
 	}
 
-	fmt.Fprintf(stdout, "Job %s cancelled successfully.\n", jobID)
+	if downstream {
+		var result struct {
+			CanceledJobs []string `json:"canceled_jobs"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+			exitFunc(1)
+			return
+		}
+		fmt.Fprintf(stdout, "Job %s and its downstream dependencies cancelled successfully.\n", jobID)
+		if len(result.CanceledJobs) > 0 {
+			fmt.Fprintf(stdout, "Canceled jobs: %s\n", strings.Join(result.CanceledJobs, ", "))
+		}
+	} else {
+		fmt.Fprintf(stdout, "Job %s cancelled successfully.\n", jobID)
+	}
 }
 
 func pauseOrchestrator(host string) {

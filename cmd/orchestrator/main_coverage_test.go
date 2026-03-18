@@ -374,7 +374,7 @@ func TestCancelJob(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		cancelJob(server.URL, "job-1")
+		cancelJob(server.URL, "job-1", false)
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "cancelled successfully")
@@ -388,7 +388,7 @@ func TestCancelJob(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		cancelJob(server.URL, "job-1")
+		cancelJob(server.URL, "job-1", false)
 
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to cancel job")
@@ -397,7 +397,7 @@ func TestCancelJob(t *testing.T) {
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		cancelJob("http://invalid-host", "job-1")
+		cancelJob("http://invalid-host", "job-1", false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})

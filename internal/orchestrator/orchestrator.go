@@ -3654,3 +3654,75 @@ func (o *Orchestrator) UpdateJobsAgentByMatch(ctx context.Context, match string,
 
 	return count, nil
 }
+
+// CancelJobDownstream cancels a job and all its transitive downstream dependencies that are pending or active.
+func (o *Orchestrator) CancelJobDownstream(ctx context.Context, jobID string, logger *slog.Logger) ([]string, error) {
+	// Need a map of ID -> list of jobs that depend on it
+	downstreamMap := make(map[string][]string)
+
+	o.mu.RLock()
+	// Check if job exists in active or pending jobs
+	var rootJobExists bool
+	if _, ok := o.activeJobs[jobID]; ok {
+		rootJobExists = true
+	} else if _, ok := o.pendingJobs[jobID]; ok {
+		rootJobExists = true
+	}
+
+	if !rootJobExists {
+		o.mu.RUnlock()
+		return nil, fmt.Errorf("job %s not found in active or pending queue", jobID)
+	}
+
+	// Build adjacency list for downstream dependencies among active and pending jobs
+	for _, job := range o.activeJobs {
+		for _, dep := range job.WorkItem.DependsOn {
+			downstreamMap[dep] = append(downstreamMap[dep], job.ID)
+		}
+	}
+	for _, job := range o.pendingJobs {
+		for _, dep := range job.WorkItem.DependsOn {
+			downstreamMap[dep] = append(downstreamMap[dep], job.ID)
+		}
+	}
+	o.mu.RUnlock()
+
+	// Find all transitive downstream jobs using BFS
+	visited := make(map[string]bool)
+	queue := []string{jobID}
+	var jobsToCancel []string
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		if visited[curr] {
+			continue
+		}
+		visited[curr] = true
+		jobsToCancel = append(jobsToCancel, curr)
+
+		if dependents, hasDependents := downstreamMap[curr]; hasDependents {
+			queue = append(queue, dependents...)
+		}
+	}
+
+	// Cancel all found jobs
+	var canceledIDs []string
+	var lastErr error
+	for _, id := range jobsToCancel {
+		if logger != nil {
+			logger.Info("Canceling job downstream", "id", id, "root", jobID)
+		}
+		if err := o.CancelJob(ctx, id); err == nil {
+			canceledIDs = append(canceledIDs, id)
+		} else {
+			if logger != nil {
+				logger.Error("Failed to cancel job downstream", "id", id, "error", err)
+			}
+			lastErr = err
+		}
+	}
+
+	return canceledIDs, lastErr
+}
