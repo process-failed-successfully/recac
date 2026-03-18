@@ -21,6 +21,7 @@ type Pipeline struct {
 		EnvVars          map[string]string `yaml:"env_vars"`
 		Tags             []string          `yaml:"tags"`
 		DependsOn        []string          `yaml:"depends_on"`
+		RunCondition     string            `yaml:"run_condition"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -31,6 +32,7 @@ type PipelineJob struct {
 	Description      string              `yaml:"description"`
 	RepoURL          string              `yaml:"repo_url"`
 	DependsOn        []string            `yaml:"depends_on"`
+	RunCondition     string              `yaml:"run_condition"`
 	EnvVars          map[string]string   `yaml:"env_vars"`
 	Matrix           map[string][]string `yaml:"matrix"`
 	Tags             []string            `yaml:"tags"`
@@ -179,6 +181,10 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string) ([]WorkItem, er
 		if maxRetries == nil && p.Defaults.MaxRetries != nil {
 			maxRetries = p.Defaults.MaxRetries
 		}
+		runCondition := jobDef.RunCondition
+		if runCondition == "" {
+			runCondition = p.Defaults.RunCondition
+		}
 
 		// Use Task as Description if Description is empty
 		description := jobDef.Description
@@ -321,6 +327,7 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string) ([]WorkItem, er
 				AgentProvider:    agentProvider,
 				AgentModel:       agentModel,
 				MaxRetries:       maxRetries,
+				RunCondition:     runCondition,
 			})
 		}
 	}

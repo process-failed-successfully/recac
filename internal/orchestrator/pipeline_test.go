@@ -99,6 +99,44 @@ jobs:
 	assert.Equal(t, testJob.ID, deployJob.DependsOn[0])
 }
 
+func TestParsePipelineToWorkItems_RunCondition(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Cond
+defaults:
+  repo_url: https://github.com/org/repo.git
+jobs:
+  job1:
+    summary: Job 1
+  job2:
+    summary: Job 2
+    depends_on: [job1]
+    run_condition: on_failure
+  job3:
+    summary: Job 3
+    depends_on: [job2]
+    run_condition: always
+`)
+	items, err := ParsePipelineToWorkItems(yamlData, "")
+	require.NoError(t, err)
+	assert.Len(t, items, 3)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.Empty(t, job1.RunCondition)
+
+	job2 := jobMap["job2"]
+	assert.Equal(t, "on_failure", job2.RunCondition)
+
+	job3 := jobMap["job3"]
+	assert.Equal(t, "always", job3.RunCondition)
+}
+
 func TestParsePipelineToWorkItems_MissingName(t *testing.T) {
 	yamlData := []byte(`
 jobs:

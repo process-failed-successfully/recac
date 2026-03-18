@@ -2304,49 +2304,64 @@ func sanitizeEnvVarName(id string) string {
 	return sb.String()
 }
 
-func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, string, map[string]string) {
-	outputs := make(map[string]string)
+// checkDependenciesMetLocked returns:
+// - shouldRun bool: whether the job should be executed
+// - shouldFail bool: whether the job should immediately fail (e.g. required dependency failed)
+// - shouldSkip bool: whether the job should be skipped (e.g. on_failure condition not met)
+// - failedDep string: the first dependency that caused a failure, if applicable
+// - outputs map[string]string: accumulated outputs from successful dependencies
+func (o *Orchestrator) checkDependenciesMetLocked(item WorkItem) (shouldRun bool, shouldFail bool, shouldSkip bool, failedDep string, outputs map[string]string) {
+	outputs = make(map[string]string)
+	if len(item.DependsOn) == 0 {
+		return true, false, false, "", outputs
+	}
 
-	for _, dep := range dependsOn {
-		met := false
+	failedCount := 0
+	completedCount := 0
+
+	// Collect status for all dependencies
+	for _, dep := range item.DependsOn {
 		var depJob JobInfo
+		found := false
 
 		if _, ok := o.activeJobs[dep]; ok {
-			return false, "", nil // Active, not met yet
+			return false, false, false, "", nil // Active, not met yet
 		}
 		if _, ok := o.pendingJobs[dep]; ok {
-			return false, "", nil // Pending, not met yet
+			return false, false, false, "", nil // Pending, not met yet
 		}
 
 		// Check memory history (newest first)
 		for i := len(o.completedJobs) - 1; i >= 0; i-- {
 			completed := o.completedJobs[i]
 			if completed.ID == dep {
-				if completed.Status == "Completed" || completed.Status == "Skipped" {
-					met = true
-					depJob = completed
-				} else if completed.Status == "Failed" || completed.Status == "Canceled" {
-					return false, dep, nil // dependency failed
-				}
+				depJob = completed
+				found = true
 				break
 			}
 		}
 
 		// Check persistence if not found in memory history
-		if !met && o.Persistence != nil {
+		if !found && o.Persistence != nil {
 			job, err := o.Persistence.GetJob(dep)
 			if err == nil {
-				if job.Status == "Completed" || job.Status == "Skipped" {
-					met = true
-					depJob = *job
-				} else if job.Status == "Failed" || job.Status == "Canceled" {
-					return false, dep, nil
-				}
+				depJob = *job
+				found = true
 			}
 		}
 
-		if !met {
-			return false, "", nil
+		if !found {
+			// Dependency not found anywhere, wait for it
+			return false, false, false, "", nil
+		}
+
+		if depJob.Status == "Failed" || depJob.Status == "Canceled" {
+			failedCount++
+			if failedDep == "" {
+				failedDep = dep
+			}
+		} else if depJob.Status == "Completed" || depJob.Status == "Skipped" {
+			completedCount++
 		}
 
 		// Accumulate outputs
@@ -2355,7 +2370,25 @@ func (o *Orchestrator) checkDependenciesMetLocked(dependsOn []string) (bool, str
 			outputs[prefix+strings.ToUpper(k)] = v
 		}
 	}
-	return true, "", outputs
+
+	cond := strings.ToLower(strings.TrimSpace(item.RunCondition))
+
+	switch cond {
+	case "always":
+		return true, false, false, "", outputs
+	case "on_failure":
+		if failedCount > 0 {
+			return true, false, false, "", outputs
+		} else {
+			return false, false, true, "", outputs // Should skip
+		}
+	default: // "on_success" or empty
+		if failedCount > 0 {
+			return false, true, false, failedDep, outputs // Should fail
+		} else {
+			return true, false, false, "", outputs
+		}
+	}
 }
 
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retryCount int, logger *slog.Logger) error {
@@ -2547,43 +2580,79 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 
 	var depOutputs map[string]string
 	if len(item.DependsOn) > 0 {
-		var met bool
+		var shouldRun, shouldFail, shouldSkip bool
 		var failedDep string
-		met, failedDep, depOutputs = o.checkDependenciesMetLocked(item.DependsOn)
-		if !met {
-			if failedDep != "" {
-				// Dependency failed, immediately fail this job
-				job := JobInfo{
-					ID:        item.ID,
-					Summary:   item.Summary,
-					StartTime: time.Now(),
-					EndTime:   time.Now(),
-					Status:    "Failed",
-					Error:     fmt.Sprintf("Dependency %s failed", failedDep),
-					WorkItem:  item,
-				}
-				o.addToHistory(job, logger)
-				o.mu.Unlock()
+		shouldRun, shouldFail, shouldSkip, failedDep, depOutputs = o.checkDependenciesMetLocked(item)
 
-				if len(jobsToCancel) > 0 {
-					if logger != nil {
-						logger.Info("Canceling existing jobs in concurrency group despite dependency failure", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
-					}
-					for _, cancelID := range jobsToCancel {
-						if err := o.CancelJob(ctx, cancelID); err != nil {
-							if logger != nil {
-								logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
-							}
+		if shouldFail {
+			// Dependency failed, immediately fail this job
+			job := JobInfo{
+				ID:        item.ID,
+				Summary:   item.Summary,
+				StartTime: time.Now(),
+				EndTime:   time.Now(),
+				Status:    "Failed",
+				Error:     fmt.Sprintf("Dependency %s failed", failedDep),
+				WorkItem:  item,
+			}
+			o.addToHistory(job, logger)
+			o.mu.Unlock()
+
+			if len(jobsToCancel) > 0 {
+				if logger != nil {
+					logger.Info("Canceling existing jobs in concurrency group despite dependency failure", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+				}
+				for _, cancelID := range jobsToCancel {
+					if err := o.CancelJob(ctx, cancelID); err != nil {
+						if logger != nil {
+							logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
 						}
 					}
 				}
-
-				o.BroadcastEvent("job_failed", job)
-				if logger != nil {
-					logger.Error("Job failed due to failed dependency", "id", item.ID, "dependency", failedDep)
-				}
-				return fmt.Errorf("dependency %s failed", failedDep)
 			}
+
+			o.BroadcastEvent("job_failed", job)
+			if logger != nil {
+				logger.Error("Job failed due to failed dependency", "id", item.ID, "dependency", failedDep)
+			}
+			return fmt.Errorf("dependency %s failed", failedDep)
+		} else if shouldSkip {
+			// Condition not met (e.g. on_failure but all succeeded), skip job
+			job := JobInfo{
+				ID:        item.ID,
+				Summary:   item.Summary,
+				StartTime: time.Now(),
+				EndTime:   time.Now(),
+				Status:    "Skipped",
+				Error:     "Skipped due to run condition not met",
+				WorkItem:  item,
+			}
+			o.addToHistory(job, logger)
+			o.mu.Unlock()
+
+			if len(jobsToCancel) > 0 {
+				if logger != nil {
+					logger.Info("Canceling existing jobs in concurrency group despite job skip", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+				}
+				for _, cancelID := range jobsToCancel {
+					if err := o.CancelJob(ctx, cancelID); err != nil {
+						if logger != nil {
+							logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+						}
+					}
+				}
+			}
+
+			o.BroadcastEvent("job_skipped", job)
+			if logger != nil {
+				logger.Info("Job skipped due to run condition", "id", item.ID, "run_condition", item.RunCondition)
+			}
+
+			// We need to unblock dependents of this skipped job
+			o.evaluatePendingJobs(ctx, logger)
+
+			return nil
+		} else if !shouldRun {
 			// Valid dependencies but not yet completed
 			job := JobInfo{
 				ID:         item.ID,
@@ -2863,8 +2932,9 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		}
 
 		item := jobInfo.WorkItem
-		met, failedDep, _ := o.checkDependenciesMetLocked(item.DependsOn)
-		if met {
+		shouldRun, shouldFail, shouldSkip, failedDep, _ := o.checkDependenciesMetLocked(item)
+
+		if shouldRun {
 			if item.Delay > 0 {
 				// Apply delay by setting RunAfter and resetting Delay so it only triggers once
 				item.RunAfter = time.Now().Add(item.Delay)
@@ -2893,7 +2963,7 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 				toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount, approved: jobInfo.Approved})
 				delete(o.pendingJobs, id)
 			}
-		} else if failedDep != "" {
+		} else if shouldFail {
 			if t, ok := o.delayTimers[id]; ok {
 				t.Stop()
 				delete(o.delayTimers, id)
@@ -2912,6 +2982,29 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 			o.addToHistory(job, logger)
 			// Ensure we broadcast after dropping the lock to avoid deadlocks
 			defer o.BroadcastEvent("job_failed", job)
+		} else if shouldSkip {
+			if t, ok := o.delayTimers[id]; ok {
+				t.Stop()
+				delete(o.delayTimers, id)
+			}
+			// Condition not met (e.g. on_failure but all succeeded), skip job
+			delete(o.pendingJobs, id)
+			job := JobInfo{
+				ID:        item.ID,
+				Summary:   item.Summary,
+				StartTime: time.Now(),
+				EndTime:   time.Now(),
+				Status:    "Skipped",
+				Error:     "Skipped due to run condition not met",
+				WorkItem:  item,
+			}
+			o.addToHistory(job, logger)
+			// Ensure we broadcast after dropping the lock to avoid deadlocks
+			defer func() {
+				o.BroadcastEvent("job_skipped", job)
+				// trigger re-evaluation for anything depending on this skipped job
+				o.evaluatePendingJobs(ctx, logger)
+			}()
 		}
 	}
 	o.mu.Unlock()
