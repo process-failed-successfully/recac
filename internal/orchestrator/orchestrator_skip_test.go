@@ -101,7 +101,7 @@ func TestOrchestrator_DependencyMetOnSkip(t *testing.T) {
 
 	// Before skip, JOB1 should not have dependencies met
 	orch.mu.Lock()
-	met, _, _ := orch.checkDependenciesMetLocked([]string{"DEP1"})
+	met, _, _, _, _ := orch.checkDependenciesMetLocked(WorkItem{DependsOn: []string{"DEP1"}})
 	orch.mu.Unlock()
 	assert.False(t, met)
 
@@ -111,7 +111,7 @@ func TestOrchestrator_DependencyMetOnSkip(t *testing.T) {
 
 	// Now JOB1 dependencies should be met
 	orch.mu.Lock()
-	met, _, _ = orch.checkDependenciesMetLocked([]string{"DEP1"})
+	met, _, _, _, _ = orch.checkDependenciesMetLocked(WorkItem{DependsOn: []string{"DEP1"}})
 	orch.mu.Unlock()
 	assert.True(t, met)
 }

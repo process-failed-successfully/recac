@@ -104,3 +104,86 @@ func TestOrchestrator_UpdateDependenciesBulk(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid match regex")
 }
+
+func TestOrchestrator_RunConditions(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	orch.completedJobs = []JobInfo{
+		{ID: "DEP-SUCCESS", Status: "Completed"},
+		{ID: "DEP-FAIL", Status: "Failed"},
+	}
+
+	tests := []struct {
+		name             string
+		dependsOn        []string
+		runCondition     string
+		expectShouldRun  bool
+		expectShouldFail bool
+		expectShouldSkip bool
+	}{
+		{
+			name:             "on_success (default) with all success",
+			dependsOn:        []string{"DEP-SUCCESS"},
+			runCondition:     "",
+			expectShouldRun:  true,
+			expectShouldFail: false,
+			expectShouldSkip: false,
+		},
+		{
+			name:             "on_success (default) with a failure",
+			dependsOn:        []string{"DEP-SUCCESS", "DEP-FAIL"},
+			runCondition:     "on_success",
+			expectShouldRun:  false,
+			expectShouldFail: true,
+			expectShouldSkip: false,
+		},
+		{
+			name:             "always with all success",
+			dependsOn:        []string{"DEP-SUCCESS"},
+			runCondition:     "always",
+			expectShouldRun:  true,
+			expectShouldFail: false,
+			expectShouldSkip: false,
+		},
+		{
+			name:             "always with a failure",
+			dependsOn:        []string{"DEP-SUCCESS", "DEP-FAIL"},
+			runCondition:     "ALWAYS",
+			expectShouldRun:  true,
+			expectShouldFail: false,
+			expectShouldSkip: false,
+		},
+		{
+			name:             "on_failure with all success",
+			dependsOn:        []string{"DEP-SUCCESS"},
+			runCondition:     "on_failure",
+			expectShouldRun:  false,
+			expectShouldFail: false,
+			expectShouldSkip: true,
+		},
+		{
+			name:             "on_failure with a failure",
+			dependsOn:        []string{"DEP-SUCCESS", "DEP-FAIL"},
+			runCondition:     "on_failure",
+			expectShouldRun:  true,
+			expectShouldFail: false,
+			expectShouldSkip: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := WorkItem{
+				ID:           "TEST-JOB",
+				DependsOn:    tt.dependsOn,
+				RunCondition: tt.runCondition,
+			}
+
+			shouldRun, shouldFail, shouldSkip, _, _ := orch.checkDependenciesMetLocked(item)
+
+			assert.Equal(t, tt.expectShouldRun, shouldRun, "shouldRun mismatch")
+			assert.Equal(t, tt.expectShouldFail, shouldFail, "shouldFail mismatch")
+			assert.Equal(t, tt.expectShouldSkip, shouldSkip, "shouldSkip mismatch")
+		})
+	}
+}

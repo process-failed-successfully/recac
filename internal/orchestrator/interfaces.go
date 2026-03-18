@@ -32,6 +32,7 @@ type WorkItem struct {
 	AgentModel       string            `json:"agent_model,omitempty"`
 	Hold             bool              `json:"hold,omitempty"`
 	MaxRetries       *int              `json:"max_retries,omitempty"`
+	RunCondition     string            `json:"run_condition,omitempty" yaml:"run_condition"`
 }
 
 // Poller defines the interface for polling for work items.
