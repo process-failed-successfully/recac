@@ -57,6 +57,7 @@ const (
 	viewDepsInput
 	viewEnvInput
 	viewTagsInput
+	viewAgentInput
 	viewRenameInput
 	viewExplain
 	viewCompare
@@ -102,6 +103,10 @@ type DashboardModel struct {
 
 	// Tags input field
 	tagsInput textinput.Model
+
+	// Agent input field
+	agentProviderInput textinput.Model
+	agentModelInput    textinput.Model
 
 	// Rename input field
 	renameInput textinput.Model
@@ -373,6 +378,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewTagsInput:
 		m, cmd = m.updateTagsInput(msg)
+		cmds = append(cmds, cmd)
+	case viewAgentInput:
+		m, cmd = m.updateAgentInput(msg)
 		cmds = append(cmds, cmd)
 	case viewRenameInput:
 		m, cmd = m.updateRenameInput(msg)
@@ -759,6 +767,33 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 						m.viewState = viewTagsInput
 						m.tagsInput.SetValue(strings.Join(job.WorkItem.Tags, ", "))
 						m.tagsInput.Focus()
+						return m, textinput.Blink
+					}
+				}
+			}
+		case "M":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_agent"
+				m.viewState = viewAgentInput
+				m.focusedInput = 0
+				m.agentProviderInput.SetValue("")
+				m.agentModelInput.SetValue("")
+				m.agentProviderInput.Focus()
+				m.agentModelInput.Blur()
+				return m, textinput.Blink
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.pendingJobId = id
+						m.viewState = viewAgentInput
+						m.focusedInput = 0
+						m.agentProviderInput.SetValue(job.WorkItem.AgentProvider)
+						m.agentModelInput.SetValue(job.WorkItem.AgentModel)
+						m.agentProviderInput.Focus()
+						m.agentModelInput.Blur()
 						return m, textinput.Blink
 					}
 				}
@@ -1263,6 +1298,61 @@ func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	return m, cmd
 }
 
+func (m DashboardModel) updateAgentInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmds []tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.agentProviderInput.Blur()
+			m.agentModelInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "tab", "shift+tab", "up", "down":
+			if m.focusedInput == 0 {
+				m.focusedInput = 1
+				m.agentProviderInput.Blur()
+				m.agentModelInput.Focus()
+			} else {
+				m.focusedInput = 0
+				m.agentModelInput.Blur()
+				m.agentProviderInput.Focus()
+			}
+			return m, nil
+		case "enter":
+			providerVal := m.agentProviderInput.Value()
+			modelVal := m.agentModelInput.Value()
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.agentProviderInput.Blur()
+			m.agentModelInput.Blur()
+			m.pendingJobId = ""
+
+			if id == "MULTIPLE_agent" && len(m.selectedJobs) > 0 {
+				for jobId := range m.selectedJobs {
+					cmds = append(cmds, updateAgentCmd(m.host, jobId, providerVal, modelVal))
+				}
+				m.selectedJobs = make(map[string]bool)
+				m.updateTableContent()
+				return m, tea.Batch(cmds...)
+			}
+
+			return m, updateAgentCmd(m.host, id, providerVal, modelVal)
+		}
+	}
+
+	var cmd tea.Cmd
+	if m.focusedInput == 0 {
+		m.agentProviderInput, cmd = m.agentProviderInput.Update(msg)
+	} else {
+		m.agentModelInput, cmd = m.agentModelInput.Update(msg)
+	}
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
+}
+
 func (m DashboardModel) updateSearchLogsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -1370,7 +1460,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1548,6 +1638,24 @@ func (m DashboardModel) View() string {
 		// Render the dialog centered
 		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
 		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewAgentInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(60).
+			Height(7).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Update Agent for %s\n\n%s\n%s", m.pendingJobId, m.agentProviderInput.View(), m.agentModelInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("tab: switch | enter: confirm | esc: cancel")
 	case viewDepsInput:
 		dialogStyle := lipgloss.NewStyle().
 			Width(60).
@@ -2076,6 +2184,43 @@ func updateTagsCmd(host, id string, tags []string) tea.Cmd {
 	}
 }
 
+func updateAgentCmd(host, id, provider, model string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := fmt.Sprintf("%s/jobs/%s/agent", host, id)
+
+		reqBody := struct {
+			AgentProvider string `json:"agent_provider"`
+			AgentModel    string `json:"agent_model"`
+		}{
+			AgentProvider: provider,
+			AgentModel:    model,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated agent for job %s", id)}
+	}
+}
+
 func updateTimeoutCmd(host, id, newTimeout string) tea.Cmd {
 	return func() tea.Msg {
 		urlStr := fmt.Sprintf("%s/jobs/%s/timeout", host, id)
@@ -2494,6 +2639,16 @@ func NewDashboardModel(host string) DashboardModel {
 	gi.Prompt = "Tags: "
 	gi.Width = 40
 
+	api := textinput.New()
+	api.Placeholder = "e.g., openrouter"
+	api.Prompt = "Provider: "
+	api.Width = 40
+
+	ami := textinput.New()
+	ami.Placeholder = "e.g., openai/gpt-4o"
+	ami.Prompt = "Model: "
+	ami.Width = 40
+
 	ri := textinput.New()
 	ri.Placeholder = "NEW-JOB-ID"
 	ri.Prompt = "New Job ID: "
@@ -2516,10 +2671,12 @@ func NewDashboardModel(host string) DashboardModel {
 		timeoutInput: ti,
 		depsInput:    di,
 		envInput:     ei,
-		tagsInput:    gi,
-		renameInput:  ri,
-		searchInput:  si,
-		selectedJobs: make(map[string]bool),
+		tagsInput:          gi,
+		agentProviderInput: api,
+		agentModelInput:    ami,
+		renameInput:        ri,
+		searchInput:        si,
+		selectedJobs:       make(map[string]bool),
 	}
 }
 

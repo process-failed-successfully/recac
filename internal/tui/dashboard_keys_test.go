@@ -310,6 +310,52 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "", m.tagsInput.Value())
 	})
 
+	t.Run("Update Agent (M)", func(t *testing.T) {
+		m := NewDashboardModel("http://localhost:2112")
+		m.jobs = []orchestrator.JobInfo{
+			{ID: "job-1", WorkItem: orchestrator.WorkItem{AgentProvider: "openrouter", AgentModel: "openai/gpt-4o"}},
+		}
+		m.updateTableContent()
+		m.table.SetCursor(0)
+
+		// Send 'M'
+		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("M"), Alt: false})
+		m = newModel.(DashboardModel)
+
+		// Verify view state changes
+		assert.Equal(t, viewAgentInput, m.viewState)
+		assert.Equal(t, "job-1", m.pendingJobId)
+		assert.Equal(t, "openrouter", m.agentProviderInput.Value())
+		assert.Equal(t, "openai/gpt-4o", m.agentModelInput.Value())
+
+		// Test Enter to confirm agent
+		m.agentProviderInput.SetValue("anthropic")
+		m.agentModelInput.SetValue("claude-3-5-sonnet")
+		newModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter"), Alt: false})
+		m = newModel.(DashboardModel)
+
+		assert.NotNil(t, cmd) // Should return the updateAgentCmd
+		assert.Equal(t, viewMain, m.viewState)
+		assert.Equal(t, "", m.pendingJobId)
+	})
+
+	t.Run("Update Agent (M) - Multiple", func(t *testing.T) {
+		model = NewDashboardModel("http://localhost")
+		model.table = tModel
+		model.jobs = []orchestrator.JobInfo{
+			{ID: "JOB-1"},
+		}
+		model.selectedJobs = map[string]bool{"JOB-1": true}
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("M")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewAgentInput, m.viewState)
+		assert.Equal(t, "MULTIPLE_agent", m.pendingJobId)
+		assert.Equal(t, "", m.agentProviderInput.Value())
+		assert.Equal(t, "", m.agentModelInput.Value())
+	})
+
 	t.Run("Edit/Clone Key (e)", func(t *testing.T) {
 		// Ensure job has details
 		if len(model.jobs) > 0 {
