@@ -449,3 +449,75 @@ func TestDashboardModel_View_States(t *testing.T) {
 		assert.NotNil(t, cmd) // Should return textinput.Blink
 	})
 }
+
+func TestDashboardModel_UpdateSubmit(t *testing.T) {
+	mModel := NewDashboardModel("http://localhost:8080")
+	mModel.viewState = viewSubmit
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")}
+	newModel, _ := mModel.updateSubmit(msg)
+	assert.NotNil(t, newModel)
+
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")}
+	newModel, _ = newModel.updateSubmit(msg)
+	assert.NotNil(t, newModel)
+
+    msg = tea.KeyMsg{Type: tea.KeyEsc}
+	newModel, _ = newModel.updateSubmit(msg)
+	assert.NotNil(t, newModel)
+    assert.Equal(t, viewMain, newModel.viewState)
+}
+
+func TestDashboardModel_UpdateConfirmation(t *testing.T) {
+	mModel := NewDashboardModel("http://localhost:8080")
+	mModel.viewState = viewConfirmation
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")}
+	newModel, _ := mModel.updateConfirmation(msg)
+	assert.NotNil(t, newModel)
+    assert.Equal(t, viewMain, newModel.viewState)
+
+	mModel.viewState = viewConfirmation
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")}
+	newModel, cmd := mModel.updateConfirmation(msg)
+	assert.NotNil(t, newModel)
+	assert.Nil(t, cmd)
+    assert.Equal(t, viewMain, newModel.viewState)
+
+    mModel.viewState = viewConfirmation
+	msg = tea.KeyMsg{Type: tea.KeyEsc}
+	newModel, cmd = mModel.updateConfirmation(msg)
+	assert.NotNil(t, newModel)
+	assert.Nil(t, cmd)
+    assert.Equal(t, viewMain, newModel.viewState)
+}
+
+func TestDashboardModel_View_AllStates(t *testing.T) {
+    mModel := NewDashboardModel("http://localhost:8080")
+
+    views := []viewState{
+        viewMain,
+        viewDetails,
+        viewLogs,
+        viewConfirmation,
+        viewSubmit,
+        viewAnalytics,
+        viewTree,
+        viewTimeoutInput,
+        viewDepsInput,
+        viewEnvInput,
+        viewTagsInput,
+        viewAgentInput,
+        viewRenameInput,
+        viewExplain,
+        viewCompare,
+        viewSearchLogsInput,
+        viewSearchLogsResult,
+    }
+
+    for _, v := range views {
+        mModel.viewState = v
+        out := mModel.View()
+        assert.NotEmpty(t, out)
+    }
+}

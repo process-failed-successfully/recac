@@ -182,3 +182,43 @@ func F() {}
 		}
 	}
 }
+func TestGetModuleName(t *testing.T) {
+	// 1. Setup Temp Dir
+	tmpDir, err := os.MkdirTemp("", "recac-deps-mod-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test valid mod file
+	goMod := "module example.com/test\n\ngo 1.21\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	modName, err := GetModuleName(tmpDir)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if modName != "example.com/test" {
+		t.Fatalf("Expected modname 'example.com/test', got: '%s'", modName)
+	}
+
+	// Test missing module declaration
+	badGoMod := "go 1.21\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(badGoMod), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = GetModuleName(tmpDir)
+	if err == nil {
+		t.Fatalf("Expected error for missing module declaration, got none")
+	}
+
+	// Test missing mod file entirely
+	os.Remove(filepath.Join(tmpDir, "go.mod"))
+	_, err = GetModuleName(tmpDir)
+	if err == nil {
+		t.Fatalf("Expected error for missing mod file, got none")
+	}
+}
