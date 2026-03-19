@@ -2302,6 +2302,96 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, "GitHub Webhook Job %s submitted successfully", jobID)
 	})
 
+	mux.HandleFunc("POST /webhook/linear", func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		secret := viper.GetString("orchestrator.linear_webhook_secret")
+		if secret != "" {
+			signature := r.Header.Get("Linear-Signature")
+			if signature == "" {
+				http.Error(w, "Missing Linear-Signature header", http.StatusUnauthorized)
+				return
+			}
+			mac := hmac.New(sha256.New, []byte(secret))
+			mac.Write(bodyBytes)
+			expectedMAC := hex.EncodeToString(mac.Sum(nil))
+			if !hmac.Equal([]byte(signature), []byte(expectedMAC)) {
+				http.Error(w, "Invalid Linear-Signature header", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		action, _ := payload["action"].(string)
+		if action != "create" && action != "update" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		dataType, _ := payload["type"].(string)
+		if dataType != "Issue" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		data, ok := payload["data"].(map[string]interface{})
+		if !ok {
+			http.Error(w, "Missing data in payload", http.StatusBadRequest)
+			return
+		}
+
+		issueID, _ := data["id"].(string)
+		issueIdentifier, _ := data["identifier"].(string)
+		title, _ := data["title"].(string)
+		description, _ := data["description"].(string)
+		url, _ := payload["url"].(string)
+
+		if issueID == "" {
+			http.Error(w, "Missing required fields (data.id)", http.StatusBadRequest)
+			return
+		}
+
+		concurrencyGroup := fmt.Sprintf("ln-%s", issueID)
+		jobID := fmt.Sprintf("%s-%d", concurrencyGroup, time.Now().UnixNano())
+
+		item := WorkItem{
+			ID:               jobID,
+			Summary:          title,
+			Description:      description,
+			RepoURL:          url,
+			ConcurrencyGroup: concurrencyGroup,
+			CancelInProgress: true,
+			EnvVars: map[string]string{
+				"LINEAR_ISSUE_ID":         issueID,
+				"LINEAR_ISSUE_IDENTIFIER": issueIdentifier,
+			},
+		}
+
+		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, "Linear Webhook Job %s submitted successfully", jobID)
+	})
+
 	mux.HandleFunc("POST /webhook/gitlab", func(w http.ResponseWriter, r *http.Request) {
 		event := r.Header.Get("X-Gitlab-Event")
 		if event != "Issue Hook" && event != "Note Hook" {
