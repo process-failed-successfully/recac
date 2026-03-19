@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -28,15 +29,19 @@ var colors = []string{
 
 type multiplexer struct {
 	host         string
+	tag          string
+	match        string
 	active       map[string]context.CancelFunc
 	mu           sync.Mutex
 	wg           sync.WaitGroup
 	colorCounter int
 }
 
-func tailActiveJobs(ctx context.Context, host string) error {
+func tailActiveJobs(ctx context.Context, host, tag, match string) error {
 	m := &multiplexer{
 		host:   host,
+		tag:    tag,
+		match:  match,
 		active: make(map[string]context.CancelFunc),
 	}
 
@@ -67,8 +72,23 @@ func tailActiveJobs(ctx context.Context, host string) error {
 }
 
 func (m *multiplexer) poll(ctx context.Context) {
-	url := fmt.Sprintf("%s/jobs", m.host)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	u, err := url.Parse(fmt.Sprintf("%s/jobs", m.host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
+		return
+	}
+
+	q := u.Query()
+	q.Set("state", "active") // optimization, since we skip completed/failed anyway
+	if m.tag != "" {
+		q.Set("tag", m.tag)
+	}
+	if m.match != "" {
+		q.Set("match", m.match)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
 		return

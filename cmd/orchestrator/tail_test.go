@@ -104,7 +104,7 @@ func TestTailActiveJobs(t *testing.T) {
 	defer cancel()
 
 	// Run the multiplexer
-	err := tailActiveJobs(ctx, server.URL)
+	err := tailActiveJobs(ctx, server.URL, "", "")
 	assert.NoError(t, err)
 
 	output := out.String()
@@ -118,6 +118,36 @@ func TestTailActiveJobs(t *testing.T) {
 	// JOB-2 should be discovered on the second poll
 	assert.Contains(t, output, "JOB-2")
 	assert.Contains(t, output, "Log 1 for JOB-2")
+}
+
+func TestTailActiveJobs_WithFilters(t *testing.T) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "active", r.URL.Query().Get("state"))
+		assert.Equal(t, "my-tag", r.URL.Query().Get("tag"))
+		assert.Equal(t, "my-match", r.URL.Query().Get("match"))
+
+		var jobs []orchestrator.JobInfo
+		// Return no jobs so it just exits cleanly
+		json.NewEncoder(w).Encode(jobs)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	err := tailActiveJobs(ctx, server.URL, "my-tag", "my-match")
+	assert.NoError(t, err)
 }
 
 func TestTailJob_NetworkRetry(t *testing.T) {
