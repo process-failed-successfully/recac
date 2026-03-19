@@ -445,6 +445,46 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("POST /pipeline/generate", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Prompt string `json:"prompt"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Prompt == "" {
+			http.Error(w, "Prompt is required", http.StatusBadRequest)
+			return
+		}
+
+		provider := r.URL.Query().Get("provider")
+		model := r.URL.Query().Get("model")
+
+		apiKey := viper.GetString("api_key")
+		if apiKey == "" {
+			apiKey = viper.GetString("secrets.api_key")
+		}
+		if provider == "" {
+			provider = viper.GetString("orchestrator.agent_provider")
+		}
+		if model == "" {
+			model = viper.GetString("orchestrator.agent_model")
+		}
+
+		pipelineYAML, err := GeneratePipelineYAML(r.Context(), req.Prompt, provider, model, apiKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to generate pipeline: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{"pipeline_yaml": pipelineYAML}); err != nil {
+			logger.Error("Failed to encode generated pipeline response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/{id}/explain", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		job, err := orch.GetJob(id)
