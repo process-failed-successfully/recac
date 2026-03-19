@@ -126,11 +126,14 @@ func ValidateConfig() error {
 	return nil
 }
 
+// osExit is used to allow mocking os.Exit in tests
+var osExit = os.Exit
+
 // ValidateAndExit validates the configuration and exits with a non-zero code if validation fails.
 // This is a convenience function that prints errors to stderr and exits.
 func ValidateAndExit() {
 	if err := ValidateConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 }

@@ -2,8 +2,11 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMockAgent(t *testing.T) {
@@ -97,4 +100,14 @@ func TestMockAgent_SmokeTests(t *testing.T) {
 	if !strings.Contains(resp, "Project Overview") {
 		t.Errorf("Expected guided tour, got '%s'", resp)
 	}
+}
+
+func TestMockAgent_SetError(t *testing.T) {
+	agent := NewMockAgent()
+	expectedErr := errors.New("mock error")
+	agent.SetError(expectedErr)
+
+	resp, err := agent.Send(context.Background(), "test prompt")
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Equal(t, "", resp)
 }

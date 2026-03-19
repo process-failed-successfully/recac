@@ -359,7 +359,13 @@ func TestClient_Merge(t *testing.T) {
 	c.Commit(localDir, "feature commit")
 
 	// Switch back
-	c.Checkout(localDir, "master")
+	cmd := exec.Command("git", "-C", localDir, "branch", "--show-current")
+	out, _ := cmd.Output()
+	mainBranch := strings.TrimSpace(string(out))
+	if mainBranch == "" {
+		mainBranch = "master"
+	}
+	c.Checkout(localDir, mainBranch)
 
 	// Merge
 	if err := c.Merge(localDir, "feature"); err != nil {
@@ -565,5 +571,108 @@ func TestClient_DiffStaged(t *testing.T) {
 	}
 	if !strings.Contains(diff, "v2") {
 		t.Errorf("Expected diff to contain 'v2', got %s", diff)
+	}
+}
+
+func TestClient_ResetSoft(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
+	c.Commit(localDir, "init")
+
+	os.WriteFile(filepath.Join(localDir, "f2"), []byte("v2"), 0644)
+	c.Commit(localDir, "second")
+
+	if err := c.ResetSoft(localDir, "HEAD~1"); err != nil {
+		t.Fatalf("ResetSoft failed: %v", err)
+	}
+
+	cmd := exec.Command("git", "-C", localDir, "status", "--porcelain")
+	out, _ := cmd.Output()
+	if !strings.Contains(string(out), "A  f2") {
+		t.Errorf("Expected f2 to be staged, got: %s", string(out))
+	}
+}
+
+func TestClient_MergeBase(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
+	c.Commit(localDir, "init")
+
+	// Get base hash
+	cmd := exec.Command("git", "-C", localDir, "rev-parse", "HEAD")
+	out, _ := cmd.Output()
+	baseHash := strings.TrimSpace(string(out))
+
+	// Explicitly determine main branch from current checkout before branching off
+	cmd = exec.Command("git", "-C", localDir, "branch", "--show-current")
+	out, _ = cmd.Output()
+	mainBranch := strings.TrimSpace(string(out))
+	if mainBranch == "" {
+		mainBranch = "master"
+	}
+
+	c.CheckoutNewBranch(localDir, "b1")
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("b1"), 0644)
+	c.Commit(localDir, "b1 commit")
+
+	c.Checkout(localDir, mainBranch)
+	c.CheckoutNewBranch(localDir, "b2")
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("b2"), 0644)
+	c.Commit(localDir, "b2 commit")
+
+	hash, err := c.MergeBase(localDir, "b1", "b2")
+	if err != nil {
+		t.Fatalf("MergeBase failed: %v", err)
+	}
+	if hash != baseHash {
+		t.Errorf("Expected merge base to be %s, got %s", baseHash, hash)
+	}
+}
+
+func TestClient_BisectGood(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	// Initial commit (good)
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
+	c.Commit(localDir, "init")
+
+	cmd := exec.Command("git", "-C", localDir, "rev-parse", "HEAD")
+	out, _ := cmd.Output()
+	goodHash := strings.TrimSpace(string(out))
+
+	// Second commit
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v2"), 0644)
+	c.Commit(localDir, "second")
+
+	// Third commit (bad)
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v3"), 0644)
+	c.Commit(localDir, "third")
+
+	cmd = exec.Command("git", "-C", localDir, "rev-parse", "HEAD")
+	out, _ = cmd.Output()
+	badHash := strings.TrimSpace(string(out))
+
+	if err := c.BisectStart(localDir, badHash, goodHash); err != nil {
+		t.Fatalf("BisectStart failed: %v", err)
+	}
+
+	// Currently at second commit. Mark as good.
+	if err := c.BisectGood(localDir, ""); err != nil {
+		t.Fatalf("BisectGood failed: %v", err)
+	}
+
+	if err := c.BisectReset(localDir); err != nil {
+		t.Fatalf("BisectReset failed: %v", err)
 	}
 }
