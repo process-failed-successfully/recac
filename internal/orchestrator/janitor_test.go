@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -78,7 +79,7 @@ func TestJanitor_Cleanup(t *testing.T) {
 	client.On("RemoveContainer", ctx, "dead-container", true).Return(nil)
 
 	// Janitor setup
-	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false)
+	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false, "")
 
 	err := janitor.Cleanup(ctx)
 	assert.NoError(t, err)
@@ -110,7 +111,7 @@ func TestJanitor_Cleanup_DryRun(t *testing.T) {
 	client.On("ListContainers", ctx, mock.Anything).Return(containers, nil)
 
 	// Janitor setup with dryRun=true
-	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, true)
+	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, true, "")
 
 	err := janitor.Cleanup(ctx)
 	assert.NoError(t, err)
@@ -126,9 +127,59 @@ func TestJanitor_Cleanup_ListError(t *testing.T) {
 
 	client.On("ListContainers", ctx, mock.Anything).Return([]types.Container{}, errors.New("list failed"))
 
-	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false)
+	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false, "")
 
 	err := janitor.Cleanup(ctx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "list failed")
+}
+
+func TestJanitor_Cleanup_Logs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	// Setup temp directory
+	tempDir := t.TempDir()
+
+	// Setup log files
+	now := time.Now()
+	oldTime := now.Add(-48 * time.Hour)
+	newTime := now.Add(-1 * time.Hour)
+
+	oldLogFile, err := os.CreateTemp(tempDir, "old-*.log.gz")
+	assert.NoError(t, err)
+	oldLogFile.Close()
+	err = os.Chtimes(oldLogFile.Name(), oldTime, oldTime)
+	assert.NoError(t, err)
+
+	newLogFile, err := os.CreateTemp(tempDir, "new-*.log.gz")
+	assert.NoError(t, err)
+	newLogFile.Close()
+	err = os.Chtimes(newLogFile.Name(), newTime, newTime)
+	assert.NoError(t, err)
+
+	// Create a non-log file that should be ignored
+	otherFile, err := os.CreateTemp(tempDir, "other-*.txt")
+	assert.NoError(t, err)
+	otherFile.Close()
+	err = os.Chtimes(otherFile.Name(), oldTime, oldTime)
+	assert.NoError(t, err)
+
+	// Janitor setup
+	janitor := NewJanitor(logger, nil, 1*time.Minute, 24*time.Hour, false, tempDir)
+
+	err = janitor.Cleanup(ctx)
+	assert.NoError(t, err)
+
+	// Verify old log file is deleted
+	_, err = os.Stat(oldLogFile.Name())
+	assert.True(t, os.IsNotExist(err))
+
+	// Verify new log file is kept
+	_, err = os.Stat(newLogFile.Name())
+	assert.NoError(t, err)
+
+	// Verify non-log file is kept
+	_, err = os.Stat(otherFile.Name())
+	assert.NoError(t, err)
 }

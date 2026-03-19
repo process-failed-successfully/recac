@@ -1698,17 +1698,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	// 3. Janitor
-	if viper.GetBool("orchestrator.cleanup") && janitorClient != nil {
+	logDir := viper.GetString("orchestrator.log_dir")
+	if viper.GetBool("orchestrator.cleanup") && (janitorClient != nil || logDir != "") {
 		janitor := orchestrator.NewJanitor(
 			logger,
-			janitorClient,
+			janitorClient, // Can be nil
 			viper.GetDuration("orchestrator.cleanup_interval"),
 			viper.GetDuration("orchestrator.cleanup_age"),
 			viper.GetBool("orchestrator.cleanup_dry_run"),
+			logDir,
 		)
 		go janitor.Start(ctx)
 	} else if viper.GetBool("orchestrator.cleanup") {
-		logger.Warn("Cleanup enabled but not available in this mode (only local/docker)")
+		logger.Warn("Cleanup enabled but neither docker client nor log_dir are configured")
 	}
 
 	// 4. Orchestrator
