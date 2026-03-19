@@ -1175,6 +1175,66 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		w.Write(respData)
 	})
 
+	mux.HandleFunc("PUT /jobs/max-retries", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either tag or match query parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			MaxRetries int `json:"max_retries"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.UpdateJobsMaxRetriesByTag(r.Context(), tag, req.MaxRetries, logger)
+		} else {
+			count, err = orch.UpdateJobsMaxRetriesByMatch(r.Context(), match, req.MaxRetries, logger)
+		}
+
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to update max retries: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"updated": %d, "max_retries": %d}`, count, req.MaxRetries)
+	})
+
+	mux.HandleFunc("PUT /jobs/{id}/max-retries", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			MaxRetries int `json:"max_retries"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.UpdateJobMaxRetries(r.Context(), id, req.MaxRetries, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"max_retries": %d}`, req.MaxRetries)
+	})
+
 	mux.HandleFunc("PUT /jobs/timeout", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")

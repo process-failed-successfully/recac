@@ -169,6 +169,10 @@ func main() {
 	pflag.String("update-timeout-tag", "", "Update the timeout of all pending jobs with the specified tag")
 	pflag.String("update-timeout-match", "", "Update the timeout of all pending jobs matching the given regex")
 	pflag.String("timeout-val", "", "The new timeout value to assign (e.g., 30m) (requires --update-timeout, --update-timeout-tag, or --update-timeout-match)")
+	pflag.String("update-max-retries-job", "", "Update the maximum retries of a specific pending job")
+	pflag.String("update-max-retries-tag", "", "Update the maximum retries of all pending jobs with the specified tag")
+	pflag.String("update-max-retries-match", "", "Update the maximum retries of all pending jobs matching the given regex")
+	pflag.Int("max-retries-val", -1, "The new maximum retries value to assign (requires --update-max-retries-job, --update-max-retries-tag, or --update-max-retries-match)")
 	pflag.String("update-agent-job", "", "Update the agent provider and model of a specific pending job")
 	pflag.String("update-agent-tag", "", "Update the agent provider and model of all pending jobs with the specified tag")
 	pflag.String("update-agent-match", "", "Update the agent provider and model of all pending jobs matching the given regex")
@@ -448,6 +452,10 @@ func main() {
 	viper.BindPFlag("orchestrator.update_timeout_tag", pflag.Lookup("update-timeout-tag"))
 	viper.BindPFlag("orchestrator.update_timeout_match", pflag.Lookup("update-timeout-match"))
 	viper.BindPFlag("orchestrator.timeout_val", pflag.Lookup("timeout-val"))
+	viper.BindPFlag("orchestrator.update_max_retries_job", pflag.Lookup("update-max-retries-job"))
+	viper.BindPFlag("orchestrator.update_max_retries_tag", pflag.Lookup("update-max-retries-tag"))
+	viper.BindPFlag("orchestrator.update_max_retries_match", pflag.Lookup("update-max-retries-match"))
+	viper.BindPFlag("orchestrator.max_retries_val", pflag.Lookup("max-retries-val"))
 	viper.BindPFlag("orchestrator.update_agent_job", pflag.Lookup("update-agent-job"))
 	viper.BindPFlag("orchestrator.update_agent_tag", pflag.Lookup("update-agent-tag"))
 	viper.BindPFlag("orchestrator.update_agent_match", pflag.Lookup("update-agent-match"))
@@ -1170,6 +1178,51 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		updateBulkTimeout(host, updateTimeoutMatch, updateTimeoutTag, timeoutVal)
+		return nil
+	}
+
+	updateMaxRetriesJob := viper.GetString("orchestrator.update_max_retries_job")
+	updateMaxRetriesTag := viper.GetString("orchestrator.update_max_retries_tag")
+	updateMaxRetriesMatch := viper.GetString("orchestrator.update_max_retries_match")
+
+	maxRetriesFlagsSet := 0
+	if updateMaxRetriesJob != "" {
+		maxRetriesFlagsSet++
+	}
+	if updateMaxRetriesTag != "" {
+		maxRetriesFlagsSet++
+	}
+	if updateMaxRetriesMatch != "" {
+		maxRetriesFlagsSet++
+	}
+
+	if maxRetriesFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --update-max-retries-job, --update-max-retries-tag, and --update-max-retries-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if updateMaxRetriesJob != "" {
+		host := viper.GetString("orchestrator.host")
+		maxRetriesVal := viper.GetInt("orchestrator.max_retries_val")
+		if !viper.IsSet("orchestrator.max_retries_val") || maxRetriesVal < 0 {
+			fmt.Fprintf(stdout, "Error: valid --max-retries-val is required when using --update-max-retries-job\n")
+			exitFunc(1)
+			return nil
+		}
+		updateMaxRetries(host, updateMaxRetriesJob, maxRetriesVal)
+		return nil
+	}
+
+	if updateMaxRetriesTag != "" || updateMaxRetriesMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		maxRetriesVal := viper.GetInt("orchestrator.max_retries_val")
+		if !viper.IsSet("orchestrator.max_retries_val") || maxRetriesVal < 0 {
+			fmt.Fprintf(stdout, "Error: valid --max-retries-val is required when using --update-max-retries-tag or --update-max-retries-match\n")
+			exitFunc(1)
+			return nil
+		}
+		updateBulkMaxRetries(host, updateMaxRetriesMatch, updateMaxRetriesTag, maxRetriesVal)
 		return nil
 	}
 

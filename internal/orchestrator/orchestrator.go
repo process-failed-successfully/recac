@@ -1492,6 +1492,99 @@ func (o *Orchestrator) UpdateJobAgent(ctx context.Context, jobID string, agentPr
 	return nil
 }
 
+// UpdateJobMaxRetries updates the maximum retries of a job in the pending queue.
+func (o *Orchestrator) UpdateJobMaxRetries(ctx context.Context, jobID string, maxRetries int, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have max retries updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	// We need to allocate a new int to avoid sharing pointers across jobs
+	mr := new(int)
+	*mr = maxRetries
+	job.WorkItem.MaxRetries = mr
+	o.pendingJobs[jobID] = job
+	o.mu.Unlock()
+	o.BroadcastEvent("job_max_retries_updated", job)
+
+	if logger != nil {
+		logger.Info("Updated job max retries", "jobID", jobID, "maxRetries", maxRetries)
+	}
+
+	// Do not call evaluatePendingJobs while holding the lock.
+	// In fact, updating max retries does not immediately change whether a job should run,
+	// but we can call it just to be consistent, but outside the lock.
+	o.evaluatePendingJobs(ctx, logger)
+	return nil
+}
+
+// UpdateJobsMaxRetriesByTag updates the maximum retries of pending jobs that match the given tag.
+func (o *Orchestrator) UpdateJobsMaxRetriesByTag(ctx context.Context, tag string, maxRetries int, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	lowerTag := strings.ToLower(tag)
+
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.ToLower(t) == lowerTag {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobMaxRetries(ctx, id, maxRetries, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// UpdateJobsMaxRetriesByMatch updates the maximum retries of pending jobs that match the given regex.
+func (o *Orchestrator) UpdateJobsMaxRetriesByMatch(ctx context.Context, match string, maxRetries int, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	var jobIDs []string
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.UpdateJobMaxRetries(ctx, id, maxRetries, logger); err == nil {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // UpdateJobTimeout updates the timeout of a job in the pending queue.
 // UpdateJobsTimeoutByTag updates the timeout of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsTimeoutByTag(ctx context.Context, tag string, newTimeout time.Duration, logger *slog.Logger) (int, error) {
