@@ -705,3 +705,79 @@ func TestSubmissionUpdateDependencies_ErrorResponse(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to update dependencies")
 }
+
+func TestUpdateBulkPriority(t *testing.T) {
+	tests := []struct {
+		name         string
+		match        string
+		tag          string
+		priority     int
+		serverURL    string
+		handler      http.HandlerFunc
+		expectedOut  string
+		expectExit   bool
+	}{
+		{
+			name:     "Success",
+			match:    "test-match",
+			tag:      "test-tag",
+			priority: 5,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/priority", r.URL.Path)
+				assert.Equal(t, "PUT", r.Method)
+				assert.Equal(t, "test-match", r.URL.Query().Get("match"))
+				assert.Equal(t, "test-tag", r.URL.Query().Get("tag"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"updated": 3}`))
+			},
+			expectedOut: "Successfully updated priority for 3 jobs.",
+		},
+		{
+			name:        "Connection Error",
+			match:       "test-match",
+			tag:         "test-tag",
+			priority:    5,
+			serverURL:   "http://localhost:0",
+			expectedOut: "Failed to connect to orchestrator",
+			expectExit:  true,
+		},
+		{
+			name:     "Error Response",
+			match:    "test-match",
+			tag:      "test-tag",
+			priority: 5,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`Internal Server Error`))
+			},
+			expectedOut: "Failed to update bulk priority",
+			expectExit:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serverURL := tt.serverURL
+			if serverURL == "" && tt.handler != nil {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				serverURL = server.URL
+			}
+
+			var buf bytes.Buffer
+			oldStdout := stdout
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExitFunc := exitFunc
+			exitFunc = func(int) { exitCalled = true }
+			defer func() { exitFunc = oldExitFunc }()
+
+			updateBulkPriority(serverURL, tt.match, tt.tag, tt.priority)
+
+			assert.Equal(t, tt.expectExit, exitCalled)
+			assert.Contains(t, buf.String(), tt.expectedOut)
+		})
+	}
+}

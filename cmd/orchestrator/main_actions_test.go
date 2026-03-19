@@ -218,3 +218,75 @@ func TestMainUnholdJob_ErrorResponse(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to unhold job")
 }
+
+func TestApproveBulkJobs(t *testing.T) {
+	tests := []struct {
+		name         string
+		match        string
+		tag          string
+		serverURL    string
+		handler      http.HandlerFunc
+		expectedOut  string
+		expectExit   bool
+	}{
+		{
+			name:  "Success",
+			match: "test-match",
+			tag:   "test-tag",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/approve", r.URL.Path)
+				assert.Equal(t, "POST", r.Method)
+				assert.Equal(t, "test-match", r.URL.Query().Get("match"))
+				assert.Equal(t, "test-tag", r.URL.Query().Get("tag"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"approved": 5}`))
+			},
+			expectedOut: "Successfully approved 5 jobs.",
+		},
+		{
+			name:        "Connection Error",
+			match:       "test-match",
+			tag:         "test-tag",
+			serverURL:   "http://localhost:0",
+			expectedOut: "Failed to connect to orchestrator",
+			expectExit:  true,
+		},
+		{
+			name:  "Error Response",
+			match: "test-match",
+			tag:   "test-tag",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`Internal Server Error`))
+			},
+			expectedOut: "Failed to approve jobs",
+			expectExit:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serverURL := tt.serverURL
+			if serverURL == "" && tt.handler != nil {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				serverURL = server.URL
+			}
+
+			var buf bytes.Buffer
+			oldStdout := stdout
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExitFunc := exitFunc
+			exitFunc = func(int) { exitCalled = true }
+			defer func() { exitFunc = oldExitFunc }()
+
+			approveBulkJobs(serverURL, tt.match, tt.tag)
+
+			assert.Equal(t, tt.expectExit, exitCalled)
+			assert.Contains(t, buf.String(), tt.expectedOut)
+		})
+	}
+}
