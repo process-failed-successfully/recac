@@ -313,6 +313,94 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Write(yamlData)
 	})
 
+	mux.HandleFunc("GET /jobs/export/metrics", func(w http.ResponseWriter, r *http.Request) {
+		stateFilter := r.URL.Query().Get("state")
+		if stateFilter == "" {
+			stateFilter = "all"
+		}
+
+		var jobs []JobInfo
+		if stateFilter == "active" || stateFilter == "all" {
+			jobs = append(jobs, orch.GetActiveJobs()...)
+		}
+		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
+			completedJobs := orch.GetCompletedJobs()
+			for _, job := range completedJobs {
+				if stateFilter == "failed" && strings.ToLower(job.Status) != "failed" {
+					continue
+				}
+				if stateFilter == "completed" && strings.ToLower(job.Status) != "completed" {
+					continue
+				}
+				jobs = append(jobs, job)
+			}
+		}
+
+		// Collect all unique metric keys
+		metricKeysMap := make(map[string]bool)
+		for _, job := range jobs {
+			for k := range job.Metrics {
+				metricKeysMap[k] = true
+			}
+		}
+
+		var metricKeys []string
+		for k := range metricKeysMap {
+			metricKeys = append(metricKeys, k)
+		}
+		sort.Strings(metricKeys) // Sort to ensure deterministic column order
+
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", "attachment; filename=metrics_export.csv")
+
+		writer := encoding_csv.NewWriter(w)
+		defer writer.Flush()
+
+		// Build header
+		header := []string{"JobID", "Status", "StartTime", "Duration"}
+		header = append(header, metricKeys...)
+		if err := writer.Write(header); err != nil {
+			logger.Error("Failed to write CSV header", "error", err)
+			http.Error(w, "Failed to write CSV header", http.StatusInternalServerError)
+			return
+		}
+
+		for _, job := range jobs {
+			startTimeStr := ""
+			durationStr := ""
+			if !job.StartTime.IsZero() {
+				startTimeStr = job.StartTime.Format(time.RFC3339)
+				endTime := job.EndTime
+				if endTime.IsZero() {
+					endTime = time.Now()
+				}
+				durationStr = endTime.Sub(job.StartTime).Round(time.Second).String()
+			}
+
+			row := []string{
+				job.ID,
+				job.Status,
+				startTimeStr,
+				durationStr,
+			}
+
+			for _, k := range metricKeys {
+				valStr := ""
+				if val, exists := job.Metrics[k]; exists {
+					// Format to 2 decimal places to be neat, or just generic float formatting
+					valStr = fmt.Sprintf("%g", val)
+				}
+				row = append(row, valStr)
+			}
+
+			if err := writer.Write(row); err != nil {
+				logger.Error("Failed to write CSV row", "error", err)
+				http.Error(w, "Failed to write CSV row", http.StatusInternalServerError)
+				return
+			}
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/export", func(w http.ResponseWriter, r *http.Request) {
 		format := r.URL.Query().Get("format")
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)

@@ -234,6 +234,8 @@ func main() {
 	pflag.String("export-pipeline", "", "Export active and pending jobs as a pipeline YAML (use '-' for stdout)")
 	pflag.String("export-graph", "", "Export the job dependency graph (use '-' for stdout)")
 	pflag.String("export-graph-format", "mermaid", "Format for exported graph ('mermaid' or 'dot')")
+	pflag.String("export-metrics", "", "Export metrics for jobs to a CSV file (use '-' for stdout)")
+	pflag.String("export-metrics-state", "all", "State of jobs to export metrics for ('all', 'active', 'completed', 'failed')")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -501,6 +503,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_pipeline", pflag.Lookup("export-pipeline"))
 	viper.BindPFlag("orchestrator.export_graph", pflag.Lookup("export-graph"))
 	viper.BindPFlag("orchestrator.export_graph_format", pflag.Lookup("export-graph-format"))
+	viper.BindPFlag("orchestrator.export_metrics", pflag.Lookup("export-metrics"))
+	viper.BindPFlag("orchestrator.export_metrics_state", pflag.Lookup("export-metrics-state"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -1501,6 +1505,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.export_graph_format")
 		exportGraph(host, exportGraphFile, format)
+		return nil
+	}
+	if exportMetricsFile := viper.GetString("orchestrator.export_metrics"); exportMetricsFile != "" {
+		host := viper.GetString("orchestrator.host")
+		state := viper.GetString("orchestrator.export_metrics_state")
+		exportMetrics(host, exportMetricsFile, state)
 		return nil
 	}
 
