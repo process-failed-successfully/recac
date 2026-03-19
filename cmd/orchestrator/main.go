@@ -98,6 +98,8 @@ func main() {
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
+	pflag.Bool("timeline", false, "Display an execution timeline (Gantt chart) of jobs")
+	pflag.Int("timeline-limit", 20, "Limit the number of jobs displayed in the timeline")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.Bool("stream-events", false, "Stream real-time orchestrator events (SSE) to the console")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
@@ -363,6 +365,8 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.list_pending", pflag.Lookup("list-pending"))
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
+	viper.BindPFlag("orchestrator.timeline", pflag.Lookup("timeline"))
+	viper.BindPFlag("orchestrator.timeline_limit", pflag.Lookup("timeline-limit"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
@@ -724,6 +728,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.tree") {
 		host := viper.GetString("orchestrator.host")
 		printTree(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.timeline") {
+		host := viper.GetString("orchestrator.host")
+		limit := viper.GetInt("orchestrator.timeline_limit")
+		printTimeline(host, limit)
 		return nil
 	}
 
