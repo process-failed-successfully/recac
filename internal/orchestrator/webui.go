@@ -42,12 +42,14 @@ const DashboardHTML = `
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .form-group input[type="text"], .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .form-group input[type="text"]:focus-visible, .form-group textarea:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         .form-group textarea { resize: vertical; height: 100px; }
         button.danger { background: #dc3545; }
         button.danger:hover { background: #a82330; }
         #jobs-container { overflow-x: auto; }
         .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
         select, input { padding: 6px; }
+        select:focus-visible, input:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         #logs-output { background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-y: auto; height: 400px; margin: 0; }
         .modal-large { width: 90%; max-width: 1000px; }
     </style>

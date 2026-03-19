@@ -23,3 +23,7 @@
 ## 2026-03-17 - Contextual aria-labels in data tables
 **Learning:** When generating repeating rows of data with action buttons, screen readers will announce every button as just its text content (e.g. "Cancel"). This forces visually impaired users to guess which row the button belongs to.
 **Action:** Always include contextual `aria-label` attributes on inline action buttons in data tables (e.g. `aria-label="Cancel job {id}"`) to explicitly link the action to the item.
+
+## 2026-03-19 - Added focus-visible states to form controls in Web UI
+**Learning:** The embedded HTML web UI dashboard in `internal/orchestrator/webui.go` lacked proper focus indicators for standard form inputs (`<input>`, `<textarea>`, `<select>`), despite having them for buttons. This is a common oversight in custom dashboards that break standard keyboard navigation accessibility.
+**Action:** Applied `:focus-visible` to ensure outline visibility for keyboard users. Need to verify focus states for all interactive elements in embedded web UIs, not just primary buttons.
