@@ -431,4 +431,21 @@ func TestDashboardModel_View_States(t *testing.T) {
 		view := model.View()
 		assert.Contains(t, view, "Error: some error")
 	})
+
+	t.Run("Rename Key (N)", func(t *testing.T) {
+		m := NewDashboardModel("http://localhost:2112")
+		m.jobs = []orchestrator.JobInfo{
+			{ID: "JOB-1", Summary: "Test Job", Status: "Pending"},
+		}
+		m.updateTableContent()
+		m.table.SetCursor(0)
+
+		updatedModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("N")})
+		m = updatedModel.(DashboardModel)
+
+		assert.Equal(t, viewRenameInput, m.viewState)
+		assert.Equal(t, "JOB-1", m.pendingJobId)
+		assert.Equal(t, "JOB-1", m.renameInput.Value())
+		assert.NotNil(t, cmd) // Should return textinput.Blink
+	})
 }
