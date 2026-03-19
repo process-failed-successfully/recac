@@ -45,6 +45,10 @@ type Orchestrator struct {
 	LogDir            string
 	RequireApproval   bool
 
+	CircuitBreakerMaxFailures int
+	ConsecutiveSpawnFailures  int
+	CircuitBroken             bool
+
 	eventChans map[chan []byte]struct{}
 	eventMu    sync.RWMutex
 }
@@ -80,6 +84,7 @@ type Status struct {
 	TotalSpawns       int       `json:"total_spawns"`
 	Paused            bool      `json:"paused"`
 	Draining          bool      `json:"draining"`
+	CircuitBroken     bool      `json:"circuit_broken"`
 	MaxConcurrentJobs int       `json:"max_concurrent_jobs"`
 }
 
@@ -92,6 +97,37 @@ type Analytics struct {
 	SuccessRate     float64            `json:"success_rate"`
 	AverageDuration time.Duration      `json:"average_duration"`
 	TotalMetrics    map[string]float64 `json:"total_metrics,omitempty"`
+}
+
+
+// recordSpawnFailure increments the consecutive failure counter and checks the circuit breaker.
+func (o *Orchestrator) recordSpawnFailure(logger *slog.Logger) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	o.ConsecutiveSpawnFailures++
+
+	if o.CircuitBreakerMaxFailures > 0 && o.ConsecutiveSpawnFailures >= o.CircuitBreakerMaxFailures && !o.CircuitBroken {
+		o.CircuitBroken = true
+		o.paused = true
+		if logger != nil {
+			logger.Error("Circuit breaker tripped: too many consecutive spawn failures. Orchestrator paused.", "failures", o.ConsecutiveSpawnFailures)
+		}
+		// We use a goroutine so BroadcastEvent doesn't deadlock if there's any lock contention
+		go o.BroadcastEvent("circuit_breaker_tripped", map[string]interface{}{
+			"failures": o.ConsecutiveSpawnFailures,
+		})
+	}
+}
+
+// recordSpawnSuccess resets the consecutive spawn failure counter.
+func (o *Orchestrator) recordSpawnSuccess() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.ConsecutiveSpawnFailures > 0 {
+		o.ConsecutiveSpawnFailures = 0
+	}
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -930,6 +966,7 @@ func (o *Orchestrator) GetStatus() Status {
 		TotalSpawns:       o.totalSpawns,
 		Paused:            o.paused,
 		Draining:          o.draining,
+		CircuitBroken:     o.CircuitBroken,
 		MaxConcurrentJobs: o.MaxConcurrentJobs,
 	}
 }
@@ -961,11 +998,13 @@ func (o *Orchestrator) Pause() {
 	o.paused = true
 }
 
-// Resume resumes the orchestrator's polling loop.
+// Resume resumes the orchestrator's polling loop and resets the circuit breaker.
 func (o *Orchestrator) Resume() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.paused = false
+	o.CircuitBroken = false
+	o.ConsecutiveSpawnFailures = 0
 }
 
 // DryRun polls for work once and returns the items without spawning.
@@ -2901,6 +2940,7 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 
 	if err := o.Spawner.Spawn(spawnCtx, item); err != nil {
 		spawnErr = err
+		o.recordSpawnFailure(logger)
 		if spawnCtx.Err() == context.DeadlineExceeded {
 			if logger != nil {
 				logger.Error("Job timeout exceeded", "id", item.ID, "error", err)
@@ -2914,6 +2954,7 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 			_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
 		}
 	} else {
+		o.recordSpawnSuccess()
 		// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
 		// but status updates might happen asynchronously.
 		// For now, Spawn() implies "Started".

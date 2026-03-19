@@ -259,6 +259,7 @@ func main() {
 	pflag.Int("max-retries", 0, "Maximum number of automatic retries for failed jobs")
 	pflag.String("log-dir", "", "Directory to store persistent compressed job logs")
 	pflag.Duration("retry-delay", 5*time.Second, "Delay between automatic retries")
+	pflag.Int("circuit-breaker-max", 5, "Number of consecutive spawn failures before circuit breaker trips (0 to disable)")
 
 	// Janitor Flags
 	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
@@ -530,6 +531,7 @@ func main() {
 	viper.BindPFlag("orchestrator.max_retries", pflag.Lookup("max-retries"))
 	viper.BindPFlag("orchestrator.log_dir", pflag.Lookup("log-dir"))
 	viper.BindPFlag("orchestrator.retry_delay", pflag.Lookup("retry-delay"))
+	viper.BindPFlag("orchestrator.circuit_breaker_max", pflag.Lookup("circuit-breaker-max"))
 
 	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
 	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
@@ -602,6 +604,7 @@ func main() {
 	viper.BindEnv("orchestrator.max_retries", "RECAC_MAX_RETRIES")
 	viper.BindEnv("orchestrator.log_dir", "RECAC_LOG_DIR")
 	viper.BindEnv("orchestrator.retry_delay", "RECAC_RETRY_DELAY")
+	viper.BindEnv("orchestrator.circuit_breaker_max", "RECAC_CIRCUIT_BREAKER_MAX")
 	viper.BindEnv("orchestrator.require_approval", "RECAC_REQUIRE_APPROVAL")
 
 	// Logger
@@ -1745,6 +1748,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	orch.MaxRetries = viper.GetInt("orchestrator.max_retries")
 	orch.LogDir = viper.GetString("orchestrator.log_dir")
 	orch.RetryDelay = viper.GetDuration("orchestrator.retry_delay")
+	orch.CircuitBreakerMaxFailures = viper.GetInt("orchestrator.circuit_breaker_max")
 	orch.RequireApproval = viper.GetBool("orchestrator.require_approval")
 
 	// 5. Notifications
@@ -1974,6 +1978,7 @@ func printStatus(host string) {
 	printField("Pending Jobs", fmt.Sprintf("%d", status.PendingJobs))
 	printField("Total Spawns", fmt.Sprintf("%d", status.TotalSpawns))
 	printField("Paused", fmt.Sprintf("%t", status.Paused))
+	printField("Circuit Broken", fmt.Sprintf("%t", status.CircuitBroken))
 	if status.MaxConcurrentJobs > 0 {
 		printField("Max Concurrent Jobs", fmt.Sprintf("%d", status.MaxConcurrentJobs))
 	} else {
