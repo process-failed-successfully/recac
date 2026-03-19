@@ -240,7 +240,7 @@ func TestJanitor_Start(t *testing.T) {
 	mockClient := &mockDockerClient{}
 
 	// Use a small interval
-	janitor := NewJanitor(silentLogger, mockClient, 10*time.Millisecond, 1*time.Hour, false)
+	janitor := NewJanitor(silentLogger, mockClient, 10*time.Millisecond, 1*time.Hour, false, "")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
