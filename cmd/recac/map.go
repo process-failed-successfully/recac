@@ -175,10 +175,22 @@ func generateDOT(deps analysis.DepMap, moduleName string, focus string) string {
 }
 
 func sanitizeID(id string) string {
-	id = strings.ReplaceAll(id, "/", "_")
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
+	// Fast path: if no characters to replace, just return the original string
+	if strings.IndexByte(id, '/') == -1 && strings.IndexByte(id, '-') == -1 && strings.IndexByte(id, '.') == -1 {
+		return id
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(id))
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c == '/' || c == '-' || c == '.' {
+			sb.WriteByte('_')
+		} else {
+			sb.WriteByte(c)
+		}
+	}
+	return sb.String()
 }
 
 func explainArchitecture(cmd *cobra.Command, graphStr string) error {
