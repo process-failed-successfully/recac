@@ -288,6 +288,7 @@ func main() {
 	pflag.String("linear-token", "", "Linear API Token (for 'linear' poller)")
 	pflag.String("linear-team", "", "Linear Team ID (for 'linear' poller)")
 	pflag.String("linear-label", "", "Linear Label to poll for (for 'linear' poller)")
+	pflag.String("linear-webhook-secret", "", "Linear Webhook Secret for validating incoming POST events")
 
 	pflag.String("gitlab-token", "", "GitLab API Token (for 'gitlab' poller)")
 	pflag.String("gitlab-project", "", "GitLab Project ID or URL-encoded path (for 'gitlab' poller)")
@@ -353,6 +354,7 @@ func main() {
 	viper.BindPFlag("orchestrator.linear_token", pflag.Lookup("linear-token"))
 	viper.BindPFlag("orchestrator.linear_team", pflag.Lookup("linear-team"))
 	viper.BindPFlag("orchestrator.linear_label", pflag.Lookup("linear-label"))
+	viper.BindPFlag("orchestrator.linear_webhook_secret", pflag.Lookup("linear-webhook-secret"))
 
 	viper.BindPFlag("orchestrator.gitlab_token", pflag.Lookup("gitlab-token"))
 	viper.BindPFlag("orchestrator.gitlab_project", pflag.Lookup("gitlab-project"))
@@ -579,6 +581,7 @@ func main() {
 	viper.BindEnv("orchestrator.linear_token", "RECAC_LINEAR_TOKEN", "LINEAR_TOKEN")
 	viper.BindEnv("orchestrator.linear_team", "RECAC_LINEAR_TEAM")
 	viper.BindEnv("orchestrator.linear_label", "RECAC_LINEAR_LABEL")
+	viper.BindEnv("orchestrator.linear_webhook_secret", "RECAC_LINEAR_WEBHOOK_SECRET")
 	viper.BindEnv("orchestrator.gitlab_token", "RECAC_GITLAB_TOKEN", "GITLAB_TOKEN")
 	viper.BindEnv("orchestrator.gitlab_project", "RECAC_GITLAB_PROJECT")
 	viper.BindEnv("orchestrator.gitlab_label", "RECAC_GITLAB_LABEL")
