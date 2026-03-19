@@ -96,6 +96,8 @@ func main() {
 	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
+	pflag.String("tail-tag", "", "Filter tailed active jobs by a specific tag")
+	pflag.String("tail-match", "", "Filter tailed active jobs matching a regex")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.Bool("timeline", false, "Display an execution timeline (Gantt chart) of jobs")
@@ -374,6 +376,8 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
+	viper.BindPFlag("orchestrator.tail_tag", pflag.Lookup("tail-tag"))
+	viper.BindPFlag("orchestrator.tail_match", pflag.Lookup("tail-match"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.stream_events", pflag.Lookup("stream-events"))
@@ -649,9 +653,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if viper.GetBool("orchestrator.tail_active") {
+	tailActive := viper.GetBool("orchestrator.tail_active")
+	tailTag := viper.GetString("orchestrator.tail_tag")
+	tailMatch := viper.GetString("orchestrator.tail_match")
+
+	if tailActive || tailTag != "" || tailMatch != "" {
 		host := viper.GetString("orchestrator.host")
-		if err := tailActiveJobs(ctx, host); err != nil {
+		if err := tailActiveJobs(ctx, host, tailTag, tailMatch); err != nil {
 			fmt.Fprintf(stdout, "Tail failed: %v\n", err)
 			exitFunc(1)
 		}
