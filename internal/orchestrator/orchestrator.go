@@ -2828,6 +2828,25 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 				o.BroadcastEvent("job_failed", finalJob)
 			} else if finalJob.Status == "Completed" {
 				o.BroadcastEvent("job_completed", finalJob)
+
+				if spawnJobsJSON, ok := finalJob.Outputs["RECAC_SPAWN_JOBS"]; ok {
+					var newJobs []WorkItem
+					if err := json.Unmarshal([]byte(spawnJobsJSON), &newJobs); err == nil {
+						for _, nj := range newJobs {
+							if err := o.SubmitJob(context.Background(), nj, logger); err != nil {
+								if logger != nil {
+									logger.Error("Failed to dynamically spawn job", "parent", item.ID, "new_job", nj.ID, "error", err)
+								}
+							} else {
+								if logger != nil {
+									logger.Info("Dynamically spawned job", "parent", item.ID, "new_job", nj.ID)
+								}
+							}
+						}
+					} else if logger != nil {
+						logger.Error("Failed to parse RECAC_SPAWN_JOBS output", "parent", item.ID, "error", err)
+					}
+				}
 			}
 		}
 
