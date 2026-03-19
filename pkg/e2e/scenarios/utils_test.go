@@ -125,3 +125,17 @@ func TestGetSpecificAgentBranch_GitError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to list branches")
 }
+
+
+func TestSafeBuffer_String(t *testing.T) {
+	s := &SafeBuffer{}
+	s.Write([]byte("abc"))
+	if s.String() != "abc" {
+		t.Errorf("Expected abc got %s", s.String())
+	}
+
+	empty := SafeBuffer{}
+	if empty.String() != "" {
+		t.Errorf("Expected empty string got %s", empty.String())
+	}
+}

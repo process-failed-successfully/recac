@@ -676,3 +676,50 @@ func TestClient_BisectGood(t *testing.T) {
 		t.Fatalf("BisectReset failed: %v", err)
 	}
 }
+func TestCreatePR(t *testing.T) {
+	// Tests for CreatePR go here
+	// Since CreatePR calls "gh", we might want to mock exec.Command or test the logic
+}
+
+// Test CreatePR with a mock "gh" command
+func TestCreatePR_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ghScript := `#!/bin/sh
+echo "https://github.com/org/repo/pull/1"
+`
+	ghPath := filepath.Join(tmpDir, "gh")
+	err := os.WriteFile(ghPath, []byte(ghScript), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+oldPath)
+
+	client := NewClient().(*Client)
+	url, err := client.CreatePR(tmpDir, "Title", "Body", "main")
+	if err != nil {
+		t.Fatalf("Expected success, got error: %v", err)
+	}
+	if url != "https://github.com/org/repo/pull/1" {
+		t.Fatalf("Expected url, got %s", url)
+	}
+}
+
+func TestCreatePR_Failure(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ghScript := "#!/bin/sh\n/bin/false\n"
+	ghPath := filepath.Join(tmpDir, "gh")
+	os.WriteFile(ghPath, []byte(ghScript), 0755)
+
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+oldPath)
+
+	client := NewClient().(*Client)
+	_, err := client.CreatePR(tmpDir, "Title", "", "")
+	if err == nil {
+		t.Fatalf("Expected failure, got success")
+	}
+}

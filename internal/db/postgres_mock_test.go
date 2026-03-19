@@ -420,3 +420,14 @@ func TestPostgresStore_Methods(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+// Testing NewPostgresStore requires an actual postgres connection or a very specific mock of sql.Open,
+// but sqlmock requires calling sqlmock.New() to get the DB, not passing a DSN to sql.Open.
+// Let's create a test that overrides the sql.Open call if possible, or we just refactor slightly to allow injecting the *sql.DB.
+// Wait, we can test NewPostgresStore by passing a DSN that fails and expecting an error.
+
+func TestNewPostgresStore_Error(t *testing.T) {
+	// Provide a completely invalid DSN that will fail to open or ping
+	_, err := NewPostgresStore("invalid dsn")
+	assert.Error(t, err)
+}
