@@ -157,3 +157,39 @@ func TestValidateConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateAndExit(t *testing.T) {
+	// Save the original osExit and restore it after the test
+	originalOsExit := osExit
+	defer func() { osExit = originalOsExit }()
+
+	t.Run("ValidConfig", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("timeout", "30s") // Valid configuration
+		exitCalled := false
+		osExit = func(code int) {
+			exitCalled = true
+		}
+
+		ValidateAndExit()
+
+		if exitCalled {
+			t.Errorf("ValidateAndExit() unexpectedly called os.Exit")
+		}
+	})
+
+	t.Run("InvalidConfig", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("timeout", -10) // Invalid configuration
+		exitCode := -1
+		osExit = func(code int) {
+			exitCode = code
+		}
+
+		ValidateAndExit()
+
+		if exitCode != 1 {
+			t.Errorf("ValidateAndExit() expected to call os.Exit(1), got %d", exitCode)
+		}
+	})
+}

@@ -188,4 +188,11 @@ func TestGeminiCLIClient_Send(t *testing.T) {
 		assert.Contains(t, resp, "Gemini Output")
 		assert.Equal(t, 1, chunks)
 	})
+
+	t.Run("Mock", func(t *testing.T) {
+		mockClient := &MockGeminiCLIClient{Response: "mocked response"}
+		resp, err := mockClient.Send(context.Background(), "hello")
+		assert.NoError(t, err)
+		assert.Equal(t, "mocked response", resp)
+	})
 }

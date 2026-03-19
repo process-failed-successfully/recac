@@ -30,6 +30,41 @@ func TestNewOllamaClient(t *testing.T) {
 	}
 }
 
+func TestOllamaClient_SendStream_Success(t *testing.T) {
+	// Create a mock server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := map[string]interface{}{
+			"response": "streamed chunk",
+			"done":     true,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama2", "test-project")
+	ctx := context.Background()
+
+	chunks := 0
+	result, err := client.SendStream(ctx, "hello", func(chunk string) {
+		chunks++
+		if chunk != "streamed chunk" {
+			t.Errorf("expected chunk 'streamed chunk', got %q", chunk)
+		}
+	})
+
+	if err != nil {
+		t.Fatalf("SendStream failed: %v", err)
+	}
+
+	if result != "streamed chunk" {
+		t.Errorf("expected final result 'streamed chunk', got %q", result)
+	}
+	if chunks != 1 {
+		t.Errorf("expected 1 chunk, got %d", chunks)
+	}
+}
+
 func TestOllamaClient_Send_Success(t *testing.T) {
 	// Create a mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

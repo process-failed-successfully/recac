@@ -110,3 +110,5 @@ config.yaml
 config.yaml
 internal/orchestrator/test
 internal/orchestrator/test-orch-delay
+.recac.db-shm
+.recac.db-wal
