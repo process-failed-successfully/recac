@@ -237,6 +237,9 @@ func main() {
 	pflag.String("export-metrics", "", "Export metrics for jobs to a CSV file (use '-' for stdout)")
 	pflag.String("export-metrics-state", "all", "State of jobs to export metrics for ('all', 'active', 'completed', 'failed')")
 
+	pflag.String("generate-pipeline", "", "Generate a pipeline YAML using AI based on the provided prompt")
+	pflag.String("generate-pipeline-out", "", "Output file for the generated pipeline YAML (use '-' or leave empty for stdout)")
+
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
@@ -505,6 +508,9 @@ func main() {
 	viper.BindPFlag("orchestrator.export_graph_format", pflag.Lookup("export-graph-format"))
 	viper.BindPFlag("orchestrator.export_metrics", pflag.Lookup("export-metrics"))
 	viper.BindPFlag("orchestrator.export_metrics_state", pflag.Lookup("export-metrics-state"))
+
+	viper.BindPFlag("orchestrator.generate_pipeline", pflag.Lookup("generate-pipeline"))
+	viper.BindPFlag("orchestrator.generate_pipeline_out", pflag.Lookup("generate-pipeline-out"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -1511,6 +1517,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		state := viper.GetString("orchestrator.export_metrics_state")
 		exportMetrics(host, exportMetricsFile, state)
+		return nil
+	}
+
+	if generatePrompt := viper.GetString("orchestrator.generate_pipeline"); generatePrompt != "" {
+		host := viper.GetString("orchestrator.host")
+		outFile := viper.GetString("orchestrator.generate_pipeline_out")
+		provider := viper.GetString("orchestrator.agent_provider")
+		model := viper.GetString("orchestrator.agent_model")
+		generatePipeline(host, generatePrompt, outFile, provider, model)
 		return nil
 	}
 
