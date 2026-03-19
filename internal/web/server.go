@@ -194,8 +194,26 @@ func generateMermaid(g *runner.TaskGraph) string {
 		}
 
 		safeID := sanitizeMermaidID(node.ID)
-					safeName := strings.ReplaceAll(node.Name, "\"", "'")
-					safeName = strings.ReplaceAll(safeName, "\n", " ")
+
+		var safeName string
+		if strings.IndexByte(node.Name, '"') == -1 && strings.IndexByte(node.Name, '\n') == -1 {
+			safeName = node.Name
+		} else {
+			var sbName strings.Builder
+			sbName.Grow(len(node.Name))
+			for i := 0; i < len(node.Name); i++ {
+				c := node.Name[i]
+				if c == '"' {
+					sbName.WriteByte('\'')
+				} else if c == '\n' {
+					sbName.WriteByte(' ')
+				} else {
+					sbName.WriteByte(c)
+				}
+			}
+			safeName = sbName.String()
+		}
+
 		if len(safeName) > 30 {
 			safeName = safeName[:27] + "..."
 		}
@@ -218,8 +236,20 @@ func generateMermaid(g *runner.TaskGraph) string {
 }
 
 func sanitizeMermaidID(id string) string {
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, " ", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
+	// Fast path: if no characters to replace, just return the original string
+	if strings.IndexByte(id, '-') == -1 && strings.IndexByte(id, ' ') == -1 && strings.IndexByte(id, '.') == -1 {
+		return id
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(id))
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c == '-' || c == ' ' || c == '.' {
+			sb.WriteByte('_')
+		} else {
+			sb.WriteByte(c)
+		}
+	}
+	return sb.String()
 }
