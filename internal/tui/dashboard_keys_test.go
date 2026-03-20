@@ -357,12 +357,14 @@ func TestDashboardModel_Keys(t *testing.T) {
 	})
 
 	t.Run("Edit/Clone Key (e)", func(t *testing.T) {
+		maxRet := 5
 		// Ensure job has details
 		if len(model.jobs) > 0 {
 			model.jobs[0].Summary = "Test Summary"
 			model.jobs[0].WorkItem.RepoURL = "https://github.com/org/test"
 			model.jobs[0].WorkItem.DependsOn = []string{"dep-1", "dep-2"}
 			model.jobs[0].WorkItem.Description = "Test Description"
+			model.jobs[0].WorkItem.MaxRetries = &maxRet
 		}
 
 		// Initialize inputs and textarea if not already present
@@ -378,6 +380,7 @@ func TestDashboardModel_Keys(t *testing.T) {
 						RepoURL:     "https://github.com/org/test",
 						DependsOn:   []string{"dep-1", "dep-2"},
 						Description: "Test Description",
+						MaxRetries:  &maxRet,
 					},
 				},
 			}
@@ -394,6 +397,7 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "https://github.com/org/test", m.inputs[1].Value())
 		assert.Equal(t, "dep-1,dep-2", m.inputs[2].Value())
 		assert.Equal(t, "Test Description", m.textarea.Value())
+		assert.Equal(t, "5", m.inputs[8].Value())
 	})
 
 	t.Run("Quit Key (q)", func(t *testing.T) {

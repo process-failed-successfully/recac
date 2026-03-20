@@ -832,6 +832,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 						m.inputs[5].SetValue(strings.Join(job.WorkItem.Tags, ","))
 						m.inputs[6].SetValue(job.WorkItem.AgentProvider)
 						m.inputs[7].SetValue(job.WorkItem.AgentModel)
+						if job.WorkItem.MaxRetries != nil {
+							m.inputs[8].SetValue(fmt.Sprintf("%d", *job.WorkItem.MaxRetries))
+						} else {
+							m.inputs[8].SetValue("")
+						}
 						m.textarea.SetValue(job.WorkItem.Description)
 						for i := 1; i < len(m.inputs); i++ {
 							m.inputs[i].Blur()
@@ -1001,6 +1006,7 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			tagsStr := m.inputs[5].Value()
 			agentProvider := m.inputs[6].Value()
 			agentModel := m.inputs[7].Value()
+			maxRetriesStr := m.inputs[8].Value()
 			description := m.textarea.Value()
 
 			cancelInProgress := false
@@ -1030,9 +1036,18 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				}
 			}
 
+			var maxRetries *int
+			if maxRetriesStr != "" {
+				var val int
+				_, err := fmt.Sscanf(maxRetriesStr, "%d", &val)
+				if err == nil && val >= 0 {
+					maxRetries = &val
+				}
+			}
+
 			if summary != "" && repoUrl != "" {
 				m.viewState = viewMain
-				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn, tags, concurrencyGroup, cancelInProgress, agentProvider, agentModel)
+				return m, submitJobCmd(m.host, summary, repoUrl, description, dependsOn, tags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, maxRetries)
 			}
 		case tea.KeyTab, tea.KeyShiftTab, tea.KeyEnter, tea.KeyUp, tea.KeyDown:
 			s := msg.String()
@@ -2460,7 +2475,7 @@ func openBrowserCmd(url string) tea.Cmd {
 	}
 }
 
-func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string) tea.Cmd {
+func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, maxRetries *int) tea.Cmd {
 	return func() tea.Msg {
 		// Use a timestamp-based ID or a unique ID.
 		// For simplicity, generating an ad-hoc ID
@@ -2477,6 +2492,7 @@ func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string
 			CancelInProgress: cancelInProgress,
 			AgentProvider:    agentProvider,
 			AgentModel:       agentModel,
+			MaxRetries:       maxRetries,
 		}
 
 		bodyBytes, err := json.Marshal(item)
@@ -2537,7 +2553,7 @@ func retryFailedJobs(host string) tea.Cmd {
 // NewDashboardModel initializes a new DashboardModel with default styles
 func NewDashboardModel(host string) DashboardModel {
 	// Initialize inputs for submission form
-	inputs := make([]textinput.Model, 8)
+	inputs := make([]textinput.Model, 9)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Fix login issue"
@@ -2579,6 +2595,11 @@ func NewDashboardModel(host string) DashboardModel {
 	inputs[7].Placeholder = "openai/gpt-4o-mini"
 	inputs[7].Prompt = "Agent Model: "
 	inputs[7].Width = 50
+
+	inputs[8] = textinput.New()
+	inputs[8].Placeholder = "e.g., 3"
+	inputs[8].Prompt = "Max Retries (empty for default): "
+	inputs[8].Width = 50
 
 	ta := textarea.New()
 	ta.Placeholder = "Detailed description of the issue..."
