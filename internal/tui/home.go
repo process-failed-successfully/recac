@@ -98,7 +98,7 @@ func (m HomeModel) View() string {
 	}
 	gitContent += fmt.Sprintf("Last Commit: %s (%s)\n", m.Git.LastCommitMsg, m.Git.LastCommitHash)
 
-	gitBox := boxStyle.Copy().Render(
+	gitBox := boxStyle.Render(
 		headerStyle.Render("Git Status") + "\n" + gitContent,
 	)
 
@@ -118,7 +118,7 @@ func (m HomeModel) View() string {
 		}
 	}
 
-	sessionsBox := boxStyle.Copy().Render(
+	sessionsBox := boxStyle.Render(
 		headerStyle.Render("Recent Agent Sessions") + "\n" + sessionsContent,
 	)
 
@@ -128,7 +128,7 @@ func (m HomeModel) View() string {
 		todoContent += fmt.Sprintf("Critical: %d\n", m.Todos.Critical)
 	}
 
-	todoBox := boxStyle.Copy().Render(
+	todoBox := boxStyle.Render(
 		headerStyle.Render("Tasks & TODOs") + "\n" + todoContent,
 	)
 

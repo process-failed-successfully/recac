@@ -40,8 +40,6 @@ var (
 			Foreground(lipgloss.Color("241")).
 			Margin(1, 0)
 
-	detailsStyle = lipgloss.NewStyle().
-			Padding(1, 2)
 )
 
 type viewState int
