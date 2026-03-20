@@ -203,3 +203,44 @@ func TestClearPending_FormatError(t *testing.T) {
 	assert.Error(t, actionMsg.Err)
 	assert.Contains(t, actionMsg.Err.Error(), "invalid response format")
 }
+
+func TestArchiveJobCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/jobs/JOB-1/archive", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock archive data"))
+	}))
+	defer server.Close()
+
+	cmd := archiveJobCmd(server.URL, "JOB-1")
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Archived to JOB-1.tar.gz", actionMsg.Message)
+}
+
+func TestArchiveBulkJobsCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/jobs/archive/bulk", r.URL.Path)
+		match := r.URL.Query().Get("match")
+		// The order of map iteration is random, so check that both IDs are in the regex
+		assert.Contains(t, match, "JOB-1")
+		assert.Contains(t, match, "JOB-2")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock bulk archive data"))
+	}))
+	defer server.Close()
+
+	selectedJobs := map[string]bool{"JOB-1": true, "JOB-2": true}
+	cmd := archiveBulkJobsCmd(server.URL, selectedJobs)
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Archived to bulk_archive.tar.gz", actionMsg.Message)
+}

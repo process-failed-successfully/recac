@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -572,6 +573,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.viewState = viewConfirmation
 				return m, nil
 			}
+		case "w":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_w"
+				m.pendingAction = "archive multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "archive"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "?":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -972,6 +987,10 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = holdJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "unhold" {
 				cmd = unholdJobCmd(m.host, m.pendingJobId)
+			} else if m.pendingAction == "archive" {
+				cmd = archiveJobCmd(m.host, m.pendingJobId)
+			} else if m.pendingAction == "archive multiple" {
+				cmd = archiveBulkJobsCmd(m.host, m.selectedJobs)
 			}
 			m.pendingJobId = ""
 			m.pendingAction = ""
@@ -1475,7 +1494,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1533,6 +1552,10 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to APPROVE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "priority multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CHANGE PRIORITY for %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "archive multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to ARCHIVE %d selected jobs to bulk_archive.tar.gz?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "archive" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to ARCHIVE job %s to %s.tar.gz?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId, m.pendingJobId)
 		} else {
 			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
@@ -2430,6 +2453,73 @@ func clearHistory(host string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Cleared %d jobs", int(cleared))}
+	}
+}
+
+func archiveJobCmd(host, jobID string) tea.Cmd {
+	return func() tea.Msg {
+		url := fmt.Sprintf("%s/jobs/%s/archive", host, jobID)
+		resp, err := http.Get(url)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		outPath := fmt.Sprintf("%s.tar.gz", jobID)
+		f, err := os.Create(outPath)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer f.Close()
+
+		if _, err := io.Copy(f, resp.Body); err != nil {
+			return actionMsg{Err: err}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Archived to %s", outPath)}
+	}
+}
+
+func archiveBulkJobsCmd(host string, selectedJobs map[string]bool) tea.Cmd {
+	return func() tea.Msg {
+		var ids []string
+		for id := range selectedJobs {
+			ids = append(ids, id)
+		}
+
+		if len(ids) == 0 {
+			return actionMsg{Message: "No jobs selected"}
+		}
+
+		matchParam := fmt.Sprintf("^(%s)$", strings.Join(ids, "|"))
+		urlStr := fmt.Sprintf("%s/jobs/archive/bulk?match=%s", host, url.QueryEscape(matchParam))
+
+		resp, err := http.Get(urlStr)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		outPath := "bulk_archive.tar.gz"
+		f, err := os.Create(outPath)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer f.Close()
+
+		if _, err := io.Copy(f, resp.Body); err != nil {
+			return actionMsg{Err: err}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Archived to %s", outPath)}
 	}
 }
 
