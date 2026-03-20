@@ -306,6 +306,7 @@ func main() {
 	pflag.String("trello-token", "", "Trello API Token (for 'trello' poller)")
 	pflag.String("trello-board", "", "Trello Board ID (for 'trello' poller)")
 	pflag.String("trello-list", "", "Trello List ID to poll for (for 'trello' poller)")
+	pflag.String("trello-webhook-secret", "", "Trello Webhook Secret for validating incoming POST events")
 
 	pflag.String("asana-token", "", "Asana API Token (for 'asana' poller)")
 	pflag.String("asana-project", "", "Asana Project ID (for 'asana' poller)")
@@ -563,6 +564,7 @@ func main() {
 	viper.BindPFlag("orchestrator.trello_token", pflag.Lookup("trello-token"))
 	viper.BindPFlag("orchestrator.trello_board", pflag.Lookup("trello-board"))
 	viper.BindPFlag("orchestrator.trello_list", pflag.Lookup("trello-list"))
+	viper.BindPFlag("orchestrator.trello_webhook_secret", pflag.Lookup("trello-webhook-secret"))
 
 	viper.BindPFlag("orchestrator.asana_token", pflag.Lookup("asana-token"))
 	viper.BindPFlag("orchestrator.asana_project", pflag.Lookup("asana-project"))
@@ -603,6 +605,7 @@ func main() {
 	viper.BindEnv("orchestrator.trello_token", "RECAC_TRELLO_TOKEN")
 	viper.BindEnv("orchestrator.trello_board", "RECAC_TRELLO_BOARD")
 	viper.BindEnv("orchestrator.trello_list", "RECAC_TRELLO_LIST")
+	viper.BindEnv("orchestrator.trello_webhook_secret", "RECAC_TRELLO_WEBHOOK_SECRET")
 	viper.BindEnv("orchestrator.asana_token", "RECAC_ASANA_TOKEN", "ASANA_TOKEN")
 	viper.BindEnv("orchestrator.asana_project", "RECAC_ASANA_PROJECT")
 	viper.BindEnv("orchestrator.notion_token", "RECAC_NOTION_TOKEN", "NOTION_TOKEN")

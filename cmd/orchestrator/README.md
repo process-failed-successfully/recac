@@ -80,6 +80,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--trello-token` | `RECAC_TRELLO_TOKEN` | - | Trello API Token |
 | `--trello-board` | `RECAC_TRELLO_BOARD` | - | Trello Board ID |
 | `--trello-list` | `RECAC_TRELLO_LIST` | - | Trello List ID to poll for |
+| `--trello-webhook-secret` | `RECAC_TRELLO_WEBHOOK_SECRET` | - | Trello Webhook Secret for validating incoming POST events |
 
 ### File Poller Flags
 
