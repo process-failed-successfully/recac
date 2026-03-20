@@ -383,6 +383,81 @@ jobs:
 	assert.Equal(t, "${MISSING}", job1.EnvVars["MISSING_VAR"]) // Should be left alone
 }
 
+func TestParsePipelineToWorkItems_NativeVariables(t *testing.T) {
+	yamlData := []byte(`
+name: Native Var Pipeline
+variables:
+  GLOBAL_VAR: "global_val"
+  OVERRIDE_VAR: "global_override"
+jobs:
+  job1:
+    summary: Build ${GLOBAL_VAR}
+    task: echo ${OVERRIDE_VAR}
+    variables:
+      OVERRIDE_VAR: "local_val"
+    env_vars:
+      TEST_VAR: ${OVERRIDE_VAR}
+`)
+
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.NoError(t, err)
+	assert.Len(t, items, 1)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.Equal(t, "Build global_val", job1.Summary)
+	assert.Equal(t, "echo local_val", job1.Description)
+	assert.Equal(t, "local_val", job1.EnvVars["TEST_VAR"])
+}
+
+func TestParsePipelineToWorkItems_Secrets(t *testing.T) {
+	t.Setenv("MY_TEST_SECRET", "super_secret_value")
+
+	yamlData := []byte(`
+name: Secret Pipeline
+secrets:
+  - MY_TEST_SECRET
+jobs:
+  job1:
+    summary: Job with secrets
+`)
+
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.NoError(t, err)
+	assert.Len(t, items, 1)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.Equal(t, "super_secret_value", job1.EnvVars["MY_TEST_SECRET"])
+}
+
+func TestParsePipelineToWorkItems_MissingSecrets(t *testing.T) {
+	yamlData := []byte(`
+name: Missing Secret Pipeline
+secrets:
+  - MISSING_TEST_SECRET
+jobs:
+  job1:
+    summary: Job with missing secrets
+`)
+
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required secret 'MISSING_TEST_SECRET' is missing from environment")
+}
+
 func TestParsePipelineToWorkItems_Matrix(t *testing.T) {
 	yamlData := []byte(`
 name: Matrix Pipeline
