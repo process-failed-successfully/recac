@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -71,7 +72,20 @@ func sanitizeName(name string) string {
 }
 
 // ParsePipelineToWorkItems converts a YAML pipeline definition into a list of WorkItems
-func ParsePipelineToWorkItems(yamlData []byte, targetJob string) ([]WorkItem, error) {
+func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string]string) ([]WorkItem, error) {
+	// Substitute variables using explicit mapping only
+	yamlStr := string(yamlData)
+	if len(vars) > 0 {
+		yamlStr = os.Expand(yamlStr, func(k string) string {
+			if v, ok := vars[k]; ok {
+				return v
+			}
+			// Do not fall back to os.Getenv(k) to prevent server-side secret exposure
+			return "${" + k + "}"
+		})
+		yamlData = []byte(yamlStr)
+	}
+
 	var p Pipeline
 	if err := yaml.Unmarshal(yamlData, &p); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pipeline YAML: %w", err)
