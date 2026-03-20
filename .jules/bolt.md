@@ -13,3 +13,6 @@
 ## 2025-03-05 - Avoid chained string replacements; use fast-path zero-allocation checks
 **Learning:** Chaining `strings.ReplaceAll` multiple times creates numerous intermediate string allocations, as each call allocates a brand new string for the entire result even if no changes occur.
 **Action:** Always implement a zero-allocation fast-path check first using `strings.IndexByte` to verify if any target characters exist. If none exist, return the original string immediately. If replacements are needed, fall back to a single-pass loop over the string bytes with a pre-allocated `strings.Builder` (`sb.Grow(len(s))`). This guarantees exactly zero or one allocation per string operation, resulting in significant speedups for string formatting utility functions like `sanitizeID` or `safeName`.
+## 2024-03-20 - [Redundant checks with strings.ReplaceAll]
+**Learning:** `strings.ReplaceAll` internally checks for substring presence before allocating memory.
+**Action:** Do not use `strings.Contains` to check if a substring exists before calling `strings.ReplaceAll` in Go, as it results in redundant checks and slower performance.
