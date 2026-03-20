@@ -1876,7 +1876,7 @@ func searchLogsCmd(host, query string) tea.Cmd {
 		}
 
 		if len(results) == 0 {
-			return searchLogsResultMsg{Output: fmt.Sprintf("No matching logs found for query: %q", query)}
+			return searchLogsResultMsg{Output: fmt.Sprintf("No matching logs found for query: %q\n\nPress 'q' or 'esc' to go back, then press 'S' to try a different query.", query)}
 		}
 
 		var sb strings.Builder
@@ -2727,6 +2727,10 @@ func fetchAnalytics(host string) tea.Cmd {
 }
 
 func renderAnalytics(a orchestrator.Analytics) string {
+	if a.TotalJobs == 0 {
+		return "No analytics available yet.\n\nPress 'q' or 'esc' to go back, then press 's' to submit a new job."
+	}
+
 	s := strings.Builder{}
 	h1 := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Render
 	kv := func(k, v string) string {
