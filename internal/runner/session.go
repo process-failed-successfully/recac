@@ -408,9 +408,6 @@ func (s *Session) Start(ctx context.Context) error {
 		s.StateManager = agent.NewStateManager(s.AgentStateFile)
 
 		// Inject the new StateManager into the agent if it supports it
-		type withSM interface {
-			WithStateManager(sm *agent.StateManager) agent.Agent
-		}
 		// Some agents return the client itself. We try to type assert to common types too.
 		if aw, ok := s.Agent.(interface {
 			WithStateManager(*agent.StateManager) *agent.GeminiClient

@@ -16,10 +16,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Helper function
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
-}
 
 // Mock Docker Client
 type MockDockerClient struct {
