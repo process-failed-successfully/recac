@@ -7,8 +7,10 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/sha256"
 	encoding_csv "encoding/csv"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -2490,6 +2492,125 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 
 		w.WriteHeader(http.StatusAccepted)
 		fmt.Fprintf(w, "Linear Webhook Job %s submitted successfully", jobID)
+	})
+
+	mux.HandleFunc("HEAD /webhook/trello", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mux.HandleFunc("POST /webhook/trello", func(w http.ResponseWriter, r *http.Request) {
+		// Read body for validation/parsing
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+		// Restore body for any subsequent reading if necessary
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		secret := viper.GetString("orchestrator.trello_webhook_secret")
+		if secret != "" {
+			// Trello uses X-Trello-Webhook which is base64(hmac_sha1(request_body + callback_url, secret))
+			// However, since we might not reliably know the callback_url in a reverse proxy setup,
+			// we simply check a query parameter or custom header for simplicity if Trello supports it,
+			// OR we perform the HMAC validation if we know the full URL.
+			// Trello does not use a simple constant token, but users often append a ?token=XYZ to the webhook URL.
+			// We will check for the X-Trello-Webhook header. We can skip the strict callback URL check
+			// by just checking a custom token in the header if they set one, or doing standard Trello signature validation
+			// But since callback URL is tricky, standard practice for simple webhooks is to check a query param.
+			// Lets implement Trello HMAC validation properly: we need the absolute URL.
+			// Trello signature: base64(hmac_sha1(payload + full_url, secret))
+			signature := r.Header.Get("X-Trello-Webhook")
+			if signature == "" {
+				http.Error(w, "Missing X-Trello-Webhook header", http.StatusUnauthorized)
+				return
+			}
+
+			scheme := "http"
+			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+				scheme = "https"
+			}
+			host := r.Host
+			if h := r.Header.Get("X-Forwarded-Host"); h != "" {
+				host = h
+			}
+			callbackURL := fmt.Sprintf("%s://%s%s", scheme, host, r.URL.RequestURI())
+
+			mac := hmac.New(sha1.New, []byte(secret))
+			mac.Write(bodyBytes)
+			mac.Write([]byte(callbackURL))
+			expectedMAC := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+			if signature != expectedMAC {
+				http.Error(w, "Invalid X-Trello-Webhook signature", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		action, ok := payload["action"].(map[string]interface{})
+		if !ok {
+			w.WriteHeader(http.StatusOK) // Ignore non-action payloads
+			return
+		}
+
+		actionType, _ := action["type"].(string)
+		if actionType != "createCard" && actionType != "updateCard" && actionType != "commentCard" {
+			w.WriteHeader(http.StatusOK) // Ignore unsupported actions
+			return
+		}
+
+		data, _ := action["data"].(map[string]interface{})
+		card, _ := data["card"].(map[string]interface{})
+		if card == nil {
+			w.WriteHeader(http.StatusOK) // Missing card info
+			return
+		}
+
+		cardID, _ := card["id"].(string)
+		cardName, _ := card["name"].(string)
+		cardDesc, _ := card["desc"].(string)
+
+		// For updates, the desc might be in old or we just use the current one
+		// We need to extract the repo URL from the description
+		repoURL := extractRepoURL(cardDesc, RepoRegex)
+		if repoURL == "" {
+			// Also try to find it in the comment text if it is a commentCard
+			if actionType == "commentCard" {
+				if text, ok := data["text"].(string); ok {
+					repoURL = extractRepoURL(text, RepoRegex)
+				}
+			}
+		}
+
+		item := WorkItem{
+			ID:          cardID,
+			Summary:     cardName,
+			Description: cardDesc,
+			RepoURL:     repoURL,
+			EnvVars: map[string]string{
+				"TRELLO_CARD_ID": cardID,
+			},
+		}
+
+		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, "Trello Webhook Job %s submitted successfully", cardID)
 	})
 
 	mux.HandleFunc("POST /webhook/gitlab", func(w http.ResponseWriter, r *http.Request) {
