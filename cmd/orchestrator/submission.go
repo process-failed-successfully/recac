@@ -70,7 +70,7 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
-func lintPipelineJob(filePath string, target string) {
+func lintPipelineJob(filePath string, target string, vars map[string]string) {
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
@@ -78,7 +78,7 @@ func lintPipelineJob(filePath string, target string) {
 		return
 	}
 
-	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target)
+	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars)
 	if err != nil {
 		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 		exitFunc(1)
@@ -88,7 +88,7 @@ func lintPipelineJob(filePath string, target string) {
 	fmt.Fprintf(stdout, "Pipeline is valid. Parsed %d jobs.\n", len(items))
 }
 
-func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target string) {
+func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target string, vars map[string]string) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
@@ -105,7 +105,7 @@ func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target str
 			return
 		}
 
-		items, err := orchestrator.ParsePipelineToWorkItems(fileData, target)
+		items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars)
 		if err != nil {
 			fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 			exitFunc(1)
@@ -123,10 +123,22 @@ func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target str
 		return
 	}
 
-	urlStr := fmt.Sprintf("%s/jobs/pipeline", host)
-	if target != "" {
-		urlStr = fmt.Sprintf("%s?target=%s", urlStr, url.QueryEscape(target))
+	urlObj, err := url.Parse(fmt.Sprintf("%s/jobs/pipeline", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
 	}
+
+	q := urlObj.Query()
+	if target != "" {
+		q.Set("target", target)
+	}
+	for k, v := range vars {
+		q.Add("var", fmt.Sprintf("%s=%s", k, v))
+	}
+	urlObj.RawQuery = q.Encode()
+	urlStr := urlObj.String()
 
 	resp, err := http.Post(urlStr, "application/x-yaml", file)
 	if err != nil {

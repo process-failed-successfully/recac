@@ -62,6 +62,48 @@ jobs:
 		}
 	})
 
+	t.Run("Pipeline with Variables", func(t *testing.T) {
+		yamlData := []byte(`
+name: Var Pipeline
+jobs:
+  build:
+    summary: Build ${APP_NAME}
+`)
+		req := httptest.NewRequest(http.MethodPost, "/jobs/pipeline?var=APP_NAME=MySuperApp", bytes.NewReader(yamlData))
+		req.Header.Set("Content-Type", "application/x-yaml")
+		rr := httptest.NewRecorder()
+
+		mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusAccepted, rr.Code)
+
+		var resp map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+
+		submitted := resp["submitted"].([]interface{})
+		assert.Len(t, submitted, 1)
+
+		// Find the job in orchestrator and verify summary
+		orch.mu.Lock()
+		found := false
+		for _, j := range orch.pendingJobs {
+			if j.Summary == "Build MySuperApp" {
+				found = true
+				break
+			}
+		}
+		for _, j := range orch.activeJobs {
+			if j.Summary == "Build MySuperApp" {
+				found = true
+				break
+			}
+		}
+		orch.mu.Unlock()
+		assert.True(t, found, "Job with substituted variable not found")
+	})
+
 	t.Run("Pipeline with Target", func(t *testing.T) {
 		yamlData := []byte(`
 name: Deploy Web App Target

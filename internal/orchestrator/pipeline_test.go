@@ -48,7 +48,7 @@ jobs:
     concurrency_group: deploy-staging
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "")
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -116,7 +116,7 @@ jobs:
     depends_on: [job2]
     run_condition: always
 `)
-	items, err := ParsePipelineToWorkItems(yamlData, "")
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -143,7 +143,7 @@ jobs:
   build:
     summary: Build application
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "")
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pipeline must have a name")
 }
@@ -152,7 +152,7 @@ func TestParsePipelineToWorkItems_NoJobs(t *testing.T) {
 	yamlData := []byte(`
 name: Empty Pipeline
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "")
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pipeline must have at least one job")
 }
@@ -165,7 +165,7 @@ jobs:
     summary: Test
     depends_on: [build]
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "")
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "job 'test' depends on unknown job 'build'")
 }
@@ -178,7 +178,7 @@ jobs:
     summary: Build
     timeout: invalid
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "")
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid timeout format for job 'build'")
 }
@@ -191,7 +191,7 @@ jobs:
     summary: Build
     delay: invalid
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "")
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid delay format for job 'build'")
 }
@@ -211,7 +211,7 @@ jobs:
     summary: Run tests
     depends_on: [build]
 `)
-	items, err := ParsePipelineToWorkItems(yamlData, "")
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -252,7 +252,7 @@ jobs:
     delay: 2h
 `)
 	now := time.Now()
-	items, err := ParsePipelineToWorkItems(yamlData, "")
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 
@@ -285,7 +285,7 @@ jobs:
     summary: Build
     depends_on: [
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "")
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to unmarshal pipeline YAML")
 }
@@ -311,7 +311,7 @@ jobs:
     summary: Other job
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "test")
+	items, err := ParsePipelineToWorkItems(yamlData, "test", nil)
 	require.NoError(t, err)
 
 	// Should include "setup", "build", and "test", but not "deploy" or "other"
@@ -339,9 +339,48 @@ jobs:
     summary: Setup
 `)
 
-	_, err := ParsePipelineToWorkItems(yamlData, "unknown")
+	_, err := ParsePipelineToWorkItems(yamlData, "unknown", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "target job 'unknown' not found in pipeline")
+}
+
+func TestParsePipelineToWorkItems_Variables(t *testing.T) {
+	yamlData := []byte(`
+name: Var Pipeline
+defaults:
+  repo_url: ${DEFAULT_REPO}
+jobs:
+  job1:
+    summary: Build ${APP_NAME}
+    task: echo ${APP_NAME}
+    env_vars:
+      MY_VAR: ${MY_ENV_VAR}
+      MISSING_VAR: ${MISSING}
+`)
+
+	vars := map[string]string{
+		"DEFAULT_REPO": "https://github.com/my/repo",
+		"APP_NAME":     "SuperApp",
+		"MY_ENV_VAR":   "from_env",
+	}
+
+	items, err := ParsePipelineToWorkItems(yamlData, "", vars)
+	require.NoError(t, err)
+	assert.Len(t, items, 1)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.Equal(t, "Build SuperApp", job1.Summary)
+	assert.Equal(t, "echo SuperApp", job1.Description)
+	assert.Equal(t, "https://github.com/my/repo", job1.RepoURL)
+	assert.Equal(t, "from_env", job1.EnvVars["MY_VAR"])
+	assert.Equal(t, "${MISSING}", job1.EnvVars["MISSING_VAR"]) // Should be left alone
 }
 
 func TestParsePipelineToWorkItems_Matrix(t *testing.T) {
@@ -366,7 +405,7 @@ jobs:
     task: ./deploy.sh
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "")
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
 	require.NoError(t, err)
 
 	// lint: 1 job
