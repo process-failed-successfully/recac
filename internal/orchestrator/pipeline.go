@@ -11,8 +11,10 @@ import (
 )
 
 type Pipeline struct {
-	Name     string `yaml:"name"`
-	Defaults struct {
+	Name      string            `yaml:"name"`
+	Variables map[string]string `yaml:"variables,omitempty"`
+	Secrets   []string          `yaml:"secrets,omitempty"`
+	Defaults  struct {
 		RepoURL          string            `yaml:"repo_url"`
 		AgentProvider    string            `yaml:"agent_provider"`
 		AgentModel       string            `yaml:"agent_model"`
@@ -35,6 +37,7 @@ type PipelineJob struct {
 	DependsOn        []string            `yaml:"depends_on"`
 	RunCondition     string              `yaml:"run_condition"`
 	EnvVars          map[string]string   `yaml:"env_vars"`
+	Variables        map[string]string   `yaml:"variables,omitempty"`
 	Matrix           map[string][]string `yaml:"matrix"`
 	Tags             []string            `yaml:"tags"`
 	Priority         int                 `yaml:"priority"`
@@ -226,6 +229,44 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 			}
 		}
 
+		// Resolve secrets and inject them as environment variables
+		var secretsMap map[string]string
+		if len(p.Secrets) > 0 {
+			secretsMap = make(map[string]string)
+			for _, s := range p.Secrets {
+				val := os.Getenv(s)
+				if val == "" {
+					return nil, fmt.Errorf("required secret '%s' is missing from environment", s)
+				}
+				secretsMap[s] = val
+			}
+		}
+
+		// Compute final variables for this job by merging global and job-specific variables
+		mergedVars := make(map[string]string)
+		for k, v := range p.Variables {
+			mergedVars[k] = v
+		}
+		for k, v := range jobDef.Variables {
+			mergedVars[k] = v
+		}
+
+		// Helper to interpolate variables into a string
+		interpolate := func(s string) string {
+			if len(mergedVars) == 0 {
+				return s
+			}
+			return os.Expand(s, func(k string) string {
+				if v, ok := mergedVars[k]; ok {
+					return v
+				}
+				return "${" + k + "}"
+			})
+		}
+
+		summary := interpolate(jobDef.Summary)
+		description = interpolate(description)
+
 		// Generate combinations deterministically
 		var matrixKeys []string
 		for k := range jobDef.Matrix {
@@ -259,7 +300,9 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 
 		for i, combo := range combinations {
 			jobID := fmt.Sprintf("%s-%s-%d", pipelineIDPrefix, sanitizeName(jobKey), timestamp)
-			summary := jobDef.Summary
+
+			// We already interpolated the base summary, now append matrix if needed
+			comboSummary := summary
 
 			// If it's a matrix job, append suffix and variables
 			suffixParts := []string{}
@@ -271,22 +314,27 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 
 			if len(suffixParts) > 0 {
 				jobID = fmt.Sprintf("%s-%d", jobID, i+1)
-				summary = fmt.Sprintf("%s [%s]", summary, strings.Join(suffixParts, ", "))
+				comboSummary = fmt.Sprintf("%s [%s]", comboSummary, strings.Join(suffixParts, ", "))
 			}
 
 			// Deep copy EnvVars and merge with defaults
 			envVars := make(map[string]string)
 			if p.Defaults.EnvVars != nil {
 				for k, v := range p.Defaults.EnvVars {
-					envVars[k] = v
+					envVars[k] = interpolate(v)
 				}
 			}
 			if jobDef.EnvVars != nil {
 				for k, v := range jobDef.EnvVars {
-					envVars[k] = v
+					envVars[k] = interpolate(v)
 				}
 			}
 			for k, v := range combo {
+				envVars[k] = interpolate(v)
+			}
+
+			// Inject secrets into envVars
+			for k, v := range secretsMap {
 				envVars[k] = v
 			}
 
@@ -327,7 +375,7 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 
 			items = append(items, WorkItem{
 				ID:               jobID,
-				Summary:          summary,
+				Summary:          comboSummary,
 				Description:      description,
 				RepoURL:          repoURL,
 				EnvVars:          envVars,
