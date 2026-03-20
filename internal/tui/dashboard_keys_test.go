@@ -525,3 +525,45 @@ func TestDashboardModel_View_AllStates(t *testing.T) {
         assert.NotEmpty(t, out)
     }
 }
+
+func TestDashboardModel_ArchiveKeys(t *testing.T) {
+	columns := []table.Column{{Title: "ID", Width: 10}}
+	tModel := table.New(table.WithColumns(columns))
+	rows := []table.Row{{"JOB-1"}, {"JOB-2"}}
+	tModel.SetRows(rows)
+	tModel.SetCursor(0)
+
+	model := DashboardModel{
+		host:      "http://localhost",
+		table:     tModel,
+		viewState: viewMain,
+		jobs: []orchestrator.JobInfo{
+			{ID: "JOB-1", StartTime: time.Now()},
+			{ID: "JOB-2", StartTime: time.Now()},
+		},
+	}
+
+	t.Run("Archive Single Key (w)", func(t *testing.T) {
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("w")}
+		updatedModel, cmd := model.Update(msg)
+		assert.Nil(t, cmd)
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "archive", m.pendingAction)
+		assert.Equal(t, "JOB-1", m.pendingJobId)
+	})
+
+	t.Run("Archive Multiple Key (w)", func(t *testing.T) {
+		m := model
+		m.selectedJobs = map[string]bool{"JOB-1": true, "JOB-2": true}
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("w")}
+		updatedModel, cmd := m.Update(msg)
+		assert.Nil(t, cmd)
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "archive multiple", m.pendingAction)
+		assert.Equal(t, "MULTIPLE_w", m.pendingJobId)
+	})
+}
