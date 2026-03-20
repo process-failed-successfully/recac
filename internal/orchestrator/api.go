@@ -566,6 +566,24 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/{id}/blockers", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		blockers, err := orch.GetJobBlockers(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		// if blockers is nil, json.Encode encodes it to `null`. We want an empty array instead `[]`
+		if blockers == nil {
+			blockers = []JobInfo{}
+		}
+		if err := json.NewEncoder(w).Encode(blockers); err != nil {
+			logger.Error("Failed to encode blockers", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		logStream, err := orch.GetLogs(r.Context(), id)

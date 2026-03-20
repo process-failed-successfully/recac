@@ -2401,6 +2401,27 @@ func inspectJob(host, jobID string) {
 			fmt.Fprintf(stdout, "  %s=%.2f\n", k, v)
 		}
 	}
+
+	// Blockers
+	if len(job.WorkItem.DependsOn) > 0 && (job.Status == "Pending" || job.Status == "Pending Approval") {
+		blockersResp, err := http.Get(fmt.Sprintf("%s/jobs/%s/blockers", host, jobID))
+		if err == nil && blockersResp.StatusCode == http.StatusOK {
+			var blockers []orchestrator.JobInfo
+			if err := json.NewDecoder(blockersResp.Body).Decode(&blockers); err == nil && len(blockers) > 0 {
+				fmt.Fprintln(stdout, "\n"+labelStyle.Render("Blockers:"))
+				for _, blocker := range blockers {
+					statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+					if blocker.Status == "Failed" || blocker.Status == "Missing" || blocker.Status == "Canceled" {
+						statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+					} else if blocker.Status == "Running" || blocker.Status == "Active" || blocker.Status == "Spawning" {
+						statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+					}
+					fmt.Fprintf(stdout, "  - %s (%s)\n", blocker.ID, statusStyle.Render(blocker.Status))
+				}
+			}
+			blockersResp.Body.Close()
+		}
+	}
 }
 
 func purgeJob(host, jobID string) {

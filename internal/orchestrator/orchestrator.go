@@ -267,24 +267,21 @@ func (o *Orchestrator) GetPendingJobs() []JobInfo {
 }
 
 // GetJob returns the details of a specific job.
-func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
-	o.mu.RLock()
-	defer o.mu.RUnlock()
-
+func (o *Orchestrator) getJobLocked(id string) (JobInfo, bool) {
 	job, exists := o.activeJobs[id]
 	if exists {
-		return job, nil
+		return job, true
 	}
 
 	job, exists = o.pendingJobs[id]
 	if exists {
-		return job, nil
+		return job, true
 	}
 
 	// Check completed jobs (reverse order for most recent)
 	for i := len(o.completedJobs) - 1; i >= 0; i-- {
 		if o.completedJobs[i].ID == id {
-			return o.completedJobs[i], nil
+			return o.completedJobs[i], true
 		}
 	}
 
@@ -292,14 +289,62 @@ func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
 	if o.Persistence != nil {
 		job, err := o.Persistence.GetJob(id)
 		if err == nil {
-			return *job, nil
+			return *job, true
 		}
 	}
 
-	return JobInfo{}, fmt.Errorf("job %s not found", id)
+	return JobInfo{}, false
 }
 
-// GetCompletedJobs returns the list of completed jobs.
+func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	job, found := o.getJobLocked(id)
+	if !found {
+		return JobInfo{}, fmt.Errorf("job %s not found", id)
+	}
+	return job, nil
+}
+
+// GetJobBlockers returns a list of jobs that are blocking the given job from running.
+func (o *Orchestrator) GetJobBlockers(id string) ([]JobInfo, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	targetJob, found := o.getJobLocked(id)
+	if !found {
+		return nil, fmt.Errorf("job %s not found", id)
+	}
+
+	if len(targetJob.WorkItem.DependsOn) == 0 {
+		return nil, nil // No dependencies, no blockers
+	}
+
+	var blockers []JobInfo
+	for _, depID := range targetJob.WorkItem.DependsOn {
+		depJob, depFound := o.getJobLocked(depID)
+		if !depFound {
+			blockers = append(blockers, JobInfo{
+				ID:      depID,
+				Status:  "Missing",
+				Summary: "Dependency not found in active, pending, or history",
+			})
+		} else {
+			status := strings.ToLower(depJob.Status)
+			if status == "pending" || status == "pending approval" || status == "spawning" || status == "running" || status == "active" || status == "retrying" {
+				blockers = append(blockers, depJob)
+			} else if status == "failed" || status == "canceled" {
+				cond := strings.ToLower(strings.TrimSpace(targetJob.WorkItem.RunCondition))
+				if cond != "always" && cond != "on_failure" {
+					blockers = append(blockers, depJob)
+				}
+			}
+		}
+	}
+
+	return blockers, nil
+}
 func (o *Orchestrator) GetCompletedJobs() []JobInfo {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
