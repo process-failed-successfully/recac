@@ -100,6 +100,7 @@ func main() {
 	pflag.String("tail-match", "", "Filter tailed active jobs matching a regex")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
+	pflag.String("tree-job", "", "Display the dependency tree for a specific job")
 	pflag.Bool("timeline", false, "Display an execution timeline (Gantt chart) of jobs")
 	pflag.Int("timeline-limit", 20, "Limit the number of jobs displayed in the timeline")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
@@ -374,6 +375,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.list_pending", pflag.Lookup("list-pending"))
 	viper.BindPFlag("orchestrator.tree", pflag.Lookup("tree"))
+	viper.BindPFlag("orchestrator.tree_job", pflag.Lookup("tree-job"))
 	viper.BindPFlag("orchestrator.timeline", pflag.Lookup("timeline"))
 	viper.BindPFlag("orchestrator.timeline_limit", pflag.Lookup("timeline-limit"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
@@ -743,6 +745,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.analytics") {
 		host := viper.GetString("orchestrator.host")
 		printAnalytics(host)
+		return nil
+	}
+
+	if treeJobID := viper.GetString("orchestrator.tree_job"); treeJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		printJobTree(host, treeJobID)
 		return nil
 	}
 
