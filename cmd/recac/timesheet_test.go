@@ -240,3 +240,86 @@ func TestRunTimesheet(t *testing.T) {
 	assert.Contains(t, output, "Author: jules")
 	assert.Contains(t, output, "Total Hours:")
 }
+
+func TestRunTimesheet_NoCommits(t *testing.T) {
+	origFactory := gitClientFactory
+	defer func() { gitClientFactory = origFactory }()
+
+	mockGit := &MockTimesheetGitClient{
+		RunOutput: "jules",
+		LogOutput: []string{}, // No commits
+	}
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	root := &cobra.Command{Use: "test-root"}
+	root.AddCommand(timesheetCmd)
+	root.SetOut(w)
+	root.SetErr(w)
+
+	// Reset flags
+	timesheetJSON = false
+	timesheetAuthor = ""
+
+	root.SetArgs([]string{"timesheet", "--since=24h"})
+	err := root.Execute()
+	require.NoError(t, err)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "No commits found for author 'jules' since 24h.")
+}
+
+func TestRunTimesheet_JSON(t *testing.T) {
+	origFactory := gitClientFactory
+	defer func() { gitClientFactory = origFactory }()
+
+	mockGit := &MockTimesheetGitClient{
+		RunOutput: "jules",
+		LogOutput: []string{
+			"a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit",
+		},
+	}
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	root := &cobra.Command{Use: "test-root"}
+	root.AddCommand(timesheetCmd)
+	root.SetOut(w)
+	root.SetErr(w)
+
+	// Reset flags
+	timesheetJSON = false
+	timesheetAuthor = "jules"
+
+	root.SetArgs([]string{"timesheet", "--since=24h", "--json"})
+	err := root.Execute()
+	require.NoError(t, err)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, `"total_hours":`)
+	assert.Contains(t, output, `"total_sessions":`)
+}

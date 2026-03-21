@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSecretsIntegration(t *testing.T) {
@@ -105,4 +106,57 @@ func main() {
 	if string(out) != "supersecret" {
 		t.Errorf("Run command output mismatch. Expected 'supersecret', got '%s'", string(out))
 	}
+}
+
+func TestSecretsInit_KeyExists(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "recac-secrets-test-exists")
+	defer os.RemoveAll(tmpDir)
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	secretsKeyFile = ".recac.key"
+	os.WriteFile(".recac.key", []byte("dummy key"), 0644)
+
+	err := runSecretsInit(nil, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+func TestSecretsInit_AddToGitignore(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "recac-secrets-test-gitignore")
+	defer os.RemoveAll(tmpDir)
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	secretsKeyFile = ".recac.key"
+	os.WriteFile(".gitignore", []byte("node_modules\n"), 0644)
+
+	err := runSecretsInit(nil, nil)
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".gitignore")
+	assert.Contains(t, string(content), ".recac.key")
+}
+
+func TestSecretsInit_AlreadyInGitignore(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "recac-secrets-test-gitignore-exists")
+	defer os.RemoveAll(tmpDir)
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	secretsKeyFile = ".recac.key"
+	os.WriteFile(".gitignore", []byte(".recac.key\n"), 0644)
+
+	err := runSecretsInit(nil, nil)
+	assert.NoError(t, err)
+
+	// Should still just have one entry
+	content, _ := os.ReadFile(".gitignore")
+	assert.Equal(t, ".recac.key\n", string(content))
 }

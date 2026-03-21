@@ -148,3 +148,73 @@ func TestConfirm_No(t *testing.T) {
 	result := confirm("Are you sure?")
 	assert.False(t, result)
 }
+
+func TestRunResolve_NoConflicts(t *testing.T) {
+	origExec := execCommand
+	defer func() { execCommand = origExec }()
+
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		// Mock git grep returning no matches
+		if command == "git" && args[0] == "grep" {
+			cmd := exec.Command("sh", "-c", "exit 1")
+			return cmd
+		}
+		return exec.Command(command, args...)
+	}
+
+	// Capture stdout
+	oldStdout := resolveCmd.OutOrStdout()
+	resolveCmd.SetOut(io.Discard)
+	defer resolveCmd.SetOut(oldStdout)
+
+	err := runResolve(resolveCmd, []string{})
+	assert.NoError(t, err)
+}
+
+func TestRunResolve_NotAuto(t *testing.T) {
+	// Setup Mock Agent
+	mockAgent := &ResolveSpyAgent{Response: "Resolved Code"}
+	originalFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalFactory }()
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "conflict_noauto.txt")
+	content := `Before
+<<<<<<< HEAD
+Ours
+=======
+Theirs
+>>>>>>> branch
+After`
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	assert.NoError(t, err)
+
+	resolveCmd.Flags().Set("auto", "false")
+
+	// Redirect os.Stdin to decline
+	oldStdin := os.Stdin
+	r, w, _ := os.Pipe()
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	go func() {
+		w.Write([]byte("n\n"))
+		w.Close()
+	}()
+
+	oldStdout := resolveCmd.OutOrStdout()
+	resolveCmd.SetOut(io.Discard)
+	defer resolveCmd.SetOut(oldStdout)
+
+	err = runResolve(resolveCmd, []string{filePath})
+	assert.NoError(t, err)
+
+	// Verify content is unchanged since we declined
+	resolvedContent, err := os.ReadFile(filePath)
+	assert.NoError(t, err)
+
+	assert.Equal(t, content, string(resolvedContent))
+}
