@@ -134,6 +134,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// Construct Env Vars
 	envMap := collectAgentEnvVars(item, s.AgentProvider, s.AgentModel)
+	envMap["RECAC_HOST_WORKSPACE_PATH"] = "/workspace"
 	var envVars []corev1.EnvVar
 	for k, v := range envMap {
 		envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
