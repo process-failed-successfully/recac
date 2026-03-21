@@ -57,7 +57,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "id=\"job-tags\"")
 	assert.Contains(t, html, "id=\"job-concurrency-group\"")
 	assert.Contains(t, html, "id=\"job-cancel-in-progress\"")
-	assert.Contains(t, html, "onclick=\"submitAdHocJob()\"")
+	assert.Contains(t, html, "onsubmit=\"submitAdHocJob(); return false;\"")
 
 	// Verify JS submit function exists
 	assert.Contains(t, html, "async function submitAdHocJob()")
@@ -79,7 +79,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "id=\"search-logs-query\"")
 	assert.Contains(t, html, "id=\"search-logs-tag\"")
 	assert.Contains(t, html, "id=\"search-logs-status\"")
-	assert.Contains(t, html, "onclick=\"performSearchLogs()\"")
+	assert.Contains(t, html, "onsubmit=\"performSearchLogs(); return false;\"")
 
 	// Verify JS performSearchLogs function exists
 	assert.Contains(t, html, "async function performSearchLogs()")

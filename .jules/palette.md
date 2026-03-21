@@ -27,3 +27,7 @@
 ## 2026-03-19 - Added focus-visible states to form controls in Web UI
 **Learning:** The embedded HTML web UI dashboard in `internal/orchestrator/webui.go` lacked proper focus indicators for standard form inputs (`<input>`, `<textarea>`, `<select>`), despite having them for buttons. This is a common oversight in custom dashboards that break standard keyboard navigation accessibility.
 **Action:** Applied `:focus-visible` to ensure outline visibility for keyboard users. Need to verify focus states for all interactive elements in embedded web UIs, not just primary buttons.
+
+## 2026-03-24 - Semantic Form Wrappers for Custom Modals
+**Learning:** Custom UI components (like Modals) often use standard `<input>` elements but rely on JS-bound click events (e.g., `onclick` on a standard button) to submit, ignoring semantic `<form>` submission. This breaks native "Enter-to-submit" accessibility for keyboard users and forces developers to use jarring `alert()` or manual empty-state validation in JS.
+**Action:** Always wrap actionable inputs inside custom modals with a `<form onsubmit="mySubmitFunc(); return false;">` tag. Change the action button to `type="submit"` and use the HTML5 `required` attribute on inputs. This naturally guides screen readers, enables Enter-to-submit out of the box, and provides native tooltips for validation rather than blocking JS alerts.

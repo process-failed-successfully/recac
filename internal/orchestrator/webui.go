@@ -95,53 +95,55 @@ const DashboardHTML = `
             <div class="modal-content">
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitModal').style.display='none'">&times;</button>
                 <h2>Submit Ad-hoc Job</h2>
-                <div class="form-group">
-                    <label for="job-id">Job ID (Optional, auto-generated if empty)</label>
-                    <input type="text" id="job-id" placeholder="e.g., MY-JOB-123">
-                </div>
-                <div class="form-group">
-                    <label for="job-summary">Summary *</label>
-                    <input type="text" id="job-summary" placeholder="e.g., Fix login bug">
-                </div>
-                <div class="form-group">
-                    <label for="job-repo">Repository URL *</label>
-                    <input type="text" id="job-repo" placeholder="e.g., https://github.com/org/repo">
-                </div>
-                <div class="form-group">
-                    <label for="job-deps">Depends On (Optional, comma-separated IDs)</label>
-                    <input type="text" id="job-deps" placeholder="e.g., JOB-1, JOB-2">
-                </div>
-                <div class="form-group">
-                    <label for="job-tags">Tags (Optional, comma-separated tags)</label>
-                    <input type="text" id="job-tags" placeholder="e.g., bug, frontend">
-                </div>
-                <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
-                    <div style="flex: 1;">
-                        <label for="job-concurrency-group">Concurrency Group (Optional)</label>
-                        <input type="text" id="job-concurrency-group" placeholder="e.g., deploy-prod">
+                <form onsubmit="submitAdHocJob(); return false;">
+                    <div class="form-group">
+                        <label for="job-id">Job ID (Optional, auto-generated if empty)</label>
+                        <input type="text" id="job-id" placeholder="e.g., MY-JOB-123">
                     </div>
-                    <div style="display: flex; align-items: center; gap: 5px; margin-top: 15px;">
-                        <input type="checkbox" id="job-cancel-in-progress" style="width: auto;">
-                        <label for="job-cancel-in-progress" style="margin-bottom: 0;">Cancel In Progress</label>
+                    <div class="form-group">
+                        <label for="job-summary">Summary *</label>
+                        <input type="text" id="job-summary" placeholder="e.g., Fix login bug" required>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="job-agent-provider">Agent Provider (Optional)</label>
-                    <input type="text" id="job-agent-provider" placeholder="e.g., openrouter">
-                </div>
-                <div class="form-group">
-                    <label for="job-agent-model">Agent Model (Optional)</label>
-                    <input type="text" id="job-agent-model" placeholder="e.g., openai/gpt-4o-mini">
-                </div>
-                <div class="form-group">
-                    <label for="job-env">Environment Variables (Optional, KEY=VALUE, one per line)</label>
-                    <textarea id="job-env" placeholder="DEBUG=true&#10;PORT=8080"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="job-desc">Description (Optional)</label>
-                    <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
-                </div>
-                <button type="button" aria-label="Submit Ad-hoc Job" id="btn-submit-adhoc" onclick="submitAdHocJob()" style="background-color: #28a745; width: 100%;">Submit Job</button>
+                    <div class="form-group">
+                        <label for="job-repo">Repository URL *</label>
+                        <input type="text" id="job-repo" placeholder="e.g., https://github.com/org/repo" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-deps">Depends On (Optional, comma-separated IDs)</label>
+                        <input type="text" id="job-deps" placeholder="e.g., JOB-1, JOB-2">
+                    </div>
+                    <div class="form-group">
+                        <label for="job-tags">Tags (Optional, comma-separated tags)</label>
+                        <input type="text" id="job-tags" placeholder="e.g., bug, frontend">
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                        <div style="flex: 1;">
+                            <label for="job-concurrency-group">Concurrency Group (Optional)</label>
+                            <input type="text" id="job-concurrency-group" placeholder="e.g., deploy-prod">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px; margin-top: 15px;">
+                            <input type="checkbox" id="job-cancel-in-progress" style="width: auto;">
+                            <label for="job-cancel-in-progress" style="margin-bottom: 0;">Cancel In Progress</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-agent-provider">Agent Provider (Optional)</label>
+                        <input type="text" id="job-agent-provider" placeholder="e.g., openrouter">
+                    </div>
+                    <div class="form-group">
+                        <label for="job-agent-model">Agent Model (Optional)</label>
+                        <input type="text" id="job-agent-model" placeholder="e.g., openai/gpt-4o-mini">
+                    </div>
+                    <div class="form-group">
+                        <label for="job-env">Environment Variables (Optional, KEY=VALUE, one per line)</label>
+                        <textarea id="job-env" placeholder="DEBUG=true&#10;PORT=8080"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="job-desc">Description (Optional)</label>
+                        <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
+                    </div>
+                    <button type="submit" aria-label="Submit Ad-hoc Job" id="btn-submit-adhoc" style="background-color: #28a745; width: 100%;">Submit Job</button>
+                </form>
             </div>
         </div>
 
@@ -167,25 +169,27 @@ const DashboardHTML = `
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeSearchLogsModal()">&times;</button>
                 <h2>Search Logs</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <div class="form-group" style="flex: 2; margin-bottom: 0;">
-                        <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)..." aria-label="Regex query">
+                <form onsubmit="performSearchLogs(); return false;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div class="form-group" style="flex: 2; margin-bottom: 0;">
+                            <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)..." aria-label="Regex query" required>
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <input type="text" id="search-logs-tag" placeholder="Filter by tag (optional)" aria-label="Filter by tag">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <select id="search-logs-status" aria-label="Filter by status" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px;">
+                                <option value="">Any Status</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Failed">Failed</option>
+                                <option value="Running">Running</option>
+                                <option value="Canceled">Canceled</option>
+                            </select>
+                        </div>
+                        <button type="submit" aria-label="Execute Search" style="background-color: #007bff; min-width: 100px;">Search</button>
                     </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <input type="text" id="search-logs-tag" placeholder="Filter by tag (optional)" aria-label="Filter by tag">
-                    </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <select id="search-logs-status" aria-label="Filter by status" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px;">
-                            <option value="">Any Status</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Failed">Failed</option>
-                            <option value="Running">Running</option>
-                            <option value="Canceled">Canceled</option>
-                        </select>
-                    </div>
-                    <button type="button" aria-label="Execute Search" onclick="performSearchLogs()" style="background-color: #007bff; min-width: 100px;">Search</button>
-                </div>
-                <div id="search-logs-results" style="max-height: 500px; overflow-y: auto; background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; display: none;">
+                </form>
+                <div id="search-logs-results" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; display: none;">
                     <!-- Results will be injected here -->
                 </div>
             </div>
@@ -520,11 +524,6 @@ const DashboardHTML = `
             const summary = document.getElementById('job-summary').value.trim();
             const repo = document.getElementById('job-repo').value.trim();
 
-            if (!summary || !repo) {
-                alert('Summary and Repository URL are required.');
-                return;
-            }
-
             const btn = document.getElementById('btn-submit-adhoc');
             btn.disabled = true;
             btn.innerText = 'Submitting...';
@@ -826,11 +825,6 @@ const DashboardHTML = `
             const tag = document.getElementById('search-logs-tag').value.trim();
             const status = document.getElementById('search-logs-status').value;
             const resultsDiv = document.getElementById('search-logs-results');
-
-            if (!query) {
-                alert("Please enter a regex query.");
-                return;
-            }
 
             resultsDiv.style.display = 'block';
             resultsDiv.innerHTML = 'Searching...';
