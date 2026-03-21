@@ -185,3 +185,50 @@ func TestConfigImportCmd(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to write config to")
 	})
 }
+
+func TestFlattenMap_NestedYamlObjects(t *testing.T) {
+	yamlData := map[interface{}]interface{}{
+		"provider": "yaml-provider",
+		"deep": map[interface{}]interface{}{
+			"nested": "value",
+		},
+	}
+
+	m := map[string]interface{}{
+		"agent": yamlData,
+	}
+
+	flat := flattenMap(m, "")
+	assert.Equal(t, "yaml-provider", flat["agent.provider"])
+	assert.Equal(t, "value", flat["agent.deep.nested"])
+}
+
+func TestFlattenMap_NestedYamlObjectsInSlice(t *testing.T) {
+	m := map[string]interface{}{
+		"agent": map[interface{}]interface{}{
+            "provider": "yaml-provider",
+            "deep": map[interface{}]interface{}{
+                "nested": "value",
+            },
+        },
+	}
+
+	flat := flattenMap(m, "")
+	assert.Equal(t, "yaml-provider", flat["agent.provider"])
+	assert.Equal(t, "value", flat["agent.deep.nested"])
+}
+
+func TestFlattenMap_NestedStringMap(t *testing.T) {
+	m := map[string]interface{}{
+		"agent": map[string]interface{}{
+            "provider": "yaml-provider",
+            "deep": map[string]interface{}{
+                "nested": "value",
+            },
+        },
+	}
+
+	flat := flattenMap(m, "")
+	assert.Equal(t, "yaml-provider", flat["agent.provider"])
+	assert.Equal(t, "value", flat["agent.deep.nested"])
+}

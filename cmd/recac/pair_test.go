@@ -172,3 +172,89 @@ func TestPairCmdRecursiveAdd(t *testing.T) {
 	// We can't verify what's added easily on the wrapper.
 	// But at least it didn't crash.
 }
+
+func TestFSNotifyWatcherEventsAndErrors(t *testing.T) {
+	w, err := NewFSNotifyWatcher()
+	if err != nil {
+		t.Skip("Skipping FSNotify test")
+	}
+	defer w.Close()
+
+	events := w.Events()
+	errors := w.Errors()
+
+	assert.NotNil(t, events)
+	assert.NotNil(t, errors)
+}
+
+func TestAddRecursiveEdgeCases(t *testing.T) {
+	tmpDir := t.TempDir()
+	w, err := NewFSNotifyWatcher()
+	if err != nil {
+		t.Skip("Skipping FSNotify test")
+	}
+	defer w.Close()
+
+	// Error reading directory
+	err = w.AddRecursive("/path/does/not/exist")
+	assert.Error(t, err)
+
+	// Hidden dir
+	hiddenDir := filepath.Join(tmpDir, ".hidden")
+	os.Mkdir(hiddenDir, 0755)
+
+	// Node modules (ignored)
+	nodeModulesDir := filepath.Join(tmpDir, "node_modules")
+	os.Mkdir(nodeModulesDir, 0755)
+
+	err = w.AddRecursive(tmpDir)
+	assert.NoError(t, err)
+}
+
+func TestAddRecursiveSkipDotDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	w, err := NewFSNotifyWatcher()
+	if err != nil {
+		t.Skip("Skipping FSNotify test")
+	}
+	defer w.Close()
+
+	// Create a regular directory to verify it goes past root
+	regularDir := filepath.Join(tmpDir, "regular")
+	os.Mkdir(regularDir, 0755)
+
+	// Create a hidden dot directory
+	hiddenDir := filepath.Join(regularDir, ".hidden")
+	os.Mkdir(hiddenDir, 0755)
+
+	err = w.AddRecursive(tmpDir)
+	assert.NoError(t, err)
+}
+
+func TestAddRecursiveFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	w, err := NewFSNotifyWatcher()
+	if err != nil {
+		t.Skip("Skipping FSNotify test")
+	}
+	defer w.Close()
+
+	// Create a regular file to verify it returns nil and not an error
+	regularFile := filepath.Join(tmpDir, "file.txt")
+	os.WriteFile(regularFile, []byte("test"), 0644)
+
+	err = w.AddRecursive(tmpDir)
+	assert.NoError(t, err)
+}
+
+func TestAddRecursiveRootError(t *testing.T) {
+	w, err := NewFSNotifyWatcher()
+	if err != nil {
+		t.Skip("Skipping FSNotify test")
+	}
+	defer w.Close()
+
+	// Provide an invalid path
+	err = w.AddRecursive("/path/that/does/not/exist/ever")
+	assert.Error(t, err)
+}
