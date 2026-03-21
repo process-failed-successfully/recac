@@ -17,32 +17,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MockSpawner is a mock implementation of the Spawner interface
-type MockSpawner struct {
+// IntegrationMockSpawner is a mock implementation of the Spawner interface
+type IntegrationMockSpawner struct {
 	mock.Mock
 }
 
-func (m *MockSpawner) Spawn(ctx context.Context, item orchestrator.WorkItem) error {
+func (m *IntegrationMockSpawner) Spawn(ctx context.Context, item orchestrator.WorkItem) error {
 	args := m.Called(ctx, item)
 	return args.Error(0)
 }
 
-func (m *MockSpawner) Cleanup(ctx context.Context, item orchestrator.WorkItem) error {
+func (m *IntegrationMockSpawner) Cleanup(ctx context.Context, item orchestrator.WorkItem) error {
 	args := m.Called(ctx, item)
 	return args.Error(0)
 }
 
-func (m *MockSpawner) Cancel(ctx context.Context, jobID string) error {
+func (m *IntegrationMockSpawner) Cancel(ctx context.Context, jobID string) error {
 	args := m.Called(ctx, jobID)
 	return args.Error(0)
 }
 
-func (m *MockSpawner) Ping(ctx context.Context) error {
+func (m *IntegrationMockSpawner) Ping(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
 
-func (m *MockSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+func (m *IntegrationMockSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	args := m.Called(ctx, jobID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -61,7 +61,7 @@ func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {
 	poller, err := orchestrator.NewFileDirPoller(tmpDir)
 	require.NoError(t, err)
 
-	spawner := new(MockSpawner)
+	spawner := new(IntegrationMockSpawner)
 
 	// Orchestrator with a short interval for testing
 	orch := orchestrator.New(poller, spawner, 100*time.Millisecond)
