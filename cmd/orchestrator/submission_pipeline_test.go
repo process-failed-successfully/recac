@@ -340,3 +340,83 @@ func TestSubmitPipelineJob_DryRun(t *testing.T) {
 	assert.Contains(t, outStr, `"summary": "Test Job Summary"`)
 	assert.Equal(t, 0, exitCode)
 }
+
+func TestExplainPipelineJob_Success(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\njobs:\n  setup:\n    summary: setup\n  build:\n    summary: build\n    depends_on: [setup]\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	explainPipelineJob(f.Name(), "", nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Pipeline Explanation:")
+	assert.Contains(t, string(out), "=== Layer 1 ===")
+	assert.Contains(t, string(out), "=== Layer 2 ===")
+	assert.Contains(t, string(out), "Job:")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestExplainPipelineJob_InvalidFile(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	explainPipelineJob("non_existent_pipeline_file.yaml", "", nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to read file non_existent_pipeline_file.yaml")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestExplainPipelineJob_InvalidYaml(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\njobs:\n  build:\n    summary: build\n    depends_on: [unknown_job]\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	explainPipelineJob(f.Name(), "", nil)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Pipeline validation failed")
+	assert.Contains(t, string(out), "job 'build' depends on unknown job 'unknown_job'")
+	assert.Equal(t, 1, exitCode)
+}
