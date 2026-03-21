@@ -75,6 +75,28 @@ func TestUpdateEnvVars_Error(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 }
 
+func TestUpdateEnvVars_ConnectionError(t *testing.T) {
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateEnvVars("http://localhost:0", "JOB-123", map[string]string{"KEY": "VAL"})
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
 func TestUpdateBulkEnv(t *testing.T) {
 	// Create a mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -129,4 +151,56 @@ func TestUpdateBulkEnv(t *testing.T) {
 
 	require.Contains(t, output, "Successfully updated environment variables for 2 pending jobs.")
 	require.Contains(t, output, "Successfully updated environment variables for 1 pending jobs.")
+}
+
+func TestUpdateBulkEnv_Error(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/env", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkEnvVars(server.URL, "match-me", "", map[string]string{"KEY": "VAL"})
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to update bulk env vars: internal server error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkEnv_ConnectionError(t *testing.T) {
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkEnvVars("http://localhost:0", "match-me", "", map[string]string{"KEY": "VAL"})
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
 }
