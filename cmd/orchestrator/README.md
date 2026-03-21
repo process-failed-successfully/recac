@@ -45,6 +45,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | -------------- | ------- | ------------- | ---------------------------------- |
 | `--jira-label` | -       | `recac-agent` | Poll for issues with this label    |
 | `--jira-query` | -       | -             | Custom JQL query (overrides label) |
+| `--jira-webhook-secret` | `RECAC_JIRA_WEBHOOK_SECRET` | - | Jira Webhook Secret for validating incoming POST events (passed as ?secret= parameter) |
 
 ### GitHub Poller Flags
 
