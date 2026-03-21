@@ -617,6 +617,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.viewState = viewConfirmation
 				return m, nil
 			}
+		case "ctrl+x":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_ctrl_x"
+				m.pendingAction = "cancel downstream multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "cancel downstream"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "C":
 			m.pendingJobId = "ALL"
 			m.pendingAction = "cancel all"
@@ -661,6 +675,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			if len(selected) > 0 {
 				m.pendingJobId = getRawID(selected[0])
 				m.pendingAction = "retry"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+		case "ctrl+y":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_ctrl_y"
+				m.pendingAction = "retry downstream multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "retry downstream"
 				m.viewState = viewConfirmation
 				return m, nil
 			}
@@ -931,12 +959,16 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 					switch m.pendingAction {
 					case "cancel multiple":
 						cmds = append(cmds, cancelJob(m.host, id))
+					case "cancel downstream multiple":
+						cmds = append(cmds, cancelJobDownstream(m.host, id))
 					case "force complete multiple":
 						cmds = append(cmds, forceCompleteJobCmd(m.host, id))
 					case "purge multiple":
 						cmds = append(cmds, purgeJobCmd(m.host, id))
 					case "retry multiple":
 						cmds = append(cmds, retryJob(m.host, id))
+					case "retry downstream multiple":
+						cmds = append(cmds, retryJobDownstream(m.host, id))
 					case "approve multiple":
 						cmds = append(cmds, approveJobCmd(m.host, id))
 					case "hold multiple":
@@ -967,6 +999,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 			var cmd tea.Cmd
 			if m.pendingAction == "cancel" {
 				cmd = cancelJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "cancel downstream" {
+				cmd = cancelJobDownstream(m.host, m.pendingJobId)
 			} else if m.pendingAction == "force complete" {
 				cmd = forceCompleteJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "purge" {
@@ -975,6 +1009,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = cancelAllJobs(m.host)
 			} else if m.pendingAction == "retry" {
 				cmd = retryJob(m.host, m.pendingJobId)
+			} else if m.pendingAction == "retry downstream" {
+				cmd = retryJobDownstream(m.host, m.pendingJobId)
 			} else if m.pendingAction == "retry failed" {
 				cmd = retryFailedJobs(m.host)
 			} else if m.pendingAction == "clear history" {
@@ -1492,7 +1528,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | H/U: hold/unhold | r: retry | R: retry failed | x: purge | X: clear history | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1540,12 +1576,16 @@ func (m DashboardModel) View() string {
 			dialogMsg = "Are you sure you want to clear ALL pending jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "cancel multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "cancel downstream multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs and their downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "force complete multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to FORCE COMPLETE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "purge multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "retry multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "retry downstream multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY %d selected jobs and their downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "approve multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to APPROVE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "priority multiple" {
@@ -1554,6 +1594,10 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to ARCHIVE %d selected jobs to bulk_archive.tar.gz?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "archive" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to ARCHIVE job %s to %s.tar.gz?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId, m.pendingJobId)
+		} else if m.pendingAction == "cancel downstream" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
+		} else if m.pendingAction == "retry downstream" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else {
 			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
@@ -2377,6 +2421,25 @@ func cancelJob(host, id string) tea.Cmd {
 	}
 }
 
+func cancelJobDownstream(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s?downstream=true", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Cancelled (Downstream)"}
+	}
+}
+
 func cancelAllJobs(host string) tea.Cmd {
 	return func() tea.Msg {
 		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs", host), nil)
@@ -2422,6 +2485,25 @@ func retryJob(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Retried"}
+	}
+}
+
+func retryJobDownstream(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry?downstream=true", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusAccepted {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Retry submitted (Downstream)"}
 	}
 }
 

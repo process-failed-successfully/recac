@@ -108,6 +108,17 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "cancel", m.pendingAction)
 	})
 
+	t.Run("Cancel Downstream Key (ctrl+x)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+x")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "cancel downstream", m.pendingAction)
+	})
+
 	t.Run("Cancel All Key (C)", func(t *testing.T) {
 		// Reset state
 		model.viewState = viewMain
@@ -153,6 +164,17 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
 		assert.Equal(t, viewConfirmation, m.viewState)
 		assert.Equal(t, "retry", m.pendingAction)
+	})
+
+	t.Run("Retry Downstream Key (ctrl+y)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+y")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "retry downstream", m.pendingAction)
 	})
 
 	t.Run("Update Env", func(t *testing.T) {
