@@ -204,6 +204,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Equal(t, "test-github-key", envMap["RECAC_GITHUB_API_KEY"], "RECAC_GITHUB_API_KEY should be aliased to GITHUB_API_KEY")
 	assert.Equal(t, "test-openai-key", envMap["OPENAI_API_KEY"], "OPENAI_API_KEY should be propagated")
 	assert.Equal(t, "0", envMap["GIT_TERMINAL_PROMPT"], "GIT_TERMINAL_PROMPT should be 0")
+	assert.Equal(t, "/workspace", envMap["RECAC_HOST_WORKSPACE_PATH"], "RECAC_HOST_WORKSPACE_PATH should be propagated")
 	// Note: Env Var still defaults to 20 via collectAgentEnvVars because host env is empty
 	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS env var should be default 20")
 
