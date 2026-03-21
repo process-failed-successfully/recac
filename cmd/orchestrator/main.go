@@ -301,6 +301,7 @@ func main() {
 	pflag.String("gitlab-label", "", "GitLab Label to poll for (defaults to jira-label if not set)")
 	pflag.String("gitlab-url", "", "GitLab URL (defaults to https://gitlab.com)")
 	pflag.String("gitlab-webhook-secret", "", "GitLab Webhook Secret for validating incoming POST events")
+	pflag.String("jira-webhook-secret", "", "Jira Webhook Secret for validating incoming POST events")
 
 	pflag.String("trello-key", "", "Trello API Key (for 'trello' poller)")
 	pflag.String("trello-token", "", "Trello API Token (for 'trello' poller)")
@@ -368,6 +369,7 @@ func main() {
 	viper.BindPFlag("orchestrator.gitlab_label", pflag.Lookup("gitlab-label"))
 	viper.BindPFlag("orchestrator.gitlab_url", pflag.Lookup("gitlab-url"))
 	viper.BindPFlag("orchestrator.gitlab_webhook_secret", pflag.Lookup("gitlab-webhook-secret"))
+	viper.BindPFlag("orchestrator.jira_webhook_secret", pflag.Lookup("jira-webhook-secret"))
 
 	viper.BindPFlag("orchestrator.dry_run", pflag.Lookup("dry-run"))
 	viper.BindEnv("orchestrator.dry_run", "RECAC_ORCHESTRATOR_DRY_RUN")
@@ -601,6 +603,7 @@ func main() {
 	viper.BindEnv("orchestrator.gitlab_label", "RECAC_GITLAB_LABEL")
 	viper.BindEnv("orchestrator.gitlab_url", "RECAC_GITLAB_URL")
 	viper.BindEnv("orchestrator.gitlab_webhook_secret", "RECAC_GITLAB_WEBHOOK_SECRET")
+	viper.BindEnv("orchestrator.jira_webhook_secret", "RECAC_JIRA_WEBHOOK_SECRET")
 	viper.BindEnv("orchestrator.trello_key", "RECAC_TRELLO_KEY")
 	viper.BindEnv("orchestrator.trello_token", "RECAC_TRELLO_TOKEN")
 	viper.BindEnv("orchestrator.trello_board", "RECAC_TRELLO_BOARD")

@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"recac/internal/agent"
+	"recac/internal/db"
+	"recac/internal/jira"
 
 	"github.com/spf13/viper"
 )
@@ -2293,6 +2295,118 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}); err != nil {
 			logger.Error("Failed to encode matrix submission response", "error", err)
 		}
+	})
+
+	mux.HandleFunc("POST /webhook/jira", func(w http.ResponseWriter, r *http.Request) {
+		secret := viper.GetString("orchestrator.jira_webhook_secret")
+		if secret != "" {
+			reqSecret := r.URL.Query().Get("secret")
+			if reqSecret == "" {
+				http.Error(w, "Missing secret query parameter", http.StatusUnauthorized)
+				return
+			}
+			// Use constant-time comparison to prevent timing attacks
+			if !hmac.Equal([]byte(reqSecret), []byte(secret)) {
+				http.Error(w, "Invalid secret query parameter", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		// Webhook event type is typically in `webhookEvent`. We care about creations/updates.
+		event, ok := payload["webhookEvent"].(string)
+		if ok && event != "jira:issue_created" && event != "jira:issue_updated" {
+			// Ignore other events
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		issue, ok := payload["issue"].(map[string]interface{})
+		if !ok {
+			http.Error(w, "Missing issue in payload", http.StatusBadRequest)
+			return
+		}
+
+		key, _ := issue["key"].(string)
+		fields, _ := issue["fields"].(map[string]interface{})
+		if key == "" || fields == nil {
+			http.Error(w, "Missing issue key or fields", http.StatusBadRequest)
+			return
+		}
+
+		summary, _ := fields["summary"].(string)
+		description, _ := fields["description"].(string)
+
+		// A hack since ParseDescription needs Client, but we just want string extraction if it's there
+		// Normally Jira webhooks might have ADF or string description
+		// For simplicity we just use what we get. The Jira poller Client handles ADF but we can't easily here.
+		// If description is missing or complex, we will still extract what we can.
+		// In Jira, fields["description"] might be string or map. Let's try to handle string.
+		if description == "" {
+			// if it's an object (ADF), this might be nil, but let's assume standard extraction for now.
+			// Or we can try to JSON marshal it to string if it's an object.
+			if descObj, ok := fields["description"].(map[string]interface{}); ok {
+				if dBytes, err := json.Marshal(descObj); err == nil {
+					description = string(dBytes)
+				}
+			}
+		}
+
+
+		repoURL := extractRepoURL(description, jira.RepoRegex)
+		if repoURL == "" {
+			// No repo URL found, we can't process it. But we shouldn't fail the webhook.
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		item := WorkItem{
+			ID:               key,
+			Summary:          summary,
+			Description:      description,
+			RepoURL:          repoURL,
+			ConcurrencyGroup: key, // Jira tickets act as their own concurrency group
+			CancelInProgress: true,
+			EnvVars: map[string]string{
+				"JIRA_TICKET": key,
+			},
+		}
+
+		if features := extractRequiredFeatures(description); len(features) > 0 {
+			fl := db.FeatureList{
+				ProjectName: summary,
+				Features:    features,
+			}
+			if data, err := json.Marshal(fl); err == nil {
+				item.EnvVars["RECAC_INJECTED_FEATURES"] = string(data)
+			}
+		}
+
+		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, "Jira Webhook Job %s submitted successfully", key)
 	})
 
 	mux.HandleFunc("POST /webhook/github", func(w http.ResponseWriter, r *http.Request) {
