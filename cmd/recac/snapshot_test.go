@@ -130,3 +130,42 @@ func TestSnapshotDelete(t *testing.T) {
 	// Verify deleted
 	assert.NoDirExists(t, snapDir)
 }
+
+func TestValidateSnapshotName(t *testing.T) {
+	tests := []struct {
+		name    string
+		snap    string
+		wantErr bool
+	}{
+		{"ValidName", "test-snap", false},
+		{"EmptyName", "", true},
+		{"DotName", ".", true},
+		{"DoubleDotName", "..", true},
+		{"SlashName", "foo/bar", true},
+		{"BackslashName", "foo\\bar", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSnapshotName(tt.snap)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestSnapshotList_NoSnapshots(t *testing.T) {
+	tmpDir := t.TempDir()
+	cwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(cwd)
+
+	// Don't create snapshots dir
+
+	output, err := executeCommand(rootCmd, "snapshot", "list")
+	require.NoError(t, err)
+	assert.Contains(t, output, "No snapshots found.")
+}
