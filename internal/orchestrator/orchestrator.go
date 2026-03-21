@@ -1260,6 +1260,10 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 		return err
 	}
 
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
+
 	o.mu.Unlock()
 	o.BroadcastEvent("job_dependencies_updated", job)
 
@@ -1347,6 +1351,11 @@ func (o *Orchestrator) UpdateJobEnv(ctx context.Context, jobID string, envVars m
 
 	job.WorkItem.EnvVars = envVars
 	o.pendingJobs[jobID] = job
+
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
+
 	o.mu.Unlock()
 	o.BroadcastEvent("job_env_updated", job)
 
@@ -1435,6 +1444,9 @@ func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []s
 
 	job.WorkItem.Tags = tags
 	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
 	o.mu.Unlock()
 	o.BroadcastEvent("job_tags_updated", job)
 
@@ -1526,6 +1538,11 @@ func (o *Orchestrator) UpdateJobAgent(ctx context.Context, jobID string, agentPr
 		job.WorkItem.AgentModel = agentModel
 	}
 	o.pendingJobs[jobID] = job
+
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
+
 	o.mu.Unlock()
 	o.BroadcastEvent("job_agent_updated", job)
 
@@ -1564,6 +1581,9 @@ func (o *Orchestrator) UpdateJobMaxRetries(ctx context.Context, jobID string, ma
 	*mr = maxRetries
 	job.WorkItem.MaxRetries = mr
 	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
 	o.mu.Unlock()
 	o.BroadcastEvent("job_max_retries_updated", job)
 
@@ -1706,6 +1726,9 @@ func (o *Orchestrator) UpdateJobTimeout(ctx context.Context, jobID string, newTi
 
 	job.WorkItem.Timeout = newTimeout
 	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
 	o.mu.Unlock()
 	o.BroadcastEvent("job_timeout_updated", job)
 
@@ -1781,6 +1804,10 @@ func (o *Orchestrator) UpdateJobWorkItem(ctx context.Context, jobID string, newI
 		return err
 	}
 
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
+
 	o.mu.Unlock()
 	o.BroadcastEvent("job_workitem_updated", job)
 
@@ -1810,6 +1837,9 @@ func (o *Orchestrator) HoldJobsByTag(ctx context.Context, tag string, logger *sl
 		if hasTag && !job.WorkItem.Hold {
 			job.WorkItem.Hold = true
 			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
 			count++
 			o.BroadcastEvent("job_held", job)
 			if logger != nil {
@@ -1840,6 +1870,9 @@ func (o *Orchestrator) HoldJobsByMatch(ctx context.Context, match string, logger
 		if (matcher.MatchString(job.Summary) || matcher.MatchString(job.Error)) && !job.WorkItem.Hold {
 			job.WorkItem.Hold = true
 			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
 			count++
 			o.BroadcastEvent("job_held", job)
 			if logger != nil {
@@ -1972,6 +2005,9 @@ func (o *Orchestrator) HoldJob(ctx context.Context, jobID string, logger *slog.L
 
 	job.WorkItem.Hold = true
 	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
 	o.mu.Unlock()
 	o.BroadcastEvent("job_held", job)
 
@@ -2000,6 +2036,9 @@ func (o *Orchestrator) UnholdJobsByTag(ctx context.Context, tag string, logger *
 		if hasTag && job.WorkItem.Hold {
 			job.WorkItem.Hold = false
 			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
 			count++
 			o.BroadcastEvent("job_unheld", job)
 			if logger != nil {
@@ -2034,6 +2073,9 @@ func (o *Orchestrator) UnholdJobsByMatch(ctx context.Context, match string, logg
 		if (matcher.MatchString(job.Summary) || matcher.MatchString(job.Error)) && job.WorkItem.Hold {
 			job.WorkItem.Hold = false
 			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
 			count++
 			o.BroadcastEvent("job_unheld", job)
 			if logger != nil {
@@ -2076,6 +2118,9 @@ func (o *Orchestrator) UnholdJob(ctx context.Context, jobID string, logger *slog
 
 	job.WorkItem.Hold = false
 	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
 	o.mu.Unlock()
 	o.BroadcastEvent("job_unheld", job)
 
@@ -2111,6 +2156,9 @@ func (o *Orchestrator) UpdateJobPriority(ctx context.Context, jobID string, newP
 
 	job.WorkItem.Priority = newPriority
 	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
 	o.mu.Unlock()
 	o.BroadcastEvent("job_priority_updated", job)
 
@@ -2142,6 +2190,9 @@ func (o *Orchestrator) UpdateJobsPriorityByTag(ctx context.Context, tag string, 
 		if hasTag {
 			job.WorkItem.Priority = newPriority
 			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
 			updatedCount++
 			o.BroadcastEvent("job_priority_updated", job)
 			if logger != nil {
@@ -2174,6 +2225,9 @@ func (o *Orchestrator) UpdateJobsPriorityByMatch(ctx context.Context, match stri
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			job.WorkItem.Priority = newPriority
 			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
 			updatedCount++
 			o.BroadcastEvent("job_priority_updated", job)
 			if logger != nil {

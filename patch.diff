@@ -1,0 +1,5 @@
+<<<<<<< SEARCH
+func (m *mockPersistence) GetJob(id string) (*JobInfo, error) { return nil, nil }
+=======
+func (m *mockPersistence) GetJob(id string) (*JobInfo, error) { return nil, fmt.Errorf("job %s not found", id) }
+>>>>>>> REPLACE

@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"context"
 	"testing"
 
@@ -13,10 +14,39 @@ type dummySpawner struct {
 	mockSpawner
 }
 
+type mockPersistence struct {
+	savedJobs map[string]JobInfo
+}
+
+func (m *mockPersistence) Init() error { return nil }
+func (m *mockPersistence) SaveJob(job JobInfo) error {
+	if m.savedJobs == nil {
+		m.savedJobs = make(map[string]JobInfo)
+	}
+	m.savedJobs[job.ID] = job
+	return nil
+}
+func (m *mockPersistence) GetJob(id string) (*JobInfo, error) {
+	if m.savedJobs != nil {
+		if job, ok := m.savedJobs[id]; ok {
+			return &job, nil
+		}
+	}
+	return nil, fmt.Errorf("job %s not found", id)
+}
+func (m *mockPersistence) GetJobs(limit int) ([]JobInfo, error) { return nil, nil }
+func (m *mockPersistence) ClearHistory() (int, error) { return 0, nil }
+func (m *mockPersistence) PurgeJob(id string) error { return nil }
+func (m *mockPersistence) Close() error { return nil }
+
 func TestUpdateJobMaxRetries(t *testing.T) {
 	poller := &mockPoller{}
 	spawner := &mockSpawner{}
 	orch := New(poller, spawner, 0)
+
+	mp := &mockPersistence{}
+	orch.SetPersistence(mp)
+
 	ctx := context.Background()
 
 	// 1. Job pending dependencies
@@ -50,6 +80,9 @@ func TestUpdateJobMaxRetries(t *testing.T) {
 	require.NotNil(t, job.WorkItem.MaxRetries)
 	assert.Equal(t, maxRetries, *job.WorkItem.MaxRetries)
 
+	require.Contains(t, mp.savedJobs, "JOB-PENDING")
+	assert.Equal(t, maxRetries, *mp.savedJobs["JOB-PENDING"].WorkItem.MaxRetries)
+
 	// Test active job update
 	err = orch.UpdateJobMaxRetries(ctx, "JOB-ACTIVE", maxRetries, nil)
 	require.Error(t, err)
@@ -70,6 +103,10 @@ func TestUpdateJobsMaxRetriesBulk(t *testing.T) {
 	poller := &mockPoller{}
 	spawner := &mockSpawner{}
 	orch := New(poller, spawner, 0)
+
+	mp := &mockPersistence{}
+	orch.SetPersistence(mp)
+
 	ctx := context.Background()
 
 	orch.mu.Lock()
@@ -128,6 +165,10 @@ func TestUpdateJobsMaxRetriesBulk(t *testing.T) {
 	require.NotNil(t, j3.WorkItem.MaxRetries)
 	assert.Equal(t, maxRetries, *j3.WorkItem.MaxRetries)
 
+	require.Contains(t, mp.savedJobs, "JOB-1")
+	require.Contains(t, mp.savedJobs, "JOB-3")
+	assert.NotContains(t, mp.savedJobs, "JOB-2")
+
 	// Test UpdateJobsMaxRetriesByMatch
 	maxRetriesMatch := 10
 	countMatch, errMatch := orch.UpdateJobsMaxRetriesByMatch(ctx, "Fix", maxRetriesMatch, nil)
@@ -146,6 +187,9 @@ func TestUpdateJobsMaxRetriesBulk(t *testing.T) {
 	assert.Equal(t, maxRetriesMatch, *j2.WorkItem.MaxRetries)
 	require.NotNil(t, j3.WorkItem.MaxRetries)
 	assert.Equal(t, maxRetries, *j3.WorkItem.MaxRetries) // Should not change
+
+	require.Contains(t, mp.savedJobs, "JOB-1")
+	require.Contains(t, mp.savedJobs, "JOB-2")
 
 	// Test UpdateJobsMaxRetriesByMatch invalid regex
 	countInvalid, errInvalid := orch.UpdateJobsMaxRetriesByMatch(ctx, "[invalid", 2, nil)
