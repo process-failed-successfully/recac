@@ -1,12 +1,14 @@
 package orchestrator
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -673,6 +675,10 @@ func (o *Orchestrator) ForceCompleteJob(ctx context.Context, jobID string, logge
 	jobToComplete.Error = ""
 	o.addToHistory(jobToComplete, logger)
 	o.mu.Unlock()
+
+	if jobToComplete.WorkItem.WebhookURL != "" {
+		go o.fireJobWebhook(jobToComplete, logger)
+	}
 
 	// 4. Cancel active spawner if it was active
 	if isActive {
@@ -3089,6 +3095,10 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 			}
 		}
 
+		if hasFinalJob && finalJob.WorkItem.WebhookURL != "" && (finalJob.Status == "Completed" || finalJob.Status == "Failed" || finalJob.Status == "Canceled") {
+			go o.fireJobWebhook(finalJob, logger)
+		}
+
 		if o.LogDir != "" {
 			safeID := filepath.Base(item.ID)
 			if safeID != "." && safeID != ".." && safeID != "/" && safeID != "\\" && !strings.Contains(safeID, "/") && !strings.Contains(safeID, "\\") {
@@ -3998,6 +4008,46 @@ func (o *Orchestrator) UpdateJobsAgentByMatch(ctx context.Context, match string,
 	}
 
 	return count, nil
+}
+
+func (o *Orchestrator) fireJobWebhook(job JobInfo, logger *slog.Logger) {
+	payload, err := json.Marshal(job)
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to marshal job for webhook", "id", job.ID, "error", err)
+		}
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPost, job.WorkItem.WebhookURL, bytes.NewBuffer(payload))
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to create webhook request", "id", job.ID, "url", job.WorkItem.WebhookURL, "error", err)
+		}
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Set a reasonable timeout for the webhook delivery
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to send job webhook", "id", job.ID, "url", job.WorkItem.WebhookURL, "error", err)
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if logger != nil {
+			logger.Info("Job webhook delivered successfully", "id", job.ID, "url", job.WorkItem.WebhookURL, "status", resp.StatusCode)
+		}
+	} else {
+		if logger != nil {
+			logger.Warn("Job webhook delivered with non-success status", "id", job.ID, "url", job.WorkItem.WebhookURL, "status", resp.StatusCode)
+		}
+	}
 }
 
 // CancelJobDownstream cancels a job and all its transitive downstream dependencies that are pending or active.

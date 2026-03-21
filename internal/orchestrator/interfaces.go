@@ -33,6 +33,7 @@ type WorkItem struct {
 	Hold             bool              `json:"hold,omitempty"`
 	MaxRetries       *int              `json:"max_retries,omitempty"`
 	RunCondition     string            `json:"run_condition,omitempty" yaml:"run_condition"`
+	WebhookURL       string            `json:"webhook_url,omitempty" yaml:"webhook_url,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.
