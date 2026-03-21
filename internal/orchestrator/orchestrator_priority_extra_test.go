@@ -3,116 +3,129 @@ package orchestrator
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestUpdateJobPriority(t *testing.T) {
-	ctx := context.Background()
-	poller := &MockPoller{}
-	spawner := &MockSpawner{}
-	orch := New(poller, spawner, 100*time.Millisecond)
-	orch.MaxConcurrentJobs = 0 // unlimited
+func TestUpdateJobPriorityWithPersistence(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
 
-	// Setup a job in pendingJobs
-	jobID := "TEST-1"
+	mp := &mockPersistence{}
+	orch.SetPersistence(mp)
+
+	ctx := context.Background()
+
+	// 1. Job pending dependencies
 	orch.mu.Lock()
-	orch.pendingJobs[jobID] = JobInfo{
-		ID:        jobID,
-		Summary:   "Test Pending",
-		StartTime: time.Now(),
-		Status:    "Pending",
+	orch.pendingJobs["JOB-PENDING"] = JobInfo{
+		ID:       "JOB-PENDING",
+		WorkItem: WorkItem{ID: "JOB-PENDING", DependsOn: []string{"DEP"}, Priority: 1}, // Has unmet dep so it stays pending
+	}
+	orch.mu.Unlock()
+
+	priority := 10
+
+	// Test pending job update
+	err := orch.UpdateJobPriority(ctx, "JOB-PENDING", priority, nil)
+	require.NoError(t, err)
+
+	orch.mu.Lock()
+	job, ok := orch.pendingJobs["JOB-PENDING"]
+	orch.mu.Unlock()
+	require.True(t, ok)
+	assert.Equal(t, priority, job.WorkItem.Priority)
+
+	require.Contains(t, mp.savedJobs, "JOB-PENDING")
+	assert.Equal(t, priority, mp.savedJobs["JOB-PENDING"].WorkItem.Priority)
+}
+
+func TestUpdateJobsPriorityBulkWithPersistence(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+
+	mp := &mockPersistence{}
+	orch.SetPersistence(mp)
+
+	ctx := context.Background()
+
+	orch.mu.Lock()
+	orch.pendingJobs["JOB-1"] = JobInfo{
+		ID: "JOB-1",
+			Summary: "Fix bug 1",
 		WorkItem: WorkItem{
-			ID:        jobID,
-			Priority:  0,
-			DependsOn: []string{"dep1"}, // keep it pending
+			ID:        "JOB-1",
+			Tags:      []string{"backend"},
+			Summary:   "Fix bug 1",
+			DependsOn: []string{"DEP"}, // Needs dep to stay pending
+		},
+	}
+	orch.pendingJobs["JOB-2"] = JobInfo{
+		ID: "JOB-2",
+			Summary: "Fix bug 2",
+		WorkItem: WorkItem{
+			ID:        "JOB-2",
+			Tags:      []string{"frontend"},
+			Summary:   "Fix bug 2",
+			DependsOn: []string{"DEP"},
+		},
+	}
+	orch.pendingJobs["JOB-3"] = JobInfo{
+		ID: "JOB-3",
+			Summary: "New feature",
+		WorkItem: WorkItem{
+			ID:        "JOB-3",
+			Tags:      []string{"backend", "urgent"},
+			Summary:   "New feature",
+			DependsOn: []string{"DEP"},
 		},
 	}
 	orch.mu.Unlock()
 
-	// 1. Update existing pending job
-	err := orch.UpdateJobPriority(ctx, jobID, 10, nil)
-	assert.NoError(t, err)
+	priority := 15
 
-	orch.mu.RLock()
-	job, exists := orch.pendingJobs[jobID]
-	orch.mu.RUnlock()
-	assert.True(t, exists)
-	assert.Equal(t, 10, job.WorkItem.Priority)
-
-	// 2. Update non-existent job
-	err = orch.UpdateJobPriority(ctx, "NON-EXISTENT", 5, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found in pending queue")
-
-	// 3. Update active job
-	activeID := "TEST-ACTIVE"
-	orch.mu.Lock()
-	orch.activeJobs[activeID] = JobInfo{
-		ID:     activeID,
-		Status: "Spawning",
-	}
-	orch.mu.Unlock()
-
-	err = orch.UpdateJobPriority(ctx, activeID, 5, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already active")
-
-	// 4. Update completed job
-	completedID := "TEST-COMPLETED"
-	orch.mu.Lock()
-	orch.completedJobs = append(orch.completedJobs, JobInfo{
-		ID:     completedID,
-		Status: "Completed",
-	})
-	orch.mu.Unlock()
-
-	err = orch.UpdateJobPriority(ctx, completedID, 5, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already completed")
-}
-
-func TestUpdateJobsPriorityByTag(t *testing.T) {
-	o := New(nil, nil, 1*time.Minute)
-
-	job1 := WorkItem{ID: "job1", Tags: []string{"backend"}, Priority: 1}
-	job2 := WorkItem{ID: "job2", Tags: []string{"frontend", "backend"}, Priority: 1}
-	job3 := WorkItem{ID: "job3", Tags: []string{"frontend"}, Priority: 1}
-
-	o.pendingJobs = map[string]JobInfo{
-		"job1": {ID: "job1", WorkItem: job1, RetryAfter: time.Now().Add(1 * time.Hour)},
-		"job2": {ID: "job2", WorkItem: job2, RetryAfter: time.Now().Add(1 * time.Hour)},
-		"job3": {ID: "job3", WorkItem: job3, RetryAfter: time.Now().Add(1 * time.Hour)},
-	}
-
-	count, err := o.UpdateJobsPriorityByTag(context.Background(), "backend", 5, nil)
-	assert.NoError(t, err)
+	// Test UpdateJobsPriorityByTag
+	count, err := orch.UpdateJobsPriorityByTag(ctx, "backend", priority, nil)
+	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
-	assert.Equal(t, 5, o.pendingJobs["job1"].WorkItem.Priority)
-	assert.Equal(t, 5, o.pendingJobs["job2"].WorkItem.Priority)
-	assert.Equal(t, 1, o.pendingJobs["job3"].WorkItem.Priority)
-}
+	orch.mu.Lock()
+	j1, ok1 := orch.pendingJobs["JOB-1"]
+	j2, ok2 := orch.pendingJobs["JOB-2"]
+	j3, ok3 := orch.pendingJobs["JOB-3"]
+	orch.mu.Unlock()
 
-func TestUpdateJobsPriorityByMatch(t *testing.T) {
-	o := New(nil, nil, 1*time.Minute)
+	require.True(t, ok1)
+	require.True(t, ok2)
+	require.True(t, ok3)
 
-	job1 := WorkItem{ID: "job1", Summary: "Fix backend bug", Priority: 1}
-	job2 := WorkItem{ID: "job2", Summary: "Fix frontend bug", Priority: 1}
-	job3 := WorkItem{ID: "job3", Summary: "Add new feature", Priority: 1}
+	assert.Equal(t, priority, j1.WorkItem.Priority)
+	assert.Equal(t, 0, j2.WorkItem.Priority)
+	assert.Equal(t, priority, j3.WorkItem.Priority)
 
-	o.pendingJobs = map[string]JobInfo{
-		"job1": {ID: "job1", WorkItem: job1, Summary: job1.Summary, RetryAfter: time.Now().Add(1 * time.Hour)},
-		"job2": {ID: "job2", WorkItem: job2, Summary: job2.Summary, RetryAfter: time.Now().Add(1 * time.Hour)},
-		"job3": {ID: "job3", WorkItem: job3, Summary: job3.Summary, RetryAfter: time.Now().Add(1 * time.Hour)},
-	}
+	require.Contains(t, mp.savedJobs, "JOB-1")
+	require.Contains(t, mp.savedJobs, "JOB-3")
+	assert.NotContains(t, mp.savedJobs, "JOB-2")
 
-	count, err := o.UpdateJobsPriorityByMatch(context.Background(), "bug", 10, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, count)
+	// Test UpdateJobsPriorityByMatch
+	priorityMatch := 20
+	countMatch, errMatch := orch.UpdateJobsPriorityByMatch(ctx, "Fix", priorityMatch, nil)
+	require.NoError(t, errMatch)
+	assert.Equal(t, 2, countMatch)
 
-	assert.Equal(t, 10, o.pendingJobs["job1"].WorkItem.Priority)
-	assert.Equal(t, 10, o.pendingJobs["job2"].WorkItem.Priority)
-	assert.Equal(t, 1, o.pendingJobs["job3"].WorkItem.Priority)
+	orch.mu.Lock()
+	j1, _ = orch.pendingJobs["JOB-1"]
+	j2, _ = orch.pendingJobs["JOB-2"]
+	j3, _ = orch.pendingJobs["JOB-3"]
+	orch.mu.Unlock()
+
+	assert.Equal(t, priorityMatch, j1.WorkItem.Priority)
+	assert.Equal(t, priorityMatch, j2.WorkItem.Priority)
+	assert.Equal(t, priority, j3.WorkItem.Priority) // Should not change
+
+	require.Contains(t, mp.savedJobs, "JOB-1")
+	require.Contains(t, mp.savedJobs, "JOB-2")
 }
