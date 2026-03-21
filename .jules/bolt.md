@@ -16,3 +16,7 @@
 ## 2024-03-20 - [Redundant checks with strings.ReplaceAll]
 **Learning:** `strings.ReplaceAll` internally checks for substring presence before allocating memory.
 **Action:** Do not use `strings.Contains` to check if a substring exists before calling `strings.ReplaceAll` in Go, as it results in redundant checks and slower performance.
+
+## 2024-03-21 - [Single pass builder fails with JSON]
+**Learning:** When trying to implement a single pass builder using `strings.IndexByte` and `strings.Builder` to prevent multiple string allocations and improve speed, a basic algorithm trying to look for matching `}` after finding a `{` may fail if the string contains a JSON payload. The `{` from the start of the JSON block will be matched with the `}` from the start of the payload block causing everything within to be matched as a key.
+**Action:** Always verify if the key matches a value in the `vars` map before blindly writing it out to the builder. If the key does not match any variables in the map, output `{` instead of the original string (since `{` could be the start of a JSON block).
