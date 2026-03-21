@@ -110,3 +110,77 @@ func TestUpdateBulkMaxRetries_Success(t *testing.T) {
 
 	assert.Contains(t, out, "Successfully updated max retries for 3 pending jobs.")
 }
+
+func TestUpdateMaxRetries_ConnectionError(t *testing.T) {
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateMaxRetries("http://localhost:0", "TEST-123", 5)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkMaxRetries_Error(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/max-retries", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkMaxRetries(server.URL, "match-me", "", 10)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to update bulk max retries: internal server error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkMaxRetries_ConnectionError(t *testing.T) {
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkMaxRetries("http://localhost:0", "match-me", "", 10)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}

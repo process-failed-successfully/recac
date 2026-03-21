@@ -81,6 +81,24 @@ func TestUpdateTags_Error(t *testing.T) {
 	assert.True(t, exitCalled)
 }
 
+func TestUpdateTags_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	updateTags("http://localhost:0", "TEST-123", []string{"tag1"})
+
+	output := buf.String()
+	assert.Contains(t, output, "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
 func TestUpdateBulkTags(t *testing.T) {
 	t.Run("UpdateTagsByTag_Success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -156,5 +174,26 @@ func TestUpdateBulkTags(t *testing.T) {
 		assert.True(t, exited)
 		output := stdoutBuf.String()
 		assert.Contains(t, output, "Failed to update bulk tags:")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		var stdoutBuf bytes.Buffer
+		oldStdout := stdout
+		stdout = &stdoutBuf
+		defer func() { stdout = oldStdout }()
+
+		exited := false
+		oldExit := exitFunc
+		defer func() { exitFunc = oldExit }()
+		exitFunc = func(code int) {
+			exited = true
+			assert.Equal(t, 1, code)
+		}
+
+		updateBulkTags("http://localhost:0", "regex", "", []string{"newtag"})
+
+		assert.True(t, exited)
+		output := stdoutBuf.String()
+		assert.Contains(t, output, "Failed to connect to orchestrator")
 	})
 }

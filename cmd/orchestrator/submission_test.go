@@ -2622,6 +2622,31 @@ func TestRenameJob_Failure(t *testing.T) {
 	t.Fatalf("process ran with err %v, want exit status 1", err)
 }
 
+func TestRenameJob_ConnectionError(t *testing.T) {
+	if os.Getenv("CRASH_TEST_RENAME_CONN") == "1" {
+		// Temporarily replace exitFunc to just print and exit 1
+		exitFunc = func(code int) {
+			os.Exit(code)
+		}
+
+		renameJob("http://localhost:0", "JOB-123", "NEW-JOB-123")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestRenameJob_ConnectionError")
+	cmd.Env = append(os.Environ(), "CRASH_TEST_RENAME_CONN=1")
+
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		assert.Contains(t, stdoutBuf.String(), "Failed to connect to orchestrator")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
 func TestSkipJob_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/jobs/JOB-123/skip", r.URL.Path)
