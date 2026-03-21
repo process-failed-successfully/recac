@@ -42,6 +42,9 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	// Verify empty state CTA exists
 	assert.Contains(t, html, "+ Submit Job")
 
+	// Verify clear history button renders
+	assert.Contains(t, html, "deleteAction('/history')")
+
 	// Verify clone job JS function exists
 	assert.Contains(t, html, "function cloneJob(")
 

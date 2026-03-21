@@ -300,6 +300,7 @@ const DashboardHTML = `
 
                 actionsHTML += '<button type="button" aria-label="Force manual poll" onclick="postAction(\'/poll\')">Force Poll</button>';
                 actionsHTML += '<button type="button" aria-label="Clear all pending jobs" class="danger" onclick="deleteAction(\'/pending\')">Clear Pending</button>';
+                actionsHTML += '<button type="button" aria-label="Clear all history jobs" class="danger" onclick="deleteAction(\'/history\')">Clear History</button>';
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
