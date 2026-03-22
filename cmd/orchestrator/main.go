@@ -159,6 +159,7 @@ func main() {
 	pflag.String("force-complete-job", "", "Force mark an active, pending, or failed job as completed by ID")
 	pflag.String("force-complete-tag", "", "Force mark jobs with the specified tag as completed")
 	pflag.String("force-complete-match", "", "Force mark jobs matching the given regex as completed")
+	pflag.Bool("diagnose", false, "Diagnose pending jobs for unresolvable dependencies and deadlocks")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
@@ -454,6 +455,7 @@ func main() {
 	viper.BindPFlag("orchestrator.skip_match", pflag.Lookup("skip-match"))
 	viper.BindPFlag("orchestrator.force_complete_job", pflag.Lookup("force-complete-job"))
 	viper.BindPFlag("orchestrator.force_complete_tag", pflag.Lookup("force-complete-tag"))
+	viper.BindPFlag("orchestrator.diagnose", pflag.Lookup("diagnose"))
 	viper.BindPFlag("orchestrator.force_complete_match", pflag.Lookup("force-complete-match"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
@@ -1138,6 +1140,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if forceCompleteTag != "" || forceCompleteMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		forceCompleteBulkJobs(host, forceCompleteMatch, forceCompleteTag)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.diagnose") {
+		host := viper.GetString("orchestrator.host")
+		runDiagnose(host)
 		return nil
 	}
 
