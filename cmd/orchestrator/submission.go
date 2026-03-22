@@ -88,6 +88,68 @@ func lintPipelineJob(filePath string, target string, vars map[string]string) {
 	fmt.Fprintf(stdout, "Pipeline is valid. Parsed %d jobs.\n", len(items))
 }
 
+func importPipelineJob(host, filePath string, target string, vars map[string]string) {
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
+	}
+
+	var urlStr string
+	if target != "" {
+		urlStr = fmt.Sprintf("%s/jobs/pipeline/import?target=%s", host, url.QueryEscape(target))
+	} else {
+		urlStr = fmt.Sprintf("%s/jobs/pipeline/import", host)
+	}
+
+	if len(vars) > 0 {
+		sep := "?"
+		if target != "" {
+			sep = "&"
+		}
+		for k, v := range vars {
+			urlStr += fmt.Sprintf("%svar=%s=%s", sep, url.QueryEscape(k), url.QueryEscape(v))
+			sep = "&"
+		}
+	}
+
+	resp, err := http.Post(urlStr, "application/x-yaml", bytes.NewReader(fileData))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusAccepted {
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			fmt.Fprintf(stdout, "Pipeline successfully imported, but failed to parse response.\n")
+		} else {
+			if submitted, ok := result["submitted"].([]interface{}); ok {
+				fmt.Fprintf(stdout, "Successfully imported %d jobs:\n", len(submitted))
+				for _, id := range submitted {
+					fmt.Fprintf(stdout, " - %v\n", id)
+				}
+			}
+			if errors, ok := result["errors"].([]interface{}); ok && len(errors) > 0 {
+				fmt.Fprintf(stdout, "\nFailed to import %d jobs:\n", len(errors))
+				for _, errStr := range errors {
+					fmt.Fprintf(stdout, " - %v\n", errStr)
+				}
+				exitFunc(1)
+				return
+			}
+		}
+	} else {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to import pipeline: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+}
+
 func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target string, vars map[string]string) {
 	file, err := os.Open(filePath)
 	if err != nil {
