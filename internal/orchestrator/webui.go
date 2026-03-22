@@ -165,6 +165,16 @@ const DashboardHTML = `
             </div>
         </div>
 
+        <div id="explainModal" class="modal">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeExplainModal()">&times;</button>
+                <h2 id="explain-title">Job Explanation</h2>
+                <div id="explain-content" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
+                    Loading explanation...
+                </div>
+            </div>
+        </div>
+
         <div id="searchLogsModal" class="modal">
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeSearchLogsModal()">&times;</button>
@@ -665,6 +675,10 @@ const DashboardHTML = `
                         actionButtons += '<button type="button" aria-label="Purge job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
                     }
 
+                    if (lowerStatus === 'failed' || lowerStatus === 'error') {
+                        actionButtons += '<button type="button" aria-label="Explain job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="explainJob(\'' + escapeHTML(j.id) + '\')">Explain</button>';
+                    }
+
                     actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
                     if (lowerStatus === 'pending') {
@@ -779,6 +793,30 @@ const DashboardHTML = `
                 currentLogController.abort();
                 currentLogController = null;
             }
+        }
+
+        async function explainJob(id) {
+            document.getElementById('explainModal').style.display = 'block';
+            document.getElementById('explain-title').innerText = 'Explanation for ' + id;
+            const content = document.getElementById('explain-content');
+            content.innerHTML = '<i>Asking AI to analyze the failure...</i>';
+
+            try {
+                const response = await fetch('/jobs/' + encodeURIComponent(id) + '/explain');
+                if (!response.ok) {
+                    content.innerText = 'Error fetching explanation: ' + await response.text();
+                    return;
+                }
+
+                const data = await response.json();
+                content.innerText = data.explanation || 'No explanation provided.';
+            } catch (err) {
+                content.innerText = 'Error: ' + err.message;
+            }
+        }
+
+        function closeExplainModal() {
+            document.getElementById('explainModal').style.display = 'none';
         }
 
         async function viewGraph() {
