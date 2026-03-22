@@ -109,4 +109,15 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "async function viewGraph()")
 	assert.Contains(t, html, "fetch('/jobs/export/graph?format=mermaid')")
 	assert.Contains(t, html, "mermaid.render(")
+
+	// Verify Explain Job modal HTML exists
+	assert.Contains(t, html, "id=\"explainModal\"")
+	assert.Contains(t, html, "onclick=\"closeExplainModal()\"")
+	assert.Contains(t, html, "id=\"explain-title\"")
+	assert.Contains(t, html, "id=\"explain-content\"")
+
+	// Verify Explain Job JS functions exist
+	assert.Contains(t, html, "async function explainJob(id)")
+	assert.Contains(t, html, "fetch('/jobs/' + encodeURIComponent(id) + '/explain')")
+	assert.Contains(t, html, "function closeExplainModal()")
 }
