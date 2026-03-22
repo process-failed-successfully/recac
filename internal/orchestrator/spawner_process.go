@@ -113,7 +113,8 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--task-max-iterations", fmt.Sprintf("%d", s.TaskMaxIterations),
 	}
 
-	cmd := exec.CommandContext(ctx, "recac-agent", agentCmdArgs...)
+	cmdArgs := ConstructShellCommand(append([]string{"recac-agent"}, agentCmdArgs...))
+	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Env = env
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
@@ -122,7 +123,7 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	session := &runner.SessionState{
 		Name:           item.ID,
 		StartTime:      time.Now(),
-		Command:        agentCmdArgs,
+		Command:        cmdArgs,
 		Workspace:      tempDir,
 		Status:         "running",
 		Type:           "orchestrated-process",
