@@ -288,20 +288,26 @@ func TestInspectJob(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/jobs/job-1", r.URL.Path)
-			job := orchestrator.JobInfo{
-				ID:        "job-1",
-				Summary:   "Test Job",
-				Status:    "Running",
-				StartTime: time.Now(),
-				WorkItem: orchestrator.WorkItem{
-					ID:          "job-1",
-					RepoURL:     "http://repo",
-					Description: "Desc",
-					EnvVars:     map[string]string{"SECRET_TOKEN": "123"},
-				},
+			if r.URL.Path == "/jobs/job-1" {
+				job := orchestrator.JobInfo{
+					ID:        "job-1",
+					Summary:   "Test Job",
+					Status:    "Running",
+					StartTime: time.Now(),
+					WorkItem: orchestrator.WorkItem{
+						ID:          "job-1",
+						RepoURL:     "http://repo",
+						Description: "Desc",
+						EnvVars:     map[string]string{"SECRET_TOKEN": "123"},
+					},
+				}
+				json.NewEncoder(w).Encode(job)
+			} else if r.URL.Path == "/jobs/job-1/dependents" {
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode([]orchestrator.JobInfo{})
+			} else {
+				w.WriteHeader(http.StatusNotFound)
 			}
-			json.NewEncoder(w).Encode(job)
 		}))
 		defer server.Close()
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -136,4 +137,50 @@ func TestAPI_UpdateDependenciesBulk(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "Either 'tag' or 'match' query parameter is required")
 	})
+}
+
+func TestAPIGetJobDependents(t *testing.T) {
+	o := New(nil, nil, 1*time.Minute)
+
+	o.mu.Lock()
+	o.completedJobs = append(o.completedJobs, JobInfo{
+		ID:     "job-A",
+		Status: "Completed",
+		WorkItem: WorkItem{
+			ID: "job-A",
+		},
+	})
+	o.pendingJobs["job-B"] = JobInfo{
+		ID:     "job-B",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:        "job-B",
+			DependsOn: []string{"job-A"},
+		},
+	}
+	o.mu.Unlock()
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, o, nil, context.Background())
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/jobs/job-A/dependents")
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var dependents []JobInfo
+	err = json.NewDecoder(resp.Body).Decode(&dependents)
+	assert.NoError(t, err)
+
+	assert.Len(t, dependents, 1)
+	assert.Equal(t, "job-B", dependents[0].ID)
+
+	// Test non-existent job
+	respNotFound, err := http.Get(ts.URL + "/jobs/job-Z/dependents")
+	assert.NoError(t, err)
+	defer respNotFound.Body.Close()
+	assert.Equal(t, http.StatusNotFound, respNotFound.StatusCode)
 }

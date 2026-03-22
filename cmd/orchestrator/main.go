@@ -2527,6 +2527,27 @@ func inspectJob(host, jobID string) {
 			blockersResp.Body.Close()
 		}
 	}
+
+	// Dependents
+	dependentsResp, err := http.Get(fmt.Sprintf("%s/jobs/%s/dependents", host, jobID))
+	if err == nil && dependentsResp.StatusCode == http.StatusOK {
+		var dependents []orchestrator.JobInfo
+		if err := json.NewDecoder(dependentsResp.Body).Decode(&dependents); err == nil && len(dependents) > 0 {
+			fmt.Fprintln(stdout, "\n"+labelStyle.Render("Dependents:"))
+			for _, dependent := range dependents {
+				statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+				if dependent.Status == "Failed" || dependent.Status == "Missing" || dependent.Status == "Canceled" {
+					statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+				} else if dependent.Status == "Running" || dependent.Status == "Active" || dependent.Status == "Spawning" {
+					statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+				} else if dependent.Status == "Completed" || dependent.Status == "Skipped" {
+					statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("46"))
+				}
+				fmt.Fprintf(stdout, "  - %s (%s)\n", dependent.ID, statusStyle.Render(dependent.Status))
+			}
+		}
+		dependentsResp.Body.Close()
+	}
 }
 
 func purgeJob(host, jobID string) {
