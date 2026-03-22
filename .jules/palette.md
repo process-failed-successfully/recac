@@ -31,3 +31,7 @@
 ## 2026-03-24 - Semantic Form Wrappers for Custom Modals
 **Learning:** Custom UI components (like Modals) often use standard `<input>` elements but rely on JS-bound click events (e.g., `onclick` on a standard button) to submit, ignoring semantic `<form>` submission. This breaks native "Enter-to-submit" accessibility for keyboard users and forces developers to use jarring `alert()` or manual empty-state validation in JS.
 **Action:** Always wrap actionable inputs inside custom modals with a `<form onsubmit="mySubmitFunc(); return false;">` tag. Change the action button to `type="submit"` and use the HTML5 `required` attribute on inputs. This naturally guides screen readers, enables Enter-to-submit out of the box, and provides native tooltips for validation rather than blocking JS alerts.
+
+## 2026-03-22 - Modal Dismissal Accessibility in Embedded Dashboards
+**Learning:** Custom vanilla JS modals in embedded dashboards (like `internal/orchestrator/webui.go`) often lack basic dismissal accessibility, forcing users to click a specific "x" button. This is frustrating for keyboard users and those accustomed to modern web patterns.
+**Action:** Always implement global event listeners for the `Escape` key (`keydown`) and outside clicks (`window.click`) to close open modals. When doing so, ensure that any active state tied to the modal (like an abortable log stream) is also properly cleaned up during the closure.

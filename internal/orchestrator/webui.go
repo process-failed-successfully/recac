@@ -909,6 +909,32 @@ const DashboardHTML = `
         setInterval(fetchStatus, 30000);
         setInterval(fetchAnalytics, 60000);
         setInterval(fetchJobs, 30000);
+
+        // Close modals on Escape key or outside click
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => {
+                    if (modal.style.display === 'block') {
+                        modal.style.display = 'none';
+                        if (modal.id === 'logsModal' && currentLogController) {
+                            currentLogController.abort();
+                            currentLogController = null;
+                        }
+                    }
+                });
+            }
+        });
+
+        window.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+                if (event.target.id === 'logsModal' && currentLogController) {
+                    currentLogController.abort();
+                    currentLogController = null;
+                }
+            }
+        });
     </script>
 </body>
 </html>
