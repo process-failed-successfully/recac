@@ -3,7 +3,6 @@ package workflow
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -103,7 +102,7 @@ func TestProcessJiraTicket(t *testing.T) {
 	// We'll rely on IsMock: true in SessionConfig to perform a "Mock" run which should be lighter.
 
 	// Check app_spec.txt
-	specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir)
+	specPath := tmpDir + "/app_spec.txt"
 
 	// If we want to verify, we should use Cleanup=false
 	cfg.Cleanup = false
@@ -153,7 +152,7 @@ func TestProcessDirectTask(t *testing.T) {
 	err := ProcessDirectTask(context.Background(), cfg)
 
 	// Check app_spec.txt
-	specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir)
+	specPath := tmpDir + "/app_spec.txt"
 	assert.FileExists(t, specPath)
 
 	if err != nil {
@@ -224,7 +223,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		assert.NotContains(t, err.Error(), "no repo url found")
 	}
 
-	specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir)
+	specPath := tmpDir + "/app_spec.txt"
 	assert.FileExists(t, specPath)
 	content, _ := os.ReadFile(specPath)
 	assert.Contains(t, string(content), "TEST-1")
@@ -251,7 +250,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create app_spec.txt required by RunLoop
-	os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("test spec"), 0644)
+	os.WriteFile(tmpDir+"/app_spec.txt", []byte("test spec"), 0644)
 
 	cfg := SessionConfig{
 		ProjectPath: tmpDir,

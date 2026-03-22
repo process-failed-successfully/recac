@@ -67,8 +67,9 @@ func generateMermaidPlan(list db.FeatureList) string {
 	sb.WriteString("graph TD\n")
 
 	// Helper to clean ID for Mermaid
+	idReplacer := strings.NewReplacer("-", "_", " ", "_")
 	cleanID := func(id string) string {
-		return strings.ReplaceAll(strings.ReplaceAll(id, "-", "_"), " ", "_")
+		return idReplacer.Replace(id)
 	}
 
 	// Helper to clean Text
