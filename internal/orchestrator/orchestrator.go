@@ -2782,7 +2782,12 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		return nil
 	}
 
-	if o.RequireApproval && !bypassApproval {
+	requireApproval := o.RequireApproval
+	if item.RequireApproval != nil {
+		requireApproval = *item.RequireApproval
+	}
+
+	if requireApproval && !bypassApproval {
 		job := JobInfo{
 			ID:         item.ID,
 			Summary:    item.Summary,
@@ -3023,17 +3028,32 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 					job.RetryCount++
 					job.Status = "Retrying"
 					job.Error = spawnErr.Error()
-					job.RetryAfter = time.Now().Add(o.RetryDelay)
+
+					delay := o.RetryDelay
+					if job.WorkItem.RetryDelay != nil {
+						delay = *job.WorkItem.RetryDelay
+					}
+
+					multiplier := 1.0
+					if job.WorkItem.RetryBackoffMultiplier != nil {
+						multiplier = *job.WorkItem.RetryBackoffMultiplier
+					}
+
+					// Apply exponential backoff based on multiplier
+					for i := 1; i < job.RetryCount; i++ {
+						delay = time.Duration(float64(delay) * multiplier)
+					}
+
+					job.RetryAfter = time.Now().Add(delay)
 					o.pendingJobs[item.ID] = job
 					finalJob = job
 					hasFinalJob = true
 
 					if logger != nil {
-						logger.Info("Job failed, scheduling auto-retry", "id", item.ID, "attempt", job.RetryCount, "max", maxRetries, "delay", o.RetryDelay)
+						logger.Info("Job failed, scheduling auto-retry", "id", item.ID, "attempt", job.RetryCount, "max", maxRetries, "delay", delay)
 					}
 
 					// Trigger re-evaluation when delay expires
-					delay := o.RetryDelay
 					time.AfterFunc(delay, func() {
 						o.evaluatePendingJobs(context.Background(), logger)
 					})
@@ -3183,9 +3203,14 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 			continue
 		}
 
+		requireApproval := o.RequireApproval
+		if jobInfo.WorkItem.RequireApproval != nil {
+			requireApproval = *jobInfo.WorkItem.RequireApproval
+		}
+
 		// If require approval is true, and it hasn't been approved, skip it.
 		// If it has been approved, we process it normally (check dependencies, spawn)
-		if o.RequireApproval && !jobInfo.Approved {
+		if requireApproval && !jobInfo.Approved {
 			continue
 		}
 

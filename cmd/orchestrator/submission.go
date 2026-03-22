@@ -448,31 +448,33 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string) {
+func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string) {
 	if id == "" {
 		id = uuid.New().String()
 	}
 
 	item := orchestrator.WorkItem{
-		ID:               id,
-		Summary:          task, // Using task description as summary for ad-hoc
-		Description:      task,
-		RepoURL:          repo,
-		EnvVars:          envVars,
-		Priority:         priority,
-		DependsOn:        dependsOn,
-		Tags:             tags,
-		Delay:            delay,
-		Timeout:          timeout,
-		ConcurrencyGroup: concurrencyGroup,
-		CancelInProgress: cancelInProgress,
-		AgentProvider:    agentProvider,
-		AgentModel:       agentModel,
-		MaxRetries:       maxRetries,
-		RunCondition:     runCondition,
-		WebhookURL:       webhookURL,
+		ID:                     id,
+		Summary:                task, // Using task description as summary for ad-hoc
+		Description:            task,
+		RepoURL:                repo,
+		EnvVars:                envVars,
+		Priority:               priority,
+		DependsOn:              dependsOn,
+		Tags:                   tags,
+		Delay:                  delay,
+		Timeout:                timeout,
+		ConcurrencyGroup:       concurrencyGroup,
+		CancelInProgress:       cancelInProgress,
+		AgentProvider:          agentProvider,
+		AgentModel:             agentModel,
+		MaxRetries:             maxRetries,
+		RequireApproval:        requireApproval,
+		RetryDelay:             retryDelay,
+		RetryBackoffMultiplier: retryBackoff,
+		RunCondition:           runCondition,
+		WebhookURL:             webhookURL,
 	}
-
 	payload, err := json.Marshal(item)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to marshal work item: %v\n", err)

@@ -19,9 +19,12 @@ type Pipeline struct {
 		AgentProvider    string            `yaml:"agent_provider"`
 		AgentModel       string            `yaml:"agent_model"`
 		ConcurrencyGroup string            `yaml:"concurrency_group"`
-		Delay            string            `yaml:"delay"`
-		MaxRetries       *int              `yaml:"max_retries"`
-		EnvVars          map[string]string `yaml:"env_vars"`
+		Delay                  string            `yaml:"delay"`
+		MaxRetries             *int              `yaml:"max_retries"`
+		RequireApproval        *bool             `yaml:"require_approval,omitempty"`
+		RetryDelay             string            `yaml:"retry_delay,omitempty"`
+		RetryBackoffMultiplier *float64          `yaml:"retry_backoff_multiplier,omitempty"`
+		EnvVars                map[string]string `yaml:"env_vars"`
 		Tags             []string          `yaml:"tags"`
 		DependsOn        []string          `yaml:"depends_on"`
 		RunCondition     string            `yaml:"run_condition"`
@@ -46,8 +49,11 @@ type PipelineJob struct {
 	ConcurrencyGroup string              `yaml:"concurrency_group"`
 	CancelInProgress bool                `yaml:"cancel_in_progress"`
 	AgentProvider    string              `yaml:"agent_provider"`
-	AgentModel       string              `yaml:"agent_model"`
-	MaxRetries       *int                `yaml:"max_retries"`
+	AgentModel             string              `yaml:"agent_model"`
+	MaxRetries             *int                `yaml:"max_retries"`
+	RequireApproval        *bool               `yaml:"require_approval,omitempty"`
+	RetryDelay             string              `yaml:"retry_delay,omitempty"`
+	RetryBackoffMultiplier *float64            `yaml:"retry_backoff_multiplier,omitempty"`
 }
 
 // sanitizeName creates a safe string for IDs.
@@ -202,6 +208,18 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 		if runCondition == "" {
 			runCondition = p.Defaults.RunCondition
 		}
+		requireApproval := jobDef.RequireApproval
+		if requireApproval == nil && p.Defaults.RequireApproval != nil {
+			requireApproval = p.Defaults.RequireApproval
+		}
+		retryDelayStr := jobDef.RetryDelay
+		if retryDelayStr == "" {
+			retryDelayStr = p.Defaults.RetryDelay
+		}
+		retryBackoffMultiplier := jobDef.RetryBackoffMultiplier
+		if retryBackoffMultiplier == nil && p.Defaults.RetryBackoffMultiplier != nil {
+			retryBackoffMultiplier = p.Defaults.RetryBackoffMultiplier
+		}
 
 		// Use Task as Description if Description is empty
 		description := jobDef.Description
@@ -227,6 +245,16 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 			if err != nil {
 				return nil, fmt.Errorf("invalid delay format for job '%s': %w", jobKey, err)
 			}
+		}
+
+		// Parse retry delay
+		var parsedRetryDelay *time.Duration
+		if retryDelayStr != "" {
+			rd, err := time.ParseDuration(retryDelayStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid retry delay format for job '%s': %w", jobKey, err)
+			}
+			parsedRetryDelay = &rd
 		}
 
 		// Resolve secrets and inject them as environment variables
@@ -374,22 +402,25 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 			jobGeneratedIDs[jobKey] = append(jobGeneratedIDs[jobKey], jobID)
 
 			items = append(items, WorkItem{
-				ID:               jobID,
-				Summary:          comboSummary,
-				Description:      description,
-				RepoURL:          repoURL,
-				EnvVars:          envVars,
-				DependsOn:        finalDependsOn, // Store original names for now, resolve in pass 2
-				Priority:         jobDef.Priority,
-				Tags:             tags,
-				Timeout:          parsedTimeout,
-				Delay:            parsedDelay,
-				ConcurrencyGroup: concurrencyGroup,
-				CancelInProgress: jobDef.CancelInProgress,
-				AgentProvider:    agentProvider,
-				AgentModel:       agentModel,
-				MaxRetries:       maxRetries,
-				RunCondition:     runCondition,
+				ID:                     jobID,
+				Summary:                comboSummary,
+				Description:            description,
+				RepoURL:                repoURL,
+				EnvVars:                envVars,
+				DependsOn:              finalDependsOn, // Store original names for now, resolve in pass 2
+				Priority:               jobDef.Priority,
+				Tags:                   tags,
+				Timeout:                parsedTimeout,
+				Delay:                  parsedDelay,
+				ConcurrencyGroup:       concurrencyGroup,
+				CancelInProgress:       jobDef.CancelInProgress,
+				AgentProvider:          agentProvider,
+				AgentModel:             agentModel,
+				MaxRetries:             maxRetries,
+				RunCondition:           runCondition,
+				RequireApproval:        requireApproval,
+				RetryDelay:             parsedRetryDelay,
+				RetryBackoffMultiplier: retryBackoffMultiplier,
 			})
 		}
 	}
