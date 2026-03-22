@@ -347,6 +347,61 @@ func (o *Orchestrator) GetJobBlockers(id string) ([]JobInfo, error) {
 
 	return blockers, nil
 }
+
+// GetJobDependents returns a list of jobs that depend on the given job.
+func (o *Orchestrator) GetJobDependents(id string) ([]JobInfo, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	_, found := o.getJobLocked(id)
+	if !found {
+		return nil, fmt.Errorf("job %s not found", id)
+	}
+
+	var dependents []JobInfo
+
+	checkAndAdd := func(job JobInfo) {
+		for _, depID := range job.WorkItem.DependsOn {
+			if depID == id {
+				dependents = append(dependents, job)
+				break
+			}
+		}
+	}
+
+	for _, job := range o.activeJobs {
+		checkAndAdd(job)
+	}
+	for _, job := range o.pendingJobs {
+		checkAndAdd(job)
+	}
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		checkAndAdd(o.completedJobs[i])
+	}
+
+	if o.Persistence != nil {
+		if pJobs, err := o.Persistence.GetJobs(10000); err == nil {
+			added := make(map[string]bool)
+			for _, d := range dependents {
+				added[d.ID] = true
+			}
+			for _, job := range pJobs {
+				if !added[job.ID] {
+					for _, depID := range job.WorkItem.DependsOn {
+						if depID == id {
+							dependents = append(dependents, job)
+							added[job.ID] = true
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return dependents, nil
+}
+
 func (o *Orchestrator) GetCompletedJobs() []JobInfo {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
