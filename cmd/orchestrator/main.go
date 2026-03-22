@@ -258,6 +258,8 @@ func main() {
 	pflag.String("export-graph-format", "mermaid", "Format for exported graph ('mermaid' or 'dot')")
 	pflag.String("export-metrics", "", "Export metrics for jobs to a CSV file (use '-' for stdout)")
 	pflag.String("export-metrics-state", "all", "State of jobs to export metrics for ('all', 'active', 'completed', 'failed')")
+	pflag.String("export-trace", "", "Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout)")
+	pflag.String("export-trace-state", "all", "State of jobs to export trace for ('all', 'active', 'completed', 'failed')")
 
 	pflag.String("generate-pipeline", "", "Generate a pipeline YAML using AI based on the provided prompt")
 	pflag.String("generate-pipeline-out", "", "Output file for the generated pipeline YAML (use '-' or leave empty for stdout)")
@@ -555,6 +557,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_graph_format", pflag.Lookup("export-graph-format"))
 	viper.BindPFlag("orchestrator.export_metrics", pflag.Lookup("export-metrics"))
 	viper.BindPFlag("orchestrator.export_metrics_state", pflag.Lookup("export-metrics-state"))
+	viper.BindPFlag("orchestrator.export_trace", pflag.Lookup("export-trace"))
+	viper.BindPFlag("orchestrator.export_trace_state", pflag.Lookup("export-trace-state"))
 
 	viper.BindPFlag("orchestrator.generate_pipeline", pflag.Lookup("generate-pipeline"))
 	viper.BindPFlag("orchestrator.generate_pipeline_out", pflag.Lookup("generate-pipeline-out"))
@@ -1752,6 +1756,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		state := viper.GetString("orchestrator.export_metrics_state")
 		exportMetrics(host, exportMetricsFile, state)
+		return nil
+	}
+	if exportTraceFile := viper.GetString("orchestrator.export_trace"); exportTraceFile != "" {
+		host := viper.GetString("orchestrator.host")
+		state := viper.GetString("orchestrator.export_trace_state")
+		exportTrace(host, exportTraceFile, state)
 		return nil
 	}
 

@@ -319,6 +319,40 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		w.Write(yamlData)
 	})
 
+	mux.HandleFunc("GET /jobs/export/trace", func(w http.ResponseWriter, r *http.Request) {
+		stateFilter := r.URL.Query().Get("state")
+		if stateFilter == "" {
+			stateFilter = "all"
+		}
+
+		var jobs []JobInfo
+		if stateFilter == "active" || stateFilter == "all" {
+			jobs = append(jobs, orch.GetActiveJobs()...)
+		}
+		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
+			completedJobs := orch.GetCompletedJobs()
+			for _, job := range completedJobs {
+				if stateFilter == "failed" && strings.ToLower(job.Status) != "failed" {
+					continue
+				}
+				if stateFilter == "completed" && strings.ToLower(job.Status) != "completed" {
+					continue
+				}
+				jobs = append(jobs, job)
+			}
+		}
+
+		jsonData, err := ExportTraceToJSON(jobs)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to export trace: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=trace.json")
+		w.Write(jsonData)
+	})
+
 	mux.HandleFunc("GET /jobs/export/metrics", func(w http.ResponseWriter, r *http.Request) {
 		stateFilter := r.URL.Query().Get("state")
 		if stateFilter == "" {
