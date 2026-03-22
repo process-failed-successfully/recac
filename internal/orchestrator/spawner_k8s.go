@@ -219,7 +219,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyOnFailure,
+					RestartPolicy:      corev1.RestartPolicyNever,
 					EnableServiceLinks: boolPtr(false),
 					Containers: []corev1.Container{
 						{
