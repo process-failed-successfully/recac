@@ -384,4 +384,59 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 		}
 		assert.True(t, jiraIdx >= 0 && jiraIdx < len(capturedCmd)-1, "Docker command should contain --jira flag")
 	})
+
+	// 3. Check Process Spawner Args
+	t.Run("ProcessSpawner sets correct command args", func(t *testing.T) {
+		mockSM := new(MockSessionManager)
+		spawner := NewProcessSpawner(logger, "prov", "mod", mockSM, 30, 5, 10)
+
+		capturedCmdChan := make(chan []string, 1)
+
+		mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			// SaveSession is called twice, we just want to grab the command once
+			if len(s.Command) > 0 {
+				select {
+				case capturedCmdChan <- s.Command:
+				default:
+				}
+			}
+			return true
+		})).Return(nil)
+
+		// We don't care about the error from Spawn because it will likely fail
+		// trying to execute recac-agent if it's not in path. We just want to
+		// intercept the command arguments.
+		_ = spawner.Spawn(ctx, item)
+
+		var capturedCmd []string
+		select {
+		case capturedCmd = <-capturedCmdChan:
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for ProcessSpawner to save session")
+		}
+
+		// Assertions (ProcessSpawner now wraps with shell, so the actual args are within the -c string)
+		assert.Contains(t, capturedCmd, "/bin/sh", "Process command should invoke shell")
+		assert.Contains(t, capturedCmd, "-c", "Process command should invoke shell")
+
+		// The command string is passed as the third argument (index 2)
+		cmdStr := capturedCmd[2]
+
+		assert.Contains(t, cmdStr, "git config --global url", "Process command should inject git config")
+		assert.Contains(t, cmdStr, "echo 'Recac Finished'", "Process command should inject completion echo")
+
+		// The actual arguments are passed after "--", so we can check the whole slice
+		hasVerbose := false
+		hasAllowDirty := false
+		for _, arg := range capturedCmd {
+			if arg == "--verbose" {
+				hasVerbose = true
+			}
+			if arg == "--allow-dirty" {
+				hasAllowDirty = true
+			}
+		}
+		assert.True(t, hasVerbose, "Process command should contain --verbose")
+		assert.True(t, hasAllowDirty, "Process command should contain --allow-dirty")
+	})
 }
