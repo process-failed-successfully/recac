@@ -2837,6 +2837,39 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		return nil
 	}
 
+	if item.Hold {
+		job := JobInfo{
+			ID:         item.ID,
+			Summary:    item.Summary,
+			StartTime:  time.Now(),
+			Status:     "Pending",
+			WorkItem:   item,
+			RetryCount: retryCount,
+			Approved:   bypassApproval,
+		}
+		o.pendingJobs[item.ID] = job
+		o.mu.Unlock()
+
+		if len(jobsToCancel) > 0 {
+			if logger != nil {
+				logger.Info("Canceling existing jobs in concurrency group for held job", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+			}
+			for _, cancelID := range jobsToCancel {
+				if err := o.CancelJob(ctx, cancelID); err != nil {
+					if logger != nil {
+						logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
+					}
+				}
+			}
+		}
+
+		o.BroadcastEvent("job_held", job)
+		if logger != nil {
+			logger.Info("Job held upon submission", "id", item.ID)
+		}
+		return nil
+	}
+
 	requireApproval := o.RequireApproval
 	if item.RequireApproval != nil {
 		requireApproval = *item.RequireApproval

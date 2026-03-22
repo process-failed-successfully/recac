@@ -2172,6 +2172,61 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 	})
 
+	mux.HandleFunc("POST /jobs/pipeline/import", func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read body", http.StatusBadRequest)
+			return
+		}
+
+		target := r.URL.Query().Get("target")
+
+		vars := make(map[string]string)
+		if r.URL.Query().Has("var") {
+			for _, v := range r.URL.Query()["var"] {
+				parts := strings.SplitN(v, "=", 2)
+				if len(parts) == 2 {
+					vars[parts[0]] = parts[1]
+				}
+			}
+		}
+
+		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		submitted := make([]string, 0)
+		errors := make([]string, 0)
+
+		for _, item := range items {
+			item.Hold = true // Key difference: hold the job so it doesn't start automatically
+			if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+				if err == ErrAtCapacity {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "at capacity"))
+				} else if err == ErrDraining {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "draining"))
+				} else if strings.Contains(err.Error(), "already active") {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, "already active"))
+				} else {
+					errors = append(errors, fmt.Sprintf("%s: %v", item.ID, err.Error()))
+				}
+			} else {
+				submitted = append(submitted, item.ID)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"submitted": submitted,
+			"errors":    errors,
+		}); err != nil {
+			logger.Error("Failed to encode pipeline import response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("POST /jobs/pipeline/dry-run", func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {

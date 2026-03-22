@@ -223,3 +223,81 @@ jobs:
 		orch.mu.Unlock()
 	})
 }
+
+func TestAPIPipelineImport(t *testing.T) {
+	// Setup orchestrator
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 10*time.Millisecond)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	// Setup API
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, ctx)
+
+	t.Run("Valid Pipeline Import", func(t *testing.T) {
+		yamlData := []byte(`
+name: Import Pipeline
+jobs:
+  build:
+    summary: Build application
+  test:
+    summary: Run tests
+    depends_on: [build]
+`)
+		req := httptest.NewRequest(http.MethodPost, "/jobs/pipeline/import", bytes.NewReader(yamlData))
+		req.Header.Set("Content-Type", "application/x-yaml")
+		rr := httptest.NewRecorder()
+
+		// Since it submits the jobs, they will evaluate dependencies.
+		// A job with no dependencies (build) will attempt to spawn if it wasn't for Hold.
+		// Wait, if it's on Hold, evaluatePendingJobs will skip it, but processWorkItemInternal might call evaluatePendingJobs.
+		// Actually, processWorkItemInternal sees `item.Hold = true`, checks `shouldRun`, but wait:
+		// Let's check `processWorkItemInternal`. It processes the job, and if dependencies are met, it spawns.
+		// Does `processWorkItemInternal` check `Hold`?
+		// Ah! `processWorkItemInternal` doesn't check `Hold` before spawning. `evaluatePendingJobs` checks `Hold`.
+		// But if we submit it directly via `SubmitJob`, it goes to `processWorkItemInternal`.
+		// `processWorkItemInternal` puts it in `pendingJobs` ONLY if dependencies are NOT met, OR if `RequireApproval` is true, OR if `RunAfter` is future.
+		// Otherwise, it skips `pendingJobs` and spawns immediately!
+
+		// To fix this, we need to allow the mock Spawner to be called if it happens to be, but we should fix orchestrator.go to respect Hold during initial submit. Let's fix that.
+		mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusAccepted, rr.Code)
+
+		var resp map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		submitted := resp["submitted"].([]interface{})
+		assert.Len(t, submitted, 2) // both build and test should be returned as submitted
+
+		errors := resp["errors"]
+		if errors != nil {
+			assert.Empty(t, errors.([]interface{}))
+		}
+
+		// Verify that the jobs are in pending queue with Hold: true
+		orch.mu.RLock()
+		defer orch.mu.RUnlock()
+
+		assert.Len(t, orch.pendingJobs, 2)
+
+		buildFound := false
+		testFound := false
+		for _, job := range orch.pendingJobs {
+			assert.True(t, job.WorkItem.Hold, "Imported job must have Hold set to true")
+			if job.Summary == "Build application" {
+				buildFound = true
+			} else if job.Summary == "Run tests" {
+				testFound = true
+			}
+		}
+
+		assert.True(t, buildFound, "Build job not found in pending queue")
+		assert.True(t, testFound, "Test job not found in pending queue")
+	})
+}
