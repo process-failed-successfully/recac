@@ -153,7 +153,7 @@ func TestOrchestrator_ExecuteTask(t *testing.T) {
 	defer store.Close()
 
 	// Create app_spec.txt
-	err = os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("Spec"), 0644)
+	err = os.WriteFile(tmpDir+"/app_spec.txt", []byte("Spec"), 0644)
 	require.NoError(t, err)
 
 	o := &Orchestrator{
