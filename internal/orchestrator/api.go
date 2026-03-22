@@ -2655,7 +2655,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			mac.Write([]byte(callbackURL))
 			expectedMAC := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 
-			if signature != expectedMAC {
+			if !hmac.Equal([]byte(signature), []byte(expectedMAC)) {
 				http.Error(w, "Invalid X-Trello-Webhook signature", http.StatusUnauthorized)
 				return
 			}
