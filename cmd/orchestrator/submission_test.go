@@ -39,7 +39,7 @@ func TestSubmitAdHocJob(t *testing.T) {
 		"KEY2": "VALUE2",
 	}
 	submitDeps := []string{"JOB-1", "JOB-2"}
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", 0, 0, 0, nil, nil, nil, nil, false, envVars, submitDeps, nil, "group-1", true, "custom-provider", "custom-model", "", "")
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", 0, 0, 0, nil, nil, nil, nil, false, envVars, submitDeps, nil, "group-1", true, "custom-provider", "custom-model", "", "", false)
 
 	// 3. Verify payload
 	var item orchestrator.WorkItem
@@ -68,7 +68,7 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 	}))
 	defer server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "")
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false)
 
 	var item orchestrator.WorkItem
 	err := json.Unmarshal(receivedBody, &item)

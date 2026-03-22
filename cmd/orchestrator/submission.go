@@ -448,7 +448,7 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string) {
+func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -474,6 +474,7 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 		RetryBackoffMultiplier: retryBackoff,
 		RunCondition:           runCondition,
 		WebhookURL:             webhookURL,
+		AutoHeal:               autoHeal,
 	}
 	payload, err := json.Marshal(item)
 	if err != nil {

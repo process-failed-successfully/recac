@@ -244,6 +244,7 @@ func main() {
 	pflag.String("submit-agent-model", "", "Agent model to use for the ad-hoc job")
 	pflag.String("submit-run-condition", "", "Run condition for the ad-hoc job (always, on_failure, on_success)")
 	pflag.String("submit-webhook-url", "", "Webhook URL to call when job completes")
+	pflag.Bool("submit-auto-heal", false, "Enable auto-healing: automatically append failure logs to description on retries")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -538,6 +539,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_agent_model", pflag.Lookup("submit-agent-model"))
 	viper.BindPFlag("orchestrator.submit_run_condition", pflag.Lookup("submit-run-condition"))
 	viper.BindPFlag("orchestrator.submit_webhook_url", pflag.Lookup("submit-webhook-url"))
+	viper.BindPFlag("orchestrator.submit_auto_heal", pflag.Lookup("submit-auto-heal"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -1692,7 +1694,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		runCondition := viper.GetString("orchestrator.submit_run_condition")
 		webhookURL := viper.GetString("orchestrator.submit_webhook_url")
-		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, maxRetriesPtr, requireApprovalPtr, retryDelayPtr, retryBackoffPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, runCondition, webhookURL)
+		autoHeal := viper.GetBool("orchestrator.submit_auto_heal")
+		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, maxRetriesPtr, requireApprovalPtr, retryDelayPtr, retryBackoffPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, runCondition, webhookURL, autoHeal)
 		return nil
 	}
 
