@@ -37,6 +37,7 @@ type WorkItem struct {
 	RequireApproval        *bool             `json:"require_approval,omitempty" yaml:"require_approval,omitempty"`
 	RetryDelay             *time.Duration    `json:"retry_delay,omitempty" yaml:"retry_delay,omitempty"`
 	RetryBackoffMultiplier *float64          `json:"retry_backoff_multiplier,omitempty" yaml:"retry_backoff_multiplier,omitempty"`
+	AutoHeal               bool              `json:"auto_heal,omitempty" yaml:"auto_heal,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.

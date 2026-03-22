@@ -3099,6 +3099,28 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 						delay = time.Duration(float64(delay) * multiplier)
 					}
 
+					if job.WorkItem.AutoHeal {
+						logsReader, err := o.Spawner.GetLogs(context.Background(), item.ID)
+						var logsText string
+						if err == nil && logsReader != nil {
+							// Limit to ~2MB to prevent unbounded memory consumption
+							limitedReader := io.LimitReader(logsReader, 2*1024*1024)
+							logBytes, _ := io.ReadAll(limitedReader)
+							logsText = string(logBytes)
+							logsReader.Close()
+						}
+						logLines := strings.Split(logsText, "\n")
+						if len(logLines) > 500 {
+							logLines = logLines[len(logLines)-500:]
+							logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
+						}
+						failureContext := fmt.Sprintf("\n\n---\nAuto-Heal Attempt %d:\nError: %s\nLogs:\n```\n%s\n```\n", job.RetryCount, spawnErr.Error(), logsText)
+						job.WorkItem.Description += failureContext
+						if logger != nil {
+							logger.Info("Auto-healing job, appended failure context", "id", item.ID, "attempt", job.RetryCount)
+						}
+					}
+
 					job.RetryAfter = time.Now().Add(delay)
 					o.pendingJobs[item.ID] = job
 					finalJob = job

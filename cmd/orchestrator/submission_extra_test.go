@@ -112,8 +112,8 @@ func TestSubmitAdHocJob_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(nil))
 	server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "")
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "")
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false)
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false)
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to connect")
@@ -136,7 +136,7 @@ func TestSubmitAdHocJob_ErrorResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "")
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "ID", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false)
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to submit job")
@@ -557,7 +557,7 @@ func TestSubmitAdHocJob_WithWait(t *testing.T) {
 	defer server.Close()
 
 	// Execute
-	submitAdHocJob(server.URL, "http://repo.com", "Task", "JOB-ADHOC-WAIT", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "")
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "JOB-ADHOC-WAIT", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false)
 
 	// Verify
 	assert.Equal(t, 0, exitCode)
