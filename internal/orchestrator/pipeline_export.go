@@ -21,6 +21,10 @@ func ExportPipelineToYAML(name string, jobs []JobInfo) ([]byte, error) {
 		if job.WorkItem.Delay > 0 {
 			delayStr = job.WorkItem.Delay.String()
 		}
+		retryDelayStr := ""
+		if job.WorkItem.RetryDelay != nil && *job.WorkItem.RetryDelay > 0 {
+			retryDelayStr = job.WorkItem.RetryDelay.String()
+		}
 
 		// Ensure we don't save nil slices/maps to keep the YAML clean
 		var dependsOn []string
@@ -54,8 +58,11 @@ func ExportPipelineToYAML(name string, jobs []JobInfo) ([]byte, error) {
 			ConcurrencyGroup: job.WorkItem.ConcurrencyGroup,
 			CancelInProgress: job.WorkItem.CancelInProgress,
 			AgentProvider:    job.WorkItem.AgentProvider,
-			AgentModel:       job.WorkItem.AgentModel,
-			MaxRetries:       job.WorkItem.MaxRetries,
+			AgentModel:             job.WorkItem.AgentModel,
+			MaxRetries:             job.WorkItem.MaxRetries,
+			RequireApproval:        job.WorkItem.RequireApproval,
+			RetryDelay:             retryDelayStr,
+			RetryBackoffMultiplier: job.WorkItem.RetryBackoffMultiplier,
 		}
 	}
 

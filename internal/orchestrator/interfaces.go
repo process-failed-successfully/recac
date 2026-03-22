@@ -31,9 +31,12 @@ type WorkItem struct {
 	AgentProvider    string            `json:"agent_provider,omitempty"`
 	AgentModel       string            `json:"agent_model,omitempty"`
 	Hold             bool              `json:"hold,omitempty"`
-	MaxRetries       *int              `json:"max_retries,omitempty"`
-	RunCondition     string            `json:"run_condition,omitempty" yaml:"run_condition"`
-	WebhookURL       string            `json:"webhook_url,omitempty" yaml:"webhook_url,omitempty"`
+	MaxRetries             *int              `json:"max_retries,omitempty"`
+	RunCondition           string            `json:"run_condition,omitempty" yaml:"run_condition"`
+	WebhookURL             string            `json:"webhook_url,omitempty" yaml:"webhook_url,omitempty"`
+	RequireApproval        *bool             `json:"require_approval,omitempty" yaml:"require_approval,omitempty"`
+	RetryDelay             *time.Duration    `json:"retry_delay,omitempty" yaml:"retry_delay,omitempty"`
+	RetryBackoffMultiplier *float64          `json:"retry_backoff_multiplier,omitempty" yaml:"retry_backoff_multiplier,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.

@@ -11,23 +11,29 @@ import (
 
 func TestExportPipelineToYAML_Success(t *testing.T) {
 	maxRetries := 2
+	requireApproval := true
+	retryDelay := 10 * time.Second
+	retryBackoffMultiplier := 1.5
 	jobs := []JobInfo{
 		{
 			ID: "job-1",
 			WorkItem: WorkItem{
-				Summary:          "Build App",
-				Description:      "npm run build",
-				RepoURL:          "https://github.com/org/repo.git",
-				EnvVars:          map[string]string{"NODE_ENV": "production"},
-				Tags:             []string{"build"},
-				Priority:         10,
-				Timeout:          30 * time.Minute,
-				Delay:            5 * time.Minute,
-				ConcurrencyGroup: "group-1",
-				CancelInProgress: true,
-				AgentProvider:    "openai",
-				AgentModel:       "gpt-4",
-				MaxRetries:       &maxRetries,
+				Summary:                "Build App",
+				Description:            "npm run build",
+				RepoURL:                "https://github.com/org/repo.git",
+				EnvVars:                map[string]string{"NODE_ENV": "production"},
+				Tags:                   []string{"build"},
+				Priority:               10,
+				Timeout:                30 * time.Minute,
+				Delay:                  5 * time.Minute,
+				ConcurrencyGroup:       "group-1",
+				CancelInProgress:       true,
+				AgentProvider:          "openai",
+				AgentModel:             "gpt-4",
+				MaxRetries:             &maxRetries,
+				RequireApproval:        &requireApproval,
+				RetryDelay:             &retryDelay,
+				RetryBackoffMultiplier: &retryBackoffMultiplier,
 			},
 		},
 		{
@@ -64,6 +70,11 @@ func TestExportPipelineToYAML_Success(t *testing.T) {
 	assert.Equal(t, "gpt-4", j1.AgentModel)
 	require.NotNil(t, j1.MaxRetries)
 	assert.Equal(t, 2, *j1.MaxRetries)
+	require.NotNil(t, j1.RequireApproval)
+	assert.True(t, *j1.RequireApproval)
+	assert.Equal(t, "10s", j1.RetryDelay)
+	require.NotNil(t, j1.RetryBackoffMultiplier)
+	assert.Equal(t, 1.5, *j1.RetryBackoffMultiplier)
 	assert.Empty(t, j1.DependsOn)
 
 	j2 := p.Jobs["job-2"]

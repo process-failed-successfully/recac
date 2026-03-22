@@ -18,6 +18,9 @@ defaults:
   agent_provider: openrouter
   agent_model: openai/gpt-4o-mini
   max_retries: 2
+  require_approval: true
+  retry_delay: 10s
+  retry_backoff_multiplier: 1.5
   env_vars:
     GLOBAL_VAR: "global_value"
   tags:
@@ -29,6 +32,9 @@ jobs:
       npm install
       npm run build
     timeout: 30m
+    require_approval: false
+    retry_delay: 5s
+    retry_backoff_multiplier: 2.0
     env_vars:
       LOCAL_VAR: "local_value"
       GLOBAL_VAR: "overridden_value"
@@ -76,6 +82,12 @@ jobs:
 	assert.Empty(t, buildJob.DependsOn)
 	require.NotNil(t, buildJob.MaxRetries)
 	assert.Equal(t, 2, *buildJob.MaxRetries)
+	require.NotNil(t, buildJob.RequireApproval)
+	assert.False(t, *buildJob.RequireApproval)
+	require.NotNil(t, buildJob.RetryDelay)
+	assert.Equal(t, 5*time.Second, *buildJob.RetryDelay)
+	require.NotNil(t, buildJob.RetryBackoffMultiplier)
+	assert.Equal(t, 2.0, *buildJob.RetryBackoffMultiplier)
 	assert.Equal(t, map[string]string{"GLOBAL_VAR": "overridden_value", "LOCAL_VAR": "local_value"}, buildJob.EnvVars)
 	assert.Equal(t, []string{"global_tag", "local_tag"}, buildJob.Tags)
 
@@ -83,6 +95,12 @@ jobs:
 	testJob, ok := jobMap["test"]
 	require.True(t, ok)
 	assert.Equal(t, "Run tests", testJob.Summary)
+	require.NotNil(t, testJob.RequireApproval)
+	assert.True(t, *testJob.RequireApproval)
+	require.NotNil(t, testJob.RetryDelay)
+	assert.Equal(t, 10*time.Second, *testJob.RetryDelay)
+	require.NotNil(t, testJob.RetryBackoffMultiplier)
+	assert.Equal(t, 1.5, *testJob.RetryBackoffMultiplier)
 	assert.Equal(t, map[string]string{"GLOBAL_VAR": "global_value"}, testJob.EnvVars)
 	assert.Equal(t, []string{"global_tag"}, testJob.Tags)
 	assert.Equal(t, 10, testJob.Priority)
