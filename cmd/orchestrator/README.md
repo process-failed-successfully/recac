@@ -30,6 +30,8 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--delete-pending-job` | - | - | Delete a specific job from the pending queue |
 | `--delete-pending-tag` | - | - | Delete all pending jobs with the specified tag |
 | `--delete-pending-match` | - | - | Delete all pending jobs matching the given regex |
+| `--export-trace` | - | - | Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout) |
+| `--export-trace-state` | - | `all` | State of jobs to export trace for (`all`, `active`, `completed`, `failed`) |
 
 ### Kubernetes Mode Flags
 
