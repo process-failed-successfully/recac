@@ -183,3 +183,25 @@ func TestOpenBrowser(t *testing.T) {
 		openBrowser("http://localhost:8080")
 	})
 }
+
+func TestOpenBrowserFunc(t *testing.T) {
+	// Let's test `openBrowser` without trying to really open a browser by mocking `exec.Command` if possible,
+	// but it's hardcoded to `exec.Command` inside the function.
+	// Since we are running in CI or headless, it will likely return an error and print it, which is handled gracefully.
+	// We can capture stdout to verify.
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	openBrowser("http://localhost:0") // Guaranteed to not resolve to anything real, or just fail to open
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+
+	// Either it opened (which it shouldn't realistically block), or it failed and printed "Error opening browser".
+	// Depending on OS, it might just spawn and exit. We just want to make sure it doesn't crash.
+}

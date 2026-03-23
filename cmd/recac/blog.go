@@ -67,7 +67,7 @@ func runBlog(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(logs) == 0 {
-		fmt.Printf("No commits found since %s.\n", blogSince)
+		fmt.Fprintf(cmd.OutOrStdout(), "No commits found since %s.\n", blogSince)
 		return nil
 	}
 

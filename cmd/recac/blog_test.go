@@ -159,3 +159,54 @@ func TestBlogCommand(t *testing.T) {
 	mockGit.AssertExpectations(t)
 	mockAgent.AssertExpectations(t)
 }
+
+func TestBlogCommand_NoCommits(t *testing.T) {
+	// Setup
+	mockGit := new(MockBlogGitClient)
+	mockAgent := new(MockBlogAgent)
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient { return mockGit }
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, pp, pn string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	cwd, _ := os.Getwd()
+	mockGit.On("RepoExists", cwd).Return(true)
+	mockGit.On("Log", cwd, mock.Anything).Return([]string{}, nil) // No commits
+
+	blogSince = "1 week ago"
+
+	var buf bytes.Buffer
+	rootCmd.SetArgs([]string{"blog"})
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	err := rootCmd.Execute()
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "No commits found since")
+}
+
+func TestBlogCommand_NotGitRepo(t *testing.T) {
+	mockGit := new(MockBlogGitClient)
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient { return mockGit }
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	cwd, _ := os.Getwd()
+	mockGit.On("RepoExists", cwd).Return(false) // Not a repo
+
+	var buf bytes.Buffer
+	rootCmd.SetArgs([]string{"blog"})
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	err := rootCmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not a git repository")
+}

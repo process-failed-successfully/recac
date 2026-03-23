@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 // MockRouteAgent for testing
@@ -93,4 +94,68 @@ func handler(w http.ResponseWriter, r *http.Request) {}
 	if !strings.Contains(outStr, "openapi: 3.0.0") {
 		t.Errorf("openapi output incorrect: %s", outStr)
 	}
+}
+
+func TestRoutesCmd_TableFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `
+package main
+import "net/http"
+func main() {
+	http.HandleFunc("/api/table", handlerTable)
+}
+func handlerTable(w http.ResponseWriter, r *http.Request) {}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write main.go: %v", err)
+	}
+
+	routesFormat = "table"
+	routesOutput = filepath.Join(tmpDir, "output.txt")
+
+	cmd := &cobra.Command{}
+
+	err := runRoutes(cmd, []string{tmpDir})
+	assert.NoError(t, err)
+
+	outBytes, err := os.ReadFile(routesOutput)
+	assert.NoError(t, err)
+	outStr := string(outBytes)
+
+	assert.Contains(t, outStr, "METHOD")
+	assert.Contains(t, outStr, "PATH")
+	assert.Contains(t, outStr, "/api/table")
+}
+
+func TestRoutesCmd_InvalidFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `
+package main
+import "net/http"
+func main() {
+	http.HandleFunc("/api/test", handler)
+}
+func handler(w http.ResponseWriter, r *http.Request) {}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write main.go: %v", err)
+	}
+
+	routesFormat = "invalid_format_xyz"
+	cmd := &cobra.Command{}
+
+	err := runRoutes(cmd, []string{tmpDir})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown format")
+}
+
+func TestRoutesCmd_EmptyRoutes(t *testing.T) {
+	tmpDir := t.TempDir() // Empty dir
+
+	cmd := &cobra.Command{}
+
+	err := runRoutes(cmd, []string{tmpDir})
+	assert.NoError(t, err)
 }

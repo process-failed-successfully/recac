@@ -154,3 +154,59 @@ func TestRunTour_EmptySlides(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "tour is empty")
 }
+
+func TestRunTour_Generate(t *testing.T) {
+	// Setup temp file
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "tour.json")
+
+	// Save original global var
+	origTourFile := tourFile
+	tourFile = tmpFile
+	defer func() { tourFile = origTourFile }()
+
+	// Mock factory
+	origFactory := tourAgentFactory
+	defer func() { tourAgentFactory = origFactory }()
+
+	mockResponse := `[
+		{
+			"title": "Generated Slide",
+			"filepath": "gen.go",
+			"description": "Generated description"
+		}
+	]`
+
+	tourAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return &MockTourAgent{Response: mockResponse}, nil
+	}
+
+	// We can't really mock os.Stdin properly for BubbleTea's termios setup
+	// in some environments, which can cause the test to hang indefinitely.
+	// Instead of calling runTour which calls tea.NewProgram(...).Run(),
+	// we will run tea.NewProgram with a custom input that exits immediately.
+	// But since runTour is hardcoded to use tea.NewProgram without options we can override,
+	// let's just test that the slides are saved and generated properly.
+
+	// Because runTour is hard to test directly due to tea.NewProgram blocking,
+	// we will manually test the logic that runTour uses.
+
+	slides, err := loadTour()
+	assert.Error(t, err) // File doesn't exist yet
+
+	slides, err = generateTour(context.Background())
+	assert.NoError(t, err)
+	assert.Len(t, slides, 1)
+
+	err = saveTour(slides)
+	assert.NoError(t, err)
+
+	// Check if file was saved
+	savedSlides, err := loadTour()
+	assert.NoError(t, err)
+	assert.Len(t, savedSlides, 1)
+	assert.Equal(t, "Generated Slide", savedSlides[0].Title)
+
+	// Since we verified generateTour, saveTour, and loadTour,
+	// we've covered the core logic of runTour. We skip the TUI Run part.
+}
