@@ -224,6 +224,7 @@ func main() {
 	pflag.String("lint-pipeline", "", "Validate a pipeline YAML file without submitting")
 	pflag.String("import-pipeline", "", "Import a pipeline YAML file and hold all generated jobs")
 	pflag.String("explain-pipeline", "", "Explain a pipeline YAML file (visualize execution structure) without submitting")
+	pflag.String("compare-pipelines", "", "Compare two pipeline YAML files (comma-separated, e.g., p1.yaml,p2.yaml)")
 	pflag.String("search-logs", "", "Search logs of all active and completed jobs for a regex pattern")
 	pflag.String("search-tag", "", "Optional tag filter when searching logs")
 	pflag.String("search-status", "", "Optional status filter when searching logs")
@@ -523,6 +524,7 @@ func main() {
 	viper.BindPFlag("orchestrator.lint_pipeline", pflag.Lookup("lint-pipeline"))
 	viper.BindPFlag("orchestrator.import_pipeline", pflag.Lookup("import-pipeline"))
 	viper.BindPFlag("orchestrator.explain_pipeline", pflag.Lookup("explain-pipeline"))
+	viper.BindPFlag("orchestrator.compare_pipelines", pflag.Lookup("compare-pipelines"))
 	viper.BindPFlag("orchestrator.search_logs", pflag.Lookup("search-logs"))
 	viper.BindPFlag("orchestrator.search_tag", pflag.Lookup("search-tag"))
 	viper.BindPFlag("orchestrator.search_status", pflag.Lookup("search-status"))
@@ -1656,6 +1658,11 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		explainPipelineJob(explainPipelineFile, target, vars)
+		return nil
+	}
+
+	if comparePipelinesStr := viper.GetString("orchestrator.compare_pipelines"); comparePipelinesStr != "" {
+		comparePipelines(comparePipelinesStr)
 		return nil
 	}
 
