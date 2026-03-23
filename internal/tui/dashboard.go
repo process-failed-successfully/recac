@@ -1776,7 +1776,7 @@ func tick() tea.Cmd {
 
 func fetchStatus(host string, history bool) tea.Cmd {
 	return func() tea.Msg {
-		sResp, err := http.Get(fmt.Sprintf("%s/status", host))
+		sResp, err := http.Get(host + "/status")
 		if err != nil {
 			return statusMsg{Err: err}
 		}
@@ -1787,7 +1787,7 @@ func fetchStatus(host string, history bool) tea.Cmd {
 			return statusMsg{Err: err}
 		}
 
-		url := fmt.Sprintf("%s/jobs", host)
+		url := host + "/jobs"
 		if history {
 			url += "?state=all"
 		}
@@ -1808,7 +1808,7 @@ func fetchStatus(host string, history bool) tea.Cmd {
 
 func fetchJobDetails(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, id))
+		resp, err := http.Get(host + "/jobs/" + id)
 		if err != nil {
 			return detailsMsg{Err: err}
 		}
@@ -1841,7 +1841,7 @@ func fetchCompareJobs(host, id1, id2 string) tea.Cmd {
 }
 
 func fetchJob(host, jobID string) (*orchestrator.JobInfo, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	resp, err := http.Get(host + "/jobs/" + jobID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to orchestrator: %w", err)
 	}
@@ -1862,7 +1862,7 @@ func fetchJob(host, jobID string) (*orchestrator.JobInfo, error) {
 
 func fetchExplanation(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/explain", host, id))
+		resp, err := http.Get(host + "/jobs/" + id + "/explain")
 		if err != nil {
 			return explainMsg{Err: err}
 		}
@@ -1903,7 +1903,7 @@ func renderExplain(explanation string) string {
 
 func streamJobLogs(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, id))
+		resp, err := http.Get(host + "/jobs/" + id + "/logs")
 		if err != nil {
 			return logStreamMsg{Err: err}
 		}
@@ -1928,7 +1928,7 @@ func waitForLogChunk(r io.Reader) tea.Cmd {
 
 func searchLogsCmd(host, query string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/jobs/search/logs?q=%s", host, query))
+		resp, err := http.Get(host + "/jobs/search/logs?q=" + query)
 		if err != nil {
 			return searchLogsResultMsg{Err: err}
 		}
@@ -1991,7 +1991,7 @@ func togglePause(host string, isPaused bool) tea.Cmd {
 		if isPaused {
 			endpoint = "/resume"
 		}
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", host, endpoint), nil)
+		req, err := http.NewRequest(http.MethodPost, host + endpoint, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2018,7 +2018,7 @@ func toggleDrain(host string, isDraining bool) tea.Cmd {
 		if isDraining {
 			endpoint = "/undrain"
 		}
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", host, endpoint), nil)
+		req, err := http.NewRequest(http.MethodPost, host + endpoint, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2041,7 +2041,7 @@ func toggleDrain(host string, isDraining bool) tea.Cmd {
 
 func forcePoll(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/poll", host), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/poll", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2061,7 +2061,7 @@ func forcePoll(host string) tea.Cmd {
 func scaleConcurrencyCmd(host string, max int) tea.Cmd {
 	return func() tea.Msg {
 		reqBody := fmt.Sprintf(`{"max_concurrent_jobs": %d}`, max)
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/scale", host), strings.NewReader(reqBody))
+		req, err := http.NewRequest(http.MethodPost, host + "/scale", strings.NewReader(reqBody))
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2080,7 +2080,7 @@ func scaleConcurrencyCmd(host string, max int) tea.Cmd {
 
 func approveJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/approve", host, id), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/approve", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2100,7 +2100,7 @@ func approveJobCmd(host, id string) tea.Cmd {
 
 func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/priority", host, id)
+		urlStr := host + "/jobs/" + id + "/priority"
 		reqBody := fmt.Sprintf(`{"priority": %d}`, newPriority)
 
 		req, err := http.NewRequest(http.MethodPut, urlStr, strings.NewReader(reqBody))
@@ -2126,7 +2126,7 @@ func updatePriorityCmd(host, id string, newPriority int) tea.Cmd {
 
 func updateDependenciesCmd(host, id string, deps []string) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/dependencies", host, id)
+		urlStr := host + "/jobs/" + id + "/dependencies"
 
 		reqBody := struct {
 			DependsOn []string `json:"depends_on"`
@@ -2161,7 +2161,7 @@ func updateDependenciesCmd(host, id string, deps []string) tea.Cmd {
 
 func updateEnvCmd(host, id string, env map[string]string) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/env", host, id)
+		urlStr := host + "/jobs/" + id + "/env"
 
 		reqBody := struct {
 			EnvVars map[string]string `json:"env_vars"`
@@ -2196,7 +2196,7 @@ func updateEnvCmd(host, id string, env map[string]string) tea.Cmd {
 
 func updateRenameCmd(host, id, newID string) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/rename", host, id)
+		urlStr := host + "/jobs/" + id + "/rename"
 
 		reqBody := struct {
 			NewID string `json:"new_id"`
@@ -2231,7 +2231,7 @@ func updateRenameCmd(host, id, newID string) tea.Cmd {
 
 func updateTagsCmd(host, id string, tags []string) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/tags", host, id)
+		urlStr := host + "/jobs/" + id + "/tags"
 
 		reqBody := struct {
 			Tags []string `json:"tags"`
@@ -2266,7 +2266,7 @@ func updateTagsCmd(host, id string, tags []string) tea.Cmd {
 
 func updateAgentCmd(host, id, provider, model string) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/agent", host, id)
+		urlStr := host + "/jobs/" + id + "/agent"
 
 		reqBody := struct {
 			AgentProvider string `json:"agent_provider"`
@@ -2303,7 +2303,7 @@ func updateAgentCmd(host, id, provider, model string) tea.Cmd {
 
 func updateTimeoutCmd(host, id, newTimeout string) tea.Cmd {
 	return func() tea.Msg {
-		urlStr := fmt.Sprintf("%s/jobs/%s/timeout", host, id)
+		urlStr := host + "/jobs/" + id + "/timeout"
 		reqBody := fmt.Sprintf(`{"timeout": "%s"}`, newTimeout)
 
 		req, err := http.NewRequest(http.MethodPut, urlStr, strings.NewReader(reqBody))
@@ -2328,7 +2328,7 @@ func updateTimeoutCmd(host, id, newTimeout string) tea.Cmd {
 
 func purgeJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/history/%s", host, id), nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/history/" + id, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2347,7 +2347,7 @@ func purgeJobCmd(host, id string) tea.Cmd {
 
 func holdJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/hold", host, id), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/hold", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2366,7 +2366,7 @@ func holdJobCmd(host, id string) tea.Cmd {
 
 func unholdJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/unhold", host, id), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/unhold", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2385,7 +2385,7 @@ func unholdJobCmd(host, id string) tea.Cmd {
 
 func forceCompleteJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/force-complete", host, id), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/force-complete", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2404,7 +2404,7 @@ func forceCompleteJobCmd(host, id string) tea.Cmd {
 
 func cancelJob(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, id), nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs/" + id, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2423,7 +2423,7 @@ func cancelJob(host, id string) tea.Cmd {
 
 func cancelJobDownstream(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s?downstream=true", host, id), nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs/" + id + "?downstream=true", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2442,7 +2442,7 @@ func cancelJobDownstream(host, id string) tea.Cmd {
 
 func cancelAllJobs(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs", host), nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2471,7 +2471,7 @@ func cancelAllJobs(host string) tea.Cmd {
 
 func retryJob(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, id), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/retry", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2490,7 +2490,7 @@ func retryJob(host, id string) tea.Cmd {
 
 func retryJobDownstream(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry?downstream=true", host, id), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/retry?downstream=true", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2509,7 +2509,7 @@ func retryJobDownstream(host, id string) tea.Cmd {
 
 func clearHistory(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/history", host), nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/history", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2538,7 +2538,7 @@ func clearHistory(host string) tea.Cmd {
 
 func archiveJobCmd(host, jobID string) tea.Cmd {
 	return func() tea.Msg {
-		url := fmt.Sprintf("%s/jobs/%s/archive", host, jobID)
+		url := host + "/jobs/" + jobID + "/archive"
 		resp, err := http.Get(url)
 		if err != nil {
 			return actionMsg{Err: err}
@@ -2576,7 +2576,7 @@ func archiveBulkJobsCmd(host string, selectedJobs map[string]bool) tea.Cmd {
 		}
 
 		matchParam := fmt.Sprintf("^(%s)$", strings.Join(ids, "|"))
-		urlStr := fmt.Sprintf("%s/jobs/archive/bulk?match=%s", host, url.QueryEscape(matchParam))
+		urlStr := host + "/jobs/archive/bulk?match=" + url.QueryEscape(matchParam)
 
 		resp, err := http.Get(urlStr)
 		if err != nil {
@@ -2605,7 +2605,7 @@ func archiveBulkJobsCmd(host string, selectedJobs map[string]bool) tea.Cmd {
 
 func clearPending(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/pending", host), nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/pending", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2670,7 +2670,7 @@ func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string
 			return actionMsg{Err: err}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs", host), strings.NewReader(string(bodyBytes)))
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs", strings.NewReader(string(bodyBytes)))
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2693,7 +2693,7 @@ func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string
 
 func retryFailedJobs(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/retry-failed", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -2897,7 +2897,7 @@ type analyticsMsg struct {
 
 func fetchAnalytics(host string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/analytics", host))
+		resp, err := http.Get(host + "/analytics")
 		if err != nil {
 			return analyticsMsg{Err: err}
 		}

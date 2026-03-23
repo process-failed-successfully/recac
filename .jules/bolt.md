@@ -20,3 +20,7 @@
 ## 2024-03-21 - [Single pass builder fails with JSON]
 **Learning:** When trying to implement a single pass builder using `strings.IndexByte` and `strings.Builder` to prevent multiple string allocations and improve speed, a basic algorithm trying to look for matching `}` after finding a `{` may fail if the string contains a JSON payload. The `{` from the start of the JSON block will be matched with the `}` from the start of the payload block causing everything within to be matched as a key.
 **Action:** Always verify if the key matches a value in the `vars` map before blindly writing it out to the builder. If the key does not match any variables in the map, output `{` instead of the original string (since `{` could be the start of a JSON block).
+
+## 2025-05-15 - [Optimize strings.ReplaceAll with strings.NewReplacer]
+**Learning:** `strings.NewReplacer` is a standard way to avoid sequential memory allocations and loops compared to chained `strings.ReplaceAll` calls when performing static multi-character replacements. However, its efficiency relies entirely on allocating and building its internal trie structure *once*. If `strings.NewReplacer` is instantiated inline inside a highly-called function, the repeated setup overhead makes it slower than chained `strings.ReplaceAll`.
+**Action:** When refactoring chained `strings.ReplaceAll` to `strings.NewReplacer` for performance, always declare the replacer as a package-level global variable (e.g., `var myReplacer = strings.NewReplacer(...)`) so the setup cost is paid only at initialization.

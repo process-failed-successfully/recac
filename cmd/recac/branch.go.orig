@@ -11,8 +11,6 @@ import (
 	"recac/internal/utils"
 )
 
-var branchNameReplacer = strings.NewReplacer(" ", "-", "\n", "", "\r", "", "\"", "", "'", "")
-
 func NewBranchCmd() *cobra.Command {
 	var dryRun bool
 	var issueKey string
@@ -77,7 +75,7 @@ Do NOT wrap it in backticks or quotes.`)
 			branchName := strings.TrimSpace(utils.CleanCodeBlock(msg))
 
 			// ⚡ Bolt: Basic validation/cleanup of the generated name just in case the AI messed up. Replaced multiple strings.ReplaceAll calls with strings.NewReplacer for efficiency.
-			branchName = branchNameReplacer.Replace(branchName)
+			branchName = strings.NewReplacer(" ", "-", "\n", "", "\r", "", "\"", "", "'", "").Replace(branchName)
 
 			if branchName == "" {
 				return fmt.Errorf("generated branch name was empty")
