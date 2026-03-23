@@ -564,3 +564,66 @@ func TestSubmitAdHocJob_WithWait(t *testing.T) {
 	assert.Contains(t, out.String(), "Job submitted")
 	assert.Contains(t, out.String(), "Job already completed")
 }
+
+func TestGetJobOutput_Success(t *testing.T) {
+	var exitCode int
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = originalExit }()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-123", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		job := orchestrator.JobInfo{
+			ID: "JOB-123",
+			Outputs: map[string]string{
+				"key1": "val1",
+			},
+		}
+		json.NewEncoder(w).Encode(job)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var outBuf bytes.Buffer
+	originalStdout := stdout
+	stdout = &outBuf
+	defer func() { stdout = originalStdout }()
+
+	getJobOutput(server.URL, "JOB-123", "key1")
+
+	assert.Contains(t, outBuf.String(), "val1\n")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestGetJobOutput_NotFound(t *testing.T) {
+	var exitCode int
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = originalExit }()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-123", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Not Found"))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var outBuf bytes.Buffer
+	originalStdout := stdout
+	stdout = &outBuf
+	defer func() { stdout = originalStdout }()
+
+	getJobOutput(server.URL, "JOB-123", "key1")
+
+	assert.Contains(t, outBuf.String(), "Failed to get job info: Not Found")
+	assert.Equal(t, 1, exitCode)
+}
