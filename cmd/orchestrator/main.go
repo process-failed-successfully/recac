@@ -128,6 +128,7 @@ func main() {
 	pflag.Bool("purge-failed", false, "Purge all failed jobs from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
 	pflag.Bool("clear-pending", false, "Clear all jobs waiting in the pending queue")
+	pflag.Bool("clean-all", false, "Cancel all active jobs, clear pending queue, and clear history")
 	pflag.String("delete-pending-job", "", "Delete a specific job from the pending queue")
 	pflag.String("delete-pending-tag", "", "Delete all pending jobs with the specified tag")
 	pflag.String("delete-pending-match", "", "Delete all pending jobs matching the given regex")
@@ -428,6 +429,7 @@ func main() {
 	viper.BindPFlag("orchestrator.purge_failed", pflag.Lookup("purge-failed"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
 	viper.BindPFlag("orchestrator.clear_pending", pflag.Lookup("clear-pending"))
+	viper.BindPFlag("orchestrator.clean_all", pflag.Lookup("clean-all"))
 	viper.BindPFlag("orchestrator.delete_pending_job", pflag.Lookup("delete-pending-job"))
 	viper.BindPFlag("orchestrator.delete_pending_tag", pflag.Lookup("delete-pending-tag"))
 	viper.BindPFlag("orchestrator.delete_pending_match", pflag.Lookup("delete-pending-match"))
@@ -958,6 +960,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.clear_pending") {
 		host := viper.GetString("orchestrator.host")
 		clearPending(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.clean_all") {
+		host := viper.GetString("orchestrator.host")
+		cancelAllJobs(host)
+		clearPending(host)
+		clearHistory(host)
 		return nil
 	}
 
