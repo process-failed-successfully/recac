@@ -112,6 +112,83 @@ func TestThreatCmd(t *testing.T) {
 		assert.Contains(t, string(content), "# Threat Model Report (STRIDE)")
 		assert.Contains(t, string(content), "Attacker impersonates user")
 	})
+
+	t.Run("No Input File", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "threat", RunE: runThreat}
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+
+		// Set global flags
+		threatJSON = false
+		threatOutput = ""
+		threatFile = ""
+
+		// Execute in temp dir where defaults don't exist
+		newTempDir := t.TempDir()
+		oldwd, _ := os.Getwd()
+		os.Chdir(newTempDir)
+		defer os.Chdir(oldwd)
+
+		err := runThreat(cmd, []string{})
+		if assert.Error(t, err) {
+			assert.Contains(t, err.Error(), "no input file specified")
+		}
+	})
+
+	t.Run("Invalid Input File", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "threat", RunE: runThreat}
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+
+		// Set global flags
+		threatJSON = false
+		threatOutput = ""
+		threatFile = filepath.Join(tempDir, "does_not_exist.txt")
+
+		err := runThreat(cmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read input file")
+	})
+
+	t.Run("Invalid JSON Response", func(t *testing.T) {
+		// Use a different mock agent
+		originalFactory := agentClientFactory
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &TestThreatAgent{Response: "invalid json"}, nil
+		}
+		defer func() { agentClientFactory = originalFactory }()
+
+		cmd := &cobra.Command{Use: "threat", RunE: runThreat}
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+
+		// Set global flags
+		threatJSON = false
+		threatOutput = ""
+		threatFile = specFile
+
+		err := runThreat(cmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse agent response")
+	})
+
+	t.Run("Output File Error", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "threat", RunE: runThreat}
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+
+		// Set global flags
+		threatJSON = false
+		threatOutput = filepath.Join(tempDir, "nonexistent", "dir", "report.md") // Will fail
+		threatFile = specFile
+
+		err := runThreat(cmd, []string{})
+		assert.Error(t, err)
+	})
 }
 
 func TestPrintThreatTable(t *testing.T) {

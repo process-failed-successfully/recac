@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"testing"
@@ -432,4 +433,119 @@ func TestRunTestWatch_WatcherInitError(t *testing.T) {
 	err := runTestWatch(cmd, []string{"pkg/a"})
 	assert.Error(t, err)
 	assert.Equal(t, assert.AnError, err)
+}
+
+func TestRunTest_DiagnoseFailure_StreamError(t *testing.T) {
+	// Setup
+	cmd := rootCmd
+	resetFlags(cmd)
+
+	// Mock Agent
+	mockAgent := new(TestCmdMockAgent)
+	mockAgent.On("SendStream", mock.Anything, mock.Anything, mock.Anything).
+		Return("", assert.AnError)
+
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	// Run
+	err := diagnoseFailure(cmd, "FAIL output")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "agent failed during diagnosis")
+}
+
+func TestRunTestCore_ImpactAnalysisError(t *testing.T) {
+	// Setup
+	cmd := rootCmd
+	resetFlags(cmd)
+	testAll = false // Need false to trigger impact analysis
+
+	// Mock getGitDiffFilesFunc to fail
+	originalGetGitDiff := getGitDiffFilesFunc
+	getGitDiffFilesFunc = func(staged bool) ([]string, error) {
+		return nil, assert.AnError
+	}
+	defer func() { getGitDiffFilesFunc = originalGetGitDiff }()
+
+	_, err := runTestCore(cmd, []string{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get changed files")
+}
+
+func TestRunTestCore_ImpactAnalysisNoGoFiles(t *testing.T) {
+	// Setup
+	cmd := rootCmd
+	resetFlags(cmd)
+	testAll = false // Need false to trigger impact analysis
+
+	// Mock getGitDiffFilesFunc
+	originalGetGitDiff := getGitDiffFilesFunc
+	getGitDiffFilesFunc = func(staged bool) ([]string, error) {
+		return []string{"README.md"}, nil
+	}
+	defer func() { getGitDiffFilesFunc = originalGetGitDiff }()
+
+	// Mock identifyPackagesFunc to return specific error
+	originalIdentify := identifyPackagesFunc
+	identifyPackagesFunc = func(files []string, root string) ([]string, map[string]bool, error) {
+		return nil, nil, fmt.Errorf("No Go packages found")
+	}
+	defer func() { identifyPackagesFunc = originalIdentify }()
+
+	output, err := runTestCore(cmd, []string{})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "", output)
+}
+
+func TestRunTestCore_ImpactAnalysisIdentifyError(t *testing.T) {
+	// Setup
+	cmd := rootCmd
+	resetFlags(cmd)
+	testAll = false // Need false to trigger impact analysis
+
+	// Mock getGitDiffFilesFunc
+	originalGetGitDiff := getGitDiffFilesFunc
+	getGitDiffFilesFunc = func(staged bool) ([]string, error) {
+		return []string{"main.go"}, nil
+	}
+	defer func() { getGitDiffFilesFunc = originalGetGitDiff }()
+
+	// Mock identifyPackagesFunc to fail
+	originalIdentify := identifyPackagesFunc
+	identifyPackagesFunc = func(files []string, root string) ([]string, map[string]bool, error) {
+		return nil, nil, assert.AnError
+	}
+	defer func() { identifyPackagesFunc = originalIdentify }()
+
+	_, err := runTestCore(cmd, []string{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "impact analysis failed")
+}
+
+func TestRunTestCore_ExecStartError(t *testing.T) {
+	// Setup
+	cmd := rootCmd
+	resetFlags(cmd)
+
+	// Mock execCommand to fail on start
+	// Note: We cannot easily mock `Cmd.Start()` directly returning an error on a real `exec.Cmd` unless we use an invalid binary path.
+	// We'll return a command that doesn't exist.
+	originalExecCommand := execCommand
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("this_command_does_not_exist_12345")
+	}
+	defer func() { execCommand = originalExecCommand }()
+
+	_, err := runTestCore(cmd, []string{"pkg/test"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to start go test")
 }
