@@ -292,6 +292,8 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		container := job.Spec.Template.Spec.Containers[0]
 		assert.Equal(t, "recac-agent:latest", container.Image)
 		assert.Equal(t, corev1.RestartPolicyNever, job.Spec.Template.Spec.RestartPolicy, "RestartPolicy should be Never to prevent split-brain retries")
+		assert.NotNil(t, job.Spec.BackoffLimit)
+		assert.Equal(t, int32(0), *job.Spec.BackoffLimit, "BackoffLimit should be 0 to prevent split-brain retries")
 
 		envMap := make(map[string]string)
 		for _, e := range container.Env {
