@@ -122,6 +122,9 @@ func TestRun_Commands(t *testing.T) {
 	defer func() { exitFunc = originalExit }()
 
 	t.Run("ListJobs_Flag", func(t *testing.T) {
+		var out bytes.Buffer
+		stdout = &out
+		defer func() { stdout = nil }()
 		viper.Reset()
 		viper.Set("orchestrator.scale", -1)
 		viper.Set("orchestrator.list_jobs", true)
@@ -240,6 +243,9 @@ func TestRun_Misc_Flags(t *testing.T) {
 
 	for _, flag := range flags {
 		t.Run(flag, func(t *testing.T) {
+		var out bytes.Buffer
+		stdout = &out
+		defer func() { stdout = nil }()
 			viper.Reset()
 			viper.Set("orchestrator.scale", -1)
 			if flag == "orchestrator.retry_failed" || flag == "orchestrator.pause" || flag == "orchestrator.resume" {
@@ -449,4 +455,46 @@ func TestMain_Entrypoint(t *testing.T) {
 	stdout = new(bytes.Buffer)
 
 	main()
+}
+func TestRun_GetOutputJob(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ctx := context.Background()
+
+	originalExit := exitFunc
+	exitFunc = func(code int) {}
+	defer func() { exitFunc = originalExit }()
+
+	t.Run("GetOutputJob", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
+		viper.Set("orchestrator.get_output_job", "JOB-1")
+
+		var out bytes.Buffer
+		stdout = &out
+		defer func() { stdout = nil }()
+
+		err := run(ctx, logger)
+		assert.NoError(t, err)
+	})
+}
+func TestRun_InspectDataflow(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ctx := context.Background()
+
+	originalExit := exitFunc
+	exitFunc = func(code int) {}
+	defer func() { exitFunc = originalExit }()
+
+	t.Run("InspectDataflow", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("orchestrator.scale", -1)
+		viper.Set("orchestrator.inspect_dataflow", "JOB-1")
+
+		var out bytes.Buffer
+		stdout = &out
+		defer func() { stdout = nil }()
+
+		err := run(ctx, logger)
+		assert.NoError(t, err)
+	})
 }

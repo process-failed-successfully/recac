@@ -205,6 +205,9 @@ func main() {
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
 	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
+	pflag.String("get-output-job", "", "Get outputs for a specific job")
+	pflag.String("get-output-key", "", "Output key to get (requires --get-output-job, if omitted returns all outputs as JSON)")
+	pflag.String("inspect-dataflow", "", "Inspect dataflow from dependencies into a target job")
 	pflag.String("add-metrics-job", "", "Add metrics to a specific job")
 	pflag.String("metrics-key", "", "The metrics key to add (requires --add-metrics-job)")
 	pflag.Float64("metrics-val", 0, "The metrics value to add (requires --add-metrics-job)")
@@ -506,6 +509,9 @@ func main() {
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
 	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
+	viper.BindPFlag("orchestrator.get_output_job", pflag.Lookup("get-output-job"))
+	viper.BindPFlag("orchestrator.get_output_key", pflag.Lookup("get-output-key"))
+	viper.BindPFlag("orchestrator.inspect_dataflow", pflag.Lookup("inspect-dataflow"))
 	viper.BindPFlag("orchestrator.add_metrics_job", pflag.Lookup("add-metrics-job"))
 	viper.BindPFlag("orchestrator.metrics_key", pflag.Lookup("metrics-key"))
 	viper.BindPFlag("orchestrator.metrics_val", pflag.Lookup("metrics-val"))
@@ -754,6 +760,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			fmt.Fprintf(stdout, "Tail failed: %v\n", err)
 			exitFunc(1)
 		}
+		return nil
+	}
+
+	if inspectJob := viper.GetString("orchestrator.inspect_dataflow"); inspectJob != "" {
+		host := viper.GetString("orchestrator.host")
+		inspectDataflow(host, inspectJob)
+		return nil
+	}
+
+	if getOutputJob := viper.GetString("orchestrator.get_output_job"); getOutputJob != "" {
+		host := viper.GetString("orchestrator.host")
+		key := viper.GetString("orchestrator.get_output_key")
+		getJobOutput(host, getOutputJob, key)
 		return nil
 	}
 
