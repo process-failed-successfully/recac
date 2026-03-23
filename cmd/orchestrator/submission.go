@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"recac/internal/orchestrator"
 
 	"github.com/google/uuid"
@@ -148,6 +150,101 @@ func importPipelineJob(host, filePath string, target string, vars map[string]str
 		exitFunc(1)
 		return
 	}
+}
+
+func submitPipelineInteractiveJob(host, filePath string, wait bool, dryRun bool, target string, vars map[string]string) {
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
+	}
+
+	var p orchestrator.Pipeline
+	if err := yaml.Unmarshal(fileData, &p); err != nil {
+		fmt.Fprintf(stdout, "Failed to unmarshal pipeline YAML: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if p.Variables == nil {
+		p.Variables = make(map[string]string)
+	}
+
+	// Apply passed-in variables to the initial map for editing
+	for k, v := range vars {
+		p.Variables[k] = v
+	}
+
+	if len(p.Variables) == 0 {
+		fmt.Fprintf(stdout, "No variables found in pipeline. Proceeding with submission.\n")
+		submitPipelineJob(host, filePath, wait, dryRun, target, vars)
+		return
+	}
+
+	varsJSON, err := json.MarshalIndent(p.Variables, "", "  ")
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to format variables JSON: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	tmpFile, err := os.CreateTemp("", "recac-pipeline-vars-*.json")
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create temp file: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write(varsJSON); err != nil {
+		fmt.Fprintf(stdout, "Failed to write to temp file: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	tmpFile.Close()
+
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi" // Default fallback
+	}
+
+	shellCmd := fmt.Sprintf("%s \"$1\"", editor)
+	cmd := exec.Command("sh", "-c", shellCmd, "--", tmpFile.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(stdout, "Editor exited with error: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	modifiedJSON, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read modified JSON: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	var updatedVars map[string]string
+	if err := json.Unmarshal(modifiedJSON, &updatedVars); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse modified JSON: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// Any newly defined interactive vars will override the CLI arguments in priority
+	finalVars := make(map[string]string)
+	for k, v := range vars {
+		finalVars[k] = v
+	}
+	for k, v := range updatedVars {
+		finalVars[k] = v
+	}
+
+	submitPipelineJob(host, filePath, wait, dryRun, target, finalVars)
 }
 
 func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target string, vars map[string]string) {
