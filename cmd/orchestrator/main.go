@@ -111,6 +111,7 @@ func main() {
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("edit-job", "", "Edit a pending job interactively using $EDITOR")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
+	pflag.String("inspect-dataflow", "", "Inspect the data flow of outputs into environment variables for a specific job")
 	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
 	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
@@ -205,6 +206,8 @@ func main() {
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
 	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
+	pflag.String("get-output-job", "", "Get outputs for a specific job")
+	pflag.String("get-output-key", "", "Optional key to get a specific output value (used with --get-output-job)")
 	pflag.String("add-metrics-job", "", "Add metrics to a specific job")
 	pflag.String("metrics-key", "", "The metrics key to add (requires --add-metrics-job)")
 	pflag.Float64("metrics-val", 0, "The metrics value to add (requires --add-metrics-job)")
@@ -412,6 +415,7 @@ func main() {
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.edit_job", pflag.Lookup("edit-job"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
+	viper.BindPFlag("orchestrator.inspect_dataflow", pflag.Lookup("inspect-dataflow"))
 	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
 	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
@@ -506,6 +510,8 @@ func main() {
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
 	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
+	viper.BindPFlag("orchestrator.get_output_job", pflag.Lookup("get-output-job"))
+	viper.BindPFlag("orchestrator.get_output_key", pflag.Lookup("get-output-key"))
 	viper.BindPFlag("orchestrator.add_metrics_job", pflag.Lookup("add-metrics-job"))
 	viper.BindPFlag("orchestrator.metrics_key", pflag.Lookup("metrics-key"))
 	viper.BindPFlag("orchestrator.metrics_val", pflag.Lookup("metrics-val"))
@@ -770,6 +776,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	if getOutputJob := viper.GetString("orchestrator.get_output_job"); getOutputJob != "" {
+		host := viper.GetString("orchestrator.host")
+		key := viper.GetString("orchestrator.get_output_key")
+		getJobOutput(host, getOutputJob, key)
+		return nil
+	}
+
 	if addMetricsJob := viper.GetString("orchestrator.add_metrics_job"); addMetricsJob != "" {
 		host := viper.GetString("orchestrator.host")
 		key := viper.GetString("orchestrator.metrics_key")
@@ -858,6 +871,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.inspect_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		inspectJob(host, jobID)
+		return nil
+	}
+
+	if jobID := viper.GetString("orchestrator.inspect_dataflow"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		inspectDataFlow(host, jobID)
 		return nil
 	}
 
@@ -2480,6 +2499,163 @@ func limitString(s string, max int) string {
 	return s
 }
 
+func getJobOutput(host, jobID, key string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if key != "" {
+		if val, ok := job.Outputs[key]; ok {
+			fmt.Fprintln(stdout, val)
+		} else {
+			fmt.Fprintf(stdout, "Output key '%s' not found for job %s\n", key, jobID)
+			exitFunc(1)
+		}
+	} else {
+		// Output the entire map as JSON
+		if job.Outputs == nil {
+			fmt.Fprintln(stdout, "{}")
+			return
+		}
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(job.Outputs); err != nil {
+			fmt.Fprintf(stdout, "Failed to encode outputs: %v\n", err)
+			exitFunc(1)
+		}
+	}
+}
+
+func inspectDataFlow(host, jobID string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86"))
+
+	depStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214"))
+
+	valStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Data Flow for Job: %s", job.ID)))
+	fmt.Fprintln(stdout, "")
+
+	if len(job.WorkItem.DependsOn) == 0 {
+		fmt.Fprintln(stdout, "This job has no dependencies.")
+		return
+	}
+
+	injectedVars := make(map[string]string)
+
+	for _, depID := range job.WorkItem.DependsOn {
+		depResp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, depID))
+		if err != nil {
+			fmt.Fprintf(stdout, "[%s] Error fetching dependency\n", depStyle.Render(depID))
+			continue
+		}
+
+		if depResp.StatusCode != http.StatusOK {
+			fmt.Fprintf(stdout, "[%s] Not Found or Error Status\n", depStyle.Render(depID))
+			depResp.Body.Close()
+			continue
+		}
+
+		var depJob orchestrator.JobInfo
+		if err := json.NewDecoder(depResp.Body).Decode(&depJob); err != nil {
+			fmt.Fprintf(stdout, "[%s] Error decoding dependency\n", depStyle.Render(depID))
+			depResp.Body.Close()
+			continue
+		}
+		depResp.Body.Close()
+
+		fmt.Fprintf(stdout, "[%s] (%s)\n", depStyle.Render(depJob.ID), depJob.Status)
+
+		if len(depJob.Outputs) > 0 {
+			fmt.Fprintln(stdout, "  Outputs:")
+			// Replicate orchestrator prefix logic to show what's injected
+			// sanitizeEnvVarName logic duplicated here for display
+			safeDepID := depID
+			var sb strings.Builder
+			for i := 0; i < len(safeDepID); i++ {
+				c := safeDepID[i]
+				if c >= 'a' && c <= 'z' {
+					sb.WriteByte(c - 32)
+				} else if (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+					sb.WriteByte(c)
+				} else {
+					sb.WriteByte('_')
+				}
+			}
+			prefix := fmt.Sprintf("DEP_%s_", sb.String())
+
+			for k, v := range depJob.Outputs {
+				injectedKey := prefix + strings.ToUpper(k)
+				injectedVars[injectedKey] = v
+				fmt.Fprintf(stdout, "    -> %s = %s\n", labelStyle.Render(k), valStyle.Render(v))
+			}
+		} else {
+			fmt.Fprintln(stdout, "  (No outputs)")
+		}
+		fmt.Fprintln(stdout, "")
+	}
+
+	fmt.Fprintln(stdout, labelStyle.Render(fmt.Sprintf("Injected Env Vars for [%s]:", job.ID)))
+	if len(injectedVars) == 0 {
+		fmt.Fprintln(stdout, "  (None)")
+	} else {
+		for k, v := range injectedVars {
+			fmt.Fprintf(stdout, "  %s=%s\n", k, valStyle.Render(v))
+		}
+	}
+	fmt.Fprintln(stdout, "")
+}
+
 func inspectJob(host, jobID string) {
 	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
 	if err != nil {
@@ -2553,6 +2729,19 @@ func inspectJob(host, jobID string) {
 				v = "***"
 			}
 			fmt.Fprintf(stdout, "  %s=%s\n", k, v)
+		}
+	}
+
+	// Outputs
+	if len(job.Outputs) > 0 {
+		fmt.Fprintln(stdout, "\n"+labelStyle.Render("Outputs:"))
+		for k, v := range job.Outputs {
+			// Mask likely secrets in outputs too just in case
+			maskedV := v
+			if strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "key") || strings.Contains(strings.ToLower(k), "secret") {
+				maskedV = "***"
+			}
+			fmt.Fprintf(stdout, "  %s=%s\n", k, maskedV)
 		}
 	}
 
