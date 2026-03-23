@@ -76,6 +76,22 @@ func TestGenerateTour(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, slides, 1)
 	assert.Equal(t, "Generated Slide", slides[0].Title)
+
+	// Test Agent Error
+	tourAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return nil, assert.AnError
+	}
+	_, err = generateTour(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to init agent")
+
+	// Test Invalid JSON Response
+	tourAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return &MockTourAgent{Response: "invalid json"}, nil
+	}
+	_, err = generateTour(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse agent response")
 }
 
 func TestTourModel_Update(t *testing.T) {
@@ -85,14 +101,23 @@ func TestTourModel_Update(t *testing.T) {
 	}
 
 	m := initialModel(slides)
+	// Initialize viewport by sending WindowSizeMsg
+	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = newM.(tourModel)
 
 	// Verify initial state
 	assert.Equal(t, 0, m.current)
 
 	// Simulate 'n' key press (next)
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}}
-	newM, _ := m.Update(msg)
+	newM, _ = m.Update(msg)
 	newModel := newM.(tourModel)
+	assert.Equal(t, 1, newModel.current)
+
+	// Simulate 'right' key press (next again, should stay at 1 since len=2)
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}}
+	newM, _ = newModel.Update(msg)
+	newModel = newM.(tourModel)
 	assert.Equal(t, 1, newModel.current)
 
 	// Simulate 'p' key press (prev)
@@ -101,10 +126,21 @@ func TestTourModel_Update(t *testing.T) {
 	newModel = newM.(tourModel)
 	assert.Equal(t, 0, newModel.current)
 
+	// Simulate 'left' key press (prev again, should stay at 0)
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}}
+	newM, _ = newModel.Update(msg)
+	newModel = newM.(tourModel)
+	assert.Equal(t, 0, newModel.current)
+
 	// Simulate 'q' key press (quit)
 	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
 	_, cmd := newModel.Update(msg)
 	assert.Equal(t, tea.Quit(), cmd())
+
+	// Test Window resize when already ready
+	newM, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	newModel = newM.(tourModel)
+	assert.Equal(t, 100, newModel.viewport.Width)
 }
 
 func TestTourModel_View(t *testing.T) {
@@ -207,6 +243,22 @@ func TestRunTour_Generate(t *testing.T) {
 	assert.Len(t, savedSlides, 1)
 	assert.Equal(t, "Generated Slide", savedSlides[0].Title)
 
-	// Since we verified generateTour, saveTour, and loadTour,
-	// we've covered the core logic of runTour. We skip the TUI Run part.
+	// Test runTour with generation failure
+	// Make agent fail
+	tourAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+		return nil, assert.AnError
+	}
+
+	// Ensure file is deleted to trigger generation
+	os.Remove(tourFile)
+
+	cmd := &cobra.Command{}
+	err = runTour(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to generate tour")
+
+	// Test loadTour invalid json
+	os.WriteFile(tourFile, []byte("invalid json"), 0644)
+	_, err = loadTour()
+	assert.Error(t, err)
 }

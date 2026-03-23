@@ -90,3 +90,57 @@ INSERT INTO posts (user_id, title) VALUES (2, 'Second Post');
 	assert.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
+
+func TestSeedCmd_NoDBPath(t *testing.T) {
+	// Setup: Run in empty directory
+	tmpDir := t.TempDir()
+	oldwd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldwd)
+
+	origDb := seedDbPath
+	defer func() { seedDbPath = origDb }()
+	seedDbPath = ""
+
+	err := runSeed(seedCmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "connection string or file path required")
+}
+
+func TestSeedCmd_ExecuteFailure(t *testing.T) {
+	// Test execution failure due to invalid SQL syntax
+	tmpDB := "test_seed_fail.db"
+	defer os.Remove(tmpDB)
+
+	db, err := sql.Open("sqlite", tmpDB)
+	assert.NoError(t, err)
+
+	// Ensure file is created
+	_, err = db.Exec("CREATE TABLE users (id INTEGER);")
+	assert.NoError(t, err)
+	db.Close()
+
+	originalFactory := agentClientFactory
+	defer func() { agentClientFactory = originalFactory }()
+
+	mockAg := agent.NewMockAgent()
+	mockAg.SetResponse("THIS IS INVALID SQL")
+
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAg, nil
+	}
+
+	origDb := seedDbPath
+	origExec := seedExecute
+	defer func() {
+		seedDbPath = origDb
+		seedExecute = origExec
+	}()
+
+	seedDbPath = tmpDB
+	seedExecute = true
+
+	err = runSeed(seedCmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "execution failed")
+}

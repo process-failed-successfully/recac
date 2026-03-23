@@ -76,6 +76,55 @@ func TestInitConfig(t *testing.T) {
 	// But let's verify initConfig runs.
 }
 
+func TestInitConfig_OrchestrateCommand(t *testing.T) {
+	// Setup temp config file
+	f, err := os.CreateTemp("", "config_test_*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	// Write valid config
+	f.WriteString("provider: test-provider\n")
+	f.Close()
+
+	// Capture original state
+	oldCfgFile := cfgFile
+	oldExit := exit
+	oldArgs := os.Args
+	defer func() {
+		cfgFile = oldCfgFile
+		exit = oldExit
+		os.Args = oldArgs
+		viper.Reset()
+	}()
+
+	// Mock exit
+	exitCode := -1
+	exit = func(code int) {
+		exitCode = code
+	}
+
+	// Test Case: Orchestrate command
+	cfgFile = f.Name()
+	viper.Reset()
+
+	// Set args to include orchestrate
+	os.Args = []string{"recac", "orchestrate"}
+
+	// When orchestrate is present, initConfig should not start metrics server
+	// This is hard to assert directly without mocking start metrics server,
+	// but we can increase coverage by executing the path.
+	initConfig()
+
+	assert.Equal(t, -1, exitCode, "initConfig should not exit on valid config")
+	assert.Equal(t, "test-provider", viper.GetString("provider"))
+
+	// Set args to without orchestrate
+	os.Args = []string{"recac", "start"}
+	initConfig()
+}
+
 func TestExecute_PanicRecovery(t *testing.T) {
 	// Test panic recovery in Execute
 	// We can't easily cause panic in rootCmd.Execute() unless we modify it or add a command that panics.
