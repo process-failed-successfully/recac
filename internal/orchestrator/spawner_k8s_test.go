@@ -153,7 +153,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 
 	// Mock Session Manager
 	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
-		return s.Status == "running"
+		return s.Status == "running" && s.AgentStateFile == "/workspace/.agent_state.json"
 	})).Return(nil)
 
 	// Since we are using fake client, waitForJob will block unless we update status.
@@ -259,7 +259,7 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 
 	t.Run("Create Success", func(t *testing.T) {
 		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
-			return s.Status == "running"
+			return s.Status == "running" && s.AgentStateFile == "/workspace/.agent_state.json"
 		})).Return(nil)
 
 		sm.On("LoadSession", "TASK-123").Return(&runner.SessionState{Name: "TASK-123", Status: "running"}, nil)
@@ -335,7 +335,7 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		clientset.BatchV1().Jobs("test-ns").Delete(context.Background(), "recac-agent-task-123", metav1.DeleteOptions{})
 
 		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
-			return s.Status == "running"
+			return s.Status == "running" && s.AgentStateFile == "/workspace/.agent_state.json"
 		})).Return(nil)
 		sm.On("LoadSession", "TASK-123").Return(&runner.SessionState{Name: "TASK-123", Status: "running"}, nil)
 		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
@@ -359,7 +359,7 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		clientset.BatchV1().Jobs("test-ns").Delete(context.Background(), "recac-agent-task-123", metav1.DeleteOptions{})
 
 		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
-			return s.Status == "running"
+			return s.Status == "running" && s.AgentStateFile == "/workspace/.agent_state.json"
 		})).Return(nil)
 		sm.On("LoadSession", "TASK-123").Return(&runner.SessionState{Name: "TASK-123", Status: "running"}, nil)
 		sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
