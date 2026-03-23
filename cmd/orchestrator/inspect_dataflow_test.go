@@ -15,12 +15,12 @@ import (
 
 func TestInspectDataflow(t *testing.T) {
 	tests := []struct {
-		name             string
-		jobID            string
-		mockResponses    map[string]interface{}
-		mockStatuses     map[string]int
+		name           string
+		jobID          string
+		mockResponses  map[string]interface{}
+		mockStatuses   map[string]int
 		expectedContains []string
-		expectExitCode   int
+		expectExitCode int
 	}{
 		{
 			name:  "Success With Dataflow",
@@ -89,7 +89,7 @@ func TestInspectDataflow(t *testing.T) {
 					},
 				},
 				"/jobs/JOB-DEP-1": orchestrator.JobInfo{
-					ID:      "JOB-DEP-1",
+					ID: "JOB-DEP-1",
 					Outputs: map[string]string{},
 				},
 			},
@@ -130,8 +130,8 @@ func TestInspectDataflow(t *testing.T) {
 				"/jobs/JOB-DEP-MISSING": "not found",
 			},
 			mockStatuses: map[string]int{
-				"/jobs/JOB-TARGET":      http.StatusOK,
-				"/jobs/JOB-DEP-MISSING": http.StatusNotFound,
+				"/jobs/JOB-TARGET": http.StatusOK,
+				"/jobs/JOB-DEP-MISSING":  http.StatusNotFound,
 			},
 			expectedContains: []string{
 				"Dependency JOB-DEP-MISSING:",

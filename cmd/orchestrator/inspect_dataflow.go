@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"recac/internal/orchestrator"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func sanitizeEnvVarName(id string) string {

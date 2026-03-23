@@ -257,7 +257,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		Command:        agentCmd,
 		Workspace:      "/workspace",
 		Type:           "orchestrated-k8s",
-		AgentStateFile: ".agent_state.json",
+		AgentStateFile: "/workspace/.agent_state.json",
 	}
 
 	if err := s.SessionManager.SaveSession(session); err != nil {
