@@ -2792,3 +2792,192 @@ func TestSkipJob_Failure(t *testing.T) {
 	}
 	t.Fatalf("process ran with err %v, want exit status 1", err)
 }
+
+func TestImportPipelineJob(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupServer    func() *httptest.Server
+		filePath       string
+		target         string
+		vars           map[string]string
+		expectedOutput string
+		expectedExit   int
+		setupFile      func() string
+	}{
+		{
+			name: "Success with target and vars",
+			setupServer: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/jobs/pipeline/import", r.URL.Path)
+					assert.Equal(t, http.MethodPost, r.Method)
+					assert.Equal(t, "my-target", r.URL.Query().Get("target"))
+					assert.Equal(t, "var1=val1", r.URL.Query().Get("var"))
+
+					w.WriteHeader(http.StatusAccepted)
+					w.Write([]byte(`{"submitted": ["JOB-1", "JOB-2"], "errors": []}`))
+				}))
+			},
+			target: "my-target",
+			vars: map[string]string{"var1": "val1"},
+			expectedOutput: "Successfully imported 2 jobs:\n - JOB-1\n - JOB-2",
+			expectedExit: 0,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "Success with only submitted",
+			setupServer: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{"submitted": ["JOB-1"]}`))
+				}))
+			},
+			expectedOutput: "Successfully imported 1 jobs:\n - JOB-1",
+			expectedExit: 0,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "Success with errors",
+			setupServer: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusAccepted)
+					w.Write([]byte(`{"submitted": ["JOB-1"], "errors": ["error message"]}`))
+				}))
+			},
+			expectedOutput: "Successfully imported 1 jobs:\n - JOB-1\n\nFailed to import 1 jobs:\n - error message",
+			expectedExit: 1,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "Only errors",
+			setupServer: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusAccepted)
+					w.Write([]byte(`{"errors": ["fatal error"]}`))
+				}))
+			},
+			expectedOutput: "\nFailed to import 1 jobs:\n - fatal error",
+			expectedExit: 1,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "Invalid JSON response",
+			setupServer: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`invalid json`))
+				}))
+			},
+			expectedOutput: "Pipeline successfully imported, but failed to parse response.",
+			expectedExit: 0,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "HTTP Failure (500)",
+			setupServer: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(`internal server error`))
+				}))
+			},
+			expectedOutput: "Failed to import pipeline: internal server error",
+			expectedExit: 1,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "Connection error",
+			setupServer: func() *httptest.Server {
+				s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+				s.Close()
+				return s
+			},
+			expectedOutput: "Failed to connect to orchestrator",
+			expectedExit: 1,
+			setupFile: func() string {
+				f, _ := os.CreateTemp("", "pipeline_*.yaml")
+				f.Write([]byte(`name: my-pipeline`))
+				f.Close()
+				return f.Name()
+			},
+		},
+		{
+			name: "Invalid file path",
+			setupServer: func() *httptest.Server {
+				return nil
+			},
+			expectedOutput: "Failed to read file nonexistent.yaml",
+			expectedExit: 1,
+			filePath: "nonexistent.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var exitCode int
+			oldExit := exitFunc
+			exitFunc = func(code int) { exitCode = code }
+			defer func() { exitFunc = oldExit }()
+
+			var server *httptest.Server
+			var url string
+			if tt.setupServer != nil {
+				server = tt.setupServer()
+				if server != nil {
+					url = server.URL
+				}
+			}
+			if server != nil && tt.name != "Connection error" {
+				defer server.Close()
+			}
+
+			filePath := tt.filePath
+			if tt.setupFile != nil {
+				filePath = tt.setupFile()
+				defer os.Remove(filePath)
+			}
+
+			oldStdout := stdout
+			pr, pw, _ := os.Pipe()
+			stdout = pw
+			defer func() { stdout = oldStdout }()
+
+			importPipelineJob(url, filePath, tt.target, tt.vars)
+
+			pw.Close()
+			outBytes, _ := io.ReadAll(pr)
+			outStr := string(outBytes)
+
+			assert.Contains(t, outStr, tt.expectedOutput)
+			assert.Equal(t, tt.expectedExit, exitCode)
+		})
+	}
+}
