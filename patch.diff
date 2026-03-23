@@ -1,116 +1,110 @@
-package main
+<<<<<<< SEARCH
+func TestSimplifyCmd_StatError(t *testing.T) {
+	oldStat := osStatFunc
+	osStatFunc = func(name string) (os.FileInfo, error) {
+		return nil, os.ErrNotExist
+	}
+	defer func() { osStatFunc = oldStat }()
 
-import (
-	"context"
-	"os"
-	"path/filepath"
-	"testing"
+	cmd := &cobra.Command{Use: "simplify", RunE: runSimplify}
+	cmd.SetArgs([]string{"nonexistent.go"})
 
-	"recac/internal/agent"
-
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-)
-
-// MockSimplifyAgent is a mock agent for simplify tests
-type MockSimplifyAgent struct {
-	mock.Mock
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to stat file")
 }
 
-func (m *MockSimplifyAgent) Send(ctx context.Context, prompt string) (string, error) {
-	args := m.Called(ctx, prompt)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockSimplifyAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	args := m.Called(ctx, prompt, onChunk)
-	response := args.String(0)
-	onChunk(response)
-	return response, args.Error(1)
-}
-
-func (m *MockSimplifyAgent) Close() error {
-	m.Called()
-	return nil
-}
-
-func TestSimplifyCmd_Stdout(t *testing.T) {
-	// Create a temporary file
+func TestSimplifyCmd_ReadError(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "test.go")
-	originalCode := "func ComplexFunction() { /* very complex */ }"
-	err := os.WriteFile(filePath, []byte(originalCode), 0644)
-	assert.NoError(t, err)
+	os.WriteFile(filePath, []byte(""), 0644)
 
-	// Setup mock agent
+	oldRead := readFileFunc
+	readFileFunc = func(filename string) ([]byte, error) {
+		return nil, os.ErrPermission
+	}
+	defer func() { readFileFunc = oldRead }()
+
+	cmd := &cobra.Command{Use: "simplify", RunE: runSimplify}
+	cmd.SetArgs([]string{filePath})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read file")
+}
+
+func TestSimplifyCmd_AgentCreateError(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.go")
+	os.WriteFile(filePath, []byte(""), 0644)
+
+	oldFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return nil, os.ErrInvalid
+	}
+	defer func() { agentClientFactory = oldFactory }()
+
+	cmd := &cobra.Command{Use: "simplify", RunE: runSimplify}
+	cmd.SetArgs([]string{filePath})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create agent")
+}
+
+func TestSimplifyCmd_AgentSendError(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.go")
+	os.WriteFile(filePath, []byte(""), 0644)
+
 	mockAgent := new(MockSimplifyAgent)
-	simplifiedCode := "func SimpleFunction() { /* simple */ }"
-	mockAgent.On("Send", mock.Anything, mock.MatchedBy(func(prompt string) bool {
-		return true
-	})).Return("```go\n" + simplifiedCode + "\n```", nil)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("", os.ErrInvalid)
 
-	// Override factory
 	oldFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return mockAgent, nil
 	}
 	defer func() { agentClientFactory = oldFactory }()
 
-	// Execute command via helper
-	output, err := executeCommand(rootCmd, "simplify", filePath)
-	assert.NoError(t, err)
+	cmd := &cobra.Command{Use: "simplify", RunE: runSimplify}
+	cmd.SetArgs([]string{filePath})
 
-	// Check output contains the simplified code
-	assert.Contains(t, output, simplifiedCode)
-
-	// Verify file was NOT modified
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err)
-	assert.Equal(t, originalCode, string(content))
-
-	mockAgent.AssertExpectations(t)
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "agent failed to simplify code")
 }
 
-func TestSimplifyCmd_InPlace(t *testing.T) {
-	// Reset global flag to prevent state leakage
+func TestSimplifyCmd_WriteError(t *testing.T) {
 	defer func() { simplifyInPlace = false }()
 
-	// Create a temporary file
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "test.go")
-	originalCode := "func ComplexFunction() { /* very complex */ }"
-	err := os.WriteFile(filePath, []byte(originalCode), 0644)
-	assert.NoError(t, err)
+	os.WriteFile(filePath, []byte(""), 0644)
 
-	// Setup mock agent
 	mockAgent := new(MockSimplifyAgent)
-	simplifiedCode := "func SimpleFunction() { /* simple */ }"
-	mockAgent.On("Send", mock.Anything, mock.Anything).Return(simplifiedCode, nil)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("simplified code", nil)
 
-	// Override factory
 	oldFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return mockAgent, nil
 	}
 	defer func() { agentClientFactory = oldFactory }()
 
-	// Execute via cobra command explicitly
+	oldWrite := writeFileFunc
+	writeFileFunc = func(filename string, data []byte, perm os.FileMode) error {
+		return os.ErrPermission
+	}
+	defer func() { writeFileFunc = oldWrite }()
+
 	cmd := &cobra.Command{Use: "simplify", RunE: runSimplify}
 	cmd.Flags().BoolVarP(&simplifyInPlace, "in-place", "i", false, "")
 	cmd.SetArgs([]string{filePath, "--in-place"})
 
-	err = cmd.Execute()
-	assert.NoError(t, err)
-
-	// Verify file WAS modified
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err)
-	assert.Equal(t, simplifiedCode, string(content))
-
-	mockAgent.AssertExpectations(t)
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to write simplified code")
 }
-
+=======
 func TestSimplifyCmd_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -220,3 +214,4 @@ func TestSimplifyCmd_Errors(t *testing.T) {
 		})
 	}
 }
+>>>>>>> REPLACE
