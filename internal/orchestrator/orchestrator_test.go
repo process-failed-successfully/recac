@@ -541,3 +541,192 @@ func TestOrchestrator_UnholdJob_Errors(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found in pending queue")
 }
+
+func TestOrchestrator_GetJobDependents(t *testing.T) {
+	mockP := newMockPoller(nil)
+	mockS := new(MockSpawner)
+	orch := New(mockP, mockS, 100*time.Millisecond)
+
+	orch.pendingJobs["job-A"] = JobInfo{
+		ID:     "job-A",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID: "job-A",
+		},
+	}
+	orch.pendingJobs["job-B"] = JobInfo{
+		ID:     "job-B",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:        "job-B",
+			DependsOn: []string{"job-A"},
+		},
+	}
+	orch.activeJobs["job-C"] = JobInfo{
+		ID:     "job-C",
+		Status: "Running",
+		WorkItem: WorkItem{
+			ID:        "job-C",
+			DependsOn: []string{"job-A", "job-X"},
+		},
+	}
+	orch.pendingJobs["job-D"] = JobInfo{
+		ID:     "job-D",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:        "job-D",
+			DependsOn: []string{"job-C"},
+		},
+	}
+
+	dependents, err := orch.GetJobDependents("job-A")
+	assert.NoError(t, err)
+	assert.Len(t, dependents, 2)
+
+	ids := []string{dependents[0].ID, dependents[1].ID}
+	assert.Contains(t, ids, "job-B")
+	assert.Contains(t, ids, "job-C")
+
+	_, err = orch.GetJobDependents("non-existent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestOrchestrator_ForceCompleteJob(t *testing.T) {
+	mockP := newMockPoller(nil)
+	mockS := new(MockSpawner)
+	orch := New(mockP, mockS, 100*time.Millisecond)
+
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// 1. Force complete a pending job
+	orch.pendingJobs["job-pending"] = JobInfo{
+		ID:     "job-pending",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID: "job-pending",
+		},
+	}
+	err := orch.ForceCompleteJob(ctx, "job-pending", logger)
+	assert.NoError(t, err)
+	_, exists := orch.pendingJobs["job-pending"]
+	assert.False(t, exists)
+	assert.Len(t, orch.completedJobs, 1)
+	assert.Equal(t, "Completed", orch.completedJobs[0].Status)
+
+	// 2. Force complete an active job
+	orch.activeJobs["job-active"] = JobInfo{
+		ID:     "job-active",
+		Status: "Running",
+		WorkItem: WorkItem{
+			ID: "job-active",
+		},
+	}
+	// Need to simulate a mock cancellation function
+	mockS.On("Cancel", mock.Anything, "job-active").Return(nil)
+
+	err = orch.ForceCompleteJob(ctx, "job-active", logger)
+	assert.NoError(t, err)
+	mockS.AssertCalled(t, "Cancel", mock.Anything, "job-active")
+	_, exists = orch.activeJobs["job-active"]
+	assert.False(t, exists)
+	assert.Len(t, orch.completedJobs, 2)
+	assert.Equal(t, "Completed", orch.completedJobs[1].Status)
+	assert.Equal(t, "job-active", orch.completedJobs[1].ID)
+
+	// 3. Force complete a failed job (in history)
+	orch.completedJobs = append(orch.completedJobs, JobInfo{
+		ID:     "job-failed",
+		Status: "Failed",
+		WorkItem: WorkItem{
+			ID: "job-failed",
+		},
+	})
+
+	err = orch.ForceCompleteJob(ctx, "job-failed", logger)
+	assert.NoError(t, err)
+
+	// Should be updated in place in completedJobs
+	found := false
+	for _, j := range orch.completedJobs {
+		if j.ID == "job-failed" {
+			assert.Equal(t, "Completed", j.Status)
+			found = true
+			break
+		}
+	}
+	assert.True(t, found)
+
+	// 4. Force complete non-existent job
+	err = orch.ForceCompleteJob(ctx, "non-existent", logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestOrchestrator_ForceCompleteJobsByTag_And_Match(t *testing.T) {
+	mockP := newMockPoller(nil)
+	mockS := new(MockSpawner)
+	orch := New(mockP, mockS, 100*time.Millisecond)
+
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	orch.pendingJobs["job-1"] = JobInfo{
+		ID:     "job-1",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID:   "job-1",
+			Tags: []string{"backend", "urgent"},
+		},
+	}
+	orch.activeJobs["job-2"] = JobInfo{
+		ID:     "job-2",
+		Status: "Running",
+		WorkItem: WorkItem{
+			ID:   "job-2",
+			Tags: []string{"frontend"},
+		},
+		Summary: "Update UI matchme components",
+	}
+	orch.completedJobs = append(orch.completedJobs, JobInfo{
+		ID:     "job-3",
+		Status: "Failed",
+		WorkItem: WorkItem{
+			ID:   "job-3",
+			Tags: []string{"backend"},
+		},
+		Error: "Connection timeout matchme error",
+	})
+
+	// Setup cancelFuncs so it doesn't nil pointer panic
+	mockS.On("Cancel", mock.Anything, "job-2").Return(nil)
+
+	// Test By Tag
+	count, err := orch.ForceCompleteJobsByTag(ctx, "backend", logger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// job-1 and job-3 should now be Completed
+	for _, j := range orch.completedJobs {
+		if j.ID == "job-1" || j.ID == "job-3" {
+			assert.Equal(t, "Completed", j.Status)
+		}
+	}
+
+	// Test By Match (regex)
+	count, err = orch.ForceCompleteJobsByMatch(ctx, "matchme", logger)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count) // Only job-2 should match since job-3 is now Completed, not Failed/Canceled
+
+	// job-2 should be Completed
+	for _, j := range orch.completedJobs {
+		if j.ID == "job-2" {
+			assert.Equal(t, "Completed", j.Status)
+		}
+	}
+
+	// Invalid regex
+	_, err = orch.ForceCompleteJobsByMatch(ctx, "[invalid-regex", logger)
+	assert.Error(t, err)
+}
