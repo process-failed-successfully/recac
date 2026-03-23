@@ -76,14 +76,16 @@ const DashboardHTML = `
             <div class="modal-content">
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitPipelineModal').style.display='none'">&times;</button>
                 <h2>Submit Pipeline (YAML)</h2>
-                <div class="form-group">
-                    <label for="pipeline-yaml">Pipeline Definition</label>
-                    <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;"></textarea>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="button" aria-label="Dry Run Pipeline" id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
-                    <button type="button" aria-label="Submit Pipeline YAML" id="btn-submit-pipeline" onclick="submitPipeline()" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
-                </div>
+                <form onsubmit="submitPipeline(); return false;">
+                    <div class="form-group">
+                        <label for="pipeline-yaml">Pipeline Definition</label>
+                        <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;" required></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" aria-label="Dry Run Pipeline" id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
+                        <button type="submit" aria-label="Submit Pipeline YAML" id="btn-submit-pipeline" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
+                    </div>
+                </form>
                 <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
                     <pre id="dry-run-output" style="margin: 0; font-size: 0.9em; white-space: pre-wrap;"></pre>
@@ -151,9 +153,11 @@ const DashboardHTML = `
             <div class="modal-content">
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</button>
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
-                <input type="hidden" id="edit-deps-job-id">
-                <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" aria-label="Job IDs" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
-                <button type="button" aria-label="Save Dependencies" id="btn-submit-deps" onclick="submitEditDeps()" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+                <form onsubmit="submitEditDeps(); return false;">
+                    <input type="hidden" id="edit-deps-job-id">
+                    <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" aria-label="Job IDs" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
+                    <button type="submit" aria-label="Save Dependencies" id="btn-submit-deps" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+                </form>
             </div>
         </div>
 
@@ -499,11 +503,6 @@ const DashboardHTML = `
 
         async function submitPipeline() {
             const yaml = document.getElementById('pipeline-yaml').value.trim();
-            if (!yaml) {
-                alert('Pipeline YAML is required.');
-                return;
-            }
-
             const btn = document.getElementById('btn-submit-pipeline');
             btn.disabled = true;
             btn.innerText = 'Submitting...';
