@@ -71,7 +71,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "+ Submit Pipeline")
 	assert.Contains(t, html, "id=\"submitPipelineModal\"")
 	assert.Contains(t, html, "id=\"pipeline-yaml\"")
-	assert.Contains(t, html, "onclick=\"submitPipeline()\"")
+	assert.Contains(t, html, "onsubmit=\"submitPipeline(); return false;\"")
 
 	// Verify JS submitPipeline function exists
 	assert.Contains(t, html, "async function submitPipeline()")
