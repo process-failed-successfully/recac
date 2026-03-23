@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"log/slog"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -261,4 +262,230 @@ func TestJanitor_Start(t *testing.T) {
 	calls := mockClient.cleanupCalls
 	mockClient.mu.Unlock()
 	assert.Greater(t, calls, 0)
+}
+
+// Extra mock persistence for GetJobDependents
+
+type extraMockPersistence struct {
+	jobs []JobInfo
+}
+
+func newExtraMockPersistence() *extraMockPersistence {
+	return &extraMockPersistence{}
+}
+
+func (m *extraMockPersistence) Init() error { return nil }
+func (m *extraMockPersistence) SaveJob(job JobInfo) error {
+	m.jobs = append(m.jobs, job)
+	return nil
+}
+func (m *extraMockPersistence) GetJobs(limit int) ([]JobInfo, error) {
+	return m.jobs, nil
+}
+func (m *extraMockPersistence) GetJob(id string) (*JobInfo, error) {
+	for _, j := range m.jobs {
+		if j.ID == id {
+			return &j, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+func (m *extraMockPersistence) ClearHistory() (int, error) { return 0, nil }
+func (m *extraMockPersistence) Close() error { return nil }
+func (m *extraMockPersistence) PurgeJob(id string) error { return nil }
+
+type extraDummySpawner struct{}
+func (d *extraDummySpawner) Spawn(ctx context.Context, item WorkItem) error { return nil }
+func (d *extraDummySpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) { return nil, nil }
+func (d *extraDummySpawner) Cancel(ctx context.Context, jobID string) error { return nil }
+func (d *extraDummySpawner) Ping(ctx context.Context) error { return nil }
+func (d *extraDummySpawner) Cleanup(ctx context.Context, item WorkItem) error { return nil }
+
+func TestGetJobDependents_Extra(t *testing.T) {
+	o := New(nil, &extraDummySpawner{}, 1*time.Minute)
+	o.Persistence = newExtraMockPersistence()
+
+	// Add jobs
+	job1 := WorkItem{ID: "job1"}
+	job2 := WorkItem{ID: "job2", DependsOn: []string{"job1"}}
+	job3 := WorkItem{ID: "job3", DependsOn: []string{"job2"}}
+	job4 := WorkItem{ID: "job4", DependsOn: []string{"job1"}}
+
+	err := o.SubmitJob(context.Background(), job1, slog.Default())
+	require.NoError(t, err)
+	err = o.SubmitJob(context.Background(), job2, slog.Default())
+	require.NoError(t, err)
+
+	o.mu.Lock()
+	// manually force them to different states to test the internal slices
+	job2Info := o.pendingJobs["job2"]
+	delete(o.pendingJobs, "job2")
+	o.activeJobs["job2"] = job2Info
+
+	o.completedJobs = append(o.completedJobs, JobInfo{
+		ID:       "job3",
+		WorkItem: job3,
+	})
+	o.mu.Unlock()
+
+	// Add job4 to mock persistence to test the fallback logic
+	err = o.Persistence.(*extraMockPersistence).SaveJob(JobInfo{ID: "job4", WorkItem: job4})
+	require.NoError(t, err)
+
+	deps, err := o.GetJobDependents("job1")
+	require.NoError(t, err)
+
+	assert.Len(t, deps, 2)
+
+	foundJob2 := false
+	foundJob4 := false
+	for _, dep := range deps {
+		if dep.ID == "job2" {
+			foundJob2 = true
+		} else if dep.ID == "job4" {
+			foundJob4 = true
+		}
+	}
+	assert.True(t, foundJob2, "job2 not found in dependents")
+	assert.True(t, foundJob4, "job4 not found in dependents")
+
+	// Missing job test
+	_, err = o.GetJobDependents("job-not-exist")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestUpdateJobDependencies(t *testing.T) {
+	o := New(nil, &extraDummySpawner{}, 1*time.Minute)
+
+	job1 := WorkItem{ID: "job1", Hold: true}
+	err := o.SubmitJob(context.Background(), job1, slog.Default())
+	require.NoError(t, err)
+
+	logger := slog.Default()
+
+	// Success case
+	err = o.UpdateJobDependencies(context.Background(), "job1", []string{"dep1"}, logger)
+	require.NoError(t, err)
+
+	o.mu.Lock()
+	assert.Equal(t, []string{"dep1"}, o.pendingJobs["job1"].WorkItem.DependsOn)
+	o.mu.Unlock()
+
+	// Nonexistent job case
+	err = o.UpdateJobDependencies(context.Background(), "nonexistent", []string{"dep1"}, logger)
+	assert.ErrorContains(t, err, "not found in pending queue")
+
+	// Active job case
+	o.mu.Lock()
+	job1Info := o.pendingJobs["job1"]
+	delete(o.pendingJobs, "job1")
+	o.activeJobs["job1"] = job1Info
+	o.mu.Unlock()
+
+	err = o.UpdateJobDependencies(context.Background(), "job1", []string{"dep1"}, logger)
+	assert.ErrorContains(t, err, "already active")
+
+	// Completed job case
+	o.mu.Lock()
+	delete(o.activeJobs, "job1")
+	o.completedJobs = append(o.completedJobs, job1Info)
+	o.mu.Unlock()
+
+	err = o.UpdateJobDependencies(context.Background(), "job1", []string{"dep1"}, logger)
+	assert.ErrorContains(t, err, "already completed")
+}
+
+func TestHoldJobsByMatch_Extra(t *testing.T) {
+	o := New(nil, &extraDummySpawner{}, 1*time.Minute)
+	o.Persistence = newExtraMockPersistence()
+
+	job1 := WorkItem{ID: "job1", Summary: "test summary 1", Hold: true}
+	job2 := WorkItem{ID: "job2", Summary: "other info", Hold: true}
+	job3 := WorkItem{ID: "job3", Hold: true}
+
+	o.SubmitJob(context.Background(), job1, slog.Default())
+	o.SubmitJob(context.Background(), job2, slog.Default())
+	o.SubmitJob(context.Background(), job3, slog.Default())
+
+	o.mu.Lock()
+	info := o.pendingJobs["job3"]
+	info.Error = "test error string"
+	info.WorkItem.Hold = false
+	o.pendingJobs["job3"] = info
+
+	info1 := o.pendingJobs["job1"]
+	info1.WorkItem.Hold = false
+	o.pendingJobs["job1"] = info1
+	o.mu.Unlock()
+
+	logger := slog.Default()
+	count, err := o.HoldJobsByMatch(context.Background(), "test", logger)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	o.mu.Lock()
+	assert.True(t, o.pendingJobs["job1"].WorkItem.Hold)
+	assert.True(t, o.pendingJobs["job2"].WorkItem.Hold) // was already hold
+	assert.True(t, o.pendingJobs["job3"].WorkItem.Hold)
+	o.mu.Unlock()
+
+	_, err = o.HoldJobsByMatch(context.Background(), "(invalid", logger)
+	assert.Error(t, err)
+}
+
+func TestUpdateJobPriority_Extra(t *testing.T) {
+	o := New(nil, &extraDummySpawner{}, 1*time.Minute)
+	o.Persistence = newExtraMockPersistence()
+
+	job1 := WorkItem{ID: "job1", Priority: 1, Hold: true}
+	o.SubmitJob(context.Background(), job1, slog.Default())
+
+	logger := slog.Default()
+	err := o.UpdateJobPriority(context.Background(), "job1", 5, logger)
+	require.NoError(t, err)
+
+	o.mu.Lock()
+	assert.Equal(t, 5, o.pendingJobs["job1"].WorkItem.Priority)
+	o.mu.Unlock()
+
+	err = o.UpdateJobPriority(context.Background(), "nonexistent", 5, logger)
+	assert.ErrorContains(t, err, "not found in pending queue")
+
+	o.mu.Lock()
+	job1Info := o.pendingJobs["job1"]
+	delete(o.pendingJobs, "job1")
+	o.activeJobs["job1"] = job1Info
+	o.mu.Unlock()
+
+	err = o.UpdateJobPriority(context.Background(), "job1", 5, logger)
+	assert.ErrorContains(t, err, "already active")
+
+	o.mu.Lock()
+	delete(o.activeJobs, "job1")
+	o.completedJobs = append(o.completedJobs, job1Info)
+	o.mu.Unlock()
+
+	err = o.UpdateJobPriority(context.Background(), "job1", 5, logger)
+	assert.ErrorContains(t, err, "already completed")
+}
+
+func TestUpdateJobsPriorityByTag_Extra(t *testing.T) {
+	o := New(nil, &extraDummySpawner{}, 1*time.Minute)
+
+	job1 := WorkItem{ID: "job1", Tags: []string{"tag1"}, Hold: true}
+	job2 := WorkItem{ID: "job2", Tags: []string{"tag2"}, Hold: true}
+
+	o.SubmitJob(context.Background(), job1, slog.Default())
+	o.SubmitJob(context.Background(), job2, slog.Default())
+
+	logger := slog.Default()
+	count, err := o.UpdateJobsPriorityByTag(context.Background(), "tag1", 10, logger)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	o.mu.Lock()
+	assert.Equal(t, 10, o.pendingJobs["job1"].WorkItem.Priority)
+	assert.Equal(t, 0, o.pendingJobs["job2"].WorkItem.Priority)
+	o.mu.Unlock()
 }
