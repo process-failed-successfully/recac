@@ -1448,6 +1448,40 @@ func setJobOutput(host, jobID, key, val string) {
 	fmt.Fprintf(stdout, "Successfully set output %s=%s for job %s\n", key, val, jobID)
 }
 
+func getJobOutput(host, jobID, key string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s", host, url.PathEscape(jobID))
+	resp, err := http.Get(urlStr)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to get job info: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse job info: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	val, ok := job.Outputs[key]
+	if !ok {
+		fmt.Fprintf(stdout, "Output key '%s' not found for job %s\n", key, jobID)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "%s\n", val)
+}
+
 func setJobProgress(host, jobID string, progress *int, msg *string) {
 	reqBody := struct {
 		Progress      *int    `json:"progress,omitempty"`

@@ -770,6 +770,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	if getOutputJob := viper.GetString("orchestrator.get_output_job"); getOutputJob != "" {
+		host := viper.GetString("orchestrator.host")
+		key := viper.GetString("orchestrator.get_output_key")
+		if key == "" {
+			fmt.Fprintf(stdout, "Error: --get-output-key is required when using --get-output-job\n")
+			exitFunc(1)
+			return nil
+		}
+		getJobOutput(host, getOutputJob, key)
+		return nil
+	}
+
 	if addMetricsJob := viper.GetString("orchestrator.add_metrics_job"); addMetricsJob != "" {
 		host := viper.GetString("orchestrator.host")
 		key := viper.GetString("orchestrator.metrics_key")
