@@ -18,7 +18,6 @@ import (
 )
 
 var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
-var blockerCleanerReplacer = strings.NewReplacer("#", "", "*", "", "-", "")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
@@ -107,7 +106,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
 				cleanStr := strings.ToLower(trimmed)
 				// ⚡ Bolt: Replaced multiple strings.ReplaceAll calls with strings.NewReplacer for efficiency
-				cleanStr = blockerCleanerReplacer.Replace(cleanStr)
+				cleanStr = strings.NewReplacer("#", "", "*", "", "-", "").Replace(cleanStr)
 				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
 
 				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
