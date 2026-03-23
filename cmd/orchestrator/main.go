@@ -97,6 +97,8 @@ func main() {
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
 	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
+	pflag.Bool("watch", false, "Continuously watch the output of list-jobs or list-pending")
+	pflag.Duration("watch-interval", 2*time.Second, "Refresh interval for watch mode (e.g. 2s, 1m)")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.String("tail-tag", "", "Filter tailed active jobs by a specific tag")
@@ -402,6 +404,8 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
 	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
 	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
+	viper.BindPFlag("orchestrator.watch", pflag.Lookup("watch"))
+	viper.BindPFlag("orchestrator.watch_interval", pflag.Lookup("watch-interval"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.tail_tag", pflag.Lookup("tail-tag"))
@@ -727,14 +731,48 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		tagFilter := viper.GetString("orchestrator.list_jobs_tag")
 		matchFilter := viper.GetString("orchestrator.list_jobs_match")
 		format := viper.GetString("orchestrator.list_jobs_format")
-		listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
+		watch := viper.GetBool("orchestrator.watch")
+		watchInterval := viper.GetDuration("orchestrator.watch_interval")
+
+		if watch {
+			ticker := time.NewTicker(watchInterval)
+			defer ticker.Stop()
+			for {
+				fmt.Fprint(stdout, "\033[H\033[2J") // Clear screen
+				listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-ticker.C:
+				}
+			}
+		} else {
+			listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
+		}
 		return nil
 	}
 
 	if viper.GetBool("orchestrator.list_pending") {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.list_jobs_format")
-		listPendingJobs(host, format)
+		watch := viper.GetBool("orchestrator.watch")
+		watchInterval := viper.GetDuration("orchestrator.watch_interval")
+
+		if watch {
+			ticker := time.NewTicker(watchInterval)
+			defer ticker.Stop()
+			for {
+				fmt.Fprint(stdout, "\033[H\033[2J") // Clear screen
+				listPendingJobs(host, format)
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-ticker.C:
+				}
+			}
+		} else {
+			listPendingJobs(host, format)
+		}
 		return nil
 	}
 
