@@ -162,3 +162,64 @@ func foo(a int) bool {
 		t.Error("Did not find && mutation")
 	}
 }
+
+func TestFindGoMod(t *testing.T) {
+	// 1. Setup temp dir with deep structure
+	tmpDir := t.TempDir()
+
+	modPath := filepath.Join(tmpDir, "go.mod")
+	err := os.WriteFile(modPath, []byte("module test"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	deepDir := filepath.Join(tmpDir, "a", "b", "c")
+	err = os.MkdirAll(deepDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create dirs: %v", err)
+	}
+
+	// 2. Test findGoMod from deep dir
+	found := findGoMod(deepDir)
+	if found != modPath {
+		t.Errorf("Expected %s, got %s", modPath, found)
+	}
+
+	// 3. Test findGoMod from root (where no go.mod exists above)
+	// TempDir is usually under /tmp, there shouldn't be a go.mod there, but to be sure we can test on a fresh root-like path.
+	// We can use a path we know has no go.mod, like a newly created dir outside any module.
+	noModDir := t.TempDir()
+	foundNone := findGoMod(noModDir)
+	if foundNone != "" {
+		t.Errorf("Expected empty string, got %s", foundNone)
+	}
+}
+
+func TestCopyDir(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	// Add files and ignored dirs to srcDir
+	os.WriteFile(filepath.Join(srcDir, "file1.go"), []byte("package main"), 0644)
+	os.MkdirAll(filepath.Join(srcDir, "node_modules"), 0755)
+	os.WriteFile(filepath.Join(srcDir, "node_modules", "ignore.js"), []byte("console.log()"), 0644)
+	os.MkdirAll(filepath.Join(srcDir, ".git"), 0755)
+	os.WriteFile(filepath.Join(srcDir, ".git", "config"), []byte("git config"), 0644)
+
+	// Execute
+	err := copyDir(srcDir, dstDir)
+	if err != nil {
+		t.Fatalf("copyDir failed: %v", err)
+	}
+
+	// Assert
+	if _, err := os.Stat(filepath.Join(dstDir, "file1.go")); os.IsNotExist(err) {
+		t.Error("file1.go was not copied")
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "node_modules")); !os.IsNotExist(err) {
+		t.Error("node_modules was copied but should be ignored")
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, ".git")); !os.IsNotExist(err) {
+		t.Error(".git was copied but should be ignored")
+	}
+}
