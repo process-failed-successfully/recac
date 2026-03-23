@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -449,4 +450,79 @@ func TestMain_Entrypoint(t *testing.T) {
 	stdout = new(bytes.Buffer)
 
 	main()
+}
+
+func TestWatchListJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	viper.Set("orchestrator.host", server.URL)
+	viper.Set("orchestrator.list_jobs", true)
+	viper.Set("orchestrator.watch", true)
+	viper.Set("orchestrator.watch_interval", 10*time.Millisecond)
+	defer viper.Reset()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := run(ctx, slog.Default())
+	assert.NoError(t, err)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+	outStr := string(out)
+
+	// ANSI clear screen code
+	assert.Contains(t, outStr, "\033[H\033[2J")
+	// "No active jobs." should appear multiple times
+	count := strings.Count(outStr, "No active jobs.")
+	assert.GreaterOrEqual(t, count, 2, "Watch loop should run multiple times")
+}
+
+func TestWatchListPendingJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, "pending", r.URL.Query().Get("state"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	viper.Set("orchestrator.host", server.URL)
+	viper.Set("orchestrator.list_pending", true)
+	viper.Set("orchestrator.watch", true)
+	viper.Set("orchestrator.watch_interval", 10*time.Millisecond)
+	defer viper.Reset()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() { stdout = oldStdout }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := run(ctx, slog.Default())
+	assert.NoError(t, err)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+	outStr := string(out)
+
+	// ANSI clear screen code
+	assert.Contains(t, outStr, "\033[H\033[2J")
+	// "No pending jobs." should appear multiple times
+	count := strings.Count(outStr, "No pending jobs.")
+	assert.GreaterOrEqual(t, count, 2, "Watch loop should run multiple times")
 }
