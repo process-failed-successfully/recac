@@ -41,3 +41,17 @@ func TestHandleDiagnose(t *testing.T) {
 	assert.Equal(t, "job-1", report.UnresolvableJobs[0].JobID)
 	assert.Contains(t, report.UnresolvableJobs[0].MissingDeps, "job-missing")
 }
+
+func TestHandleDiagnose_MethodNotAllowed(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 100*time.Millisecond)
+
+	handler := handleDiagnose(orch, nil)
+	req := httptest.NewRequest(http.MethodPost, "/diagnose", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}

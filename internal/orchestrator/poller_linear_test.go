@@ -493,3 +493,74 @@ func TestLinearPoller_closeIssue_Errors(t *testing.T) {
 	err = poller3.closeIssue(context.Background(), "lin-123")
 	assert.Error(t, err)
 }
+
+func TestLinearPoller_closeIssue_DecodeError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "10")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer ts.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = ts.URL
+	poller.Client = ts.Client()
+
+	err := poller.closeIssue(context.Background(), "lin-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode workflow states response")
+}
+
+func TestLinearPoller_closeIssue_UpdateDecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&req)
+
+		query, _ := req["query"].(string)
+		if strings.Contains(query, "workflowStates") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"workflowStates":{"nodes":[{"id":"state-1"}]}}}`))
+		} else if strings.Contains(query, "issueUpdate") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("invalid json"))
+		}
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = ts.URL
+	poller.Client = ts.Client()
+
+	err := poller.closeIssue(context.Background(), "lin-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode issue update response")
+}
+
+func TestLinearPoller_closeIssue_UpdateNotSuccess(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&req)
+
+		query, _ := req["query"].(string)
+		if strings.Contains(query, "workflowStates") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"workflowStates":{"nodes":[{"id":"state-1"}]}}}`))
+		} else if strings.Contains(query, "issueUpdate") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"issueUpdate":{"success":false}}}`))
+		}
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	poller := NewLinearPoller("token", "team_id", "")
+	poller.BaseURL = ts.URL
+	poller.Client = ts.Client()
+
+	err := poller.closeIssue(context.Background(), "lin-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "linear issue update failed")
+}
