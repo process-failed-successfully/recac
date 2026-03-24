@@ -164,8 +164,12 @@ func generateArchMermaid(arch *architecture.SystemArchitecture) string {
 	return sb.String()
 }
 
+// ⚡ Bolt: Use a package-level replacer to avoid multiple string allocations from chained ReplaceAll calls.
+// Impact: Reduces string allocations and improves execution time during ID cleanup loops.
+var archIDReplacer = strings.NewReplacer("-", "_", " ", "_")
+
 func cleanArchID(id string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(id, "-", "_"), " ", "_")
+	return archIDReplacer.Replace(id)
 }
 
 func openBrowserForVis(url string) error {
