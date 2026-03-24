@@ -51,15 +51,20 @@ func TestOrchestrator_JobDelayAfterDependency(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait a moment for goroutines
-	time.Sleep(50 * time.Millisecond)
-
-	_ = o.GetActiveJobs()
-	pending := o.GetPendingJobs()
+	// Poll to avoid race conditions with time.Sleep
+	var pending []JobInfo
+	for i := 0; i < 20; i++ {
+		time.Sleep(50 * time.Millisecond)
+		pending = o.GetPendingJobs()
+		if len(pending) == 1 && pending[0].ID == "JOB-2" {
+			break
+		}
+	}
 
 	// Because mockSpawner finishes immediately and clears active jobs,
 	// we just need to ensure JOB-1 completed and JOB-2 is still pending due to delay.
 
-	assert.Len(t, pending, 1)
+	require.Len(t, pending, 1)
 	assert.Equal(t, "JOB-2", pending[0].ID)
 
 	o.mu.RLock()
@@ -77,13 +82,16 @@ func TestOrchestrator_JobDelayAfterDependency(t *testing.T) {
 	assert.Len(t, pending, 1)
 
 	// Wait until delay expires
-	time.Sleep(500 * time.Millisecond)
-
-	// Wait for goroutines to process
-	time.Sleep(50 * time.Millisecond)
+	// Use polling again for robustness
+	for i := 0; i < 20; i++ {
+		time.Sleep(50 * time.Millisecond)
+		pending = o.GetPendingJobs()
+		if len(pending) == 0 {
+			break
+		}
+	}
 
 	// It should now be spawned and completed
-	pending = o.GetPendingJobs()
 	assert.Len(t, pending, 0)
 
 	completed := o.GetCompletedJobs()
