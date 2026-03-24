@@ -8,6 +8,7 @@ import (
 	"os"
 	"recac/internal/runner"
 	"strings"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -219,12 +220,14 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		return hasRepoURL && s.StartCommitSHA == ""
 	})).Return(nil)
 
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
 
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 
@@ -283,8 +286,10 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client.On("WaitContainer", mock.Anything, "container-123").Return(int(0), nil)
 
 	// Mock SessionManager
-	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
 
 	err := spawner.Spawn(context.Background(), injectionItem)
 	assert.NoError(t, err)
@@ -336,8 +341,10 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 
 	client.On("WaitContainer", mock.Anything, "container-env").Return(int(0), nil)
 
-	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
 
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
@@ -458,8 +465,10 @@ func TestDockerSpawner_FlagsPropagation(t *testing.T) {
 	}).Return("container-flags", nil)
 
 	client.On("WaitContainer", mock.Anything, "container-flags").Return(int(0), nil)
-	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
 
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
@@ -492,8 +501,10 @@ func TestDockerSpawner_PullPolicy(t *testing.T) {
 	poller := new(MockPoller)
 
 	// Setup Session Mock
-	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
 
 	item := WorkItem{ID: "POLICY-TEST", RepoURL: "http://git"}
 
