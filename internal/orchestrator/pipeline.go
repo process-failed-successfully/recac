@@ -81,7 +81,15 @@ func sanitizeName(name string) string {
 }
 
 // ParsePipelineToWorkItems converts a YAML pipeline definition into a list of WorkItems
+// using a generated timestamp to ensure IDs are unique per run.
 func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string]string) ([]WorkItem, error) {
+	return ParsePipelineToWorkItemsWithRunID(yamlData, targetJob, vars, fmt.Sprintf("%d", time.Now().UnixNano()))
+}
+
+// ParsePipelineToWorkItemsWithRunID converts a YAML pipeline definition into a list of WorkItems.
+// If runID is non-empty, it is appended to the job ID instead of a timestamp.
+// If runID is "stable", the suffix is omitted entirely, providing completely stable IDs.
+func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars map[string]string, runID string) ([]WorkItem, error) {
 	// Substitute variables using explicit mapping only
 	yamlStr := string(yamlData)
 	if len(vars) > 0 {
@@ -163,7 +171,6 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 	}
 
 	pipelineIDPrefix := sanitizeName(p.Name)
-	timestamp := time.Now().UnixNano()
 
 	var items []WorkItem
 	jobGeneratedIDs := make(map[string][]string)
@@ -327,7 +334,13 @@ func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string
 		}
 
 		for i, combo := range combinations {
-			jobID := fmt.Sprintf("%s-%s-%d", pipelineIDPrefix, sanitizeName(jobKey), timestamp)
+			var suffix string
+			if runID == "" {
+				suffix = fmt.Sprintf("-%d", time.Now().UnixNano())
+			} else if runID != "stable" {
+				suffix = fmt.Sprintf("-%s", runID)
+			}
+			jobID := fmt.Sprintf("%s-%s%s", pipelineIDPrefix, sanitizeName(jobKey), suffix)
 
 			// We already interpolated the base summary, now append matrix if needed
 			comboSummary := summary
