@@ -38,3 +38,7 @@
 ## 2025-06-20 - [Semantic Forms in Modals]
 **Learning:** Implementing `<form>` tags with HTML5 validation (like `required`) inside custom JS modals not only improves screen reader accessibility by defining form boundaries but also replaces clunky manual JS `alert()` validation with native, localized tooltips.
 **Action:** Always wrap actionable inputs and submit buttons in semantic `<form>` tags with `onsubmit` handlers, rather than relying purely on `<button type="button" onclick="...">`.
+
+## 2024-05-19 - Screen Reader Modals
+**Learning:** Vanilla JS modals defined with just CSS classes (`.modal`) in pure HTML strings aren't inherently recognized as dialogs by screen readers, leading to confusing navigation states for users relying on assistive tech.
+**Action:** Always include `role="dialog"` and `aria-modal="true"` directly on the parent modal wrapper element when building manual HTML modals to ensure they trap screen reader context properly.

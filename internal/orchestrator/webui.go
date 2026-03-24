@@ -72,7 +72,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="submitPipelineModal" class="modal">
+        <div id="submitPipelineModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitPipelineModal').style.display='none'">&times;</button>
                 <h2>Submit Pipeline (YAML)</h2>
@@ -93,7 +93,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="submitModal" class="modal">
+        <div id="submitModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitModal').style.display='none'">&times;</button>
                 <h2>Submit Ad-hoc Job</h2>
@@ -149,7 +149,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="editDepsModal" class="modal">
+        <div id="editDepsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
                 <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</button>
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
@@ -161,7 +161,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="logsModal" class="modal">
+        <div id="logsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()">&times;</button>
                 <h2 id="logs-title">Job Logs</h2>
@@ -169,7 +169,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="explainModal" class="modal">
+        <div id="explainModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeExplainModal()">&times;</button>
                 <h2 id="explain-title">Job Explanation</h2>
@@ -179,7 +179,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="searchLogsModal" class="modal">
+        <div id="searchLogsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeSearchLogsModal()">&times;</button>
                 <h2>Search Logs</h2>
@@ -209,7 +209,7 @@ const DashboardHTML = `
             </div>
         </div>
 
-        <div id="graphModal" class="modal">
+        <div id="graphModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeGraph()">&times;</button>
                 <h2 style="margin-bottom: 0;">Dependency Graph</h2>
