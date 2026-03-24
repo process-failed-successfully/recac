@@ -316,8 +316,8 @@ func TestSubmitBatchJob_Wait(t *testing.T) {
 
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, out.String(), "Batch submission completed.")
-	assert.Contains(t, out.String(), "Waiting for job BATCH-1 to start")
-	assert.Contains(t, out.String(), "Job already completed")
+	assert.Contains(t, out.String(), "Waiting for 1 jobs to complete")
+	assert.Contains(t, out.String(), "All 1 jobs completed successfully")
 }
 
 func TestSubmitBatchJob_AllFailed(t *testing.T) {

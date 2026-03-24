@@ -1853,7 +1853,7 @@ func TestSubmitMatrixJob_WaitFailed(t *testing.T) {
 	pw.Close()
 	out, _ := io.ReadAll(pr)
 
-	assert.Contains(t, string(out), "Job JOB-WAIT failed: job failed with error: test matrix failure")
+	assert.Contains(t, string(out), "job JOB-WAIT failed with error: test matrix failure")
 	assert.Equal(t, 1, exitCode)
 	assert.Greater(t, callCount, 0)
 }
