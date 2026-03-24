@@ -275,6 +275,9 @@ func main() {
 	pflag.String("generate-pipeline", "", "Generate a pipeline YAML using AI based on the provided prompt")
 	pflag.String("generate-pipeline-out", "", "Output file for the generated pipeline YAML (use '-' or leave empty for stdout)")
 
+	pflag.String("optimize-pipeline", "", "Analyze a pipeline YAML file and use AI to suggest optimizations")
+	pflag.String("optimize-pipeline-out", "", "Output file for the optimized pipeline YAML (use '-' or leave empty for stdout)")
+
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'k8s' (Kubernetes Job), or 'process' (Local Process)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
@@ -585,6 +588,9 @@ func main() {
 
 	viper.BindPFlag("orchestrator.generate_pipeline", pflag.Lookup("generate-pipeline"))
 	viper.BindPFlag("orchestrator.generate_pipeline_out", pflag.Lookup("generate-pipeline-out"))
+
+	viper.BindPFlag("orchestrator.optimize_pipeline", pflag.Lookup("optimize-pipeline"))
+	viper.BindPFlag("orchestrator.optimize_pipeline_out", pflag.Lookup("optimize-pipeline-out"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -1886,6 +1892,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		provider := viper.GetString("orchestrator.agent_provider")
 		model := viper.GetString("orchestrator.agent_model")
 		generatePipeline(host, generatePrompt, outFile, provider, model)
+		return nil
+	}
+
+	if optimizeFile := viper.GetString("orchestrator.optimize_pipeline"); optimizeFile != "" {
+		outFile := viper.GetString("orchestrator.optimize_pipeline_out")
+		provider := viper.GetString("orchestrator.agent_provider")
+		model := viper.GetString("orchestrator.agent_model")
+		optimizePipelineJob(optimizeFile, outFile, provider, model)
 		return nil
 	}
 

@@ -31,6 +31,14 @@ import (
 
 var newAgentFunc = agent.NewAgent
 
+func GetNewAgentFunc() func(provider, apiKey, model, baseURL, systemPrompt string) (agent.Agent, error) {
+	return newAgentFunc
+}
+
+func SetNewAgentFunc(f func(provider, apiKey, model, baseURL, systemPrompt string) (agent.Agent, error)) {
+	newAgentFunc = f
+}
+
 // RegisterAPI registers the orchestrator API handlers on the provided ServeMux.
 func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, baseCtx context.Context) {
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
