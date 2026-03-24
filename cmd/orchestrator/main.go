@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"path/filepath"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -25,8 +25,8 @@ import (
 	"recac/internal/tui"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/spf13/pflag"
 	"github.com/joho/godotenv"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -208,6 +208,8 @@ func main() {
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
 	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
+	pflag.String("get-output-job", "", "Get specific output value for a job by ID")
+	pflag.String("get-output-key", "", "Output key to retrieve (requires --get-output-job)")
 	pflag.String("add-metrics-job", "", "Add metrics to a specific job")
 	pflag.String("metrics-key", "", "The metrics key to add (requires --add-metrics-job)")
 	pflag.Float64("metrics-val", 0, "The metrics value to add (requires --add-metrics-job)")
@@ -514,6 +516,8 @@ func main() {
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
 	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
+	viper.BindPFlag("orchestrator.get_output_job", pflag.Lookup("get-output-job"))
+	viper.BindPFlag("orchestrator.get_output_key", pflag.Lookup("get-output-key"))
 	viper.BindPFlag("orchestrator.add_metrics_job", pflag.Lookup("add-metrics-job"))
 	viper.BindPFlag("orchestrator.metrics_key", pflag.Lookup("metrics-key"))
 	viper.BindPFlag("orchestrator.metrics_val", pflag.Lookup("metrics-val"))
