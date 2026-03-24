@@ -161,6 +161,21 @@ const DashboardHTML = `
             </div>
         </div>
 
+        <div id="envModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('envModal').style.display='none'">&times;</button>
+                <h2>Environment Variables for <span id="env-job-id-display"></span></h2>
+                <form id="env-form" onsubmit="submitEnvVars(); return false;">
+                    <input type="hidden" id="env-job-id">
+                    <div id="env-vars-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 15px;">
+                        <!-- Env fields will be injected here -->
+                    </div>
+                    <button type="button" aria-label="Add new environment variable" onclick="addEnvField('', '')" style="background-color: #6c757d; margin-bottom: 15px;">+ Add Variable</button>
+                    <button type="submit" aria-label="Save Environment Variables" id="btn-submit-env" style="background-color: #28a745; width: 100%;">Save Environment Variables</button>
+                </form>
+            </div>
+        </div>
+
         <div id="logsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()">&times;</button>
@@ -683,6 +698,7 @@ const DashboardHTML = `
                     if (lowerStatus === 'pending') {
                         actionButtons += '<button type="button" aria-label="Set dependencies for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
                     }
+                    actionButtons += '<button type="button" aria-label="Edit Env Vars for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="editEnvVars(\'' + safeJobJson + '\')">Env Vars</button>';
                     actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +

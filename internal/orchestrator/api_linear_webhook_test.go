@@ -15,6 +15,7 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -67,8 +68,17 @@ func TestLinearWebhook(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "Linear Webhook Job ln-issue-123")
 
 		// Verify job was created
-		jobs := orch.GetActiveJobs()
-		assert.Len(t, jobs, 1)
+		// Use polling since spawning is asynchronous
+		var jobs []JobInfo
+		for i := 0; i < 20; i++ {
+			jobs = orch.GetActiveJobs()
+			if len(jobs) == 1 {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		require.Len(t, jobs, 1)
 		job := jobs[0]
 		assert.Equal(t, "Test Issue", job.Summary)
 		assert.Equal(t, "Test Description", job.WorkItem.Description)
