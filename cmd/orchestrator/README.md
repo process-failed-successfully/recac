@@ -85,6 +85,12 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--trello-list` | `RECAC_TRELLO_LIST` | - | Trello List ID to poll for |
 | `--trello-webhook-secret` | `RECAC_TRELLO_WEBHOOK_SECRET` | - | Trello Webhook Secret for validating incoming POST events |
 
+### Generic Webhook Flags
+
+| Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--generic-webhook-secret` | `RECAC_GENERIC_WEBHOOK_SECRET` | - | Secret for validating incoming POST events to `/webhook/generic` via the `X-Webhook-Signature` header (HMAC-SHA256) |
+
 ### File Poller Flags
 
 | Flag          | Env Var           | Default           | Description                      |
@@ -121,3 +127,20 @@ Expects a JSON file with the following structure:
   }
 ]
 ```
+
+### Generic Webhook
+
+You can submit custom jobs directly to the orchestrator via a generic webhook endpoint. Send a `POST` request to `/webhook/generic` with a JSON payload matching the `WorkItem` structure.
+
+```bash
+curl -X POST http://localhost:2112/webhook/generic \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "custom-job-1",
+    "summary": "Custom task",
+    "description": "Run custom scripts",
+    "repo_url": "https://github.com/org/repo"
+  }'
+```
+
+If `--generic-webhook-secret` is set, you must include an `X-Webhook-Signature` header with the HMAC-SHA256 signature of the payload.
