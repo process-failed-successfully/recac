@@ -16,6 +16,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSubmitMatrixInlineJob(t *testing.T) {
+	// 1. Setup mock server
+	var receivedBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/matrix", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		var err error
+		receivedBody, err = io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"submitted": ["JOB-1", "JOB-2"], "errors": []}`))
+	}))
+	defer server.Close()
+
+	// Redirect stdout to capture output
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	// 2. Call function
+	envVars := map[string]string{
+		"BASE_ENV": "value",
+	}
+	matrix := map[string][]string{
+		"OS": {"linux", "windows"},
+		"GO": {"1.20", "1.21"},
+	}
+
+	submitMatrixInlineJob(server.URL, "http://repo.com", "My Matrix Task", "MATRIX-ID", 0, 0, 0, nil, nil, nil, nil, false, envVars, nil, nil, "group-matrix", false, "", "", "", "", false, matrix)
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+	assert.Contains(t, string(out), "Inline matrix submission completed.")
+
+	// 3. Verify payload
+	var reqBody struct {
+		BaseItem orchestrator.WorkItem `json:"base_item"`
+		Matrix   map[string][]string   `json:"matrix"`
+	}
+	err := json.Unmarshal(receivedBody, &reqBody)
+	require.NoError(t, err)
+
+	assert.Equal(t, "MATRIX-ID", reqBody.BaseItem.ID)
+	assert.Equal(t, "My Matrix Task", reqBody.BaseItem.Summary)
+	assert.Equal(t, "group-matrix", reqBody.BaseItem.ConcurrencyGroup)
+	assert.Equal(t, envVars, reqBody.BaseItem.EnvVars)
+	assert.Equal(t, matrix, reqBody.Matrix)
+}
+
 func TestSubmitAdHocJob(t *testing.T) {
 	// 1. Setup mock server
 	var receivedBody []byte

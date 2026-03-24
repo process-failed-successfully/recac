@@ -599,6 +599,100 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
+func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool, matrix map[string][]string) {
+	if id == "" {
+		id = uuid.New().String()
+	}
+
+	baseItem := orchestrator.WorkItem{
+		ID:                     id,
+		Summary:                task,
+		Description:            task,
+		RepoURL:                repo,
+		EnvVars:                envVars,
+		Priority:               priority,
+		DependsOn:              dependsOn,
+		Tags:                   tags,
+		Delay:                  delay,
+		Timeout:                timeout,
+		ConcurrencyGroup:       concurrencyGroup,
+		CancelInProgress:       cancelInProgress,
+		AgentProvider:          agentProvider,
+		AgentModel:             agentModel,
+		MaxRetries:             maxRetries,
+		RequireApproval:        requireApproval,
+		RetryDelay:             retryDelay,
+		RetryBackoffMultiplier: retryBackoff,
+		RunCondition:           runCondition,
+		WebhookURL:             webhookURL,
+		AutoHeal:               autoHeal,
+	}
+
+	reqBody := struct {
+		BaseItem orchestrator.WorkItem `json:"base_item"`
+		Matrix   map[string][]string   `json:"matrix"`
+	}{
+		BaseItem: baseItem,
+		Matrix:   matrix,
+	}
+
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal inline matrix data: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs/matrix", host), "application/json", bytes.NewReader(payload))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		fmt.Fprintf(stdout, "Failed to submit inline matrix job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Submitted []string `json:"submitted"`
+		Errors    []string `json:"errors"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse matrix response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Inline matrix submission completed.\n")
+	if len(result.Submitted) > 0 {
+		fmt.Fprintf(stdout, "Successfully submitted jobs: %s\n", strings.Join(result.Submitted, ", "))
+	}
+	if len(result.Errors) > 0 {
+		fmt.Fprintf(stdout, "Errors:\n")
+		for _, e := range result.Errors {
+			fmt.Fprintf(stdout, "  - %s\n", e)
+		}
+		if len(result.Submitted) == 0 {
+			exitFunc(1)
+			return
+		}
+	}
+
+	if wait && len(result.Submitted) > 0 {
+		if err := waitForJobs(host, result.Submitted, stdout); err != nil {
+			fmt.Fprintf(stdout, "Matrix wait failed: %v\n", err)
+			exitFunc(1)
+			return
+		}
+	}
+}
+
 func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool) {
 	if id == "" {
 		id = uuid.New().String()
