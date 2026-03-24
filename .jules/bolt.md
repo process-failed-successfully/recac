@@ -24,3 +24,7 @@
 ## 2025-05-15 - [Optimize strings.ReplaceAll with strings.NewReplacer]
 **Learning:** `strings.NewReplacer` is a standard way to avoid sequential memory allocations and loops compared to chained `strings.ReplaceAll` calls when performing static multi-character replacements. However, its efficiency relies entirely on allocating and building its internal trie structure *once*. If `strings.NewReplacer` is instantiated inline inside a highly-called function, the repeated setup overhead makes it slower than chained `strings.ReplaceAll`.
 **Action:** When refactoring chained `strings.ReplaceAll` to `strings.NewReplacer` for performance, always declare the replacer as a package-level global variable (e.g., `var myReplacer = strings.NewReplacer(...)`) so the setup cost is paid only at initialization.
+
+## 2026-03-24 - Critical Path Analysis
+**Learning:** Execution time of heavily dependent pipelines is dictated by the critical path of the DAG, not merely the aggregate execution time.
+**Action:** Implemented a `--critical-path` command to visualize the longest path utilizing Kahn's topological sort and dynamic programming.

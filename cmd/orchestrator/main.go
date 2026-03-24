@@ -104,6 +104,7 @@ func main() {
 	pflag.String("tail-tag", "", "Filter tailed active jobs by a specific tag")
 	pflag.String("tail-match", "", "Filter tailed active jobs matching a regex")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
+	pflag.Bool("critical-path", false, "Analyze and display the critical path of job execution")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
 	pflag.String("tree-job", "", "Display the dependency tree for a specific job")
 	pflag.Bool("timeline", false, "Display an execution timeline (Gantt chart) of jobs")
@@ -422,6 +423,7 @@ func main() {
 	viper.BindPFlag("orchestrator.tail_tag", pflag.Lookup("tail-tag"))
 	viper.BindPFlag("orchestrator.tail_match", pflag.Lookup("tail-match"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
+	viper.BindPFlag("orchestrator.critical_path", pflag.Lookup("critical-path"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.stream_events", pflag.Lookup("stream-events"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
@@ -895,6 +897,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.analytics") {
 		host := viper.GetString("orchestrator.host")
 		printAnalytics(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.critical_path") {
+		host := viper.GetString("orchestrator.host")
+		printCriticalPath(host)
 		return nil
 	}
 
