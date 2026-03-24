@@ -138,6 +138,54 @@ func TestWaitForJob_Errors(t *testing.T) {
 	})
 }
 
+func TestWaitForJobs(t *testing.T) {
+	// Mock stdout
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("Success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/jobs/job-1" {
+				w.Write([]byte(`{"status": "Completed"}`))
+				return
+			}
+			if r.URL.Path == "/jobs/job-2" {
+				w.Write([]byte(`{"status": "Skipped"}`))
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer server.Close()
+
+		buf.Reset()
+		err := waitForJobs(server.URL, []string{"job-1", "job-2"}, &buf)
+		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), "All 2 jobs completed successfully.")
+	})
+
+	t.Run("PartialFailure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/jobs/job-1" {
+				w.Write([]byte(`{"status": "Completed"}`))
+				return
+			}
+			if r.URL.Path == "/jobs/job-2" {
+				w.Write([]byte(`{"status": "Failed", "error": "some failure"}`))
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer server.Close()
+
+		buf.Reset()
+		err := waitForJobs(server.URL, []string{"job-1", "job-2"}, &buf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "job-2 failed with error: some failure")
+	})
+}
+
 func TestClearPending_Errors(t *testing.T) {
 	originalExit := exitFunc
 	defer func() { exitFunc = originalExit }()

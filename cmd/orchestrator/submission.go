@@ -341,12 +341,10 @@ func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target str
 	}
 
 	if wait && len(result.Submitted) > 0 {
-		for _, id := range result.Submitted {
-			if err := waitForJob(host, id, stdout); err != nil {
-				fmt.Fprintf(stdout, "Job %s failed: %v\n", id, err)
-				exitFunc(1)
-				return
-			}
+		if err := waitForJobs(host, result.Submitted, stdout); err != nil {
+			fmt.Fprintf(stdout, "Pipeline wait failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
@@ -402,12 +400,10 @@ func submitMatrixJob(host, filePath string, wait bool) {
 	}
 
 	if wait && len(result.Submitted) > 0 {
-		for _, id := range result.Submitted {
-			if err := waitForJob(host, id, stdout); err != nil {
-				fmt.Fprintf(stdout, "Job %s failed: %v\n", id, err)
-				exitFunc(1)
-				return
-			}
+		if err := waitForJobs(host, result.Submitted, stdout); err != nil {
+			fmt.Fprintf(stdout, "Matrix wait failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
@@ -464,12 +460,10 @@ func submitBatchJob(host, filePath string, wait bool) {
 	}
 
 	if wait && len(result.Submitted) > 0 {
-		for _, id := range result.Submitted {
-			if err := waitForJob(host, id, stdout); err != nil {
-				fmt.Fprintf(stdout, "Job %s failed: %v\n", id, err)
-				exitFunc(1)
-				return
-			}
+		if err := waitForJobs(host, result.Submitted, stdout); err != nil {
+			fmt.Fprintf(stdout, "Batch wait failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
@@ -541,12 +535,10 @@ func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars ma
 	}
 
 	if wait && len(result.ClonedJobIDs) > 0 {
-		for _, id := range result.ClonedJobIDs {
-			if err := waitForJob(host, id, stdout); err != nil {
-				fmt.Fprintf(stdout, "Job failed: %v\n", err)
-				exitFunc(1)
-				return
-			}
+		if err := waitForJobs(host, result.ClonedJobIDs, stdout); err != nil {
+			fmt.Fprintf(stdout, "Bulk clone wait failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
@@ -719,6 +711,47 @@ func waitForTag(host, tag string, out io.Writer) error {
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func waitForJobs(host string, jobIDs []string, out io.Writer) error {
+	fmt.Fprintf(out, "Waiting for %d jobs to complete...\n", len(jobIDs))
+
+	remaining := make(map[string]bool)
+	for _, id := range jobIDs {
+		remaining[id] = true
+	}
+
+	for len(remaining) > 0 {
+		for id := range remaining {
+			resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, id))
+			if err != nil {
+				continue
+			}
+
+			var job orchestrator.JobInfo
+			if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+				resp.Body.Close()
+				continue
+			}
+			resp.Body.Close()
+
+			if job.Status == "Completed" || job.Status == "Skipped" {
+				fmt.Fprintf(out, "Job %s completed successfully.\n", id)
+				delete(remaining, id)
+			} else if job.Status == "Failed" {
+				return fmt.Errorf("job %s failed with error: %s", id, job.Error)
+			} else if job.Status == "Canceled" {
+				return fmt.Errorf("job %s canceled with error: %s", id, job.Error)
+			}
+		}
+
+		if len(remaining) > 0 {
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	fmt.Fprintf(out, "All %d jobs completed successfully.\n", len(jobIDs))
+	return nil
 }
 
 func waitForMatch(host, match string, out io.Writer) error {
