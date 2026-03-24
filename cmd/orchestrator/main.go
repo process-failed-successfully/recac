@@ -339,6 +339,7 @@ func main() {
 	pflag.Bool("webhook-enabled", false, "Enable generic webhook notifications")
 	pflag.String("webhook-url", "", "URL for generic webhook notifications")
 	pflag.String("webhook-secret", "", "Secret for generic webhook HMAC signature")
+	pflag.String("generic-webhook-secret", "", "Secret for validating incoming Generic Webhook POST events")
 
 	// We need to parse --config early to load the config file before full flag parsing
 	// so we can resolve aliases defined in the config.
@@ -614,6 +615,8 @@ func main() {
 
 	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
+	viper.BindPFlag("orchestrator.generic_webhook_secret", pflag.Lookup("generic-webhook-secret"))
+
 	viper.BindPFlag("notifications.webhook.enabled", pflag.Lookup("webhook-enabled"))
 	viper.BindPFlag("notifications.webhook.url", pflag.Lookup("webhook-url"))
 	viper.BindPFlag("notifications.webhook.secret", pflag.Lookup("webhook-secret"))
@@ -651,6 +654,7 @@ func main() {
 	viper.BindEnv("orchestrator.notion_token", "RECAC_NOTION_TOKEN", "NOTION_TOKEN")
 	viper.BindEnv("orchestrator.notion_database_id", "RECAC_NOTION_DATABASE_ID", "NOTION_DATABASE_ID")
 	viper.BindEnv("orchestrator.notion_label", "RECAC_NOTION_LABEL", "NOTION_LABEL")
+	viper.BindEnv("orchestrator.generic_webhook_secret", "RECAC_GENERIC_WEBHOOK_SECRET")
 	viper.BindEnv("notifications.webhook.enabled", "RECAC_WEBHOOK_ENABLED")
 	viper.BindEnv("notifications.webhook.url", "RECAC_WEBHOOK_URL")
 	viper.BindEnv("notifications.webhook.secret", "RECAC_WEBHOOK_SECRET")

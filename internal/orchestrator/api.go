@@ -2836,6 +2836,58 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, "Trello Webhook Job %s submitted successfully", cardID)
 	})
 
+	mux.HandleFunc("POST /webhook/generic", func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		secret := viper.GetString("orchestrator.generic_webhook_secret")
+		if secret != "" {
+			signature := r.Header.Get("X-Webhook-Signature")
+			if signature == "" {
+				http.Error(w, "Missing X-Webhook-Signature header", http.StatusUnauthorized)
+				return
+			}
+			mac := hmac.New(sha256.New, []byte(secret))
+			mac.Write(bodyBytes)
+			expectedMAC := hex.EncodeToString(mac.Sum(nil))
+			if !hmac.Equal([]byte(signature), []byte("sha256="+expectedMAC)) {
+				http.Error(w, "Invalid X-Webhook-Signature header", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		var item WorkItem
+		if err := json.Unmarshal(bodyBytes, &item); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		if item.ID == "" {
+			item.ID = fmt.Sprintf("webhook-%d", time.Now().UnixNano())
+		}
+
+		if err := orch.SubmitJob(baseCtx, item, logger); err != nil {
+			if err == ErrAtCapacity {
+				http.Error(w, err.Error(), http.StatusTooManyRequests)
+			} else if err == ErrDraining {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			} else if strings.Contains(err.Error(), "already active") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, `{"job_id": "%s"}`, item.ID)
+	})
+
 	mux.HandleFunc("POST /webhook/gitlab", func(w http.ResponseWriter, r *http.Request) {
 		event := r.Header.Get("X-Gitlab-Event")
 		if event != "Issue Hook" && event != "Note Hook" {
