@@ -50,7 +50,9 @@ func TestProcessSpawner_SpawnAndCleanup(t *testing.T) {
 	sm := &mockSessionManager{}
 
 	// Expect SaveSession twice (start and end)
-	sm.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil).Twice()
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil).Twice()
 
 	spawner := NewProcessSpawner(logger, "provider", "model", sm, 10, 5, 2)
 

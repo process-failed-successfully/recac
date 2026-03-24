@@ -127,7 +127,7 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		Workspace:      tempDir,
 		Status:         "running",
 		Type:           "orchestrated-process",
-		AgentStateFile: filepath.Join(tempDir, ".agent_state.json"),
+		AgentStateFile: filepath.Join(tempDir, ".agent_state.json"), // Absolute path within the agent's environment (same as host for process)
 		StartCommitSHA: "",
 	}
 

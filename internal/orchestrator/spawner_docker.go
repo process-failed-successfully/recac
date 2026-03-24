@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"recac/internal/git"
 	"recac/internal/runner"
 	"sort"
@@ -149,7 +148,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		Workspace:      tempDir,
 		Status:         "running",
 		Type:           "orchestrated-docker",
-		AgentStateFile: filepath.Join(tempDir, ".agent_state.json"),
+		AgentStateFile: "/workspace/.agent_state.json", // Absolute path within the agent's environment
 		StartCommitSHA: "", // Unknown at start, populated at end
 		ContainerID:    containerID,
 	}
