@@ -101,6 +101,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	// Verify Set Deps button render logic exists
 	assert.Contains(t, html, "editDependencies(\\'")
 
+
 	// Verify Mermaid JS script and View Graph button logic
 	assert.Contains(t, html, "cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js")
 	assert.Contains(t, html, "mermaid.initialize({ startOnLoad: false });")
