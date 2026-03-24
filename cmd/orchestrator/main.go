@@ -232,6 +232,9 @@ func main() {
 	pflag.String("import-pipeline", "", "Import a pipeline YAML file and hold all generated jobs")
 	pflag.String("explain-pipeline", "", "Explain a pipeline YAML file (visualize execution structure) without submitting")
 	pflag.String("compare-pipelines", "", "Compare two pipeline YAML files (comma-separated, e.g., p1.yaml,p2.yaml)")
+	pflag.String("apply-pipeline", "", "Apply a pipeline YAML file declaratively (creates missing, updates pending, skips active jobs)")
+	pflag.Bool("apply-pipeline-dry-run", false, "Preview changes that apply-pipeline would make without applying them")
+	pflag.String("apply-pipeline-run-id", "stable", "Run ID to append to job IDs (use 'stable' to omit suffix entirely, ensuring stable IDs for declarative updates)")
 	pflag.String("search-logs", "", "Search logs of all active and completed jobs for a regex pattern")
 	pflag.String("search-tag", "", "Optional tag filter when searching logs")
 	pflag.String("search-status", "", "Optional status filter when searching logs")
@@ -540,6 +543,9 @@ func main() {
 	viper.BindPFlag("orchestrator.import_pipeline", pflag.Lookup("import-pipeline"))
 	viper.BindPFlag("orchestrator.explain_pipeline", pflag.Lookup("explain-pipeline"))
 	viper.BindPFlag("orchestrator.compare_pipelines", pflag.Lookup("compare-pipelines"))
+	viper.BindPFlag("orchestrator.apply_pipeline", pflag.Lookup("apply-pipeline"))
+	viper.BindPFlag("orchestrator.apply_pipeline_dry_run", pflag.Lookup("apply-pipeline-dry-run"))
+	viper.BindPFlag("orchestrator.apply_pipeline_run_id", pflag.Lookup("apply-pipeline-run-id"))
 	viper.BindPFlag("orchestrator.search_logs", pflag.Lookup("search-logs"))
 	viper.BindPFlag("orchestrator.search_tag", pflag.Lookup("search-tag"))
 	viper.BindPFlag("orchestrator.search_status", pflag.Lookup("search-status"))
@@ -1746,6 +1752,25 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if comparePipelinesStr := viper.GetString("orchestrator.compare_pipelines"); comparePipelinesStr != "" {
 		comparePipelines(comparePipelinesStr)
+		return nil
+	}
+
+	if applyPipelineFile := viper.GetString("orchestrator.apply_pipeline"); applyPipelineFile != "" {
+		host := viper.GetString("orchestrator.host")
+		dryRun := viper.GetBool("orchestrator.apply_pipeline_dry_run")
+		target := viper.GetString("orchestrator.submit_pipeline_target")
+		runID := viper.GetString("orchestrator.apply_pipeline_run_id")
+
+		varsList := viper.GetStringSlice("orchestrator.pipeline_var")
+		varFile := viper.GetString("orchestrator.pipeline_var_file")
+		vars, err := loadPipelineVars(varsList, varFile)
+		if err != nil {
+			fmt.Fprintf(stdout, "Failed to load variables: %v\n", err)
+			exitFunc(1)
+			return nil
+		}
+
+		applyPipelineJob(host, applyPipelineFile, dryRun, target, vars, runID)
 		return nil
 	}
 
