@@ -22,6 +22,7 @@ import (
 var (
 	exitFunc           = os.Exit
 	stdout   io.Writer = os.Stdout
+	stdin    io.Reader = os.Stdin
 )
 
 func submitJob(host, filePath string, wait bool) {
