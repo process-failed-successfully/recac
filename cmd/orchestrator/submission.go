@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -81,7 +82,12 @@ func lintPipelineJob(filePath string, target string, vars map[string]string) {
 		return
 	}
 
-	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars)
+	baseDir := "."
+	if filePath != "" {
+		baseDir = filepath.Dir(filePath)
+	}
+
+	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars, baseDir)
 	if err != nil {
 		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 		exitFunc(1)
@@ -265,7 +271,12 @@ func submitPipelineJob(host, filePath string, wait bool, dryRun bool, target str
 			return
 		}
 
-		items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars)
+		baseDir := "."
+		if filePath != "" {
+			baseDir = filepath.Dir(filePath)
+		}
+
+		items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars, baseDir)
 		if err != nil {
 			fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 			exitFunc(1)

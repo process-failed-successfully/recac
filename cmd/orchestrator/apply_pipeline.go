@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	"recac/internal/orchestrator"
@@ -22,9 +23,14 @@ func applyPipelineJob(host, filePath string, dryRun bool, target string, vars ma
 		return
 	}
 
+	baseDir := "."
+	if filePath != "" {
+		baseDir = filepath.Dir(filePath)
+	}
+
 	// Parse pipeline to generate work items with the specified runID
 	// If runID is "stable", it skips suffix generation.
-	items, err := orchestrator.ParsePipelineToWorkItemsWithRunID(fileData, target, vars, runID)
+	items, err := orchestrator.ParsePipelineToWorkItemsWithRunID(fileData, target, vars, runID, baseDir)
 	if err != nil {
 		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 		exitFunc(1)
