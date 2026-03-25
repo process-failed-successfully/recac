@@ -606,9 +606,9 @@ jobs:
 
 	jobMap := make(map[string]WorkItem)
 	for _, item := range items {
-		// ID format is 'pipeline-stages-<job-key>-stable'
+		// ID format is 'pipeline-stages-<job-key>' because "stable" omits the suffix!
 		parts := strings.Split(item.ID, "-")
-		jobKey := parts[len(parts)-2]
+		jobKey := parts[len(parts)-1]
 		jobMap[jobKey] = item
 	}
 
@@ -651,7 +651,7 @@ jobs:
 	jobMap := make(map[string]WorkItem)
 	for _, item := range items {
 		parts := strings.Split(item.ID, "-")
-		jobKey := parts[len(parts)-2]
+		jobKey := parts[len(parts)-1]
 		jobMap[jobKey] = item
 	}
 
@@ -718,7 +718,7 @@ jobs:
 	jobMap := make(map[string]WorkItem)
 	for _, item := range items {
 		parts := strings.Split(item.ID, "-")
-		jobKey := parts[len(parts)-2]
+		jobKey := parts[len(parts)-1]
 		jobMap[jobKey] = item
 	}
 
