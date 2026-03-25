@@ -14,6 +14,7 @@ type Pipeline struct {
 	Name      string            `yaml:"name"`
 	Variables map[string]string `yaml:"variables,omitempty"`
 	Secrets   []string          `yaml:"secrets,omitempty"`
+	Stages    []string          `yaml:"stages,omitempty"`
 	Defaults  struct {
 		RepoURL          string            `yaml:"repo_url"`
 		AgentProvider    string            `yaml:"agent_provider"`
@@ -37,6 +38,7 @@ type PipelineJob struct {
 	Summary          string              `yaml:"summary"`
 	Task             string              `yaml:"task"`
 	Description      string              `yaml:"description"`
+	Stage            string              `yaml:"stage,omitempty"`
 	RepoURL          string              `yaml:"repo_url"`
 	DependsOn        []string            `yaml:"depends_on"`
 	RunCondition     string              `yaml:"run_condition"`
@@ -114,6 +116,48 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 	}
 	if len(p.Jobs) == 0 {
 		return nil, fmt.Errorf("pipeline must have at least one job")
+	}
+
+	// Validate stages and calculate implicit dependencies
+	validStages := make(map[string]int)
+	for i, stage := range p.Stages {
+		validStages[stage] = i
+	}
+
+	jobsInStage := make(map[string][]string)
+	for jobKey, jobDef := range p.Jobs {
+		if jobDef.Stage != "" {
+			if len(p.Stages) == 0 {
+				return nil, fmt.Errorf("job '%s' specifies stage '%s', but no stages are defined in the pipeline", jobKey, jobDef.Stage)
+			}
+			if _, ok := validStages[jobDef.Stage]; !ok {
+				return nil, fmt.Errorf("job '%s' specifies unknown stage '%s'", jobKey, jobDef.Stage)
+			}
+			jobsInStage[jobDef.Stage] = append(jobsInStage[jobDef.Stage], jobKey)
+		}
+	}
+
+	// Apply stage-based dependencies
+	if len(p.Stages) > 0 {
+		for jobKey, jobDef := range p.Jobs {
+			if jobDef.Stage != "" {
+				stageIdx := validStages[jobDef.Stage]
+				// Find nearest preceding stage that has jobs
+				for i := stageIdx - 1; i >= 0; i-- {
+					prevStage := p.Stages[i]
+					if len(jobsInStage[prevStage]) > 0 {
+						// Ensure DependsOn is initialized
+						if jobDef.DependsOn == nil {
+							jobDef.DependsOn = make([]string, 0)
+						}
+						// Append jobs from prevStage to this job's DependsOn
+						jobDef.DependsOn = append(jobDef.DependsOn, jobsInStage[prevStage]...)
+						p.Jobs[jobKey] = jobDef // Update the map
+						break
+					}
+				}
+			}
+		}
 	}
 
 	if targetJob != "" {

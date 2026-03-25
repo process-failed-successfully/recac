@@ -578,3 +578,160 @@ jobs:
 	job2 := jobMap["job2"]
 	assert.False(t, job2.CancelInProgress)
 }
+
+func TestParsePipelineToWorkItems_Stages(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Stages
+stages:
+  - build
+  - test
+  - deploy
+jobs:
+  build1:
+    summary: Build App 1
+    stage: build
+  build2:
+    summary: Build App 2
+    stage: build
+  test1:
+    summary: Test App 1
+    stage: test
+  deploy1:
+    summary: Deploy App
+    stage: deploy
+`)
+
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable")
+	require.NoError(t, err)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		// ID format is 'pipeline-stages-<job-key>-stable'
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	build1 := jobMap["build1"]
+	assert.Empty(t, build1.DependsOn)
+
+	build2 := jobMap["build2"]
+	assert.Empty(t, build2.DependsOn)
+
+	test1 := jobMap["test1"]
+	// test1 should depend on everything in build
+	assert.Len(t, test1.DependsOn, 2)
+	assert.ElementsMatch(t, []string{build1.ID, build2.ID}, test1.DependsOn)
+
+	deploy1 := jobMap["deploy1"]
+	// deploy1 should depend on everything in test
+	assert.Len(t, deploy1.DependsOn, 1)
+	assert.Equal(t, test1.ID, deploy1.DependsOn[0])
+}
+
+func TestParsePipelineToWorkItems_StagesWithEmptyIntermediate(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Stages Empty
+stages:
+  - build
+  - empty_stage
+  - test
+jobs:
+  build1:
+    summary: Build App
+    stage: build
+  test1:
+    summary: Test App
+    stage: test
+`)
+
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable")
+	require.NoError(t, err)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	build1 := jobMap["build1"]
+	assert.Empty(t, build1.DependsOn)
+
+	test1 := jobMap["test1"]
+	// test1 should depend on build1 since empty_stage is skipped
+	assert.Len(t, test1.DependsOn, 1)
+	assert.Equal(t, build1.ID, test1.DependsOn[0])
+}
+
+func TestParsePipelineToWorkItems_InvalidStage(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Invalid Stage
+stages:
+  - build
+jobs:
+  build1:
+    summary: Build
+    stage: invalid_stage
+`)
+
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "specifies unknown stage 'invalid_stage'")
+}
+
+func TestParsePipelineToWorkItems_StageWithoutStages(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Missing Stages List
+jobs:
+  build1:
+    summary: Build
+    stage: build
+`)
+
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no stages are defined in the pipeline")
+}
+
+func TestParsePipelineToWorkItems_StagesWithExplicitDependsOn(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline Stages Explicit
+stages:
+  - build
+  - test
+jobs:
+  setup:
+    summary: Setup Environment
+  build1:
+    summary: Build App 1
+    stage: build
+    depends_on: [setup]
+  test1:
+    summary: Test App 1
+    stage: test
+`)
+
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable")
+	require.NoError(t, err)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	setup := jobMap["setup"]
+	assert.Empty(t, setup.DependsOn)
+
+	build1 := jobMap["build1"]
+	// build1 depends on setup explicitly
+	assert.Len(t, build1.DependsOn, 1)
+	assert.Equal(t, setup.ID, build1.DependsOn[0])
+
+	test1 := jobMap["test1"]
+	// test1 depends on build1 via stage
+	assert.Len(t, test1.DependsOn, 1)
+	assert.Equal(t, build1.ID, test1.DependsOn[0])
+}
