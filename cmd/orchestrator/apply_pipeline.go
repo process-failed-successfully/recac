@@ -16,11 +16,17 @@ import (
 )
 
 func applyPipelineJob(host, filePath string, dryRun bool, target string, vars map[string]string, runID string) {
+	err := applyPipelineJobInternal(host, filePath, dryRun, target, vars, runID)
+	if err != nil {
+		fmt.Fprintf(stdout, "%v\n", err)
+		exitFunc(1)
+	}
+}
+
+func applyPipelineJobInternal(host, filePath string, dryRun bool, target string, vars map[string]string, runID string) error {
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
-		exitFunc(1)
-		return
+		return fmt.Errorf("Failed to read file %s: %v", filePath, err)
 	}
 
 	baseDir := "."
@@ -32,22 +38,18 @@ func applyPipelineJob(host, filePath string, dryRun bool, target string, vars ma
 	// If runID is "stable", it skips suffix generation.
 	items, err := orchestrator.ParsePipelineToWorkItemsWithRunID(fileData, target, vars, runID, baseDir)
 	if err != nil {
-		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
-		exitFunc(1)
-		return
+		return fmt.Errorf("Pipeline validation failed: %v", err)
 	}
 
 	if len(items) == 0 {
 		fmt.Fprintln(stdout, "No jobs generated from the pipeline.")
-		return
+		return nil
 	}
 
 	// Fetch currently active jobs
 	activeJobsResp, err := http.Get(fmt.Sprintf("%s/jobs?state=active", host))
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to fetch active jobs: %v\n", err)
-		exitFunc(1)
-		return
+		return fmt.Errorf("Failed to fetch active jobs: %v", err)
 	}
 	defer activeJobsResp.Body.Close()
 
@@ -64,9 +66,7 @@ func applyPipelineJob(host, filePath string, dryRun bool, target string, vars ma
 	// Fetch currently pending jobs
 	pendingJobsResp, err := http.Get(fmt.Sprintf("%s/jobs?state=pending", host))
 	if err != nil {
-		fmt.Fprintf(stdout, "Failed to fetch pending jobs: %v\n", err)
-		exitFunc(1)
-		return
+		return fmt.Errorf("Failed to fetch pending jobs: %v", err)
 	}
 	defer pendingJobsResp.Body.Close()
 
@@ -193,6 +193,8 @@ func applyPipelineJob(host, filePath string, dryRun bool, target string, vars ma
 		createdCount, updatedCount, unchangedCount, skippedCount, errorCount)
 
 	if errorCount > 0 {
-		exitFunc(1)
+		return fmt.Errorf("Applied pipeline with %d errors", errorCount)
 	}
+
+	return nil
 }

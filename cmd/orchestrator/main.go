@@ -237,6 +237,8 @@ func main() {
 	pflag.String("inspect-pipeline", "", "Inspect a pipeline YAML file and display its resolved jobs visually")
 	pflag.String("compare-pipelines", "", "Compare two pipeline YAML files (comma-separated, e.g., p1.yaml,p2.yaml)")
 	pflag.String("apply-pipeline", "", "Apply a pipeline YAML file declaratively (creates missing, updates pending, skips active jobs)")
+	pflag.String("watch-pipeline", "", "Watch a pipeline YAML file for changes and automatically apply it")
+	pflag.Duration("watch-pipeline-interval", 2*time.Second, "Refresh interval for watch-pipeline mode (e.g. 2s, 1m)")
 	pflag.Bool("apply-pipeline-dry-run", false, "Preview changes that apply-pipeline would make without applying them")
 	pflag.String("apply-pipeline-run-id", "stable", "Run ID to append to job IDs (use 'stable' to omit suffix entirely, ensuring stable IDs for declarative updates)")
 	pflag.String("search-logs", "", "Search logs of all active and completed jobs for a regex pattern")
@@ -555,6 +557,8 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_pipeline", pflag.Lookup("inspect-pipeline"))
 	viper.BindPFlag("orchestrator.compare_pipelines", pflag.Lookup("compare-pipelines"))
 	viper.BindPFlag("orchestrator.apply_pipeline", pflag.Lookup("apply-pipeline"))
+	viper.BindPFlag("orchestrator.watch_pipeline", pflag.Lookup("watch-pipeline"))
+	viper.BindPFlag("orchestrator.watch_pipeline_interval", pflag.Lookup("watch-pipeline-interval"))
 	viper.BindPFlag("orchestrator.apply_pipeline_dry_run", pflag.Lookup("apply-pipeline-dry-run"))
 	viper.BindPFlag("orchestrator.apply_pipeline_run_id", pflag.Lookup("apply-pipeline-run-id"))
 	viper.BindPFlag("orchestrator.search_logs", pflag.Lookup("search-logs"))
@@ -1813,6 +1817,26 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		applyPipelineJob(host, applyPipelineFile, dryRun, target, vars, runID)
+		return nil
+	}
+
+	if watchPipelineFile := viper.GetString("orchestrator.watch_pipeline"); watchPipelineFile != "" {
+		host := viper.GetString("orchestrator.host")
+		dryRun := viper.GetBool("orchestrator.apply_pipeline_dry_run")
+		target := viper.GetString("orchestrator.submit_pipeline_target")
+		runID := viper.GetString("orchestrator.apply_pipeline_run_id")
+		interval := viper.GetDuration("orchestrator.watch_pipeline_interval")
+
+		varsList := viper.GetStringSlice("orchestrator.pipeline_var")
+		varFile := viper.GetString("orchestrator.pipeline_var_file")
+		vars, err := loadPipelineVars(varsList, varFile)
+		if err != nil {
+			fmt.Fprintf(stdout, "Failed to load variables: %v\n", err)
+			exitFunc(1)
+			return nil
+		}
+
+		watchPipelineJob(ctx, host, watchPipelineFile, dryRun, target, vars, runID, interval)
 		return nil
 	}
 
