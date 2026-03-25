@@ -2126,7 +2126,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, pullPolicy, sm, maxIterations, managerFrequency, taskMaxIterations)
 		janitorClient = dockerCli
 	case "process", "native":
-		spawner = orchestrator.NewProcessSpawner(logger, agentProvider, agentModel, sm, maxIterations, managerFrequency, taskMaxIterations)
+		spawner = orchestrator.NewProcessSpawner(logger, poller, agentProvider, agentModel, sm, maxIterations, managerFrequency, taskMaxIterations)
 	default:
 		return fmt.Errorf("Invalid mode. Use 'local', 'k8s', or 'process': %s", mode)
 	}

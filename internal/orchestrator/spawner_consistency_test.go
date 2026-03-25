@@ -388,7 +388,7 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 	// 3. Check Process Spawner Args
 	t.Run("ProcessSpawner sets correct command args", func(t *testing.T) {
 		mockSM := new(MockSessionManager)
-		spawner := NewProcessSpawner(logger, "prov", "mod", mockSM, 30, 5, 10)
+		spawner := NewProcessSpawner(logger, nil, "prov", "mod", mockSM, 30, 5, 10)
 
 		capturedCmdChan := make(chan []string, 1)
 

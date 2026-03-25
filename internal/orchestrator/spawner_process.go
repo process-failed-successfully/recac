@@ -19,6 +19,7 @@ import (
 // ProcessSpawner implements the Spawner interface by running the agent as a local child process.
 type ProcessSpawner struct {
 	Logger            *slog.Logger
+	Poller            Poller // To update status on completion
 	AgentProvider     string
 	AgentModel        string
 	SessionManager    ISessionManager
@@ -34,6 +35,7 @@ type ProcessSpawner struct {
 // NewProcessSpawner creates a new ProcessSpawner.
 func NewProcessSpawner(
 	logger *slog.Logger,
+	poller Poller,
 	agentProvider string,
 	agentModel string,
 	sessionManager ISessionManager,
@@ -43,6 +45,7 @@ func NewProcessSpawner(
 ) *ProcessSpawner {
 	return &ProcessSpawner{
 		Logger:            logger,
+		Poller:            poller,
 		AgentProvider:     agentProvider,
 		AgentModel:        agentModel,
 		SessionManager:    sessionManager,
@@ -163,6 +166,20 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	if waitErr != nil {
 		s.Logger.Error("Agent process failed", "work_item", item.ID, "error", waitErr)
 		session.Status = "failed"
+		if s.Poller != nil {
+			// Read logs to include in the update status
+			var output string
+			logs, logErr := os.ReadFile(logPath)
+			if logErr == nil {
+				// Keep only last 4KB
+				if len(logs) > 4096 {
+					output = string(logs[len(logs)-4096:])
+				} else {
+					output = string(logs)
+				}
+			}
+			_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent process failed:\n%s\nOutput:\n%s", waitErr, output))
+		}
 	} else {
 		s.Logger.Info("Agent process completed successfully", "work_item", item.ID)
 		session.Status = "completed"
