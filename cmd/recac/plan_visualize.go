@@ -13,6 +13,8 @@ import (
 
 var (
 	visualizeOutput string
+	// ⚡ Bolt: Hoisted strings.NewReplacer to package level to avoid repeated trie setup overhead.
+	planIDReplacer = strings.NewReplacer("-", "_", " ", "_")
 )
 
 var planVisualizeCmd = &cobra.Command{
@@ -67,9 +69,8 @@ func generateMermaidPlan(list db.FeatureList) string {
 	sb.WriteString("graph TD\n")
 
 	// Helper to clean ID for Mermaid
-	idReplacer := strings.NewReplacer("-", "_", " ", "_")
 	cleanID := func(id string) string {
-		return idReplacer.Replace(id)
+		return planIDReplacer.Replace(id)
 	}
 
 	// Helper to clean Text
