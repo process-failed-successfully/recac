@@ -84,3 +84,37 @@ func TestOptimizePipelineYAML_CleanupMarkdown(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "name: test\njobs:\n  a:\n    summary: a", result)
 }
+
+func TestOptimizePipelineYAML_CleanupMarkdown_PlainCodeBlock(t *testing.T) {
+	oldAgentFunc := newAgentFunc
+	defer func() { newAgentFunc = oldAgentFunc }()
+
+	newAgentFunc = func(provider, apiKey, model, customURL, systemPrompt string) (agent.Agent, error) {
+		return &mockAIAgent{
+			response: "```\nname: test\njobs:\n  a:\n    summary: a\n```",
+		}, nil
+	}
+
+	ctx := context.Background()
+	result, err := OptimizePipelineYAML(ctx, "test yaml", "mock-provider", "mock-model", "mock-key")
+
+	require.NoError(t, err)
+	assert.Equal(t, "name: test\njobs:\n  a:\n    summary: a", result)
+}
+
+func TestOptimizePipelineYAML_CleanupMarkdown_NoCodeBlock(t *testing.T) {
+	oldAgentFunc := newAgentFunc
+	defer func() { newAgentFunc = oldAgentFunc }()
+
+	newAgentFunc = func(provider, apiKey, model, customURL, systemPrompt string) (agent.Agent, error) {
+		return &mockAIAgent{
+			response: "name: test\njobs:\n  a:\n    summary: a\n",
+		}, nil
+	}
+
+	ctx := context.Background()
+	result, err := OptimizePipelineYAML(ctx, "test yaml", "mock-provider", "mock-model", "mock-key")
+
+	require.NoError(t, err)
+	assert.Equal(t, "name: test\njobs:\n  a:\n    summary: a", result)
+}
