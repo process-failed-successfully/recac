@@ -547,3 +547,34 @@ jobs:
 	}
 	assert.ElementsMatch(t, expectedTestIDs, deployJob.DependsOn)
 }
+
+func TestParsePipelineToWorkItems_DefaultCancelInProgress(t *testing.T) {
+	yamlData := []byte(`
+name: Cancel Default
+defaults:
+  repo_url: https://github.com/org/repo.git
+  cancel_in_progress: true
+jobs:
+  job1:
+    summary: Job 1 uses default
+  job2:
+    summary: Job 2 overrides to false
+    cancel_in_progress: false
+`)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.NoError(t, err)
+	assert.Len(t, items, 2)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.True(t, job1.CancelInProgress)
+
+	job2 := jobMap["job2"]
+	assert.False(t, job2.CancelInProgress)
+}
