@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"recac/internal/orchestrator"
@@ -18,7 +19,12 @@ func explainPipelineJob(filePath string, target string, vars map[string]string) 
 		return
 	}
 
-	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars)
+	importDir := "."
+	if filePath != "" {
+		importDir = filepath.Dir(filePath)
+	}
+
+	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars, importDir)
 	if err != nil {
 		fmt.Fprintf(stdout, "Pipeline validation failed: %v\n", err)
 		exitFunc(1)

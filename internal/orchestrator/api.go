@@ -2181,7 +2181,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 		}
 
-		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars)
+		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars, "")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -2235,7 +2235,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 		}
 
-		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars)
+		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars, "")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -2290,7 +2290,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 		}
 
-		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars)
+		items, err := ParsePipelineToWorkItems(bodyBytes, target, vars, "")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

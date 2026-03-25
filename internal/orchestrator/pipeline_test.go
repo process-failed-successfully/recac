@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -54,7 +56,7 @@ jobs:
     concurrency_group: deploy-staging
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -134,7 +136,7 @@ jobs:
     depends_on: [job2]
     run_condition: always
 `)
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -161,7 +163,7 @@ jobs:
   build:
     summary: Build application
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pipeline must have a name")
 }
@@ -170,7 +172,7 @@ func TestParsePipelineToWorkItems_NoJobs(t *testing.T) {
 	yamlData := []byte(`
 name: Empty Pipeline
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pipeline must have at least one job")
 }
@@ -183,7 +185,7 @@ jobs:
     summary: Test
     depends_on: [build]
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "job 'test' depends on unknown job 'build'")
 }
@@ -196,7 +198,7 @@ jobs:
     summary: Build
     timeout: invalid
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid timeout format for job 'build'")
 }
@@ -209,7 +211,7 @@ jobs:
     summary: Build
     delay: invalid
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid delay format for job 'build'")
 }
@@ -229,7 +231,7 @@ jobs:
     summary: Run tests
     depends_on: [build]
 `)
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -270,7 +272,7 @@ jobs:
     delay: 2h
 `)
 	now := time.Now()
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 
@@ -303,7 +305,7 @@ jobs:
     summary: Build
     depends_on: [
 `)
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to unmarshal pipeline YAML")
 }
@@ -329,7 +331,7 @@ jobs:
     summary: Other job
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "test", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "test", nil, "")
 	require.NoError(t, err)
 
 	// Should include "setup", "build", and "test", but not "deploy" or "other"
@@ -357,7 +359,7 @@ jobs:
     summary: Setup
 `)
 
-	_, err := ParsePipelineToWorkItems(yamlData, "unknown", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "unknown", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "target job 'unknown' not found in pipeline")
 }
@@ -382,7 +384,7 @@ jobs:
 		"MY_ENV_VAR":   "from_env",
 	}
 
-	items, err := ParsePipelineToWorkItems(yamlData, "", vars)
+	items, err := ParsePipelineToWorkItems(yamlData, "", vars, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
 
@@ -417,7 +419,7 @@ jobs:
       TEST_VAR: ${OVERRIDE_VAR}
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
 
@@ -446,7 +448,7 @@ jobs:
     summary: Job with secrets
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
 
@@ -471,7 +473,7 @@ jobs:
     summary: Job with missing secrets
 `)
 
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required secret 'MISSING_TEST_SECRET' is missing from environment")
 }
@@ -498,7 +500,7 @@ jobs:
     task: ./deploy.sh
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 
 	// lint: 1 job
@@ -561,7 +563,7 @@ jobs:
     summary: Job 2 overrides to false
     cancel_in_progress: false
 `)
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 
@@ -601,7 +603,7 @@ jobs:
     stage: deploy
 `)
 
-	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable")
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable", "")
 	require.NoError(t, err)
 
 	jobMap := make(map[string]WorkItem)
@@ -645,7 +647,7 @@ jobs:
     stage: test
 `)
 
-	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable")
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable", "")
 	require.NoError(t, err)
 
 	jobMap := make(map[string]WorkItem)
@@ -675,7 +677,7 @@ jobs:
     stage: invalid_stage
 `)
 
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "specifies unknown stage 'invalid_stage'")
 }
@@ -689,7 +691,7 @@ jobs:
     stage: build
 `)
 
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no stages are defined in the pipeline")
 }
@@ -728,7 +730,7 @@ jobs:
     task: make special-build # overrides template
 `)
 
-	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 
@@ -765,9 +767,66 @@ jobs:
     extends: unknown-template
 `)
 
-	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "extends unknown template 'unknown-template'")
+}
+
+func TestParsePipelineToWorkItems_Include(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create an included YAML file
+	includedYaml := []byte(`
+templates:
+  base-test:
+    summary: Base Test
+    task: npm run test
+    tags: [test]
+jobs:
+  included-job:
+    summary: Included Job
+    task: echo "Included"
+`)
+	includedPath := filepath.Join(tmpDir, "included.yaml")
+	require.NoError(t, os.WriteFile(includedPath, includedYaml, 0644))
+
+	// Create the main YAML file
+	mainYaml := []byte(`
+name: Main Pipeline
+include:
+  - included.yaml
+jobs:
+  main-job:
+    summary: Main Job
+    extends: base-test
+    depends_on: [included-job]
+`)
+
+	items, err := ParsePipelineToWorkItemsWithRunID(mainYaml, "", nil, "stable", tmpDir)
+	require.NoError(t, err)
+	assert.Len(t, items, 2)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		// ID format is 'main-pipeline-<job-key>' because "stable" omits the suffix!
+		// Find the original key which might have multiple dashes (e.g. main-job, included-job)
+		// For our case, it's just the substring after 'main-pipeline-'
+		jobKey := strings.TrimPrefix(item.ID, "main-pipeline-")
+		jobMap[jobKey] = item
+	}
+
+	mainJob, exists := jobMap["main-job"]
+	require.True(t, exists, "main-job not found in items")
+	assert.Equal(t, "Main Job", mainJob.Summary)
+	assert.Equal(t, "npm run test", mainJob.Description) // inherited from template
+	assert.Equal(t, []string{"test"}, mainJob.Tags)
+	assert.Len(t, mainJob.DependsOn, 1)
+	assert.Contains(t, mainJob.DependsOn[0], "included-job")
+
+	includedJob, exists := jobMap["included-job"]
+	require.True(t, exists, "included-job not found in items")
+	assert.Equal(t, "Included Job", includedJob.Summary)
+	assert.Empty(t, includedJob.DependsOn)
 }
 
 func TestParsePipelineToWorkItems_StagesWithExplicitDependsOn(t *testing.T) {
@@ -788,7 +847,7 @@ jobs:
     stage: test
 `)
 
-	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable")
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable", "")
 	require.NoError(t, err)
 
 	jobMap := make(map[string]WorkItem)

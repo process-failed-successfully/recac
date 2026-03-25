@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 type Pipeline struct {
 	Name      string            `yaml:"name"`
+	Include   []string          `yaml:"include,omitempty"`
 	Variables map[string]string `yaml:"variables,omitempty"`
 	Secrets   []string          `yaml:"secrets,omitempty"`
 	Stages    []string          `yaml:"stages,omitempty"`
@@ -87,14 +89,14 @@ func sanitizeName(name string) string {
 
 // ParsePipelineToWorkItems converts a YAML pipeline definition into a list of WorkItems
 // using a generated timestamp to ensure IDs are unique per run.
-func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string]string) ([]WorkItem, error) {
-	return ParsePipelineToWorkItemsWithRunID(yamlData, targetJob, vars, fmt.Sprintf("%d", time.Now().UnixNano()))
+func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string]string, baseDir string) ([]WorkItem, error) {
+	return ParsePipelineToWorkItemsWithRunID(yamlData, targetJob, vars, fmt.Sprintf("%d", time.Now().UnixNano()), baseDir)
 }
 
 // ParsePipelineToWorkItemsWithRunID converts a YAML pipeline definition into a list of WorkItems.
 // If runID is non-empty, it is appended to the job ID instead of a timestamp.
 // If runID is "stable", the suffix is omitted entirely, providing completely stable IDs.
-func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars map[string]string, runID string) ([]WorkItem, error) {
+func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars map[string]string, runID string, baseDir string) ([]WorkItem, error) {
 	// Substitute variables using explicit mapping only
 	yamlStr := string(yamlData)
 	if len(vars) > 0 {
@@ -111,6 +113,37 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 	var p Pipeline
 	if err := yaml.Unmarshal(yamlData, &p); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pipeline YAML: %w", err)
+	}
+
+	// Resolve includes recursively
+	if len(p.Include) > 0 {
+		if baseDir == "" {
+			return nil, fmt.Errorf("pipeline includes are not allowed in this context")
+		}
+
+		absBaseDir, err := filepath.Abs(baseDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve absolute base directory: %w", err)
+		}
+
+		for _, includePath := range p.Include {
+			fullPath := includePath
+			if !filepath.IsAbs(includePath) {
+				fullPath = filepath.Join(absBaseDir, includePath)
+			}
+
+			// Sandbox check to prevent LFI / directory traversal
+			cleanPath := filepath.Clean(fullPath)
+			if !strings.HasPrefix(cleanPath, absBaseDir+string(filepath.Separator)) && cleanPath != absBaseDir {
+				return nil, fmt.Errorf("invalid include path '%s': must be within base directory", includePath)
+			}
+
+			// resolveAndMergeIncludes reads and parses the file, so we don't need to do it twice
+			err = resolveAndMergeIncludes(&p, cleanPath, absBaseDir, vars)
+			if err != nil {
+				return nil, fmt.Errorf("failed to process includes for '%s': %w", cleanPath, err)
+			}
+		}
 	}
 
 	if p.Name == "" {
@@ -632,4 +665,104 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 	}
 
 	return items, nil
+}
+
+func resolveAndMergeIncludes(mainPipeline *Pipeline, includeFile string, sandboxDir string, vars map[string]string) error {
+	data, err := os.ReadFile(includeFile)
+	if err != nil {
+		return err
+	}
+
+	yamlStr := string(data)
+	if len(vars) > 0 {
+		yamlStr = os.Expand(yamlStr, func(k string) string {
+			if v, ok := vars[k]; ok {
+				return v
+			}
+			return "${" + k + "}"
+		})
+		data = []byte(yamlStr)
+	}
+
+	var included Pipeline
+	if err := yaml.Unmarshal(data, &included); err != nil {
+		return err
+	}
+
+	// Recursively resolve includes inside the included file
+	baseDir := filepath.Dir(includeFile)
+	for _, inc := range included.Include {
+		fullPath := inc
+		if !filepath.IsAbs(inc) {
+			fullPath = filepath.Join(baseDir, inc)
+		}
+
+		// Sandbox check
+		cleanPath := filepath.Clean(fullPath)
+		if !strings.HasPrefix(cleanPath, sandboxDir+string(filepath.Separator)) && cleanPath != sandboxDir {
+			return fmt.Errorf("invalid recursive include path '%s': must be within base directory", inc)
+		}
+
+		if err := resolveAndMergeIncludes(&included, cleanPath, sandboxDir, vars); err != nil {
+			return err
+		}
+	}
+
+	// Merge Jobs (main pipeline overrides included)
+	if mainPipeline.Jobs == nil && len(included.Jobs) > 0 {
+		mainPipeline.Jobs = make(map[string]PipelineJob)
+	}
+	for k, v := range included.Jobs {
+		if _, exists := mainPipeline.Jobs[k]; !exists {
+			mainPipeline.Jobs[k] = v
+		}
+	}
+
+	// Merge Templates
+	if mainPipeline.Templates == nil && len(included.Templates) > 0 {
+		mainPipeline.Templates = make(map[string]PipelineJob)
+	}
+	for k, v := range included.Templates {
+		if _, exists := mainPipeline.Templates[k]; !exists {
+			mainPipeline.Templates[k] = v
+		}
+	}
+
+	// Merge Variables
+	if mainPipeline.Variables == nil && len(included.Variables) > 0 {
+		mainPipeline.Variables = make(map[string]string)
+	}
+	for k, v := range included.Variables {
+		if _, exists := mainPipeline.Variables[k]; !exists {
+			mainPipeline.Variables[k] = v
+		}
+	}
+
+	// Merge Secrets (deduplicate)
+	secretSet := make(map[string]bool)
+	for _, s := range mainPipeline.Secrets {
+		secretSet[s] = true
+	}
+	for _, s := range included.Secrets {
+		if !secretSet[s] {
+			mainPipeline.Secrets = append(mainPipeline.Secrets, s)
+			secretSet[s] = true
+		}
+	}
+
+	// Merge Stages (included stages are prepended if they don't exist, but it's simpler to append unique stages)
+	stageSet := make(map[string]bool)
+	for _, s := range mainPipeline.Stages {
+		stageSet[s] = true
+	}
+	var newStages []string
+	for _, s := range included.Stages {
+		if !stageSet[s] {
+			newStages = append(newStages, s)
+			stageSet[s] = true
+		}
+	}
+	mainPipeline.Stages = append(newStages, mainPipeline.Stages...)
+
+	return nil
 }
