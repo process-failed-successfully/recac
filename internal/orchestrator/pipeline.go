@@ -33,6 +33,7 @@ type Pipeline struct {
 		DependsOn        []string          `yaml:"depends_on"`
 		RunCondition     string            `yaml:"run_condition"`
 		CancelInProgress       *bool             `yaml:"cancel_in_progress,omitempty"`
+		WebhookURL       string            `yaml:"webhook_url,omitempty"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -61,6 +62,7 @@ type PipelineJob struct {
 	RequireApproval        *bool               `yaml:"require_approval,omitempty"`
 	RetryDelay             string              `yaml:"retry_delay,omitempty"`
 	RetryBackoffMultiplier *float64            `yaml:"retry_backoff_multiplier,omitempty"`
+	WebhookURL             string              `yaml:"webhook_url,omitempty"`
 }
 
 // sanitizeName creates a safe string for IDs.
@@ -198,6 +200,9 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			}
 			if jobDef.AgentModel == "" {
 				jobDef.AgentModel = template.AgentModel
+			}
+			if jobDef.WebhookURL == "" {
+				jobDef.WebhookURL = template.WebhookURL
 			}
 			if jobDef.RetryDelay == "" {
 				jobDef.RetryDelay = template.RetryDelay
@@ -420,6 +425,10 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		if retryBackoffMultiplier == nil && p.Defaults.RetryBackoffMultiplier != nil {
 			retryBackoffMultiplier = p.Defaults.RetryBackoffMultiplier
 		}
+		webhookURL := jobDef.WebhookURL
+		if webhookURL == "" {
+			webhookURL = p.Defaults.WebhookURL
+		}
 		cancelInProgress := false
 		if jobDef.CancelInProgress != nil {
 			cancelInProgress = *jobDef.CancelInProgress
@@ -633,6 +642,7 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 				RequireApproval:        requireApproval,
 				RetryDelay:             parsedRetryDelay,
 				RetryBackoffMultiplier: retryBackoffMultiplier,
+				WebhookURL:             webhookURL,
 			})
 		}
 	}
