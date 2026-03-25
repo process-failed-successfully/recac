@@ -42,6 +42,12 @@ func ExportPipelineToYAML(name string, jobs []JobInfo) ([]byte, error) {
 			envVars = job.WorkItem.EnvVars
 		}
 
+		var cancelInProgress *bool
+		if job.WorkItem.CancelInProgress {
+			t := true
+			cancelInProgress = &t
+		}
+
 		// Description is often the task in ad-hoc jobs, while Summary is the summary.
 		// For the exported pipeline, we map Description to Task to match declarative format.
 		// If both are present, we could do something else, but PipelineJob has both.
@@ -56,7 +62,7 @@ func ExportPipelineToYAML(name string, jobs []JobInfo) ([]byte, error) {
 			Timeout:          timeoutStr,
 			Delay:            delayStr,
 			ConcurrencyGroup: job.WorkItem.ConcurrencyGroup,
-			CancelInProgress: job.WorkItem.CancelInProgress,
+			CancelInProgress: cancelInProgress,
 			AgentProvider:    job.WorkItem.AgentProvider,
 			AgentModel:             job.WorkItem.AgentModel,
 			MaxRetries:             job.WorkItem.MaxRetries,

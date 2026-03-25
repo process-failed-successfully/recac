@@ -28,6 +28,7 @@ type Pipeline struct {
 		Tags             []string          `yaml:"tags"`
 		DependsOn        []string          `yaml:"depends_on"`
 		RunCondition     string            `yaml:"run_condition"`
+		CancelInProgress       *bool             `yaml:"cancel_in_progress,omitempty"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -47,7 +48,7 @@ type PipelineJob struct {
 	Timeout          string              `yaml:"timeout"` // Parse to time.Duration
 	Delay            string              `yaml:"delay"`   // Parse to time.Duration
 	ConcurrencyGroup string              `yaml:"concurrency_group"`
-	CancelInProgress bool                `yaml:"cancel_in_progress"`
+	CancelInProgress *bool               `yaml:"cancel_in_progress,omitempty"`
 	AgentProvider    string              `yaml:"agent_provider"`
 	AgentModel             string              `yaml:"agent_model"`
 	MaxRetries             *int                `yaml:"max_retries"`
@@ -226,6 +227,12 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		retryBackoffMultiplier := jobDef.RetryBackoffMultiplier
 		if retryBackoffMultiplier == nil && p.Defaults.RetryBackoffMultiplier != nil {
 			retryBackoffMultiplier = p.Defaults.RetryBackoffMultiplier
+		}
+		cancelInProgress := false
+		if jobDef.CancelInProgress != nil {
+			cancelInProgress = *jobDef.CancelInProgress
+		} else if p.Defaults.CancelInProgress != nil {
+			cancelInProgress = *p.Defaults.CancelInProgress
 		}
 
 		// Use Task as Description if Description is empty
@@ -426,7 +433,7 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 				Timeout:                parsedTimeout,
 				Delay:                  parsedDelay,
 				ConcurrencyGroup:       concurrencyGroup,
-				CancelInProgress:       jobDef.CancelInProgress,
+				CancelInProgress:       cancelInProgress,
 				AgentProvider:          agentProvider,
 				AgentModel:             agentModel,
 				MaxRetries:             maxRetries,
