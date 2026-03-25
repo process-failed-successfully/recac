@@ -234,6 +234,7 @@ func main() {
 	pflag.String("lint-pipeline", "", "Validate a pipeline YAML file without submitting")
 	pflag.String("import-pipeline", "", "Import a pipeline YAML file and hold all generated jobs")
 	pflag.String("explain-pipeline", "", "Explain a pipeline YAML file (visualize execution structure) without submitting")
+	pflag.String("list-templates", "", "List all templates defined in a pipeline YAML file")
 	pflag.String("inspect-pipeline", "", "Inspect a pipeline YAML file and display its resolved jobs visually")
 	pflag.String("compare-pipelines", "", "Compare two pipeline YAML files (comma-separated, e.g., p1.yaml,p2.yaml)")
 	pflag.String("apply-pipeline", "", "Apply a pipeline YAML file declaratively (creates missing, updates pending, skips active jobs)")
@@ -554,6 +555,7 @@ func main() {
 	viper.BindPFlag("orchestrator.lint_pipeline", pflag.Lookup("lint-pipeline"))
 	viper.BindPFlag("orchestrator.import_pipeline", pflag.Lookup("import-pipeline"))
 	viper.BindPFlag("orchestrator.explain_pipeline", pflag.Lookup("explain-pipeline"))
+	viper.BindPFlag("orchestrator.list_templates", pflag.Lookup("list-templates"))
 	viper.BindPFlag("orchestrator.inspect_pipeline", pflag.Lookup("inspect-pipeline"))
 	viper.BindPFlag("orchestrator.compare_pipelines", pflag.Lookup("compare-pipelines"))
 	viper.BindPFlag("orchestrator.apply_pipeline", pflag.Lookup("apply-pipeline"))
@@ -1777,6 +1779,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		explainPipelineJob(explainPipelineFile, target, vars)
+		return nil
+	}
+
+	if listTemplatesFile := viper.GetString("orchestrator.list_templates"); listTemplatesFile != "" {
+		varsList := viper.GetStringSlice("orchestrator.pipeline_var")
+		varFile := viper.GetString("orchestrator.pipeline_var_file")
+		vars, err := loadPipelineVars(varsList, varFile)
+		if err != nil {
+			fmt.Fprintf(stdout, "Failed to load variables: %v\n", err)
+			exitFunc(1)
+			return nil
+		}
+
+		listTemplatesJob(listTemplatesFile, vars)
 		return nil
 	}
 
