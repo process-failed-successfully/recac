@@ -29,6 +29,37 @@ func (m *mockSessionManager) LoadSession(name string) (*runner.SessionState, err
 	return args.Get(0).(*runner.SessionState), args.Error(1)
 }
 
+func TestProcessSpawner_UpdateStatusOnFailure(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+	poller := new(MockPoller)
+
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+
+	// We expect UpdateStatus to be called with "Failed" because the process execution will fail
+	// (since recac-agent doesn't exist or is not fully executable in the test environment)
+	poller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.MatchedBy(func(msg string) bool {
+		return len(msg) > 0
+	})).Return(nil).Once()
+
+	spawner := NewProcessSpawner(logger, poller, "provider", "model", sm, 10, 5, 2)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	item := WorkItem{
+		ID: "TEST-UPDATE-STATUS",
+	}
+
+	err := spawner.Spawn(ctx, item)
+	assert.Error(t, err)
+
+	poller.AssertExpectations(t)
+	sm.AssertExpectations(t)
+}
+
 func TestProcessSpawner_Ping(t *testing.T) {
 	// Ping just checks if recac-agent is in PATH, which might fail on CI if not installed.
 	// We'll mock exec.LookPath if possible, but it's a package level function.
@@ -36,7 +67,7 @@ func TestProcessSpawner_Ping(t *testing.T) {
 	// Let's just create the spawner and check struct init.
 	logger := telemetry.NewLogger(true, "test", true)
 	sm := &mockSessionManager{}
-	spawner := NewProcessSpawner(logger, "provider", "model", sm, 10, 5, 2)
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
 
 	assert.NotNil(t, spawner)
 	assert.Equal(t, "provider", spawner.AgentProvider)
@@ -54,7 +85,7 @@ func TestProcessSpawner_SpawnAndCleanup(t *testing.T) {
 		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
 	})).Return(nil).Twice()
 
-	spawner := NewProcessSpawner(logger, "provider", "model", sm, 10, 5, 2)
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -86,7 +117,7 @@ func TestProcessSpawner_SpawnAndCleanup(t *testing.T) {
 func TestProcessSpawner_Cancel(t *testing.T) {
 	logger := telemetry.NewLogger(true, "test", true)
 	sm := &mockSessionManager{}
-	spawner := NewProcessSpawner(logger, "provider", "model", sm, 10, 5, 2)
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
 
 	// Cancellation of non-existent job should fail
 	err := spawner.Cancel(context.Background(), "NON-EXISTENT")
@@ -107,7 +138,7 @@ func TestProcessSpawner_Cancel(t *testing.T) {
 func TestProcessSpawner_GetLogs(t *testing.T) {
 	logger := telemetry.NewLogger(true, "test", true)
 	sm := &mockSessionManager{}
-	spawner := NewProcessSpawner(logger, "provider", "model", sm, 10, 5, 2)
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
 
 	// Create a dummy log file
 	tmpDir := t.TempDir()
