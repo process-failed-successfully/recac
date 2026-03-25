@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"gopkg.in/yaml.v3"
 
 	"recac/internal/orchestrator"
@@ -95,6 +96,88 @@ func lintPipelineJob(filePath string, target string, vars map[string]string) {
 	}
 
 	fmt.Fprintf(stdout, "Pipeline is valid. Parsed %d jobs.\n", len(items))
+}
+
+func inspectPipelineJob(filePath string, target string, vars map[string]string) {
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
+	}
+
+	baseDir := "."
+	if filePath != "" {
+		baseDir = filepath.Dir(filePath)
+	}
+
+	items, err := orchestrator.ParsePipelineToWorkItems(fileData, target, vars, baseDir)
+	if err != nil {
+		fmt.Fprintf(stdout, "Pipeline inspection failed: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(20)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Pipeline Inspection: %s (%d jobs)", filePath, len(items))))
+
+	for i, item := range items {
+		fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Job ID:"), valueStyle.Render(item.ID))
+		fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Summary:"), valueStyle.Render(item.Summary))
+		fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Task:"), valueStyle.Render(limitString(item.Description, 100)))
+		fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Repo URL:"), valueStyle.Render(item.RepoURL))
+
+		if len(item.DependsOn) > 0 {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Dependencies:"), valueStyle.Render(strings.Join(item.DependsOn, ", ")))
+		}
+
+		if len(item.Tags) > 0 {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Tags:"), valueStyle.Render(strings.Join(item.Tags, ", ")))
+		}
+
+		agentStr := fmt.Sprintf("%s / %s", item.AgentProvider, item.AgentModel)
+		fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Agent:"), valueStyle.Render(agentStr))
+
+		if item.ConcurrencyGroup != "" {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Concurrency Group:"), valueStyle.Render(item.ConcurrencyGroup))
+			fmt.Fprintf(stdout, "%s %v\n", headerStyle.Render("Cancel In Progress:"), valueStyle.Render(fmt.Sprintf("%v", item.CancelInProgress)))
+		}
+
+		if item.Timeout > 0 {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Timeout:"), valueStyle.Render(item.Timeout.String()))
+		}
+		if item.Delay > 0 {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Delay:"), valueStyle.Render(item.Delay.String()))
+		}
+		if item.RunCondition != "" {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Run Condition:"), valueStyle.Render(item.RunCondition))
+		}
+
+		if len(item.EnvVars) > 0 {
+			fmt.Fprintln(stdout, headerStyle.Render("Environment Vars:"))
+			for k, v := range item.EnvVars {
+				fmt.Fprintf(stdout, "  %s=%s\n", k, valueStyle.Render(v))
+			}
+		}
+
+		if i < len(items)-1 {
+			fmt.Fprintln(stdout, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("-", 60)))
+		}
+	}
 }
 
 func importPipelineJob(host, filePath string, target string, vars map[string]string) {
