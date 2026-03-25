@@ -694,6 +694,82 @@ jobs:
 	assert.Contains(t, err.Error(), "no stages are defined in the pipeline")
 }
 
+func TestParsePipelineToWorkItems_Templates(t *testing.T) {
+	yamlData := []byte(`
+name: Template Pipeline
+templates:
+  base-build:
+    summary: Base Build
+    task: make build
+    agent_provider: openrouter
+    agent_model: openai/gpt-4o-mini
+    tags: [build]
+    env_vars:
+      GOOS: linux
+      GOARCH: amd64
+    max_retries: 3
+    timeout: 10m
+
+  go-test:
+    extends: base-build # Testing if extends on template does anything? Wait, currently we only process extends on Jobs.
+    # We will test Job extends Template here.
+
+jobs:
+  job1:
+    summary: Build App
+    extends: base-build
+    tags: [app]
+    env_vars:
+      GOOS: windows # overrides template
+      APP_NAME: MyApp
+
+  job2:
+    extends: base-build
+    task: make special-build # overrides template
+`)
+
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.NoError(t, err)
+	assert.Len(t, items, 2)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.Equal(t, "Build App", job1.Summary)
+	assert.Equal(t, "make build", job1.Description)
+	assert.Equal(t, "openrouter", job1.AgentProvider)
+	assert.Equal(t, "openai/gpt-4o-mini", job1.AgentModel)
+	assert.Equal(t, []string{"build", "app"}, job1.Tags)
+	assert.Equal(t, map[string]string{"GOOS": "windows", "GOARCH": "amd64", "APP_NAME": "MyApp"}, job1.EnvVars)
+	require.NotNil(t, job1.MaxRetries)
+	assert.Equal(t, 3, *job1.MaxRetries)
+	assert.Equal(t, 10*time.Minute, job1.Timeout)
+
+	job2 := jobMap["job2"]
+	assert.Equal(t, "Base Build", job2.Summary) // inherited
+	assert.Equal(t, "make special-build", job2.Description) // overridden
+	assert.Equal(t, []string{"build"}, job2.Tags)
+}
+
+func TestParsePipelineToWorkItems_UnknownTemplate(t *testing.T) {
+	yamlData := []byte(`
+name: Unknown Template Pipeline
+jobs:
+  job1:
+    summary: Build
+    extends: unknown-template
+`)
+
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "extends unknown template 'unknown-template'")
+}
+
 func TestParsePipelineToWorkItems_StagesWithExplicitDependsOn(t *testing.T) {
 	yamlData := []byte(`
 name: Pipeline Stages Explicit
