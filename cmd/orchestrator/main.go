@@ -116,6 +116,7 @@ func main() {
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("inspect-dataflow", "", "Inspect how upstream job outputs are injected as environment variables into a specific job by ID")
 	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
+	pflag.Bool("analyze-failures", false, "Analyze and group all failed jobs by their summary error signature")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
 	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
 	pflag.String("heal-tag", "", "Heal all failed jobs with the specified tag")
@@ -437,6 +438,7 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.inspect_dataflow", pflag.Lookup("inspect-dataflow"))
 	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
+	viper.BindPFlag("orchestrator.analyze_failures", pflag.Lookup("analyze-failures"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
 	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
 	viper.BindPFlag("orchestrator.heal_tag", pflag.Lookup("heal-tag"))
@@ -966,6 +968,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		provider := viper.GetString("orchestrator.agent_provider")
 		model := viper.GetString("orchestrator.agent_model")
 		explainJob(host, jobID, provider, model)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analyze_failures") {
+		host := viper.GetString("orchestrator.host")
+		analyzeFailures(host)
 		return nil
 	}
 
