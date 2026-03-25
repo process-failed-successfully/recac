@@ -143,6 +143,46 @@ func TestSQLitePersistence(t *testing.T) {
 		err = pNoDb.Close()
 		assert.NoError(t, err)
 	})
+
+	t.Run("Init_InvalidDBPath", func(t *testing.T) {
+		// An invalid path like a directory to trigger sql.Open or Exec error
+		invalidPath := filepath.Join(tempDir, "invalid_dir")
+		err := os.Mkdir(invalidPath, 0755)
+		require.NoError(t, err)
+
+		pInvalid := NewSQLitePersistence(invalidPath)
+		err = pInvalid.Init()
+		assert.Error(t, err)
+	})
+
+	t.Run("SaveJob_MarshalError", func(t *testing.T) {
+		// Create a job with something that cannot be marshaled
+		// e.g. a function or channel inside a field that is an interface{}
+		// However, JobInfo doesn't have an interface{}, but WorkItem does not either.
+		// Wait, we can mock a broken db by closing it.
+		p.Close()
+
+		// This should fail because db is closed
+		err := p.SaveJob(job1)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to save job")
+
+		_, err = p.GetJob("JOB-1")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to query job")
+
+		_, err = p.GetJobs(10)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to query jobs")
+
+		_, err = p.ClearHistory()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to clear history")
+
+		err = p.PurgeJob("JOB-1")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to purge job")
+	})
 }
 
 func TestSQLitePersistence_PurgeJob(t *testing.T) {
