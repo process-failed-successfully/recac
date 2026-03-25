@@ -59,8 +59,9 @@ func TestAPI_GenericWebhook_Success(t *testing.T) {
 	if len(jobs) == 0 {
 		jobs = orch.GetPendingJobs()
 	}
-	assert.Len(t, jobs, 1)
-	assert.Equal(t, "generic-123", jobs[0].ID)
+	if assert.Len(t, jobs, 1) {
+		assert.Equal(t, "generic-123", jobs[0].ID)
+	}
 }
 
 func TestAPI_GenericWebhook_Success_WithSecret(t *testing.T) {
