@@ -3036,3 +3036,95 @@ func TestImportPipelineJob(t *testing.T) {
 		})
 	}
 }
+
+func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() {
+		exitFunc = oldExit
+	}()
+
+	oldStdout := stdout
+	_, w, _ := os.Pipe()
+	stdout = w
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	matrix := map[string][]string{
+		"OS": {"linux"},
+	}
+
+	t.Run("Server Unreachable", func(t *testing.T) {
+		exitCode = 0
+		submitMatrixInlineJob("http://127.0.0.1:0", "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Non-202 Accepted", func(t *testing.T) {
+		exitCode = 0
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer ts.Close()
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Invalid JSON Response", func(t *testing.T) {
+		exitCode = 0
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte(`{invalid json}`))
+		}))
+		defer ts.Close()
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Errors In Payload", func(t *testing.T) {
+		exitCode = 0
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte(`{"submitted": [], "errors": ["some error"]}`))
+		}))
+		defer ts.Close()
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("Wait For Jobs", func(t *testing.T) {
+		exitCode = 0
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/jobs/matrix" {
+				w.WriteHeader(http.StatusAccepted)
+				w.Write([]byte(`{"submitted": ["JOB-WAIT"], "errors": []}`))
+			} else {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id": "JOB-WAIT", "status": "Completed"}`))
+			}
+		}))
+		defer ts.Close()
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		assert.Equal(t, 0, exitCode)
+	})
+
+	t.Run("Wait For Jobs Failed", func(t *testing.T) {
+		exitCode = 0
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/jobs/matrix" {
+				w.WriteHeader(http.StatusAccepted)
+				w.Write([]byte(`{"submitted": ["JOB-WAIT"], "errors": []}`))
+			} else {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id": "JOB-WAIT", "status": "Failed", "error": "simulated"}`))
+			}
+		}))
+		defer ts.Close()
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		assert.Equal(t, 1, exitCode)
+	})
+}
