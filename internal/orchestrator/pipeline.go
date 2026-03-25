@@ -15,6 +15,7 @@ type Pipeline struct {
 	Variables map[string]string `yaml:"variables,omitempty"`
 	Secrets   []string          `yaml:"secrets,omitempty"`
 	Stages    []string          `yaml:"stages,omitempty"`
+	Templates map[string]PipelineJob `yaml:"templates,omitempty"`
 	Defaults  struct {
 		RepoURL          string            `yaml:"repo_url"`
 		AgentProvider    string            `yaml:"agent_provider"`
@@ -39,6 +40,7 @@ type PipelineJob struct {
 	Task             string              `yaml:"task"`
 	Description      string              `yaml:"description"`
 	Stage            string              `yaml:"stage,omitempty"`
+	Extends          string              `yaml:"extends,omitempty"`
 	RepoURL          string              `yaml:"repo_url"`
 	DependsOn        []string            `yaml:"depends_on"`
 	RunCondition     string              `yaml:"run_condition"`
@@ -116,6 +118,119 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 	}
 	if len(p.Jobs) == 0 {
 		return nil, fmt.Errorf("pipeline must have at least one job")
+	}
+
+	// Resolve template extensions
+	for jobKey, jobDef := range p.Jobs {
+		if jobDef.Extends != "" {
+			template, ok := p.Templates[jobDef.Extends]
+			if !ok {
+				return nil, fmt.Errorf("job '%s' extends unknown template '%s'", jobKey, jobDef.Extends)
+			}
+
+			// Merge template into jobDef
+			// jobDef takes precedence
+			if jobDef.Summary == "" {
+				jobDef.Summary = template.Summary
+			}
+			if jobDef.Task == "" {
+				jobDef.Task = template.Task
+			}
+			if jobDef.Description == "" {
+				jobDef.Description = template.Description
+			}
+			if jobDef.Stage == "" {
+				jobDef.Stage = template.Stage
+			}
+			if jobDef.RepoURL == "" {
+				jobDef.RepoURL = template.RepoURL
+			}
+			if jobDef.RunCondition == "" {
+				jobDef.RunCondition = template.RunCondition
+			}
+			if jobDef.Priority == 0 {
+				jobDef.Priority = template.Priority
+			}
+			if jobDef.Timeout == "" {
+				jobDef.Timeout = template.Timeout
+			}
+			if jobDef.Delay == "" {
+				jobDef.Delay = template.Delay
+			}
+			if jobDef.ConcurrencyGroup == "" {
+				jobDef.ConcurrencyGroup = template.ConcurrencyGroup
+			}
+			if jobDef.AgentProvider == "" {
+				jobDef.AgentProvider = template.AgentProvider
+			}
+			if jobDef.AgentModel == "" {
+				jobDef.AgentModel = template.AgentModel
+			}
+			if jobDef.RetryDelay == "" {
+				jobDef.RetryDelay = template.RetryDelay
+			}
+
+			// Pointers
+			if jobDef.CancelInProgress == nil && template.CancelInProgress != nil {
+				val := *template.CancelInProgress
+				jobDef.CancelInProgress = &val
+			}
+			if jobDef.MaxRetries == nil && template.MaxRetries != nil {
+				val := *template.MaxRetries
+				jobDef.MaxRetries = &val
+			}
+			if jobDef.RequireApproval == nil && template.RequireApproval != nil {
+				val := *template.RequireApproval
+				jobDef.RequireApproval = &val
+			}
+			if jobDef.RetryBackoffMultiplier == nil && template.RetryBackoffMultiplier != nil {
+				val := *template.RetryBackoffMultiplier
+				jobDef.RetryBackoffMultiplier = &val
+			}
+
+			// Maps
+			if len(template.EnvVars) > 0 {
+				if jobDef.EnvVars == nil {
+					jobDef.EnvVars = make(map[string]string)
+				}
+				for k, v := range template.EnvVars {
+					if _, exists := jobDef.EnvVars[k]; !exists {
+						jobDef.EnvVars[k] = v
+					}
+				}
+			}
+			if len(template.Variables) > 0 {
+				if jobDef.Variables == nil {
+					jobDef.Variables = make(map[string]string)
+				}
+				for k, v := range template.Variables {
+					if _, exists := jobDef.Variables[k]; !exists {
+						jobDef.Variables[k] = v
+					}
+				}
+			}
+			if len(template.Matrix) > 0 {
+				if jobDef.Matrix == nil {
+					jobDef.Matrix = make(map[string][]string)
+				}
+				for k, v := range template.Matrix {
+					if _, exists := jobDef.Matrix[k]; !exists {
+						jobDef.Matrix[k] = append([]string{}, v...)
+					}
+				}
+			}
+
+			// Slices
+			if len(template.Tags) > 0 {
+				jobDef.Tags = append(append([]string(nil), template.Tags...), jobDef.Tags...)
+			}
+			if len(template.DependsOn) > 0 {
+				jobDef.DependsOn = append(append([]string(nil), template.DependsOn...), jobDef.DependsOn...)
+			}
+
+			// Save back to map
+			p.Jobs[jobKey] = jobDef
+		}
 	}
 
 	// Validate stages and calculate implicit dependencies
