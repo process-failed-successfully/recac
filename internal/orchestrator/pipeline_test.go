@@ -874,3 +874,62 @@ jobs:
 	assert.Len(t, test1.DependsOn, 1)
 	assert.Equal(t, build1.ID, test1.DependsOn[0])
 }
+
+func TestParsePipelineToWorkItems_MatrixExclude(t *testing.T) {
+	yamlData := []byte(`
+name: Matrix Pipeline
+defaults:
+  repo_url: https://github.com/org/repo.git
+templates:
+  base-test:
+    exclude:
+      - NODE_VERSION: "16"
+        OS: "macos-latest"
+jobs:
+  test:
+    extends: base-test
+    summary: Run tests
+    task: npm run test
+    matrix:
+      NODE_VERSION: ["16", "18"]
+      OS: ["ubuntu-latest", "macos-latest"]
+    exclude:
+      - NODE_VERSION: "18"
+        OS: "ubuntu-latest"
+`)
+
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
+	require.NoError(t, err)
+
+	// test: 2 * 2 = 4 jobs, minus 2 excluded = 2 jobs
+	assert.Len(t, items, 2)
+
+	var envVarsFound []string
+	for _, job := range items {
+		envVarsFound = append(envVarsFound, fmt.Sprintf("%s-%s", job.EnvVars["NODE_VERSION"], job.EnvVars["OS"]))
+	}
+	assert.ElementsMatch(t, []string{
+		"16-ubuntu-latest",
+		"18-macos-latest",
+	}, envVarsFound)
+}
+
+func TestParsePipelineToWorkItems_MatrixExcludeAll(t *testing.T) {
+	yamlData := []byte(`
+name: Matrix Exclude All Pipeline
+jobs:
+  test:
+    summary: Run tests
+    task: npm run test
+    matrix:
+      NODE_VERSION: ["16"]
+    exclude:
+      - NODE_VERSION: "16"
+`)
+
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
+	require.NoError(t, err)
+
+	// All matrix combinations are excluded
+	assert.Len(t, items, 0)
+}

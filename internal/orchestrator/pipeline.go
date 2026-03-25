@@ -50,6 +50,7 @@ type PipelineJob struct {
 	EnvVars          map[string]string   `yaml:"env_vars"`
 	Variables        map[string]string   `yaml:"variables,omitempty"`
 	Matrix           map[string][]string `yaml:"matrix"`
+	Exclude          []map[string]string `yaml:"exclude,omitempty"`
 	Tags             []string            `yaml:"tags"`
 	Priority         int                 `yaml:"priority"`
 	Timeout          string              `yaml:"timeout"` // Parse to time.Duration
@@ -259,6 +260,16 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			}
 
 			// Slices
+			if len(template.Exclude) > 0 {
+				// Deep copy each map in Exclude
+				for _, rule := range template.Exclude {
+					newRule := make(map[string]string)
+					for k, v := range rule {
+						newRule[k] = v
+					}
+					jobDef.Exclude = append(jobDef.Exclude, newRule)
+				}
+			}
 			if len(template.Tags) > 0 {
 				jobDef.Tags = append(append([]string(nil), template.Tags...), jobDef.Tags...)
 			}
@@ -536,9 +547,36 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		}
 		generate(0, make(map[string]string))
 
-		// If matrix is empty, just generate one combination (empty map)
-		if len(combinations) == 0 {
-			combinations = append(combinations, make(map[string]string))
+		// Filter out combinations that match any exclusion rule
+		var filteredCombinations []map[string]string
+		for _, combo := range combinations {
+			exclude := false
+			for _, rule := range jobDef.Exclude {
+				match := true
+				for k, v := range rule {
+					if combo[k] != v {
+						match = false
+						break
+					}
+				}
+				if match {
+					exclude = true
+					break
+				}
+			}
+			if !exclude {
+				filteredCombinations = append(filteredCombinations, combo)
+			}
+		}
+		combinations = filteredCombinations
+
+		// If matrix is empty (or everything was excluded), and we didn't start with an actual matrix,
+		// we should still generate one combination. But if we had a matrix and excluded everything, we should generate 0.
+		// Wait, if matrixKeys is empty, len(combinations) was 0, and we should generate 1.
+		if len(matrixKeys) == 0 {
+			if len(combinations) == 0 {
+				combinations = append(combinations, make(map[string]string))
+			}
 		}
 
 		for i, combo := range combinations {
