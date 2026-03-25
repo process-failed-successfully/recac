@@ -721,6 +721,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "clear pending"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "ctrl+e":
+			m.pendingJobId = "ALL_CLEAN"
+			m.pendingAction = "clean all"
+			m.viewState = viewConfirmation
+			return m, nil
 		case "T":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_timeout"
@@ -1017,6 +1022,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = clearHistory(m.host)
 			} else if m.pendingAction == "clear pending" {
 				cmd = clearPending(m.host)
+			} else if m.pendingAction == "clean all" {
+				cmd = cleanAllCmd(m.host)
 			} else if m.pendingAction == "hold" {
 				cmd = holdJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "unhold" {
@@ -1528,7 +1535,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1574,6 +1581,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE job %s entirely?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "clear pending" {
 			dialogMsg = "Are you sure you want to clear ALL pending jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)"
+		} else if m.pendingAction == "clean all" {
+			dialogMsg = "Are you sure you want to CLEAN ALL?\n(Cancels active jobs, clears pending jobs, and clears history)\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "cancel multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "cancel downstream multiple" {
@@ -3221,4 +3230,51 @@ func renderCompare(job1, job2 orchestrator.JobInfo) string {
 		}
 	}
 	return sb.String()
+}
+func cleanAllCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		// 1. Cancel active jobs
+		req, err := http.NewRequest(http.MethodDelete, host+"/jobs", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("cancel all failed: status %d", resp.StatusCode)}
+		}
+
+		// 2. Clear pending jobs
+		req, err = http.NewRequest(http.MethodDelete, host+"/pending", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("clear pending failed: status %d", resp.StatusCode)}
+		}
+
+		// 3. Clear history
+		req, err = http.NewRequest(http.MethodDelete, host+"/history", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("clear history failed: status %d", resp.StatusCode)}
+		}
+
+		return actionMsg{Message: "Clean All: OK"}
+	}
 }

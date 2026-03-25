@@ -244,3 +244,45 @@ func TestArchiveBulkJobsCmd(t *testing.T) {
 	assert.NoError(t, actionMsg.Err)
 	assert.Equal(t, "Archived to bulk_archive.tar.gz", actionMsg.Message)
 }
+
+func TestCleanAllCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		if r.URL.Path == "/jobs" {
+			w.WriteHeader(http.StatusOK)
+		} else if r.URL.Path == "/pending" {
+			w.WriteHeader(http.StatusOK)
+		} else if r.URL.Path == "/history" {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			t.Errorf("Unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	cmd := cleanAllCmd(server.URL)
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Clean All: OK", actionMsg.Message)
+}
+
+func TestCleanAllCmd_CancelJobsFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs" {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer server.Close()
+
+	cmd := cleanAllCmd(server.URL)
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.Error(t, actionMsg.Err)
+	assert.Contains(t, actionMsg.Err.Error(), "cancel all failed")
+}
