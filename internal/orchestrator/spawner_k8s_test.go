@@ -295,6 +295,26 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		assert.NotNil(t, job.Spec.BackoffLimit)
 		assert.Equal(t, int32(0), *job.Spec.BackoffLimit, "BackoffLimit should be 0 to prevent split-brain retries")
 
+		// Verify docker socket volume mount exists
+		foundDockerSocketMount := false
+		for _, mount := range container.VolumeMounts {
+			if mount.Name == "docker-socket" && mount.MountPath == "/var/run/docker.sock" {
+				foundDockerSocketMount = true
+				break
+			}
+		}
+		assert.True(t, foundDockerSocketMount, "Docker socket volume mount should exist")
+
+		// Verify docker socket volume exists
+		foundDockerSocketVolume := false
+		for _, volume := range job.Spec.Template.Spec.Volumes {
+			if volume.Name == "docker-socket" && volume.HostPath != nil && volume.HostPath.Path == "/var/run/docker.sock" {
+				foundDockerSocketVolume = true
+				break
+			}
+		}
+		assert.True(t, foundDockerSocketVolume, "Docker socket volume should exist")
+
 		envMap := make(map[string]string)
 		for _, e := range container.Env {
 			envMap[e.Name] = e.Value
