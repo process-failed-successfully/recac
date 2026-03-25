@@ -50,6 +50,7 @@ Thumbs.db
 # Logs
 logs/
 *.log
+**/logs/
 
 # Test projects
 test_projects/*/
@@ -112,3 +113,4 @@ internal/orchestrator/test
 internal/orchestrator/test-orch-delay
 .recac.db-shm
 .recac.db-wal
+internal/tui/*.tar.gz
