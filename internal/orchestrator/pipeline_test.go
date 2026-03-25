@@ -27,6 +27,7 @@ defaults:
     GLOBAL_VAR: "global_value"
   tags:
     - global_tag
+  webhook_url: https://example.com/webhook/global
 jobs:
   build:
     summary: Build application
@@ -42,6 +43,7 @@ jobs:
       GLOBAL_VAR: "overridden_value"
     tags:
       - local_tag
+    webhook_url: https://example.com/webhook/build
   test:
     summary: Run tests
     depends_on: [build]
@@ -92,6 +94,7 @@ jobs:
 	assert.Equal(t, 2.0, *buildJob.RetryBackoffMultiplier)
 	assert.Equal(t, map[string]string{"GLOBAL_VAR": "overridden_value", "LOCAL_VAR": "local_value"}, buildJob.EnvVars)
 	assert.Equal(t, []string{"global_tag", "local_tag"}, buildJob.Tags)
+	assert.Equal(t, "https://example.com/webhook/build", buildJob.WebhookURL)
 
 	// Test Job
 	testJob, ok := jobMap["test"]
@@ -106,6 +109,7 @@ jobs:
 	assert.Equal(t, map[string]string{"GLOBAL_VAR": "global_value"}, testJob.EnvVars)
 	assert.Equal(t, []string{"global_tag"}, testJob.Tags)
 	assert.Equal(t, 10, testJob.Priority)
+	assert.Equal(t, "https://example.com/webhook/global", testJob.WebhookURL)
 	assert.Len(t, testJob.DependsOn, 1)
 	assert.Equal(t, buildJob.ID, testJob.DependsOn[0])
 
