@@ -150,6 +150,7 @@ func main() {
 	pflag.String("approve-job", "", "Approve a job that is pending approval")
 	pflag.String("approve-tag", "", "Approve all pending jobs with the specified tag")
 	pflag.String("approve-match", "", "Approve all pending jobs matching the given regex")
+	pflag.Bool("approve-interactive", false, "Interactively approve, skip, or cancel jobs that are pending approval")
 	pflag.String("hold-job", "", "Hold a pending job to prevent it from running")
 	pflag.String("unhold-job", "", "Unhold a pending job to allow it to run")
 	pflag.String("hold-tag", "", "Hold all pending jobs with the specified tag")
@@ -466,6 +467,7 @@ func main() {
 	viper.BindPFlag("orchestrator.approve_job", pflag.Lookup("approve-job"))
 	viper.BindPFlag("orchestrator.approve_tag", pflag.Lookup("approve-tag"))
 	viper.BindPFlag("orchestrator.approve_match", pflag.Lookup("approve-match"))
+	viper.BindPFlag("orchestrator.approve_interactive", pflag.Lookup("approve-interactive"))
 	viper.BindPFlag("orchestrator.hold_job", pflag.Lookup("hold-job"))
 	viper.BindPFlag("orchestrator.unhold_job", pflag.Lookup("unhold-job"))
 	viper.BindPFlag("orchestrator.hold_tag", pflag.Lookup("hold-tag"))
@@ -1170,6 +1172,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if approveJobId := viper.GetString("orchestrator.approve_job"); approveJobId != "" {
 		host := viper.GetString("orchestrator.host")
 		approveJob(host, approveJobId)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.approve_interactive") {
+		host := viper.GetString("orchestrator.host")
+		approveInteractive(host)
 		return nil
 	}
 
