@@ -214,7 +214,9 @@ func TestAPI_GenericWebhook_MissingIDGeneratesOne(t *testing.T) {
 		jobs = orch.GetPendingJobs()
 	}
 	assert.Len(t, jobs, 1)
-	assert.Equal(t, generatedID, jobs[0].ID)
+	if len(jobs) > 0 {
+		assert.Equal(t, generatedID, jobs[0].ID)
+	}
 }
 
 func TestAPI_GenericWebhook_InvalidPayload(t *testing.T) {
