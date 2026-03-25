@@ -5,6 +5,8 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"fmt"
+	"github.com/stretchr/testify/require"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -129,4 +131,94 @@ func TestSetJobOutput_DependencyChaining(t *testing.T) {
 
 	// Spawner should be called
 	mockSpawner.AssertExpectations(t)
+}
+
+type mockOutputPersistence struct {
+	savedJobs map[string]JobInfo
+	saveErr   error
+	getErr    error
+}
+
+func (m *mockOutputPersistence) Init() error                               { return nil }
+func (m *mockOutputPersistence) SaveJob(job JobInfo) error                 {
+	if m.saveErr != nil {
+		return m.saveErr
+	}
+	if m.savedJobs == nil {
+		m.savedJobs = make(map[string]JobInfo)
+	}
+	m.savedJobs[job.ID] = job
+	return nil
+}
+func (m *mockOutputPersistence) GetJob(id string) (*JobInfo, error)        {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	if m.savedJobs != nil {
+		if job, ok := m.savedJobs[id]; ok {
+			return &job, nil
+		}
+	}
+	return nil, fmt.Errorf("job %s not found", id)
+}
+func (m *mockOutputPersistence) GetJobs(limit int) ([]JobInfo, error)      { return nil, nil }
+func (m *mockOutputPersistence) Close() error                              { return nil }
+func (m *mockOutputPersistence) ClearHistory() (int, error)                { return 0, nil }
+func (m *mockOutputPersistence) PurgeJob(id string) error                  { return nil }
+
+func TestSetJobOutput_Persistence(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	orch := New(mockPoller, mockSpawner, 100*time.Millisecond)
+
+	jobID := "PERSISTED-JOB"
+
+	t.Run("Success", func(t *testing.T) {
+		mockDB := &mockOutputPersistence{
+			savedJobs: map[string]JobInfo{
+				jobID: {ID: jobID},
+			},
+		}
+		orch.SetPersistence(mockDB)
+
+		outputs := map[string]string{"result": "success"}
+		err := orch.SetJobOutput(jobID, outputs, logger)
+		require.NoError(t, err)
+
+		job, err := mockDB.GetJob(jobID)
+		require.NoError(t, err)
+		assert.Equal(t, "success", job.Outputs["result"])
+	})
+
+	t.Run("SaveJobError", func(t *testing.T) {
+		mockDB := &mockOutputPersistence{
+			savedJobs: map[string]JobInfo{
+				jobID: {ID: jobID},
+			},
+			saveErr: assert.AnError,
+		}
+		orch.SetPersistence(mockDB)
+
+		outputs := map[string]string{"result": "success"}
+		err := orch.SetJobOutput(jobID, outputs, logger)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to persist")
+	})
+
+	t.Run("MemoryAndSaveJobError", func(t *testing.T) {
+		mockDB := &mockOutputPersistence{
+			saveErr: assert.AnError,
+		}
+		orch.SetPersistence(mockDB)
+
+		orch.completedJobs = append(orch.completedJobs, JobInfo{ID: "MEM-JOB"})
+
+		outputs := map[string]string{"result": "success"}
+		err := orch.SetJobOutput("MEM-JOB", outputs, logger)
+		require.NoError(t, err)
+
+		orch.completedJobs = orch.completedJobs[:len(orch.completedJobs)-1]
+	})
 }

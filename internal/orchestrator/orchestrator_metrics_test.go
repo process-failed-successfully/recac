@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"fmt"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -116,3 +117,93 @@ func TestGetAnalyticsMetrics(t *testing.T) {
 	assert.Equal(t, 5.0, analytics.TotalMetrics["time"])
 	assert.Equal(t, 1.0, analytics.TotalMetrics["other"])
 }
+
+type mockMetricsPersistence struct {
+	savedJobs map[string]JobInfo
+	saveErr   error
+	getErr    error
+}
+
+func (m *mockMetricsPersistence) Init() error { return nil }
+func (m *mockMetricsPersistence) SaveJob(job JobInfo) error {
+	if m.saveErr != nil {
+		return m.saveErr
+	}
+	if m.savedJobs == nil {
+		m.savedJobs = make(map[string]JobInfo)
+	}
+	m.savedJobs[job.ID] = job
+	return nil
+}
+func (m *mockMetricsPersistence) GetJob(id string) (*JobInfo, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	if m.savedJobs != nil {
+		if job, ok := m.savedJobs[id]; ok {
+			return &job, nil
+		}
+	}
+	return nil, fmt.Errorf("job %s not found", id)
+}
+func (m *mockMetricsPersistence) GetJobs(limit int) ([]JobInfo, error) { return nil, nil }
+func (m *mockMetricsPersistence) Close() error { return nil }
+func (m *mockMetricsPersistence) ClearHistory() (int, error) { return 0, nil }
+
+func TestAddJobMetrics_Persistence(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 10*time.Millisecond)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	jobID := "PERSISTED-JOB"
+
+	t.Run("Success", func(t *testing.T) {
+		mockDB := &mockMetricsPersistence{
+			savedJobs: map[string]JobInfo{
+				jobID: {ID: jobID},
+			},
+		}
+		orch.SetPersistence(mockDB)
+
+		err := orch.AddJobMetrics(jobID, map[string]float64{"cost": 1.0}, logger)
+		require.NoError(t, err)
+
+		job, err := mockDB.GetJob(jobID)
+		require.NoError(t, err)
+		assert.Equal(t, 1.0, job.Metrics["cost"])
+	})
+
+	t.Run("SaveJobError", func(t *testing.T) {
+		mockDB := &mockMetricsPersistence{
+			savedJobs: map[string]JobInfo{
+				jobID: {ID: jobID},
+			},
+			saveErr: assert.AnError,
+		}
+		orch.SetPersistence(mockDB)
+
+		err := orch.AddJobMetrics(jobID, map[string]float64{"cost": 1.0}, logger)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to persist")
+	})
+
+	t.Run("MemoryAndSaveJobError", func(t *testing.T) {
+		mockDB := &mockMetricsPersistence{
+			saveErr: assert.AnError,
+		}
+		orch.SetPersistence(mockDB)
+
+		// Test when the job is in memory history but persistence fails
+		orch.completedJobs = append(orch.completedJobs, JobInfo{ID: "MEM-JOB"})
+
+		err := orch.AddJobMetrics("MEM-JOB", map[string]float64{"cost": 1.0}, logger)
+		require.NoError(t, err) // It continues despite persistence failure
+
+		// Need to remove MEM-JOB from memory for next tests if we reuse orch, but we are re-instantiating.
+		// Wait, we reuse orch!
+		// Let's remove it.
+		orch.completedJobs = orch.completedJobs[:len(orch.completedJobs)-1]
+	})
+}
+func (m *mockMetricsPersistence) PurgeJob(id string) error { return nil }
