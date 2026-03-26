@@ -37,7 +37,7 @@ func TestListJobs_MatchFilter(t *testing.T) {
 	defer func() { stdout = oldStdout }()
 
 	// Execute listJobs with the match filter
-	listJobs(server.URL, true, "Failed", "urgent", "timeout", "table")
+	listJobs(server.URL, true, "Failed", "urgent", "timeout", "", "table")
 
 	// Read and verify stdout
 	w.Close()
@@ -65,7 +65,7 @@ func TestListJobs_FormatJSON(t *testing.T) {
 	defer func() { stdout = oldStdout }()
 
 	// Execute listJobs with JSON format
-	listJobs(server.URL, false, "", "", "", "json")
+	listJobs(server.URL, false, "", "", "", "", "json")
 
 	// Read and verify stdout
 	w.Close()
@@ -96,7 +96,7 @@ func TestListPendingJobs_FormatJSON(t *testing.T) {
 	defer func() { stdout = oldStdout }()
 
 	// Execute listPendingJobs with JSON format
-	listPendingJobs(server.URL, "json")
+	listPendingJobs(server.URL, "", "json")
 
 	// Read and verify stdout
 	w.Close()
@@ -108,4 +108,34 @@ func TestListPendingJobs_FormatJSON(t *testing.T) {
 	assert.Contains(t, output, `"summary": "Pending JSON Test"`)
 	// Ensure table headers are NOT present
 	assert.NotContains(t, output, "Pending Jobs")
+}
+
+func TestListJobs_PriorityFilter(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "10", r.URL.Query().Get("priority"))
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[
+			{"id": "job-p1", "summary": "High Priority Job", "status": "Running", "work_item": {"priority": 10}}
+		]`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	listJobs(server.URL, false, "", "", "", "10", "table")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "job-p1")
+	assert.Contains(t, output, "High Priority Job")
 }

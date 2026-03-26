@@ -96,6 +96,7 @@ func main() {
 	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
+	pflag.String("list-jobs-priority", "", "Filter jobs by a specific priority")
 	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
 	pflag.Bool("watch", false, "Continuously watch the output of list-jobs or list-pending")
 	pflag.Duration("watch-interval", 2*time.Second, "Refresh interval for watch mode (e.g. 2s, 1m)")
@@ -423,6 +424,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
 	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
+	viper.BindPFlag("orchestrator.list_jobs_priority", pflag.Lookup("list-jobs-priority"))
 	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
 	viper.BindPFlag("orchestrator.watch", pflag.Lookup("watch"))
 	viper.BindPFlag("orchestrator.watch_interval", pflag.Lookup("watch-interval"))
@@ -772,6 +774,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		statusFilter := viper.GetString("orchestrator.list_jobs_status")
 		tagFilter := viper.GetString("orchestrator.list_jobs_tag")
 		matchFilter := viper.GetString("orchestrator.list_jobs_match")
+		priorityFilter := viper.GetString("orchestrator.list_jobs_priority")
 		format := viper.GetString("orchestrator.list_jobs_format")
 		watch := viper.GetBool("orchestrator.watch")
 		watchInterval := viper.GetDuration("orchestrator.watch_interval")
@@ -781,7 +784,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			defer ticker.Stop()
 			for {
 				fmt.Fprint(stdout, "\033[H\033[2J") // Clear screen
-				listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
+				listJobs(host, history, statusFilter, tagFilter, matchFilter, priorityFilter, format)
 				select {
 				case <-ctx.Done():
 					return nil
@@ -789,7 +792,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 				}
 			}
 		} else {
-			listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
+			listJobs(host, history, statusFilter, tagFilter, matchFilter, priorityFilter, format)
 		}
 		return nil
 	}
@@ -819,6 +822,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.list_pending") {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.list_jobs_format")
+		priorityFilter := viper.GetString("orchestrator.list_jobs_priority")
 		watch := viper.GetBool("orchestrator.watch")
 		watchInterval := viper.GetDuration("orchestrator.watch_interval")
 
@@ -827,7 +831,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			defer ticker.Stop()
 			for {
 				fmt.Fprint(stdout, "\033[H\033[2J") // Clear screen
-				listPendingJobs(host, format)
+				listPendingJobs(host, priorityFilter, format)
 				select {
 				case <-ctx.Done():
 					return nil
@@ -835,7 +839,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 				}
 			}
 		} else {
-			listPendingJobs(host, format)
+			listPendingJobs(host, priorityFilter, format)
 		}
 		return nil
 	}
@@ -2491,7 +2495,7 @@ func printStatus(host string) {
 	fmt.Fprintln(stdout, "")
 }
 
-func listPendingJobs(host string, format string) {
+func listPendingJobs(host string, priority string, format string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -2501,6 +2505,9 @@ func listPendingJobs(host string, format string) {
 
 	q := u.Query()
 	q.Set("state", "pending")
+	if priority != "" {
+		q.Set("priority", priority)
+	}
 	u.RawQuery = q.Encode()
 
 	resp, err := http.Get(u.String())
@@ -2585,7 +2592,7 @@ func listPendingJobs(host string, format string) {
 	}
 }
 
-func listJobs(host string, history bool, status, tag, match, format string) {
+func listJobs(host string, history bool, status, tag, match, priority, format string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -2605,6 +2612,9 @@ func listJobs(host string, history bool, status, tag, match, format string) {
 	}
 	if match != "" {
 		q.Set("match", match)
+	}
+	if priority != "" {
+		q.Set("priority", priority)
 	}
 	u.RawQuery = q.Encode()
 

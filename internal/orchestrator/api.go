@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -141,6 +142,24 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 				}
 			}
 			jobs = filtered
+		}
+
+		priorityFilter := r.URL.Query().Get("priority")
+		if priorityFilter != "" {
+			var filtered []JobInfo
+			var priority int
+			if p, err := strconv.Atoi(priorityFilter); err == nil {
+				priority = p
+				for _, job := range jobs {
+					if job.WorkItem.Priority == priority {
+						filtered = append(filtered, job)
+					}
+				}
+				jobs = filtered
+			} else {
+				http.Error(w, fmt.Sprintf("invalid priority filter: %v", err), http.StatusBadRequest)
+				return
+			}
 		}
 
 		matchFilter := r.URL.Query().Get("match")
