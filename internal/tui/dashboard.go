@@ -62,6 +62,7 @@ const (
 	viewCompare
 	viewSearchLogsInput
 	viewSearchLogsResult
+	viewAnalyzeFailures
 )
 
 type DashboardModel struct {
@@ -139,6 +140,11 @@ type statusMsg struct {
 	Err    error
 }
 
+type analyzeFailuresMsg struct {
+	FailedJobs []orchestrator.JobInfo
+	Err        error
+}
+
 type detailsMsg struct {
 	Job orchestrator.JobInfo
 	Err error
@@ -213,6 +219,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.analytics = msg.Analytics
 			m.viewState = viewAnalytics
 			m.viewport.SetContent(renderAnalytics(m.analytics))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case analyzeFailuresMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewAnalyzeFailures
+			m.viewport.SetContent(renderAnalyzeFailures(msg.FailedJobs))
 			m.viewport.GotoTop()
 		}
 		return m, nil
@@ -357,7 +373,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -538,6 +554,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "ctrl+f":
+			return m, fetchAnalyzeFailuresCmd(m.host)
 		case "S":
 			m.viewState = viewSearchLogsInput
 			m.searchInput.SetValue("")
@@ -1535,7 +1553,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | ctrl+f: analyze failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1543,6 +1561,9 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalytics:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewAnalyzeFailures:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewTree:
@@ -2902,6 +2923,116 @@ func limitString(s string, max int) string {
 type analyticsMsg struct {
 	Analytics orchestrator.Analytics
 	Err       error
+}
+
+func fetchAnalyzeFailuresCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+		if err != nil {
+			return analyzeFailuresMsg{Err: err}
+		}
+
+		q := u.Query()
+		q.Set("state", "all")
+		q.Set("status", "Failed")
+		u.RawQuery = q.Encode()
+
+		resp, err := http.Get(u.String())
+		if err != nil {
+			return analyzeFailuresMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return analyzeFailuresMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			return analyzeFailuresMsg{Err: err}
+		}
+
+		return analyzeFailuresMsg{FailedJobs: jobs}
+	}
+}
+
+func renderAnalyzeFailures(jobs []orchestrator.JobInfo) string {
+	if len(jobs) == 0 {
+		return "No failed jobs found.\n\nPress 'q' or 'esc' to go back."
+	}
+
+	summaryMap := make(map[string][]string) // Summary -> []JobIDs
+	for _, job := range jobs {
+		summary := strings.TrimSpace(job.Summary)
+		if summary == "" {
+			summary = "<empty summary>"
+		}
+		summaryMap[summary] = append(summaryMap[summary], job.ID)
+	}
+
+	type summaryGroup struct {
+		summary string
+		jobIDs  []string
+		count   int
+	}
+
+	var groups []summaryGroup
+	for summary, ids := range summaryMap {
+		groups = append(groups, summaryGroup{
+			summary: summary,
+			jobIDs:  ids,
+			count:   len(ids),
+		})
+	}
+
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].count != groups[j].count {
+			return groups[i].count > groups[j].count
+		}
+		return groups[i].summary < groups[j].summary
+	})
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		Padding(0, 1)
+
+	rowStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Failed Jobs Analysis (%d total)", len(jobs))) + "\n\n")
+
+	sb.WriteString(fmt.Sprintf("%-10s %-50s %-40s\n",
+		headerStyle.Render("Count"),
+		headerStyle.Render("Error Signature (Summary)"),
+		headerStyle.Render("Job IDs"),
+	))
+
+	for _, g := range groups {
+		countStr := fmt.Sprintf("%d", g.count)
+
+		jobIDsStr := strings.Join(g.jobIDs, ", ")
+		if len(jobIDsStr) > 38 {
+			jobIDsStr = jobIDsStr[:35] + "..."
+		}
+
+		sb.WriteString(fmt.Sprintf("%-10s %-50s %-40s\n",
+			rowStyle.Render(countStr),
+			rowStyle.Render(limitString(g.summary, 48)),
+			rowStyle.Render(jobIDsStr),
+		))
+	}
+
+	return sb.String()
 }
 
 func fetchAnalytics(host string) tea.Cmd {
