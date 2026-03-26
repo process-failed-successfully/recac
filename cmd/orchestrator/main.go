@@ -285,6 +285,10 @@ func main() {
 	pflag.String("generate-pipeline", "", "Generate a pipeline YAML using AI based on the provided prompt")
 	pflag.String("generate-pipeline-out", "", "Output file for the generated pipeline YAML (use '-' or leave empty for stdout)")
 
+	pflag.String("generate-changelog", "", "Generate a markdown changelog from completed jobs (use '-' or leave empty for stdout). Optionally provide the output file path.")
+	pflag.String("changelog-tag", "", "Optional tag filter for the changelog generation")
+	pflag.String("changelog-match", "", "Optional regex filter for the changelog generation")
+
 	pflag.String("optimize-pipeline", "", "Analyze a pipeline YAML file and use AI to suggest optimizations")
 	pflag.String("optimize-pipeline-out", "", "Output file for the optimized pipeline YAML (use '-' or leave empty for stdout)")
 
@@ -608,6 +612,10 @@ func main() {
 
 	viper.BindPFlag("orchestrator.generate_pipeline", pflag.Lookup("generate-pipeline"))
 	viper.BindPFlag("orchestrator.generate_pipeline_out", pflag.Lookup("generate-pipeline-out"))
+
+	viper.BindPFlag("orchestrator.generate_changelog", pflag.Lookup("generate-changelog"))
+	viper.BindPFlag("orchestrator.changelog_tag", pflag.Lookup("changelog-tag"))
+	viper.BindPFlag("orchestrator.changelog_match", pflag.Lookup("changelog-match"))
 
 	viper.BindPFlag("orchestrator.optimize_pipeline", pflag.Lookup("optimize-pipeline"))
 	viper.BindPFlag("orchestrator.optimize_pipeline_out", pflag.Lookup("optimize-pipeline-out"))
@@ -2029,6 +2037,16 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		provider := viper.GetString("orchestrator.agent_provider")
 		model := viper.GetString("orchestrator.agent_model")
 		generatePipeline(host, generatePrompt, outFile, provider, model)
+		return nil
+	}
+
+	if outFile := viper.GetString("orchestrator.generate_changelog"); outFile != "" {
+		host := viper.GetString("orchestrator.host")
+		tag := viper.GetString("orchestrator.changelog_tag")
+		match := viper.GetString("orchestrator.changelog_match")
+		provider := viper.GetString("orchestrator.agent_provider")
+		model := viper.GetString("orchestrator.agent_model")
+		generateChangelog(host, outFile, tag, match, provider, model)
 		return nil
 	}
 
