@@ -63,6 +63,7 @@ const (
 	viewSearchLogsInput
 	viewSearchLogsResult
 	viewAnalyzeFailures
+	viewCriticalPath
 )
 
 type DashboardModel struct {
@@ -145,6 +146,12 @@ type analyzeFailuresMsg struct {
 	Err        error
 }
 
+type criticalPathMsg struct {
+	Path          []orchestrator.JobInfo
+	TotalDuration time.Duration
+	Err           error
+}
+
 type detailsMsg struct {
 	Job orchestrator.JobInfo
 	Err error
@@ -219,6 +226,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.analytics = msg.Analytics
 			m.viewState = viewAnalytics
 			m.viewport.SetContent(renderAnalytics(m.analytics))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case criticalPathMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewCriticalPath
+			m.viewport.SetContent(renderCriticalPath(msg.Path, msg.TotalDuration))
 			m.viewport.GotoTop()
 		}
 		return m, nil
@@ -373,7 +390,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -554,6 +571,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "ctrl+p":
+			return m, fetchCriticalPathCmd(m.host)
 		case "ctrl+f":
 			return m, fetchAnalyzeFailuresCmd(m.host)
 		case "S":
@@ -1553,7 +1572,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | ctrl+f: analyze failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | ctrl+p: critical path | ctrl+f: analyze failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1564,6 +1583,9 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalyzeFailures:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewCriticalPath:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewTree:
@@ -2955,6 +2977,90 @@ func fetchAnalyzeFailuresCmd(host string) tea.Cmd {
 
 		return analyzeFailuresMsg{FailedJobs: jobs}
 	}
+}
+
+func fetchCriticalPathCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+		if err != nil {
+			return criticalPathMsg{Err: err}
+		}
+
+		q := u.Query()
+		q.Set("state", "all")
+		u.RawQuery = q.Encode()
+
+		resp, err := http.Get(u.String())
+		if err != nil {
+			return criticalPathMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return criticalPathMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var allJobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&allJobs); err != nil {
+			return criticalPathMsg{Err: err}
+		}
+
+		path, totalDur := orchestrator.CalculateCriticalPath(allJobs)
+		return criticalPathMsg{Path: path, TotalDuration: totalDur}
+	}
+}
+
+func renderCriticalPath(path []orchestrator.JobInfo, totalDur time.Duration) string {
+	if len(path) == 0 {
+		return "No jobs available for critical path analysis.\n\nPress 'q' or 'esc' to go back."
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	jobStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86"))
+
+	durStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214"))
+
+	statusStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	arrowStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("250")).
+		Bold(true)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Critical Path Analysis (Total Critical Duration: %s)", totalDur.Round(time.Second))) + "\n")
+
+	for i, j := range path {
+		end := j.EndTime
+		if end.IsZero() {
+			end = time.Now()
+		}
+		dur := end.Sub(j.StartTime).Round(time.Second)
+
+		sb.WriteString(fmt.Sprintf("%s %s %s\n",
+			jobStyle.Render(j.ID),
+			durStyle.Render(fmt.Sprintf("[%s]", dur.String())),
+			statusStyle.Render(fmt.Sprintf("(%s)", j.Status)),
+		))
+
+		if i < len(path)-1 {
+			sb.WriteString(arrowStyle.Render("   ↓") + "\n")
+		}
+	}
+	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+
+	return sb.String()
 }
 
 func renderAnalyzeFailures(jobs []orchestrator.JobInfo) string {
