@@ -501,3 +501,11 @@ func TestK8sSpawner_GetLogs(t *testing.T) {
 		stream.Close()
 	}
 }
+
+func BenchmarkSanitizeK8sName(b *testing.B) {
+	testName := "Hello World! This is a TEST string-with_SOME-symbols 123"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sanitizeK8sName(testName)
+	}
+}
