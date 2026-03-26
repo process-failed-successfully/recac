@@ -206,6 +206,7 @@ func main() {
 	pflag.String("update-tags-match", "", "Update the tags of all pending jobs matching the given regex")
 	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job, --update-tags-tag, or --update-tags-match)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
+	pflag.String("wait-jobs", "", "Wait for multiple comma-separated job IDs to complete")
 	pflag.String("wait-tag", "", "Wait for all jobs with a specific tag to complete")
 	pflag.String("wait-match", "", "Wait for all jobs matching a regex to complete")
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
@@ -528,6 +529,7 @@ func main() {
 	viper.BindPFlag("orchestrator.update_tags_match", pflag.Lookup("update-tags-match"))
 	viper.BindPFlag("orchestrator.set_tags", pflag.Lookup("set-tags"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
+	viper.BindPFlag("orchestrator.wait_jobs", pflag.Lookup("wait-jobs"))
 	viper.BindPFlag("orchestrator.wait_tag", pflag.Lookup("wait-tag"))
 	viper.BindPFlag("orchestrator.wait_match", pflag.Lookup("wait-match"))
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
@@ -788,6 +790,28 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 		} else {
 			listJobs(host, history, statusFilter, tagFilter, matchFilter, format)
+		}
+		return nil
+	}
+
+	if waitJobsStr := viper.GetString("orchestrator.wait_jobs"); waitJobsStr != "" {
+		host := viper.GetString("orchestrator.host")
+		var jobIDs []string
+		for _, id := range strings.Split(waitJobsStr, ",") {
+			trimmed := strings.TrimSpace(id)
+			if trimmed != "" {
+				jobIDs = append(jobIDs, trimmed)
+			}
+		}
+
+		if len(jobIDs) > 0 {
+			if err := waitForJobs(host, jobIDs, stdout); err != nil {
+				fmt.Fprintf(stdout, "Wait for jobs failed: %v\n", err)
+				exitFunc(1)
+			}
+		} else {
+			fmt.Fprintf(stdout, "No valid job IDs provided to --wait-jobs\n")
+			exitFunc(1)
 		}
 		return nil
 	}
