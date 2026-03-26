@@ -215,7 +215,7 @@ const DashboardHTML = `
                                 <option value="Canceled">Canceled</option>
                             </select>
                         </div>
-                        <button type="submit" aria-label="Execute Search" style="background-color: #007bff; min-width: 100px;">Search</button>
+                        <button type="submit" aria-label="Execute Search" id="btn-search-logs" style="background-color: #007bff; min-width: 100px;">Search</button>
                     </div>
                 </form>
                 <div id="search-logs-results" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; display: none;">
@@ -879,9 +879,13 @@ const DashboardHTML = `
             const tag = document.getElementById('search-logs-tag').value.trim();
             const status = document.getElementById('search-logs-status').value;
             const resultsDiv = document.getElementById('search-logs-results');
+            const btn = document.getElementById('btn-search-logs');
 
             resultsDiv.style.display = 'block';
             resultsDiv.innerHTML = 'Searching...';
+
+            btn.disabled = true;
+            btn.innerText = 'Searching...';
 
             try {
                 let url = '/jobs/search/logs?q=' + encodeURIComponent(query);
@@ -925,6 +929,9 @@ const DashboardHTML = `
             } catch (err) {
                 console.error(err);
                 resultsDiv.innerHTML = '<span style="color:red">Error performing search: ' + err.message + '</span>';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Search';
             }
         }
 
