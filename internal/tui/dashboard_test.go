@@ -836,6 +836,10 @@ func TestDashboardModel_ViewStates(t *testing.T) {
 	m.viewState = viewExplain
 	view = m.View()
 	assert.Contains(t, view, "esc/q: back")
+
+	m.viewState = viewCriticalPath
+	view = m.View()
+	assert.Contains(t, view, "esc/q: back")
 }
 
 func TestDashboardModel_UpdateSearchLogsInput(t *testing.T) {
