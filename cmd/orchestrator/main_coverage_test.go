@@ -46,7 +46,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false, "", "", "", "table")
+		listJobs(server.URL, false, "", "", "", "", "table")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "job-1")
@@ -63,7 +63,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, true, "", "", "", "table")
+		listJobs(server.URL, true, "", "", "", "", "table")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "No active jobs")
@@ -85,7 +85,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false, "Failed", "", "", "table")
+		listJobs(server.URL, false, "Failed", "", "", "", "table")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "job-2")
@@ -95,7 +95,7 @@ func TestListJobs(t *testing.T) {
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		listJobs("http://invalid-host", false, "", "", "", "table")
+		listJobs("http://invalid-host", false, "", "", "", "", "table")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})
@@ -108,7 +108,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false, "", "", "", "table")
+		listJobs(server.URL, false, "", "", "", "", "table")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to fetch jobs")
 	})
@@ -121,7 +121,7 @@ func TestListJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listJobs(server.URL, false, "", "", "", "table")
+		listJobs(server.URL, false, "", "", "", "", "table")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})
@@ -160,7 +160,7 @@ func TestListPendingJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listPendingJobs(server.URL, "table")
+		listPendingJobs(server.URL, "", "table")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "job-pending-1")
@@ -177,7 +177,7 @@ func TestListPendingJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listPendingJobs(server.URL, "table")
+		listPendingJobs(server.URL, "", "table")
 
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "No pending jobs.")
@@ -186,7 +186,7 @@ func TestListPendingJobs(t *testing.T) {
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		listPendingJobs("http://invalid-host", "table")
+		listPendingJobs("http://invalid-host", "", "table")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})
@@ -199,7 +199,7 @@ func TestListPendingJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listPendingJobs(server.URL, "table")
+		listPendingJobs(server.URL, "", "table")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to fetch pending jobs")
 	})
@@ -212,7 +212,7 @@ func TestListPendingJobs(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		listPendingJobs(server.URL, "table")
+		listPendingJobs(server.URL, "", "table")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})

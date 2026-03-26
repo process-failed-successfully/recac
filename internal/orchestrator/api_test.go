@@ -224,8 +224,30 @@ func TestRegisterAPI(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
+		// Filter by priority
+		orch.mu.Lock()
+		orch.activeJobs["job-p1"] = JobInfo{ID: "job-p1", WorkItem: WorkItem{Priority: 10}, Status: "Running"}
+		orch.activeJobs["job-p2"] = JobInfo{ID: "job-p2", WorkItem: WorkItem{Priority: 5}, Status: "Running"}
+		orch.mu.Unlock()
+
+		resp, err = http.Get(server.URL + "/jobs?state=all&priority=10")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		err = json.NewDecoder(resp.Body).Decode(&jobs)
+		assert.NoError(t, err)
+		assert.Len(t, jobs, 1)
+		assert.Equal(t, "job-p1", jobs[0].ID)
+
+		// Filter with invalid priority
+		resp, err = http.Get(server.URL + "/jobs?state=all&priority=invalid")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
 		// Cleanup
 		orch.mu.Lock()
+		delete(orch.activeJobs, "job-p1")
+		delete(orch.activeJobs, "job-p2")
 		delete(orch.pendingJobs, "job-9")
 		delete(orch.pendingJobs, "job-10")
 		delete(orch.activeJobs, "job-6")
