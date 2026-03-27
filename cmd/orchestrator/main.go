@@ -93,6 +93,7 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("list-pending", false, "List pending jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
+	pflag.String("list-dependents", "", "List downstream dependent jobs for a specific job ID")
 	pflag.String("list-jobs-status", "", "Filter jobs by status (e.g., Running, Failed, Completed)")
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
@@ -425,6 +426,7 @@ func main() {
 	viper.BindPFlag("orchestrator.timeline", pflag.Lookup("timeline"))
 	viper.BindPFlag("orchestrator.timeline_limit", pflag.Lookup("timeline-limit"))
 	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
+	viper.BindPFlag("orchestrator.list_dependents", pflag.Lookup("list-dependents"))
 	viper.BindPFlag("orchestrator.list_jobs_status", pflag.Lookup("list-jobs-status"))
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
 	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
@@ -849,6 +851,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		} else {
 			listPendingJobs(host, priorityFilter, format)
 		}
+		return nil
+	}
+
+	if listDependentsID := viper.GetString("orchestrator.list_dependents"); listDependentsID != "" {
+		host := viper.GetString("orchestrator.host")
+		listDependents(host, listDependentsID)
 		return nil
 	}
 
