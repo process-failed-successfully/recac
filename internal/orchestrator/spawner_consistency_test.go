@@ -389,6 +389,9 @@ func TestSpawnerConsistency_CommandArgs(t *testing.T) {
 	t.Run("ProcessSpawner sets correct command args", func(t *testing.T) {
 		mockSM := new(MockSessionManager)
 		spawner := NewProcessSpawner(logger, nil, "prov", "mod", mockSM, 30, 5, 10)
+		mockGit := new(MockGitClient)
+		mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+		spawner.GitClient = mockGit
 
 		capturedCmdChan := make(chan []string, 1)
 

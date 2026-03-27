@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"recac/internal/git"
 	"recac/internal/runner"
 )
 
@@ -23,6 +24,7 @@ type ProcessSpawner struct {
 	AgentProvider     string
 	AgentModel        string
 	SessionManager    ISessionManager
+	GitClient         IGitClient
 	MaxIterations     int
 	ManagerFrequency  int
 	TaskMaxIterations int
@@ -49,6 +51,7 @@ func NewProcessSpawner(
 		AgentProvider:     agentProvider,
 		AgentModel:        agentModel,
 		SessionManager:    sessionManager,
+		GitClient:         git.NewClient(),
 		MaxIterations:     maxIterations,
 		ManagerFrequency:  managerFrequency,
 		TaskMaxIterations: taskMaxIterations,
@@ -183,6 +186,14 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	} else {
 		s.Logger.Info("Agent process completed successfully", "work_item", item.ID)
 		session.Status = "completed"
+	}
+
+	// 9. Get end commit SHA
+	endSHA, shaErr := s.GitClient.CurrentCommitSHA(tempDir)
+	if shaErr != nil {
+		s.Logger.Warn("could not get end commit SHA", "workspace", tempDir, "error", shaErr)
+	} else {
+		session.EndCommitSHA = endSHA
 	}
 
 	if err := s.SessionManager.SaveSession(session); err != nil {
