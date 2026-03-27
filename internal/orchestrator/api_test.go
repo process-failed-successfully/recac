@@ -1170,3 +1170,37 @@ func TestCancelJobDownstreamAPI_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
+
+func TestRegisterAPI_JSONEncodeErrors(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	tests := []struct {
+		name   string
+		path   string
+		method string
+	}{
+		{"Status", "/status", "GET"},
+		{"Analytics", "/analytics", "GET"},
+		{"Jobs", "/jobs", "GET"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			fw := &failingResponseWriter{ResponseWriter: w}
+
+			mux.ServeHTTP(fw, req)
+
+			// The handler logs the error internally, we just want to ensure it doesn't panic
+			// and handles the error gracefully.
+			assert.Equal(t, http.StatusOK, w.Code)
+		})
+	}
+}
