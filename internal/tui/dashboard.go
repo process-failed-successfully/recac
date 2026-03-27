@@ -753,6 +753,30 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "clear history"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "delete", "backspace":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_delete_pending"
+				m.pendingAction = "delete pending multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				jobStatus := ""
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						jobStatus = job.Status
+						break
+					}
+				}
+				if jobStatus == "Pending" || jobStatus == "Pending Approval" {
+					m.pendingJobId = id
+					m.pendingAction = "delete pending"
+					m.viewState = viewConfirmation
+				}
+				return m, nil
+			}
 		case "P":
 			m.pendingJobId = "PENDING"
 			m.pendingAction = "clear pending"
@@ -1005,6 +1029,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 						cmds = append(cmds, cancelJobDownstream(m.host, id))
 					case "force complete multiple":
 						cmds = append(cmds, forceCompleteJobCmd(m.host, id))
+					case "delete pending multiple":
+						cmds = append(cmds, deletePendingJobCmd(m.host, id))
 					case "purge multiple":
 						cmds = append(cmds, purgeJobCmd(m.host, id))
 					case "retry multiple":
@@ -1045,6 +1071,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = cancelJobDownstream(m.host, m.pendingJobId)
 			} else if m.pendingAction == "force complete" {
 				cmd = forceCompleteJobCmd(m.host, m.pendingJobId)
+			} else if m.pendingAction == "delete pending" {
+				cmd = deletePendingJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "purge" {
 				cmd = purgeJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "cancel all" {
@@ -1572,7 +1600,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | ctrl+p: critical path | ctrl+f: analyze failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | ctrl+p: critical path | ctrl+f: analyze failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | del: delete pending | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1632,6 +1660,10 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs and their downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "force complete multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to FORCE COMPLETE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "delete pending" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to DELETE PENDING job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
+		} else if m.pendingAction == "delete pending multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to DELETE PENDING %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "purge multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "retry multiple" {
@@ -2394,6 +2426,25 @@ func purgeJobCmd(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Purged"}
+	}
+}
+
+func deletePendingJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs/" + id + "/pending", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Deleted"}
 	}
 }
 
