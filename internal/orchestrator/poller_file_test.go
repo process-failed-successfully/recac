@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"time"
+	"io"
 	"context"
 	"log/slog"
 	"os"
@@ -75,4 +77,47 @@ func TestFilePoller_Ping_DirInsteadOfFile(t *testing.T) {
 	err := poller.Ping(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "watch path is a directory")
+}
+
+func TestFilePoller_PipelineYAML(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "pipeline.yaml")
+	templateContent := `
+name: File Pipeline
+jobs:
+  job1:
+    summary: Job 1
+  job2:
+    summary: Job 2
+    depends_on: [job1]
+`
+	err := os.WriteFile(path, []byte(templateContent), 0644)
+	require.NoError(t, err)
+
+	poller := NewFilePoller(path)
+
+	items, err := poller.Poll(ctx, logger)
+	assert.NoError(t, err)
+	assert.Len(t, items, 2, "Should return 2 jobs from pipeline")
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		jobMap[item.Summary] = item
+	}
+
+	assert.Contains(t, jobMap, "Job 1")
+	assert.Contains(t, jobMap, "Job 2")
+
+	job2 := jobMap["Job 2"]
+	time.Sleep(1 * time.Second)
+	assert.Len(t, job2.DependsOn, 1)
+	assert.Equal(t, jobMap["Job 1"].ID, job2.DependsOn[0])
+
+	// Poll again should return nothing as they are already processed
+	items2, err := poller.Poll(ctx, logger)
+	assert.NoError(t, err)
+	assert.Empty(t, items2)
 }

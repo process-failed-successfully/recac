@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"io"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -191,4 +192,53 @@ func TestFileDirPoller_Poll_IgnoresDirAndNonJson(t *testing.T) {
 	items, err := poller.Poll(context.Background(), logger)
 	assert.NoError(t, err)
 	assert.Empty(t, items)
+}
+
+func TestFileDirPoller_PipelineYAML(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	poller, err := NewFileDirPoller(dir)
+	require.NoError(t, err)
+
+	templateContent := `
+name: Dir Pipeline
+jobs:
+  job1:
+    summary: Job 1
+  job2:
+    summary: Job 2
+    depends_on: [job1]
+`
+	err = os.WriteFile(filepath.Join(dir, "pipeline.yaml"), []byte(templateContent), 0644)
+	require.NoError(t, err)
+
+	items, err := poller.Poll(ctx, logger)
+	assert.NoError(t, err)
+	assert.Len(t, items, 2, "Should return 2 jobs from pipeline")
+
+	// Verify file was moved to processed
+	_, err = os.Stat(filepath.Join(dir, "pipeline.yaml"))
+	assert.True(t, os.IsNotExist(err))
+
+	_, err = os.Stat(filepath.Join(dir, "processed", "pipeline.yaml"))
+	assert.NoError(t, err)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		jobMap[item.Summary] = item
+	}
+
+	assert.Contains(t, jobMap, "Job 1")
+	assert.Contains(t, jobMap, "Job 2")
+
+	job2 := jobMap["Job 2"]
+	assert.Len(t, job2.DependsOn, 1)
+	assert.Equal(t, jobMap["Job 1"].ID, job2.DependsOn[0])
+
+	// Poll again should be empty
+	items2, err := poller.Poll(ctx, logger)
+	assert.NoError(t, err)
+	assert.Empty(t, items2)
 }

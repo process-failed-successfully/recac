@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
-// FilePoller reads work items from a local JSON file
+// FilePoller reads work items from a local JSON file or a pipeline YAML file.
 type FilePoller struct {
 	path      string
 	processed map[string]bool
@@ -38,8 +40,19 @@ func (p *FilePoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 	}
 
 	var items []WorkItem
-	if err := json.Unmarshal(data, &items); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal work items: %w", err)
+	ext := strings.ToLower(filepath.Ext(p.path))
+
+	if ext == ".yaml" || ext == ".yml" {
+		runID := "stable"
+		parsedItems, err := ParsePipelineToWorkItemsWithRunID(data, "", nil, runID, filepath.Dir(p.path))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse pipeline file: %w", err)
+		}
+		items = parsedItems
+	} else {
+		if err := json.Unmarshal(data, &items); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal work items: %w", err)
+		}
 	}
 
 	// Filter out already claimed items
