@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"regexp"
+	"slices"
 	"time"
 
 	"github.com/spf13/viper"
@@ -82,6 +85,49 @@ func ValidateConfig() error {
 	}
 	if err := validatePort("metrics_port"); err != "" {
 		errors = append(errors, err)
+	}
+
+	// Validate git_user_email format (simple regex)
+	if email := viper.GetString("git_user_email"); email != "" {
+		// Basic email regex
+		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+		if !emailRegex.MatchString(email) {
+			errors = append(errors, fmt.Sprintf("git_user_email is invalid: %s", email))
+		}
+	}
+
+	// Validate jira.url (must be valid absolute URL if set)
+	if jiraURL := viper.GetString("jira.url"); jiraURL != "" {
+		u, err := url.Parse(jiraURL)
+		if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") {
+			errors = append(errors, fmt.Sprintf("jira.url must be a valid http/https URL: %s", jiraURL))
+		}
+	}
+
+	// Validate API keys for cloud providers
+	provider := viper.GetString("provider")
+	cloudProviders := []string{"openai", "gemini", "openrouter", "anthropic"}
+	if slices.Contains(cloudProviders, provider) {
+		apiKey := viper.GetString("api_key")
+		if apiKey == "" {
+			// Check provider specific key if generic one is missing
+			switch provider {
+			case "openai":
+				if viper.GetString("openai_api_key") == "" {
+					errors = append(errors, "api_key or openai_api_key is required for openai provider")
+				}
+			case "gemini":
+				if viper.GetString("gemini_api_key") == "" {
+					errors = append(errors, "api_key or gemini_api_key is required for gemini provider")
+				}
+			case "anthropic":
+				if viper.GetString("anthropic_api_key") == "" {
+					errors = append(errors, "api_key or anthropic_api_key is required for anthropic provider")
+				}
+			default:
+				errors = append(errors, fmt.Sprintf("api_key is required for %s provider", provider))
+			}
+		}
 	}
 
 	// If there are any errors, return them

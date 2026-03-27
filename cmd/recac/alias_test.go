@@ -19,6 +19,9 @@ func TestAliasCommands(t *testing.T) {
 	viper.SetConfigFile(tmpConfigFile)
 	viper.Set("aliases", map[string]string{})
 
+	// Set dummy API key to satisfy config validation
+	viper.Set("api_key", "dummy-key-for-test")
+
 	// Helper to execute command via rootCmd
 	execute := func(args ...string) (string, error) {
 		buf := new(bytes.Buffer)
@@ -78,6 +81,8 @@ func TestRegisterAliasCommands(t *testing.T) {
 	viper.Set("aliases", map[string]string{
 		"testalias": "version", // Use a simple safe command
 	})
+	// Set dummy API key to satisfy config validation
+	viper.Set("api_key", "dummy-key-for-test")
 
 	// Register
 	registerAliasCommands()
@@ -156,6 +161,8 @@ func TestCannotOverrideBuiltin(t *testing.T) {
 		// We don't strictly need the temp config here but good practice
 		fullArgs := append([]string{"alias"}, args...)
 		rootCmd.SetArgs(fullArgs)
+		// Set dummy API key to satisfy config validation
+		viper.Set("api_key", "dummy-key-for-test")
 		err := rootCmd.Execute()
 		return buf.String(), err
 	}

@@ -22,6 +22,8 @@ func TestValidateConfig(t *testing.T) {
 				viper.Set("max_iterations", 10)
 				viper.Set("workers", 5)
 				viper.Set("port", 8080)
+				viper.Set("git_user_email", "test@example.com")
+				viper.Set("jira.url", "https://jira.example.com")
 			},
 			wantError: false,
 		},
@@ -129,6 +131,68 @@ func TestValidateConfig(t *testing.T) {
 			},
 			wantError: true,
 			errMsg:    "manager_frequency must be positive",
+		},
+		{
+			name: "Invalid Git User Email",
+			setup: func() {
+				viper.Set("git_user_email", "invalid-email")
+			},
+			wantError: true,
+			errMsg:    "git_user_email is invalid",
+		},
+		{
+			name: "Invalid JIRA URL",
+			setup: func() {
+				viper.Set("jira.url", "not-a-url")
+			},
+			wantError: true,
+			errMsg:    "jira.url must be a valid http/https URL",
+		},
+		{
+			name: "Missing OpenAI API Key",
+			setup: func() {
+				viper.Set("provider", "openai")
+				viper.Set("api_key", "")
+				viper.Set("openai_api_key", "")
+			},
+			wantError: true,
+			errMsg:    "api_key or openai_api_key is required for openai provider",
+		},
+		{
+			name: "Valid OpenAI API Key (Specific)",
+			setup: func() {
+				viper.Set("provider", "openai")
+				viper.Set("api_key", "")
+				viper.Set("openai_api_key", "sk-test")
+			},
+			wantError: false,
+		},
+		{
+			name: "Valid OpenAI API Key (Generic)",
+			setup: func() {
+				viper.Set("provider", "openai")
+				viper.Set("api_key", "sk-test")
+			},
+			wantError: false,
+		},
+		{
+			name: "Missing Gemini API Key",
+			setup: func() {
+				viper.Set("provider", "gemini")
+				viper.Set("api_key", "")
+				viper.Set("gemini_api_key", "")
+			},
+			wantError: true,
+			errMsg:    "api_key or gemini_api_key is required for gemini provider",
+		},
+		{
+			name: "Missing OpenRouter API Key",
+			setup: func() {
+				viper.Set("provider", "openrouter")
+				viper.Set("api_key", "")
+			},
+			wantError: true,
+			errMsg:    "api_key is required for openrouter provider",
 		},
 	}
 

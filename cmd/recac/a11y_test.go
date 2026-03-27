@@ -11,6 +11,7 @@ import (
 	"recac/internal/agent"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -107,6 +108,10 @@ func TestA11yCmd_Run(t *testing.T) {
 		return mockAgent, nil
 	}
 
+	// Ensure config validation passes by setting a dummy key for the default provider (gemini)
+	viper.Set("api_key", "dummy-key-for-test")
+	defer viper.Set("api_key", "")
+
 	// Test Static Scan
 	t.Run("Static Scan", func(t *testing.T) {
 		// executeCommand uses global rootCmd where a11yCmd is registered.
@@ -115,7 +120,7 @@ func TestA11yCmd_Run(t *testing.T) {
 
 		// executeCommand merges stdout/stderr, so we skip the log line
 		jsonStart := strings.Index(output, "[")
-		require.NotEqual(t, -1, jsonStart, "Could not find JSON start")
+		require.NotEqual(t, -1, jsonStart, "Could not find JSON start in output: "+output)
 		jsonOutput := output[jsonStart:]
 
 		var findings []A11yFinding
@@ -139,7 +144,7 @@ func TestA11yCmd_Run(t *testing.T) {
 		require.NoError(t, err)
 
 		jsonStart := strings.Index(output, "[")
-		require.NotEqual(t, -1, jsonStart, "Could not find JSON start")
+		require.NotEqual(t, -1, jsonStart, "Could not find JSON start in output: "+output)
 		jsonOutput := output[jsonStart:]
 
 		var findings []A11yFinding
