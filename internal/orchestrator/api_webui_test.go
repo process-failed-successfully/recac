@@ -30,20 +30,20 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	html := string(bodyBytes)
 
 	// Verify JS action function exists
-	assert.Contains(t, html, "function doJobAction(action, id)")
+	assert.Contains(t, html, "function doJobAction(btn, action, id)")
 	assert.Contains(t, html, "fetch(url, { method: method })")
 
 	// Verify buttons render logic exists in fetchJobs
-	assert.Contains(t, html, "doJobAction(\\'approve\\'")
-	assert.Contains(t, html, "doJobAction(\\'retry\\'")
-	assert.Contains(t, html, "doJobAction(\\'cancel\\'")
-	assert.Contains(t, html, "doJobAction(\\'purge\\'")
+	assert.Contains(t, html, "doJobAction(this, \\'approve\\'")
+	assert.Contains(t, html, "doJobAction(this, \\'retry\\'")
+	assert.Contains(t, html, "doJobAction(this, \\'cancel\\'")
+	assert.Contains(t, html, "doJobAction(this, \\'purge\\'")
 
 	// Verify empty state CTA exists
 	assert.Contains(t, html, "+ Submit Job")
 
 	// Verify clear history button renders
-	assert.Contains(t, html, "deleteAction(\\'/history\\')")
+	assert.Contains(t, html, "deleteAction(this, \\'/history\\')")
 
 	// Verify clone job JS function exists
 	assert.Contains(t, html, "function cloneJob(")
