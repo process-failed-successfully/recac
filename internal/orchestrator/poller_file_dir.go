@@ -7,9 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// FileDirPoller reads work items from individual JSON files in a directory.
+// FileDirPoller reads work items from individual JSON files or YAML pipelines in a directory.
 type FileDirPoller struct {
 	watchDir     string
 	processedDir string
@@ -35,7 +36,8 @@ func (p *FileDirPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIt
 
 	var items []WorkItem
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		if entry.IsDir() || (ext != ".json" && ext != ".yaml" && ext != ".yml") {
 			continue
 		}
 
@@ -48,22 +50,32 @@ func (p *FileDirPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIt
 			continue
 		}
 
-		var item WorkItem
-		if err := json.Unmarshal(data, &item); err != nil {
-			logger.Error("[FileDirPoller] Failed to unmarshal work item", "path", path, "error", err)
-			continue
+		var fileItems []WorkItem
+		if ext == ".yaml" || ext == ".yml" {
+			runID := "stable"
+			parsedItems, err := ParsePipelineToWorkItemsWithRunID(data, "", nil, runID, filepath.Dir(path))
+			if err != nil {
+				logger.Error("[FileDirPoller] Failed to parse pipeline file", "path", path, "error", err)
+				continue
+			}
+			fileItems = parsedItems
+		} else {
+			var item WorkItem
+			if err := json.Unmarshal(data, &item); err != nil {
+				logger.Error("[FileDirPoller] Failed to unmarshal work item", "path", path, "error", err)
+				continue
+			}
+			fileItems = []WorkItem{item}
 		}
-
-		items = append(items, item)
 
 		// Move the file to the processed directory to prevent re-reading
 		processedPath := filepath.Join(p.processedDir, entry.Name())
 		if err := os.Rename(path, processedPath); err != nil {
 			logger.Error("[FileDirPoller] Failed to move processed file", "from", path, "to", processedPath, "error", err)
-			// If we can't move it, we can't process it, so we'll skip it for now.
-			// This could lead to retries, which is desirable.
-			items = items[:len(items)-1] // Remove the item we failed to move
+			continue
 		}
+
+		items = append(items, fileItems...)
 	}
 
 	return items, nil

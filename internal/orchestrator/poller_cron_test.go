@@ -160,3 +160,55 @@ func TestCronPoller(t *testing.T) {
 		assert.Contains(t, item.ID, "test-id-")
 	})
 }
+
+func TestCronPoller_PipelineYAML(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(ioutil.Discard, nil))
+	ctx := context.Background()
+
+	dir := t.TempDir()
+	templatePath := filepath.Join(dir, "template.yaml")
+	templateContent := `
+name: Cron Pipeline
+jobs:
+  job1:
+    summary: Job 1
+  job2:
+    summary: Job 2
+    depends_on: [job1]
+`
+	err := os.WriteFile(templatePath, []byte(templateContent), 0644)
+	require.NoError(t, err)
+
+	t.Run("Valid Pipeline YAML", func(t *testing.T) {
+		poller, err := NewCronPoller("* * * * *", templatePath)
+		require.NoError(t, err)
+
+		// Trigger poll
+		poller.nextRun = time.Now().Add(-1 * time.Minute)
+		items, err := poller.Poll(ctx, logger)
+		assert.NoError(t, err)
+		assert.Len(t, items, 2, "Pipeline should return 2 jobs")
+
+		jobMap := make(map[string]WorkItem)
+		for _, item := range items {
+			jobMap[item.Summary] = item
+		}
+
+		assert.Contains(t, jobMap, "Job 1")
+		assert.Contains(t, jobMap, "Job 2")
+
+		job2 := jobMap["Job 2"]
+		assert.Len(t, job2.DependsOn, 1)
+		assert.Equal(t, jobMap["Job 1"].ID, job2.DependsOn[0])
+	})
+
+	t.Run("Invalid Pipeline YAML loadTemplate", func(t *testing.T) {
+		invalidPath := filepath.Join(dir, "invalid.yaml")
+		err := os.WriteFile(invalidPath, []byte("invalid yaml content: ["), 0644)
+		require.NoError(t, err)
+
+		_, err = NewCronPoller("* * * * *", invalidPath)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid pipeline YAML in template file")
+	})
+}
