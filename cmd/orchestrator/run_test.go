@@ -475,7 +475,12 @@ func TestWatchListJobs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	err := run(ctx, slog.Default())
+	errC := make(chan error)
+	go func() {
+		errC <- run(ctx, slog.Default())
+	}()
+
+	err := <-errC
 	assert.NoError(t, err)
 
 	pw.Close()
@@ -516,7 +521,7 @@ func TestWatchListPendingJobs(t *testing.T) {
 	err := run(ctx, slog.Default())
 	assert.NoError(t, err)
 
-	pw.Close()
+
 	out, _ := io.ReadAll(pr)
 	outStr := string(out)
 
