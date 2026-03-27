@@ -45,6 +45,9 @@ func TestProcessSpawner_UpdateStatusOnFailure(t *testing.T) {
 	})).Return(nil).Once()
 
 	spawner := NewProcessSpawner(logger, poller, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+	spawner.GitClient = mockGit
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -68,6 +71,8 @@ func TestProcessSpawner_Ping(t *testing.T) {
 	logger := telemetry.NewLogger(true, "test", true)
 	sm := &mockSessionManager{}
 	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
 
 	assert.NotNil(t, spawner)
 	assert.Equal(t, "provider", spawner.AgentProvider)
@@ -86,6 +91,9 @@ func TestProcessSpawner_SpawnAndCleanup(t *testing.T) {
 	})).Return(nil).Twice()
 
 	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+	spawner.GitClient = mockGit
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -118,6 +126,8 @@ func TestProcessSpawner_Cancel(t *testing.T) {
 	logger := telemetry.NewLogger(true, "test", true)
 	sm := &mockSessionManager{}
 	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
 
 	// Cancellation of non-existent job should fail
 	err := spawner.Cancel(context.Background(), "NON-EXISTENT")
@@ -139,6 +149,8 @@ func TestProcessSpawner_GetLogs(t *testing.T) {
 	logger := telemetry.NewLogger(true, "test", true)
 	sm := &mockSessionManager{}
 	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
 
 	// Create a dummy log file
 	tmpDir := t.TempDir()
