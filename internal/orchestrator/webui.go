@@ -316,20 +316,20 @@ const DashboardHTML = `
 
                 let actionsHTML = '';
                 if(data.paused) {
-                    actionsHTML += '<button type="button" aria-label="Resume polling" onclick="postAction(\'/resume\')">Resume</button>';
+                    actionsHTML += '<button type="button" aria-label="Resume polling" onclick="postAction(this, \'/resume\')">Resume</button>';
                 } else {
-                    actionsHTML += '<button type="button" aria-label="Pause polling" onclick="postAction(\'/pause\')">Pause</button>';
+                    actionsHTML += '<button type="button" aria-label="Pause polling" onclick="postAction(this, \'/pause\')">Pause</button>';
                 }
 
                 if(data.draining) {
-                    actionsHTML += '<button type="button" aria-label="Undrain agents" onclick="postAction(\'/undrain\')">Undrain</button>';
+                    actionsHTML += '<button type="button" aria-label="Undrain agents" onclick="postAction(this, \'/undrain\')">Undrain</button>';
                 } else {
-                    actionsHTML += '<button type="button" aria-label="Drain agents" class="danger" onclick="postAction(\'/drain\')">Drain</button>';
+                    actionsHTML += '<button type="button" aria-label="Drain agents" class="danger" onclick="postAction(this, \'/drain\')">Drain</button>';
                 }
 
-                actionsHTML += '<button type="button" aria-label="Force manual poll" onclick="postAction(\'/poll\')">Force Poll</button>';
-                actionsHTML += '<button type="button" aria-label="Clear all pending jobs" class="danger" onclick="deleteAction(\'/pending\')">Clear Pending</button>';
-                actionsHTML += '<button type="button" aria-label="Clear all history jobs" class="danger" onclick="deleteAction(\'/history\')">Clear History</button>';
+                actionsHTML += '<button type="button" aria-label="Force manual poll" onclick="postAction(this, \'/poll\')">Force Poll</button>';
+                actionsHTML += '<button type="button" aria-label="Clear all pending jobs" class="danger" onclick="deleteAction(this, \'/pending\')">Clear Pending</button>';
+                actionsHTML += '<button type="button" aria-label="Clear all history jobs" class="danger" onclick="deleteAction(this, \'/history\')">Clear History</button>';
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
@@ -365,7 +365,10 @@ const DashboardHTML = `
             }
         }
 
-        async function doJobAction(action, id) {
+        async function doJobAction(btn, action, id) {
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Wait...';
             let method = 'POST';
             let url = '';
 
@@ -374,11 +377,19 @@ const DashboardHTML = `
             } else if (action === 'retry') {
                 url = '/jobs/' + encodeURIComponent(id) + '/retry';
             } else if (action === 'cancel') {
-                if(!confirm('Are you sure you want to cancel job ' + id + '?')) return;
+                if(!confirm('Are you sure you want to cancel job ' + id + '?')) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    return;
+                }
                 url = '/jobs/' + encodeURIComponent(id);
                 method = 'DELETE';
             } else if (action === 'purge') {
-                if(!confirm('Are you sure you want to purge job ' + id + '?')) return;
+                if(!confirm('Are you sure you want to purge job ' + id + '?')) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    return;
+                }
                 url = '/history/' + encodeURIComponent(id);
                 method = 'DELETE';
             }
@@ -393,6 +404,9 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
 
@@ -676,17 +690,17 @@ const DashboardHTML = `
                     const lowerStatus = (j.status || '').toLowerCase();
 
                     if (lowerStatus === 'pending approval') {
-                        actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
+                        actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
                     } else if (lowerStatus === 'failed') {
-                        actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
+                        actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
                     }
 
                     if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" aria-label="Cancel job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
+                        actionButtons += '<button type="button" aria-label="Cancel job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
                     }
 
                     if (lowerStatus === 'completed' || lowerStatus === 'failed' || lowerStatus === 'canceled' || lowerStatus === 'error') {
-                        actionButtons += '<button type="button" aria-label="Purge job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(\'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
+                        actionButtons += '<button type="button" aria-label="Purge job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
                     }
 
                     if (lowerStatus === 'failed' || lowerStatus === 'error') {
@@ -715,7 +729,10 @@ const DashboardHTML = `
             }
         }
 
-        async function postAction(endpoint) {
+        async function postAction(btn, endpoint) {
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Wait...';
             try {
                 const res = await fetch(endpoint, { method: 'POST' });
                 if(res.ok) {
@@ -725,11 +742,17 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
 
-        async function deleteAction(endpoint) {
+        async function deleteAction(btn, endpoint) {
+            const originalText = btn.innerText;
             if(!confirm('Are you sure you want to perform this delete action?')) return;
+            btn.disabled = true;
+            btn.innerText = 'Wait...';
             try {
                 const res = await fetch(endpoint, { method: 'DELETE' });
                 if(res.ok) {
@@ -740,10 +763,24 @@ const DashboardHTML = `
                 }
             } catch(e) {
                 alert('Request failed: ' + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
 
-        document.getElementById('refresh-jobs').addEventListener('click', fetchJobs);
+        document.getElementById('refresh-jobs').addEventListener('click', async function() {
+            const btn = this;
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Wait...';
+            try {
+                await fetchJobs();
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        });
         document.getElementById('job-state-filter').addEventListener('change', fetchJobs);
         document.getElementById('job-search').addEventListener('keyup', (e) => {
             if(e.key === 'Enter') fetchJobs();
