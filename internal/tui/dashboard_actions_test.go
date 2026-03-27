@@ -168,6 +168,23 @@ func TestPurgeJobCmd(t *testing.T) {
 	assert.Equal(t, "Purged", actionMsg.Message)
 }
 
+func TestDeletePendingJobCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodDelete, r.Method)
+		assert.Equal(t, "/jobs/job-123/pending", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cmd := deletePendingJobCmd(server.URL, "job-123")
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Deleted", actionMsg.Message)
+}
+
 func TestClearPending(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodDelete, r.Method)
