@@ -255,6 +255,49 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "PENDING", m.pendingJobId)
 	})
 
+	t.Run("Delete Pending Key (backspace)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		model.selectedJobs = make(map[string]bool)
+		// For special keys, we construct them:
+		msg := tea.KeyMsg{Type: tea.KeyBackspace}
+		updatedModel, cmd := model.Update(msg)
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "delete pending", m.pendingAction)
+		assert.Equal(t, "JOB-1", m.pendingJobId)
+	})
+
+	t.Run("Delete Pending Key (delete)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		model.selectedJobs = make(map[string]bool)
+		msg := tea.KeyMsg{Type: tea.KeyDelete}
+		updatedModel, cmd := model.Update(msg)
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "delete pending", m.pendingAction)
+		assert.Equal(t, "JOB-1", m.pendingJobId)
+	})
+
+	t.Run("Delete Pending Multiple Key (delete)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		model.selectedJobs = map[string]bool{"JOB-1": true}
+		msg := tea.KeyMsg{Type: tea.KeyDelete}
+		updatedModel, cmd := model.Update(msg)
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "delete pending multiple", m.pendingAction)
+		assert.Equal(t, "MULTIPLE_delete_pending", m.pendingJobId)
+	})
+
 	t.Run("Set Deps Key (D)", func(t *testing.T) {
 		// Ensure job has details
 		if len(model.jobs) > 0 {
