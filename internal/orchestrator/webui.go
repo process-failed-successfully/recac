@@ -65,6 +65,7 @@ const DashboardHTML = `
                 <!-- Buttons will be injected here if supported -->
             </div>
             <div>
+                <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
@@ -190,6 +191,16 @@ const DashboardHTML = `
                 <h2 id="explain-title">Job Explanation</h2>
                 <div id="explain-content" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
                     Loading explanation...
+                </div>
+            </div>
+        </div>
+
+        <div id="analyzeFailuresModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeFailuresModal()">&times;</button>
+                <h2 style="margin-bottom: 0;">Analyze Failures</h2>
+                <div id="analyze-failures-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    Loading analysis...
                 </div>
             </div>
         </div>
@@ -900,6 +911,77 @@ const DashboardHTML = `
 
         function closeGraph() {
             document.getElementById('graphModal').style.display = 'none';
+        }
+
+        async function openAnalyzeFailuresModal() {
+            const modal = document.getElementById('analyzeFailuresModal');
+            const contentDiv = document.getElementById('analyze-failures-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Loading analysis...';
+
+            try {
+                const res = await fetch('/jobs?state=all&status=Failed');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to load jobs: ' + await res.text() + '</span>';
+                    return;
+                }
+                const jobs = await res.json();
+                if (!jobs || jobs.length === 0) {
+                    contentDiv.innerHTML = '<span>No failed jobs found.</span>';
+                    return;
+                }
+
+                // Group jobs by summary
+                const summaryMap = {};
+                jobs.forEach(job => {
+                    let summary = (job.summary || '').trim();
+                    if (!summary) {
+                        summary = '<empty summary>';
+                    }
+                    if (!summaryMap[summary]) {
+                        summaryMap[summary] = [];
+                    }
+                    summaryMap[summary].push(job.id);
+                });
+
+                // Convert to array and sort by count descending, then alphabetical
+                const groups = Object.keys(summaryMap).map(summary => {
+                    return { summary: summary, jobIDs: summaryMap[summary], count: summaryMap[summary].length };
+                });
+                groups.sort((a, b) => {
+                    if (a.count !== b.count) {
+                        return b.count - a.count;
+                    }
+                    return a.summary.localeCompare(b.summary);
+                });
+
+                let html = '<p><strong>Total Failed Jobs:</strong> ' + jobs.length + '</p>';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr><th style="width: 10%;">Count</th><th style="width: 50%;">Error Signature (Summary)</th><th style="width: 40%;">Job IDs</th></tr></thead><tbody>';
+
+                groups.forEach(g => {
+                    let displayIDs = g.jobIDs.join(', ');
+                    if (displayIDs.length > 50) {
+                        displayIDs = displayIDs.substring(0, 47) + '...';
+                    }
+
+                    html += '<tr>';
+                    html += '<td style="vertical-align: top;">' + g.count + '</td>';
+                    html += '<td style="vertical-align: top;">' + escapeHTML(g.summary) + '</td>';
+                    html += '<td style="vertical-align: top;"><span title="' + escapeHTML(g.jobIDs.join(', ')) + '">' + escapeHTML(displayIDs) + '</span></td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                contentDiv.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error rendering analysis: ' + err.message + '</span>';
+            }
+        }
+
+        function closeAnalyzeFailuresModal() {
+            document.getElementById('analyzeFailuresModal').style.display = 'none';
         }
 
         function openSearchLogsModal() {

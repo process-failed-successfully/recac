@@ -88,6 +88,15 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "async function performSearchLogs()")
 	assert.Contains(t, html, "fetch('/jobs/pipeline', {")
 
+	// Verify Analyze Failures Modal HTML exists
+	assert.Contains(t, html, "id=\"analyzeFailuresModal\"")
+	assert.Contains(t, html, "Analyze Failures")
+	assert.Contains(t, html, "onclick=\"openAnalyzeFailuresModal()\"")
+
+	// Verify JS openAnalyzeFailuresModal function exists
+	assert.Contains(t, html, "async function openAnalyzeFailuresModal()")
+	assert.Contains(t, html, "fetch('/jobs?state=all&status=Failed')")
+
 	// Verify JS dryRunPipeline function exists
 	assert.Contains(t, html, "onclick=\"dryRunPipeline()\"")
 	assert.Contains(t, html, "async function dryRunPipeline()")
