@@ -64,6 +64,8 @@ const (
 	viewSearchLogsResult
 	viewAnalyzeFailures
 	viewCriticalPath
+	viewBlockers
+	viewDependents
 )
 
 type DashboardModel struct {
@@ -139,6 +141,18 @@ type statusMsg struct {
 	Status orchestrator.Status
 	Jobs   []orchestrator.JobInfo
 	Err    error
+}
+
+type blockersMsg struct {
+	Jobs  []orchestrator.JobInfo
+	JobID string
+	Err   error
+}
+
+type dependentsMsg struct {
+	Jobs  []orchestrator.JobInfo
+	JobID string
+	Err   error
 }
 
 type analyzeFailuresMsg struct {
@@ -226,6 +240,26 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.analytics = msg.Analytics
 			m.viewState = viewAnalytics
 			m.viewport.SetContent(renderAnalytics(m.analytics))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case blockersMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewBlockers
+			m.viewport.SetContent(renderJobTable(msg.Jobs, fmt.Sprintf("Blockers of %s", msg.JobID)))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case dependentsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewDependents
+			m.viewport.SetContent(renderJobTable(msg.Jobs, fmt.Sprintf("Dependents of %s", msg.JobID)))
 			m.viewport.GotoTop()
 		}
 		return m, nil
@@ -390,7 +424,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -571,6 +605,18 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "b":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				return m, fetchBlockersCmd(m.host, id)
+			}
+		case "B":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				return m, fetchDependentsCmd(m.host, id)
+			}
 		case "ctrl+p":
 			return m, fetchCriticalPathCmd(m.host)
 		case "ctrl+f":
@@ -1590,7 +1636,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | ctrl+p: critical path | ctrl+f: analyze failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1604,6 +1650,12 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewCriticalPath:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewBlockers:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewDependents:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewTree:
@@ -2986,6 +3038,115 @@ func limitString(s string, max int) string {
 type analyticsMsg struct {
 	Analytics orchestrator.Analytics
 	Err       error
+}
+
+func renderJobTable(jobs []orchestrator.JobInfo, title string) string {
+	if len(jobs) == 0 {
+		return fmt.Sprintf("%s\n\nNo jobs found.\n\nPress 'q' or 'esc' to go back.", title)
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		Padding(0, 1)
+
+	rowStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
+	idCol := lipgloss.NewStyle().Width(15)
+	summaryCol := lipgloss.NewStyle().Width(40)
+	statusCol := lipgloss.NewStyle().Width(25)
+	durationCol := lipgloss.NewStyle().Width(20)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("%s (%d)", title, len(jobs))) + "\n\n")
+
+	sb.WriteString(fmt.Sprintf("%s %s %s %s\n",
+		idCol.Render(headerStyle.Render("ID")),
+		summaryCol.Render(headerStyle.Render("Summary")),
+		statusCol.Render(headerStyle.Render("Status")),
+		durationCol.Render(headerStyle.Render("Duration")),
+	))
+
+	for _, job := range jobs {
+		duration := "N/A"
+		if !job.StartTime.IsZero() {
+			endTime := job.EndTime
+			if endTime.IsZero() {
+				endTime = time.Now()
+			}
+			duration = endTime.Sub(job.StartTime).Round(time.Second).String()
+		}
+
+		statusDisplay := job.Status
+		if job.Progress != nil {
+			statusDisplay = fmt.Sprintf("%s (%d%%)", job.Status, *job.Progress)
+		}
+		if job.StatusMessage != nil {
+			statusDisplay = fmt.Sprintf("%s - %s", statusDisplay, *job.StatusMessage)
+		}
+		statusDisplay = limitString(statusDisplay, 25)
+
+		sb.WriteString(fmt.Sprintf("%s %s %s %s\n",
+			idCol.Render(rowStyle.Render(job.ID)),
+			summaryCol.Render(rowStyle.Render(limitString(job.Summary, 38))),
+			statusCol.Render(rowStyle.Render(statusDisplay)),
+			durationCol.Render(rowStyle.Render(duration)),
+		))
+	}
+
+	return sb.String()
+}
+
+func fetchBlockersCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(host + "/jobs/" + id + "/blockers")
+		if err != nil {
+			return blockersMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return blockersMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			return blockersMsg{Err: err}
+		}
+
+		return blockersMsg{Jobs: jobs, JobID: id}
+	}
+}
+
+func fetchDependentsCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(host + "/jobs/" + id + "/dependents")
+		if err != nil {
+			return dependentsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return dependentsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			return dependentsMsg{Err: err}
+		}
+
+		return dependentsMsg{Jobs: jobs, JobID: id}
+	}
 }
 
 func fetchAnalyzeFailuresCmd(host string) tea.Cmd {

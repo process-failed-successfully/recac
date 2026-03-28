@@ -572,6 +572,8 @@ func TestDashboardModel_View_AllStates(t *testing.T) {
         viewSubmit,
         viewAnalytics,
         viewTree,
+        viewBlockers,
+        viewDependents,
         viewTimeoutInput,
         viewDepsInput,
         viewEnvInput,
