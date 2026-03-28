@@ -794,6 +794,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.viewState = viewConfirmation
 				return m, nil
 			}
+		case "K":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_K"
+				m.pendingAction = "heal multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "heal"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "x":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_x"
@@ -1071,6 +1085,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 						cmds = append(cmds, retryJob(m.host, id))
 					case "retry downstream multiple":
 						cmds = append(cmds, retryJobDownstream(m.host, id))
+					case "heal multiple":
+						cmds = append(cmds, healJobCmd(m.host, id))
 					case "approve multiple":
 						cmds = append(cmds, approveJobCmd(m.host, id))
 					case "hold multiple":
@@ -1117,6 +1133,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = retryJobDownstream(m.host, m.pendingJobId)
 			} else if m.pendingAction == "retry failed" {
 				cmd = retryFailedJobs(m.host)
+			} else if m.pendingAction == "heal" {
+				cmd = healJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "clear history" {
 				cmd = clearHistory(m.host)
 			} else if m.pendingAction == "clear pending" {
@@ -1708,6 +1726,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "retry downstream multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY %d selected jobs and their downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "heal multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to HEAL %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "approve multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to APPROVE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "priority multiple" {
@@ -1724,6 +1744,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "retry downstream" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to RETRY job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
+		} else if m.pendingAction == "heal" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to HEAL job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else {
 			dialogMsg = fmt.Sprintf("Are you sure you want to %s job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingAction, m.pendingJobId)
 		}
@@ -2630,6 +2652,37 @@ func retryJobDownstream(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Retry submitted (Downstream)"}
+	}
+}
+
+func healJobCmd(host, jobID string) tea.Cmd {
+	return func() tea.Msg {
+		matchParam := fmt.Sprintf("^%s$", jobID)
+		urlStr := host + "/jobs/heal/bulk?match=" + url.QueryEscape(matchParam)
+
+		req, err := http.NewRequest(http.MethodPost, urlStr, nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		var result struct {
+			Healed int `json:"healed"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+			return actionMsg{Message: fmt.Sprintf("Healed %d job", result.Healed)}
+		}
+
+		return actionMsg{Message: "Healed"}
 	}
 }
 
