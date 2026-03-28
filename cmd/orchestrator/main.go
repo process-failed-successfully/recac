@@ -291,6 +291,10 @@ func main() {
 	pflag.String("changelog-tag", "", "Optional tag filter for the changelog generation")
 	pflag.String("changelog-match", "", "Optional regex filter for the changelog generation")
 
+	pflag.String("generate-postmortem", "", "Generate a markdown postmortem report from failed jobs (use '-' or leave empty for stdout). Optionally provide the output file path.")
+	pflag.String("postmortem-tag", "", "Optional tag filter for the postmortem generation")
+	pflag.String("postmortem-match", "", "Optional regex filter for the postmortem generation")
+
 	pflag.String("optimize-pipeline", "", "Analyze a pipeline YAML file and use AI to suggest optimizations")
 	pflag.String("optimize-pipeline-out", "", "Output file for the optimized pipeline YAML (use '-' or leave empty for stdout)")
 
@@ -620,6 +624,10 @@ func main() {
 	viper.BindPFlag("orchestrator.generate_changelog", pflag.Lookup("generate-changelog"))
 	viper.BindPFlag("orchestrator.changelog_tag", pflag.Lookup("changelog-tag"))
 	viper.BindPFlag("orchestrator.changelog_match", pflag.Lookup("changelog-match"))
+
+	viper.BindPFlag("orchestrator.generate_postmortem", pflag.Lookup("generate-postmortem"))
+	viper.BindPFlag("orchestrator.postmortem_tag", pflag.Lookup("postmortem-tag"))
+	viper.BindPFlag("orchestrator.postmortem_match", pflag.Lookup("postmortem-match"))
 
 	viper.BindPFlag("orchestrator.optimize_pipeline", pflag.Lookup("optimize-pipeline"))
 	viper.BindPFlag("orchestrator.optimize_pipeline_out", pflag.Lookup("optimize-pipeline-out"))
@@ -2063,6 +2071,16 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		provider := viper.GetString("orchestrator.agent_provider")
 		model := viper.GetString("orchestrator.agent_model")
 		generateChangelog(host, outFile, tag, match, provider, model)
+		return nil
+	}
+
+	if outFile := viper.GetString("orchestrator.generate_postmortem"); outFile != "" {
+		host := viper.GetString("orchestrator.host")
+		tag := viper.GetString("orchestrator.postmortem_tag")
+		match := viper.GetString("orchestrator.postmortem_match")
+		provider := viper.GetString("orchestrator.agent_provider")
+		model := viper.GetString("orchestrator.agent_model")
+		generatePostmortem(host, outFile, tag, match, provider, model)
 		return nil
 	}
 

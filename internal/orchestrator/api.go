@@ -541,6 +541,35 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /postmortem/generate", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+		provider := r.URL.Query().Get("provider")
+		model := r.URL.Query().Get("model")
+
+		apiKey := viper.GetString("api_key")
+		if apiKey == "" {
+			apiKey = viper.GetString("secrets.api_key")
+		}
+		if provider == "" {
+			provider = viper.GetString("orchestrator.agent_provider")
+		}
+		if model == "" {
+			model = viper.GetString("orchestrator.agent_model")
+		}
+
+		postmortemText, err := GeneratePostmortem(r.Context(), orch, tag, match, provider, model, apiKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to generate postmortem: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{"postmortem": postmortemText}); err != nil {
+			logger.Error("Failed to encode generated postmortem response", "error", err)
+		}
+	})
+
 	mux.HandleFunc("POST /pipeline/generate", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Prompt string `json:"prompt"`
