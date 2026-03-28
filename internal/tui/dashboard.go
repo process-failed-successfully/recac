@@ -734,6 +734,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.pendingAction = "retry failed"
 			m.viewState = viewConfirmation
 			return m, nil
+		case "delete", "backspace":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_delete_pending"
+				m.pendingAction = "delete pending multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "delete pending"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "x":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_x"
@@ -1029,6 +1043,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 								break
 							}
 						}
+					case "delete pending multiple":
+						cmds = append(cmds, deletePendingCmd(m.host, id))
 					}
 				}
 				m.selectedJobs = make(map[string]bool)
@@ -1069,6 +1085,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 				cmd = archiveJobCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "archive multiple" {
 				cmd = archiveBulkJobsCmd(m.host, m.selectedJobs)
+			} else if m.pendingAction == "delete pending" {
+				cmd = deletePendingCmd(m.host, m.pendingJobId)
 			}
 			m.pendingJobId = ""
 			m.pendingAction = ""
@@ -1646,6 +1664,10 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to ARCHIVE %d selected jobs to bulk_archive.tar.gz?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "archive" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to ARCHIVE job %s to %s.tar.gz?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId, m.pendingJobId)
+		} else if m.pendingAction == "delete pending" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to DELETE PENDING job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
+		} else if m.pendingAction == "delete pending multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to DELETE PENDING for %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "cancel downstream" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "retry downstream" {
@@ -2613,6 +2635,25 @@ func archiveJobCmd(host, jobID string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Archived to %s", outPath)}
+	}
+}
+
+func deletePendingCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, host+"/jobs/"+id+"/pending", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Pending job deleted"}
 	}
 }
 
