@@ -187,6 +187,25 @@ func TestClearPending(t *testing.T) {
 	assert.Equal(t, "Cleared 3 pending jobs", actionMsg.Message)
 }
 
+func TestHealJobCmd(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/jobs/heal/bulk", r.URL.Path)
+		assert.Equal(t, "^JOB-1$", r.URL.Query().Get("match"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"healed": 1}`))
+	}))
+	defer server.Close()
+
+	cmd := healJobCmd(server.URL, "JOB-1")
+	msg := cmd()
+
+	actionMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NoError(t, actionMsg.Err)
+	assert.Equal(t, "Healed 1 job", actionMsg.Message)
+}
+
 func TestClearPending_FormatError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
