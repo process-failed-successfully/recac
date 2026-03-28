@@ -35,15 +35,35 @@ func TestPrintAnalytics(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		printAnalytics(server.URL)
+		printAnalytics(server.URL, "text")
 		assert.Equal(t, 0, exitCode)
 		assert.Contains(t, buf.String(), "Orchestrator Analytics")
+	})
+
+	t.Run("FormatJSON", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/analytics", r.URL.Path)
+			assert.Equal(t, http.MethodGet, r.Method)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, `{"total_jobs": 15, "successful_jobs": 12}`)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		printAnalytics(server.URL, "json")
+		assert.Equal(t, 0, exitCode)
+
+		output := buf.String()
+		assert.Contains(t, output, `"total_jobs": 15`)
+		assert.Contains(t, output, `"successful_jobs": 12`)
+		assert.NotContains(t, output, "Orchestrator Analytics") // No human readable header
 	})
 
 	t.Run("ConnectionError", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		printAnalytics("http://invalid-host")
+		printAnalytics("http://invalid-host", "text")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
 	})
@@ -57,7 +77,7 @@ func TestPrintAnalytics(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		printAnalytics(server.URL)
+		printAnalytics(server.URL, "text")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to fetch analytics: status 500")
 	})
@@ -71,7 +91,7 @@ func TestPrintAnalytics(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		printAnalytics(server.URL)
+		printAnalytics(server.URL, "text")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})
