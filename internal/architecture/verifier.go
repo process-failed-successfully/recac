@@ -2,7 +2,6 @@ package architecture
 
 import (
 	"fmt"
-	"strings"
 )
 
 // Violation represents an architectural rule violation.
@@ -97,31 +96,39 @@ func (v *Verifier) Verify(deps map[string][]string) ([]Violation, error) {
 // e.g. "github.com/org/repo/internal/auth" matches "auth" or "auth-service"
 // We iterate components and check if their ID (normalized) is present in path.
 // This is simplistic but works for well-structured repos.
+// ⚡ Bolt: Replaced string allocation-heavy split and replace calls with a zero-allocation byte iteration.
+// Impact: Reduces string allocations per call and improves execution time significantly.
 func (v *Verifier) matchComponent(pkgPath string) string {
 	// Sort components by ID length descending to match specific (longer) names first
 	// e.g. match "user-service" before "user"
 	// But optimizing that might be overkill for now.
 
-	// Normalize path separators
-	pkgPath = strings.ReplaceAll(pkgPath, "\\", "/")
-	parts := strings.Split(pkgPath, "/")
-
 	for _, c := range v.Arch.Components {
-		// Normalize ID?
-		// e.g. "user-service" -> match directory "user-service" or "user_service"
 		id := c.ID
 
-		// Exact match in path segments
-		for _, part := range parts {
-			if part == id {
-				return c.ID
-			}
-			// Try snake_case vs kebab-case mismatch?
-			// If ID is "user-service", allow "user_service" in path
-			normalizedPart := strings.ReplaceAll(part, "_", "-")
-			normalizedID := strings.ReplaceAll(id, "_", "-")
-			if normalizedPart == normalizedID {
-				return c.ID
+		start := 0
+		for i := 0; i <= len(pkgPath); i++ {
+			// Treat both forward and backward slashes as separators
+			if i == len(pkgPath) || pkgPath[i] == '/' || pkgPath[i] == '\\' {
+				if start < i {
+					part := pkgPath[start:i]
+
+					// Fast length check first
+					if len(part) == len(id) {
+						match := true
+						for j := 0; j < len(part); j++ {
+							// Allow interchangeability of snake_case and kebab-case
+							if part[j] != id[j] && !(part[j] == '_' && id[j] == '-') && !(part[j] == '-' && id[j] == '_') {
+								match = false
+								break
+							}
+						}
+						if match {
+							return c.ID
+						}
+					}
+				}
+				start = i + 1
 			}
 		}
 	}
