@@ -90,6 +90,51 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /tags", func(w http.ResponseWriter, r *http.Request) {
+		tagCounts := make(map[string]int)
+
+		// GetActiveJobs() already includes Pending jobs, so we only need GetActiveJobs and GetCompletedJobs
+		// Count tags sequentially to avoid large intermediate slice allocation
+		for _, job := range orch.GetActiveJobs() {
+			for _, tag := range job.WorkItem.Tags {
+				tagCounts[tag]++
+			}
+		}
+		for _, job := range orch.GetCompletedJobs() {
+			for _, tag := range job.WorkItem.Tags {
+				tagCounts[tag]++
+			}
+		}
+
+		// Prepare output
+		type TagInfo struct {
+			Name  string `json:"name"`
+			Count int    `json:"count"`
+		}
+		var result []TagInfo
+		for name, count := range tagCounts {
+			result = append(result, TagInfo{Name: name, Count: count})
+		}
+
+		// Sort result by count descending, then name alphabetically
+		sort.Slice(result, func(i, j int) bool {
+			if result[i].Count == result[j].Count {
+				return result[i].Name < result[j].Name
+			}
+			return result[i].Count > result[j].Count
+		})
+
+		// if result is nil, json.Encode encodes it to `null`. We want an empty array instead `[]`
+		if result == nil {
+			result = []TagInfo{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logger.Error("Failed to encode tags", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /analytics", func(w http.ResponseWriter, r *http.Request) {
 		analytics := orch.GetAnalytics()
 		w.Header().Set("Content-Type", "application/json")
