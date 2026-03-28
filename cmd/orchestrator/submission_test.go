@@ -818,7 +818,7 @@ func TestEditJob_Success(t *testing.T) {
 	}()
 
 	// Mock the editor to just replace the summary
-	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
 
 	editJob(server.URL, "MY-JOB")
 
@@ -894,7 +894,7 @@ func TestEditJob_IDChanged(t *testing.T) {
 	}()
 
 	// Mock the editor to replace the ID
-	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"id\": \"MY-JOB\"/\"id\": \"OTHER-JOB\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"id\": \"MY-JOB\"/\"id\": \"OTHER-JOB\"/g" "$1"' _`)
 
 	editJob(server.URL, "MY-JOB")
 
@@ -2096,7 +2096,8 @@ func TestEditJob_ErrorResponsePUT(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'curl -X POST -s http://localhost:0/kill || true && sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
 
 	editJob(server.URL, "MY-JOB")
 
@@ -2164,7 +2165,7 @@ func TestEditJob_ConnectionErrorPUT(t *testing.T) {
 	}))
 	defer server2.Close()
 
-	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
 
 	editJob(server2.URL, "MY-JOB")
 
@@ -2479,7 +2480,9 @@ func TestRetryEditJob_Success(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
 
 	retryEditJob(server.URL, "MY-JOB", false)
 
@@ -2612,7 +2615,7 @@ func TestRetryEditJob_WaitError(t *testing.T) {
 		stdout = oldStdout
 	}()
 
-	t.Setenv("EDITOR", `sh -c 'sed -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _`)
+	t.Setenv("EDITOR", `sh -c 'sed -i.bak -e "s/\"summary\": \"Original Summary\"/\"summary\": \"Edited Summary\"/g" "$1"' _`)
 
 	retryEditJob(server.URL, "MY-JOB", true)
 
