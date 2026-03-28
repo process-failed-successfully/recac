@@ -327,7 +327,7 @@ func min(a, b int) int {
 	return b
 }
 
-var secretMaskRegex = regexp.MustCompile(`(?i)(["']?(?:token|password|secret|key|pwd)["']?\s*[:=]\s*)(?:["']([^"']+)["']|([^\s]+))`)
+var secretMaskRegex = regexp.MustCompile(`(?i)(["']?[a-z0-9_]*(?:token|password|secret|key|pwd)[a-z0-9_]*["']?\s*[:=]\s*)(?:["']([^"']+)["']|([^\s]+))`)
 
 // maskSecrets redacts potential secrets from output strings to prevent leakage in logs or context
 func maskSecrets(text string) string {
