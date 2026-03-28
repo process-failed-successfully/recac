@@ -8,6 +8,7 @@ import (
 	"recac/internal/telemetry"
 	"testing"
     "os"
+	"time"
 )
 
 func TestRunManagerAgent_Success(t *testing.T) {
@@ -85,7 +86,10 @@ func TestRunManagerAgent_InitAgent(t *testing.T) {
 		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
-	err := session.runManagerAgent(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
+	err := session.runManagerAgent(ctx)
 	if err == nil {
 		t.Errorf("Expected error from runManagerAgent")
 	}
@@ -112,7 +116,10 @@ func TestRunQAAgent_InitAgent(t *testing.T) {
 		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
-	err := session.runQAAgent(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
+	err := session.runQAAgent(ctx)
 	if err == nil {
 		t.Errorf("Expected error from runQAAgent")
 	}
@@ -139,7 +146,10 @@ func TestRunManagerAgent_ConfigFallback(t *testing.T) {
 		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
-	err := session.runManagerAgent(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
+	err := session.runManagerAgent(ctx)
 	if err == nil {
 		t.Errorf("Expected error from runManagerAgent")
 	}
@@ -166,7 +176,10 @@ func TestRunManagerAgent_ConfigFallbackOpenRouter(t *testing.T) {
 		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
-	err := session.runManagerAgent(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
+	err := session.runManagerAgent(ctx)
 	if err == nil {
 		t.Errorf("Expected error from runManagerAgent")
 	}
@@ -193,7 +206,10 @@ func TestRunQAAgent_ConfigFallback(t *testing.T) {
 		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
-	err := session.runQAAgent(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
+	err := session.runQAAgent(ctx)
 	if err == nil {
 		t.Errorf("Expected error from runQAAgent")
 	}
