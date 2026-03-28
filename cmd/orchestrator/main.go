@@ -101,6 +101,7 @@ func main() {
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
 	pflag.String("list-jobs-priority", "", "Filter jobs by a specific priority")
 	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
+	pflag.String("format", "text", "Output format for status and analytics (text, json)")
 	pflag.Bool("watch", false, "Continuously watch the output of list-jobs or list-pending")
 	pflag.Duration("watch-interval", 2*time.Second, "Refresh interval for watch mode (e.g. 2s, 1m)")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
@@ -440,6 +441,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
 	viper.BindPFlag("orchestrator.list_jobs_priority", pflag.Lookup("list-jobs-priority"))
 	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
+	viper.BindPFlag("orchestrator.format", pflag.Lookup("format"))
 	viper.BindPFlag("orchestrator.watch", pflag.Lookup("watch"))
 	viper.BindPFlag("orchestrator.watch_interval", pflag.Lookup("watch-interval"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
@@ -886,7 +888,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if viper.GetBool("orchestrator.status") {
 		host := viper.GetString("orchestrator.host")
-		printStatus(host)
+		format := viper.GetString("orchestrator.format")
+		printStatus(host, format)
 		return nil
 	}
 
@@ -978,7 +981,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if viper.GetBool("orchestrator.analytics") {
 		host := viper.GetString("orchestrator.host")
-		printAnalytics(host)
+		format := viper.GetString("orchestrator.format")
+		printAnalytics(host, format)
 		return nil
 	}
 
@@ -2424,7 +2428,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	return nil
 }
 
-func printAnalytics(host string) {
+func printAnalytics(host, format string) {
 	url := fmt.Sprintf("%s/analytics", host)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -2444,6 +2448,16 @@ func printAnalytics(host string) {
 	if err := json.NewDecoder(resp.Body).Decode(&analytics); err != nil {
 		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
 		exitFunc(1)
+		return
+	}
+
+	if format == "json" {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(analytics); err != nil {
+			fmt.Fprintf(stdout, "Failed to encode analytics to JSON: %v\n", err)
+			exitFunc(1)
+		}
 		return
 	}
 
@@ -2489,7 +2503,7 @@ func printAnalytics(host string) {
 	fmt.Fprintln(stdout, "")
 }
 
-func printStatus(host string) {
+func printStatus(host, format string) {
 	url := fmt.Sprintf("%s/status", host)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -2509,6 +2523,16 @@ func printStatus(host string) {
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
 		exitFunc(1)
+		return
+	}
+
+	if format == "json" {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(status); err != nil {
+			fmt.Fprintf(stdout, "Failed to encode status to JSON: %v\n", err)
+			exitFunc(1)
+		}
 		return
 	}
 
