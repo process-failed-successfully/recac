@@ -13,7 +13,6 @@ import (
 
 var (
 	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
 )
 
 type JiraPoller struct {
@@ -192,11 +191,29 @@ func extractRequiredFeatures(text string) []db.Feature {
 			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
 				// Extract feature description
 				desc := strings.TrimSpace(line[2:])
-				// Create a simplified Feature
-				slug := strings.ToLower(desc)
+				// ⚡ Bolt: Replaced featureSlugRegex.ReplaceAllString and strings.ToLower
+				// with a single-pass string builder to eliminate multiple intermediate allocations
+				// and regex state machine overhead in high-throughput loops.
+				var sb strings.Builder
+				sb.Grow(len(desc))
+				lastWasHyphen := false
+				for i := 0; i < len(desc); i++ {
+					c := desc[i]
+					if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+						sb.WriteByte(c)
+						lastWasHyphen = false
+					} else if c >= 'A' && c <= 'Z' {
+						sb.WriteByte(c + ('a' - 'A'))
+						lastWasHyphen = false
+					} else {
+						if !lastWasHyphen && sb.Len() > 0 {
+							sb.WriteByte('-')
+							lastWasHyphen = true
+						}
+					}
+				}
 
-				// Optimized: uses package-level regex
-				slug = featureSlugRegex.ReplaceAllString(slug, "-")
+				slug := sb.String()
 				slug = strings.Trim(slug, "-")
 				if len(slug) > 30 {
 					slug = slug[:30]
