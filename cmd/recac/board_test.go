@@ -50,7 +50,7 @@ func TestRunBoard(t *testing.T) {
 	// 2. Run without argument (auto-discovery)
 	serverDiscovery := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		if r.URL.Path == "/rest/api/3/project" {
+		if r.URL.Path == "/rest/api/2/project" || r.URL.Path == "/rest/api/3/project" {
 			// Project list response (array)
 			json.NewEncoder(w).Encode([]map[string]interface{}{
 				{"key": "PROJ-123"},
