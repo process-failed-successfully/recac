@@ -66,6 +66,8 @@ const DashboardHTML = `
             </div>
             <div>
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
+                <button type="button" onclick="openChangelogModal()" aria-label="Generate Changelog" style="background-color: #fd7e14; margin-right: 10px;">Changelog</button>
+                <button type="button" onclick="openPostmortemModal()" aria-label="Generate Postmortem" style="background-color: #6610f2; margin-right: 10px;">Postmortem</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
@@ -201,6 +203,26 @@ const DashboardHTML = `
                 <h2 style="margin-bottom: 0;">Analyze Failures</h2>
                 <div id="analyze-failures-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="changelogModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeChangelogModal()">&times;</button>
+                <h2 style="margin-bottom: 0;">Generated Changelog</h2>
+                <div id="changelog-content" style="white-space: pre-wrap; font-family: monospace; line-height: 1.5; color: #333; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; max-height: 500px; overflow-y: auto;">
+                    Loading changelog...
+                </div>
+            </div>
+        </div>
+
+        <div id="postmortemModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closePostmortemModal()">&times;</button>
+                <h2 style="margin-bottom: 0;">Generated Postmortem</h2>
+                <div id="postmortem-content" style="white-space: pre-wrap; font-family: monospace; line-height: 1.5; color: #333; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; max-height: 500px; overflow-y: auto;">
+                    Loading postmortem...
                 </div>
             </div>
         </div>
@@ -982,6 +1004,54 @@ const DashboardHTML = `
 
         function closeAnalyzeFailuresModal() {
             document.getElementById('analyzeFailuresModal').style.display = 'none';
+        }
+
+        async function openChangelogModal() {
+            const modal = document.getElementById('changelogModal');
+            const contentDiv = document.getElementById('changelog-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Generating changelog... Please wait.';
+
+            try {
+                const res = await fetch('/changelog/generate');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to generate changelog: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                contentDiv.innerHTML = escapeHTML(data.changelog || 'No changelog returned.');
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error generating changelog: ' + err.message + '</span>';
+            }
+        }
+
+        function closeChangelogModal() {
+            document.getElementById('changelogModal').style.display = 'none';
+        }
+
+        async function openPostmortemModal() {
+            const modal = document.getElementById('postmortemModal');
+            const contentDiv = document.getElementById('postmortem-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Generating postmortem... Please wait.';
+
+            try {
+                const res = await fetch('/postmortem/generate');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to generate postmortem: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                contentDiv.innerHTML = escapeHTML(data.postmortem || 'No postmortem returned.');
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error generating postmortem: ' + err.message + '</span>';
+            }
+        }
+
+        function closePostmortemModal() {
+            document.getElementById('postmortemModal').style.display = 'none';
         }
 
         function openSearchLogsModal() {
