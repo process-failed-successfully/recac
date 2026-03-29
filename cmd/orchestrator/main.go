@@ -277,6 +277,8 @@ func main() {
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
+	pflag.String("export-job", "", "Export a single job's WorkItem configuration to JSON format")
+	pflag.String("export-job-out", "", "Output file for the exported job (use '-' or leave empty for stdout)")
 	pflag.String("export-jobs", "", "Export all jobs to a file (use '-' for stdout)")
 	pflag.String("import-jobs", "", "Import jobs from an exported JSON file")
 	pflag.String("export-format", "json", "Format for exported jobs ('json' or 'csv')")
@@ -615,6 +617,8 @@ func main() {
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
+	viper.BindPFlag("orchestrator.export_job", pflag.Lookup("export-job"))
+	viper.BindPFlag("orchestrator.export_job_out", pflag.Lookup("export-job-out"))
 	viper.BindPFlag("orchestrator.export_jobs", pflag.Lookup("export-jobs"))
 	viper.BindPFlag("orchestrator.import_jobs", pflag.Lookup("import-jobs"))
 	viper.BindPFlag("orchestrator.export_format", pflag.Lookup("export-format"))
@@ -2042,6 +2046,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	if exportSingleFile := viper.GetString("orchestrator.export_job"); exportSingleFile != "" {
+		host := viper.GetString("orchestrator.host")
+		outPath := viper.GetString("orchestrator.export_job_out")
+		exportSingleJob(host, exportSingleFile, outPath)
+		return nil
+	}
 
 	if exportFile := viper.GetString("orchestrator.export_jobs"); exportFile != "" {
 		host := viper.GetString("orchestrator.host")
