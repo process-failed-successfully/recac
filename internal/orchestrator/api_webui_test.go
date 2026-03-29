@@ -91,6 +91,10 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	// Verify Analyze Failures Modal HTML exists
 	assert.Contains(t, html, "id=\"analyzeFailuresModal\"")
 	assert.Contains(t, html, "Analyze Failures")
+
+	// Verify View Timeline HTML exists
+	assert.Contains(t, html, "timelineModal")
+	assert.Contains(t, html, "View Timeline")
 	assert.Contains(t, html, "onclick=\"openAnalyzeFailuresModal()\"")
 
 	// Verify JS openAnalyzeFailuresModal function exists

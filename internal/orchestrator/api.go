@@ -325,6 +325,29 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/export/timeline", func(w http.ResponseWriter, r *http.Request) {
+		state := r.URL.Query().Get("state")
+
+		var jobs []JobInfo
+		switch state {
+		case "completed":
+			jobs = orch.GetCompletedJobs()
+		case "active":
+			jobs = orch.GetActiveJobs()
+		case "pending":
+			jobs = orch.GetPendingJobs()
+		default: // default active+pending+completed for timeline
+			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
+			jobs = append(jobs, orch.GetCompletedJobs()...)
+		}
+
+		timelineStr := ExportTimelineToMermaid(jobs)
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(timelineStr))
+	})
+
 	mux.HandleFunc("GET /jobs/export/graph", func(w http.ResponseWriter, r *http.Request) {
 		state := r.URL.Query().Get("state")
 		format := r.URL.Query().Get("format")
