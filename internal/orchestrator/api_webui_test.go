@@ -97,6 +97,16 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "async function openAnalyzeFailuresModal()")
 	assert.Contains(t, html, "fetch('/jobs?state=all&status=Failed')")
 
+	// Verify Changelog Modal HTML exists
+	assert.Contains(t, html, "id=\"changelogModal\"")
+	assert.Contains(t, html, "onclick=\"openChangelogModal()\"")
+	assert.Contains(t, html, "fetch('/changelog/generate')")
+
+	// Verify Postmortem Modal HTML exists
+	assert.Contains(t, html, "id=\"postmortemModal\"")
+	assert.Contains(t, html, "onclick=\"openPostmortemModal()\"")
+	assert.Contains(t, html, "fetch('/postmortem/generate')")
+
 	// Verify JS dryRunPipeline function exists
 	assert.Contains(t, html, "onclick=\"dryRunPipeline()\"")
 	assert.Contains(t, html, "async function dryRunPipeline()")
