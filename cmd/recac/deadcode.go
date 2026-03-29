@@ -82,22 +82,9 @@ func runDeadcode(cmd *cobra.Command, args []string) error {
 }
 
 func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
-	// 1. Collect all exported declarations
-	// 2. Collect all usages
-	// 3. Diff
-
 	fset := token.NewFileSet()
-	declarations := make(map[string][]DeadcodeFinding) // name -> []locations
-
-	// We need to handle package scopes. For simplicity in this heuristic version:
-	// We assume unique names or just check globally.
-	// Better: keyed by Package.Name
-	// But simple heuristic: "If ExportedFunc is never called in any other file, it might be dead"
-
-	// First pass: parse all files
 	var files []*ast.File
 	var filePaths []string
-
 	ignoredDirs := DefaultIgnoreMap()
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -116,7 +103,7 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 
 		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if err != nil {
-			return nil // ignore parse errors
+			return nil
 		}
 		files = append(files, f)
 		filePaths = append(filePaths, path)
@@ -126,23 +113,53 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 		return nil, err
 	}
 
+	declarations := collectDeclarations(files, filePaths, fset)
+	usagesCount := collectUsages(files)
+
+	var results []DeadcodeFinding
+	for name, list := range declarations {
+		if name == "main" || name == "init" {
+			continue
+		}
+
+		checkName := name
+		if strings.Contains(name, ".") {
+			parts := strings.Split(name, ".")
+			checkName = parts[1]
+		}
+
+		if usagesCount[checkName] == 0 {
+			if checkName == "String" || checkName == "Error" {
+				continue
+			}
+
+			if !deadcodeStrict && len(list) > 0 {
+				isMain := strings.Contains(list[0].Description, "package main")
+				if !isMain {
+					continue
+				}
+			}
+
+			results = append(results, list...)
+		}
+	}
+
+	return results, nil
+}
+
+func collectDeclarations(files []*ast.File, filePaths []string, fset *token.FileSet) map[string][]DeadcodeFinding {
+	declarations := make(map[string][]DeadcodeFinding)
 	for i, f := range files {
 		path := filePaths[i]
 		packageName := f.Name.Name
 
-		// Collect declarations
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
 			case *ast.FuncDecl:
 				if d.Name.IsExported() {
 					name := d.Name.Name
-					// If it's a method, we might want to qualify it? Receiver type?
-					// For now, simple func names.
-					// Method: Type.Func
 					key := name
 					if d.Recv != nil {
-						// It's a method
-						// Try to get receiver type name
 						for _, field := range d.Recv.List {
 							typeExpr := field.Type
 							if star, ok := typeExpr.(*ast.StarExpr); ok {
@@ -176,17 +193,15 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 							})
 						}
 					}
-					// Handle variables/constants? Maybe later.
 				}
 			}
 		}
 	}
+	return declarations
+}
 
-	var results []DeadcodeFinding
-
-	// Usage scan
+func collectUsages(files []*ast.File) map[string]int {
 	usagesCount := make(map[string]int)
-
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if n == nil {
@@ -194,10 +209,6 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 			}
 			switch x := n.(type) {
 			case *ast.FuncDecl:
-				// Skip the function name definition
-				// But traverse the body/params
-				// SKIP Receiver type: defining a method on a type doesn't mean the type is "used" in the application logic sense.
-				// It just means the type has methods.
 				if x.Type != nil {
 					walk(x.Type, usagesCount)
 				}
@@ -206,11 +217,9 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 				}
 				return false
 			case *ast.TypeSpec:
-				// Skip name
 				walk(x.Type, usagesCount)
 				return false
 			case *ast.ValueSpec:
-				// Skip Names
 				if x.Type != nil {
 					walk(x.Type, usagesCount)
 				}
@@ -219,7 +228,6 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 				}
 				return false
 			case *ast.Field:
-				// Skip Names (parameter names, struct field names)
 				walk(x.Type, usagesCount)
 				if x.Tag != nil {
 					walk(x.Tag, usagesCount)
@@ -231,49 +239,7 @@ func analyzeDeadcode(root string) ([]DeadcodeFinding, error) {
 			return true
 		})
 	}
-
-	for name, list := range declarations {
-		if name == "main" || name == "init" {
-			continue
-		}
-
-		// Split Method
-		checkName := name
-		if strings.Contains(name, ".") {
-			parts := strings.Split(name, ".")
-			checkName = parts[1] // Method name
-		}
-
-		if usagesCount[checkName] == 0 {
-			// Special cases
-			if checkName == "String" || checkName == "Error" {
-				continue
-			}
-
-			// If not strict, assume all exported symbols in non-main packages might be used by external consumers
-			// But wait, we don't know if a package is "main" or "lib" easily per declaration,
-			// except checking the file's package declaration.
-			// Let's check the package name of the first finding (all findings for this key should be in same package if unique)
-			if !deadcodeStrict && len(list) > 0 {
-				// We can check if the file belongs to "package main"
-				// But we lost that context in the map, except it is in `Description` or we can re-parse.
-				// Actually, `Description` says "... in package %s".
-				// Or we can just check if package name is "main".
-				// Let's parse it from description or just trust the user uses --strict for libs.
-				// Simpler: if any finding for this symbol is in a "package main", then strictness applies by default (it MUST be used).
-				// If it is in a library package, we only report if --strict is on.
-
-				isMain := strings.Contains(list[0].Description, "package main")
-				if !isMain {
-					continue
-				}
-			}
-
-			results = append(results, list...)
-		}
-	}
-
-	return results, nil
+	return usagesCount
 }
 
 func walk(node ast.Node, usages map[string]int) {
