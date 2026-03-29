@@ -122,6 +122,8 @@ func main() {
 	pflag.String("inspect-dataflow", "", "Inspect how upstream job outputs are injected as environment variables into a specific job by ID")
 	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
 	pflag.Bool("analyze-failures", false, "Analyze and group all failed jobs by their summary error signature")
+	pflag.Bool("analyze-durations", false, "Analyze and display a statistical breakdown of job execution times")
+	pflag.Int("analyze-durations-limit", 10, "Limit the number of slowest jobs displayed in duration analysis")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
 	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
 	pflag.String("heal-tag", "", "Heal all failed jobs with the specified tag")
@@ -458,6 +460,8 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_dataflow", pflag.Lookup("inspect-dataflow"))
 	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
 	viper.BindPFlag("orchestrator.analyze_failures", pflag.Lookup("analyze-failures"))
+	viper.BindPFlag("orchestrator.analyze_durations", pflag.Lookup("analyze-durations"))
+	viper.BindPFlag("orchestrator.analyze_durations_limit", pflag.Lookup("analyze-durations-limit"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
 	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
 	viper.BindPFlag("orchestrator.heal_tag", pflag.Lookup("heal-tag"))
@@ -1046,6 +1050,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.analyze_failures") {
 		host := viper.GetString("orchestrator.host")
 		analyzeFailures(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analyze_durations") {
+		host := viper.GetString("orchestrator.host")
+		limit := viper.GetInt("orchestrator.analyze_durations_limit")
+		analyzeDurations(host, limit)
 		return nil
 	}
 
