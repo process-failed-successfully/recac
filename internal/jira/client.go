@@ -635,7 +635,7 @@ func isDoneStatus(status string) bool {
 
 // GetFirstProjectKey fetches the key of the first visible project.
 func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
-	url := fmt.Sprintf("%s/rest/api/3/project", c.BaseURL)
+	url := fmt.Sprintf("%s/rest/api/2/project", c.BaseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
