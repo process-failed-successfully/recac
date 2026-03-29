@@ -65,6 +65,8 @@ const DashboardHTML = `
                 <!-- Buttons will be injected here if supported -->
             </div>
             <div>
+                <button type="button" onclick="generateChangelog(this)" aria-label="Generate Changelog" style="background-color: #17a2b8; margin-right: 10px;">Generate Changelog</button>
+                <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; margin-right: 10px;">Generate Postmortem</button>
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
@@ -191,6 +193,16 @@ const DashboardHTML = `
                 <h2 id="explain-title">Job Explanation</h2>
                 <div id="explain-content" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
                     Loading explanation...
+                </div>
+            </div>
+        </div>
+
+        <div id="reportModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeReportModal()">&times;</button>
+                <h2 id="report-title" style="margin-bottom: 0;">Report</h2>
+                <div id="report-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-family: monospace;">
+                    Loading report...
                 </div>
             </div>
         </div>
@@ -978,6 +990,70 @@ const DashboardHTML = `
                 console.error(err);
                 contentDiv.innerHTML = '<span style="color:red">Error rendering analysis: ' + err.message + '</span>';
             }
+        }
+
+        async function generateChangelog(btn) {
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Generating...';
+
+            const modal = document.getElementById('reportModal');
+            const titleElement = document.getElementById('report-title');
+            const contentDiv = document.getElementById('report-content');
+
+            modal.style.display = 'block';
+            titleElement.innerText = 'Changelog Report';
+            contentDiv.innerHTML = 'Generating AI changelog report...';
+
+            try {
+                const res = await fetch('/changelog/generate');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to generate changelog: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                contentDiv.innerText = data.changelog || 'No changelog generated.';
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error generating changelog: ' + err.message + '</span>';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
+
+        async function generatePostmortem(btn) {
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Generating...';
+
+            const modal = document.getElementById('reportModal');
+            const titleElement = document.getElementById('report-title');
+            const contentDiv = document.getElementById('report-content');
+
+            modal.style.display = 'block';
+            titleElement.innerText = 'Postmortem Report';
+            contentDiv.innerHTML = 'Generating AI postmortem report...';
+
+            try {
+                const res = await fetch('/postmortem/generate');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to generate postmortem: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                contentDiv.innerText = data.postmortem || 'No postmortem generated.';
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error generating postmortem: ' + err.message + '</span>';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').style.display = 'none';
         }
 
         function closeAnalyzeFailuresModal() {

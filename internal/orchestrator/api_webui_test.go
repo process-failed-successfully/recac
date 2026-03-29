@@ -130,4 +130,13 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "async function explainJob(id)")
 	assert.Contains(t, html, "fetch('/jobs/' + encodeURIComponent(id) + '/explain')")
 	assert.Contains(t, html, "function closeExplainModal()")
+
+	// Verify Reports functionality exists
+	assert.Contains(t, html, "Generate Changelog")
+	assert.Contains(t, html, "Generate Postmortem")
+	assert.Contains(t, html, "async function generateChangelog(btn)")
+	assert.Contains(t, html, "fetch('/changelog/generate')")
+	assert.Contains(t, html, "async function generatePostmortem(btn)")
+	assert.Contains(t, html, "fetch('/postmortem/generate')")
+	assert.Contains(t, html, "id=\"reportModal\"")
 }
