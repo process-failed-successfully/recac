@@ -22,7 +22,7 @@ type Client struct {
 // NewClient creates a new Jira client.
 func NewClient(baseURL, username, apiToken string) *Client {
 	return &Client{
-		BaseURL:  baseURL,
+		BaseURL:  strings.TrimRight(baseURL, "/"),
 		Username: username,
 		APIToken: apiToken,
 		HTTPClient: &http.Client{
