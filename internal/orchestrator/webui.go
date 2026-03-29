@@ -70,6 +70,7 @@ const DashboardHTML = `
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
+                <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
                 <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
                 <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
             </div>
@@ -92,6 +93,16 @@ const DashboardHTML = `
                 <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
                     <pre id="dry-run-output" style="margin: 0; font-size: 0.9em; white-space: pre-wrap;"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div id="timelineModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeTimeline()">&times;</button>
+                <h2 style="margin-bottom: 0;">Execution Timeline</h2>
+                <div id="timelineDiv" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
+                    Loading timeline...
                 </div>
             </div>
         </div>
@@ -923,6 +934,37 @@ const DashboardHTML = `
 
         function closeGraph() {
             document.getElementById('graphModal').style.display = 'none';
+        }
+
+        async function viewTimeline() {
+            const modal = document.getElementById('timelineModal');
+            const timelineDiv = document.getElementById('timelineDiv');
+            modal.style.display = 'block';
+            timelineDiv.innerHTML = 'Loading timeline...';
+
+            try {
+                const res = await fetch('/jobs/export/timeline');
+                if (!res.ok) {
+                    timelineDiv.innerHTML = '<span style="color:red">Failed to load timeline: ' + await res.text() + '</span>';
+                    return;
+                }
+                const timelineText = await res.text();
+                if (!timelineText.trim() || timelineText.trim() === "gantt\n    title Job Execution Timeline") {
+                    timelineDiv.innerHTML = '<span>No jobs to display</span>';
+                    return;
+                }
+
+                // Render mermaid
+                const { svg } = await mermaid.render('mermaidTimeline', timelineText);
+                timelineDiv.innerHTML = svg;
+            } catch (err) {
+                console.error(err);
+                timelineDiv.innerHTML = '<span style="color:red">Error rendering timeline: ' + err.message + '</span>';
+            }
+        }
+
+        function closeTimeline() {
+            document.getElementById('timelineModal').style.display = 'none';
         }
 
         async function openAnalyzeFailuresModal() {
