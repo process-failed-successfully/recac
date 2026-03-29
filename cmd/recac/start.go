@@ -623,136 +623,145 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		cfg.Goal = "Local Session"
 	}
 
-	// Handle detached mode
 	if cfg.Detached {
-		if cfg.SessionName == "" {
-			return fmt.Errorf("--name is required when using --detached")
-		}
-
-		executable, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("failed to get executable path: %v", err)
-		}
-
-		executable, err = filepath.EvalSymlinks(executable)
-		if err != nil {
-			executable, _ = filepath.Abs(executable)
-		} else {
-			executable, _ = filepath.Abs(executable)
-		}
-
-		// Verify executable
-		if stat, err := os.Stat(executable); err != nil || stat.Mode()&0111 == 0 {
-			// Fallback to recac-app in CWD
-			cwd, _ := os.Getwd()
-			fallback := filepath.Join(cwd, "recac-app")
-			if stat2, err2 := os.Stat(fallback); err2 == nil && stat2.Mode()&0111 != 0 {
-				executable = fallback
-			} else {
-				return fmt.Errorf("executable not found or not executable at %s", executable)
-			}
-		}
-
-		command := []string{executable, "start"}
-		if cfg.ProjectPath != "" {
-			command = append(command, "--path", cfg.ProjectPath)
-		}
-		if cfg.IsMock {
-			command = append(command, "--mock")
-		}
-		if cfg.MaxIterations != 20 {
-			command = append(command, "--max-iterations", fmt.Sprintf("%d", cfg.MaxIterations))
-		}
-		if cfg.ManagerFrequency != 5 {
-			command = append(command, "--manager-frequency", fmt.Sprintf("%d", cfg.ManagerFrequency))
-		}
-		if cfg.TaskMaxIterations != 10 {
-			command = append(command, "--task-max-iterations", fmt.Sprintf("%d", cfg.TaskMaxIterations))
-		}
-		if cfg.AllowDirty {
-			command = append(command, "--allow-dirty")
-		}
-
-		projectPath := cfg.ProjectPath
-		if projectPath == "" {
-			projectPath = "."
-		}
-
-		sm, err := sessionManagerFactory()
-		if err != nil {
-			return fmt.Errorf("failed to create session manager: %v", err)
-		}
-
-		// Get the starting commit SHA
-		var startSHA string
-		gitClient := gitClientFactory()
-		sha, err := gitClient.CurrentCommitSHA(projectPath)
-		if err != nil {
-			fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
-		} else {
-			startSHA = sha
-		}
-
-		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
-		if err != nil {
-			return fmt.Errorf("failed to start detached session: %v", err)
-		}
-
-		// Save the start commit SHA to the session state
-		if startSHA != "" {
-			session.StartCommitSHA = startSHA
-			if err := sm.SaveSession(session); err != nil {
-				fmt.Printf("Warning: failed to save start commit SHA for session %s: %v\n", cfg.SessionName, err)
-			}
-		}
-
-		fmt.Printf("Session '%s' started in background (PID: %d)\n", cfg.SessionName, session.PID)
-		fmt.Printf("Log file: %s\n", session.LogFile)
-		return nil
+		return runDetachedWorkflow(cfg)
 	}
 
-	// Mock mode
 	if cfg.IsMock {
-		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
-		dockerCli, _ := docker.NewMockClient()
-		agentClient := agent.NewMockAgent()
-
-		projectPath := cfg.ProjectPath
-		if projectPath == "" {
-			projectPath = "/tmp/recac-mock-workspace"
-		}
-
-		projectName := cfg.ProjectName
-		if projectName == "" {
-			projectName = "mock-project"
-		}
-
-		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
-		if cfg.Logger != nil {
-			session.Logger = cfg.Logger
-		}
-		session.MaxIterations = cfg.MaxIterations
-		session.TaskMaxIterations = cfg.TaskMaxIterations
-		session.ManagerFrequency = cfg.ManagerFrequency
-		session.StreamOutput = cfg.Stream
-		session.AutoMerge = cfg.AutoMerge
-		session.SkipQA = cfg.SkipQA
-		session.ManagerFirst = cfg.ManagerFirst
-
-		if cfg.JiraEpicKey != "" {
-			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
-		}
-
-		if err := session.Start(ctx); err != nil {
-			if ctx.Err() != nil {
-				return nil
-			}
-			return err
-		}
-		return session.RunLoop(ctx)
+		return runMockWorkflow(ctx, cfg)
 	}
 
-	// Normal mode
+	return runNormalWorkflow(ctx, cfg)
+}
+
+func runDetachedWorkflow(cfg SessionConfig) error {
+	if cfg.SessionName == "" {
+		return fmt.Errorf("--name is required when using --detached")
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %v", err)
+	}
+
+	executable, err = filepath.EvalSymlinks(executable)
+	if err != nil {
+		executable, _ = filepath.Abs(executable)
+	} else {
+		executable, _ = filepath.Abs(executable)
+	}
+
+	// Verify executable
+	if stat, err := os.Stat(executable); err != nil || stat.Mode()&0111 == 0 {
+		// Fallback to recac-app in CWD
+		cwd, _ := os.Getwd()
+		fallback := filepath.Join(cwd, "recac-app")
+		if stat2, err2 := os.Stat(fallback); err2 == nil && stat2.Mode()&0111 != 0 {
+			executable = fallback
+		} else {
+			return fmt.Errorf("executable not found or not executable at %s", executable)
+		}
+	}
+
+	command := []string{executable, "start"}
+	if cfg.ProjectPath != "" {
+		command = append(command, "--path", cfg.ProjectPath)
+	}
+	if cfg.IsMock {
+		command = append(command, "--mock")
+	}
+	if cfg.MaxIterations != 20 {
+		command = append(command, "--max-iterations", fmt.Sprintf("%d", cfg.MaxIterations))
+	}
+	if cfg.ManagerFrequency != 5 {
+		command = append(command, "--manager-frequency", fmt.Sprintf("%d", cfg.ManagerFrequency))
+	}
+	if cfg.TaskMaxIterations != 10 {
+		command = append(command, "--task-max-iterations", fmt.Sprintf("%d", cfg.TaskMaxIterations))
+	}
+	if cfg.AllowDirty {
+		command = append(command, "--allow-dirty")
+	}
+
+	projectPath := cfg.ProjectPath
+	if projectPath == "" {
+		projectPath = "."
+	}
+
+	sm, err := sessionManagerFactory()
+	if err != nil {
+		return fmt.Errorf("failed to create session manager: %v", err)
+	}
+
+	// Get the starting commit SHA
+	var startSHA string
+	gitClient := gitClientFactory()
+	sha, err := gitClient.CurrentCommitSHA(projectPath)
+	if err != nil {
+		fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
+	} else {
+		startSHA = sha
+	}
+
+	session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
+	if err != nil {
+		return fmt.Errorf("failed to start detached session: %v", err)
+	}
+
+	// Save the start commit SHA to the session state
+	if startSHA != "" {
+		session.StartCommitSHA = startSHA
+		if err := sm.SaveSession(session); err != nil {
+			fmt.Printf("Warning: failed to save start commit SHA for session %s: %v\n", cfg.SessionName, err)
+		}
+	}
+
+	fmt.Printf("Session '%s' started in background (PID: %d)\n", cfg.SessionName, session.PID)
+	fmt.Printf("Log file: %s\n", session.LogFile)
+	return nil
+}
+
+func runMockWorkflow(ctx context.Context, cfg SessionConfig) error {
+	fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
+	dockerCli, _ := docker.NewMockClient()
+	agentClient := agent.NewMockAgent()
+
+	projectPath := cfg.ProjectPath
+	if projectPath == "" {
+		projectPath = "/tmp/recac-mock-workspace"
+	}
+
+	projectName := cfg.ProjectName
+	if projectName == "" {
+		projectName = "mock-project"
+	}
+
+	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
+	if cfg.Logger != nil {
+		session.Logger = cfg.Logger
+	}
+	session.MaxIterations = cfg.MaxIterations
+	session.TaskMaxIterations = cfg.TaskMaxIterations
+	session.ManagerFrequency = cfg.ManagerFrequency
+	session.StreamOutput = cfg.Stream
+	session.AutoMerge = cfg.AutoMerge
+	session.SkipQA = cfg.SkipQA
+	session.ManagerFirst = cfg.ManagerFirst
+
+	if cfg.JiraEpicKey != "" {
+		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
+	}
+
+	if err := session.Start(ctx); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return err
+	}
+	return session.RunLoop(ctx)
+}
+
+func runNormalWorkflow(ctx context.Context, cfg SessionConfig) error {
 	fmt.Printf("[%s] Starting RECAC session...\n", cfg.SessionName)
 
 	projectPath := cfg.ProjectPath
