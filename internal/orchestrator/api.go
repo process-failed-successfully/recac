@@ -2202,11 +2202,19 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		tag := r.URL.Query().Get("tag")
 		status := r.URL.Query().Get("status")
 		match := r.URL.Query().Get("match")
+		olderThanStr := r.URL.Query().Get("older_than")
 
 		var count int
 		var err error
 
-		if tag != "" {
+		if olderThanStr != "" {
+			d, parseErr := time.ParseDuration(olderThanStr)
+			if parseErr != nil {
+				http.Error(w, fmt.Sprintf("invalid duration for older_than: %v", parseErr), http.StatusBadRequest)
+				return
+			}
+			count, err = orch.PurgeJobsOlderThan(d, logger)
+		} else if tag != "" {
 			count, err = orch.PurgeJobsByTag(tag, logger)
 		} else if status != "" {
 			count, err = orch.PurgeJobsByStatus(status, logger)

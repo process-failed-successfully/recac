@@ -3969,6 +3969,60 @@ func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, err
 	return len(purgedIDs), nil
 }
 
+// PurgeJobsOlderThan purges all jobs from history (both in-memory and persistent) that are older than the specified duration.
+func (o *Orchestrator) PurgeJobsOlderThan(d time.Duration, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	cutoff := time.Now().Add(-d)
+	purgedIDs := make(map[string]bool)
+
+	// 1. Purge from memory
+	var newCompleted []JobInfo
+	for _, job := range o.completedJobs {
+		cmpTime := job.EndTime
+		if cmpTime.IsZero() {
+			cmpTime = job.StartTime
+		}
+		if cmpTime.Before(cutoff) {
+			purgedIDs[job.ID] = true
+			if logger != nil {
+				logger.Info("Job purged from history (older than cutoff)", "id", job.ID, "duration", d)
+			}
+			o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+		} else {
+			newCompleted = append(newCompleted, job)
+		}
+	}
+	o.completedJobs = newCompleted
+
+	// 2. Purge from persistence
+	if o.Persistence != nil {
+		jobsInDb, err := o.Persistence.GetJobs(10000)
+		if err == nil {
+			for _, job := range jobsInDb {
+				cmpTime := job.EndTime
+				if cmpTime.IsZero() {
+					cmpTime = job.StartTime
+				}
+				if cmpTime.Before(cutoff) {
+					if err := o.Persistence.PurgeJob(job.ID); err == nil {
+						if !purgedIDs[job.ID] {
+							purgedIDs[job.ID] = true
+							if logger != nil {
+								logger.Info("Job purged from history (older than cutoff) (DB only)", "id", job.ID, "duration", d)
+							}
+							o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return len(purgedIDs), nil
+}
+
 // ClearHistory clears the in-memory history and the persistent history.
 func (o *Orchestrator) ClearHistory(logger *slog.Logger) (int, error) {
 	o.mu.Lock()
