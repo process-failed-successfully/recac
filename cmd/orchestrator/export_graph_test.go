@@ -32,6 +32,29 @@ func TestExportGraph_SuccessStdout(t *testing.T) {
 	assert.Equal(t, "graph TD;", out.String())
 }
 
+func TestExportGraph_SuccessStdoutPlantUML(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/export/graph", r.URL.Path)
+		assert.Equal(t, "plantuml", r.URL.Query().Get("format"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("@startuml"))
+	}))
+	defer server.Close()
+
+	var out bytes.Buffer
+	stdout = &out
+
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+
+	exportGraph(server.URL, "-", "plantuml")
+
+	assert.False(t, exitCalled)
+	assert.Equal(t, "@startuml", out.String())
+}
+
 func TestExportGraph_SuccessFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/jobs/export/graph", r.URL.Path)

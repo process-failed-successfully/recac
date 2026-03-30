@@ -9,8 +9,8 @@ import (
 )
 
 func exportGraph(host, path, format string) {
-	if format != "mermaid" && format != "dot" {
-		fmt.Fprintf(stdout, "Invalid format: %s. Must be 'mermaid' or 'dot'.\n", format)
+	if format != "mermaid" && format != "dot" && format != "plantuml" {
+		fmt.Fprintf(stdout, "Invalid format: %s. Must be 'mermaid', 'dot', or 'plantuml'.\n", format)
 		exitFunc(1)
 		return
 	}

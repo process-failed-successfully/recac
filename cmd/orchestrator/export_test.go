@@ -283,6 +283,22 @@ func TestExportGraph(t *testing.T) {
 		assert.Contains(t, buf.String(), "graph TD; A-->B;")
 	})
 
+	t.Run("StdoutSuccessPlantUML", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs/export/graph", r.URL.Path)
+			assert.Equal(t, "plantuml", r.URL.Query().Get("format"))
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("@startuml A-->B; @enduml"))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		exportGraph(server.URL, "-", "plantuml")
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "@startuml A-->B; @enduml")
+	})
+
 	t.Run("FileSuccess", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/jobs/export/graph", r.URL.Path)
