@@ -45,6 +45,16 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	// Verify clear history button renders
 	assert.Contains(t, html, "deleteAction(this, \\'/history\\')")
 
+	// Verify status CSS classes exist for all statuses
+	assert.Contains(t, html, ".status-Completed")
+	assert.Contains(t, html, ".status-Failed, .status-Error")
+	assert.Contains(t, html, ".status-Running, .status-Active, .status-Spawning")
+	assert.Contains(t, html, ".status-Pending, .status-Pending-Approval")
+	assert.Contains(t, html, ".status-Canceled")
+
+	// Verify dynamic status class generation handles spaces
+	assert.Contains(t, html, "<td class=\"status-' + safeStatus.replace(/\\s+/g, '-') + '\">")
+
 	// Verify clone job JS function exists
 	assert.Contains(t, html, "function cloneJob(")
 

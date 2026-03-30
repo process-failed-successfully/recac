@@ -46,3 +46,7 @@
 
 **Learning:** Buttons triggering async network requests (like `fetch`) that don't have loading states can be frustrating to users because they lack visual feedback, making users unsure if their click registered, potentially leading to double-submissions.
 **Action:** Always ensure async buttons disable themselves and update their text (e.g., to "Wait..." or a spinner) while the request is in flight, and use a `finally` block to guarantee the original state is restored.
+
+## 2026-03-30 - Sanitize CSS Class Names Built from Data
+**Learning:** Job statuses in the Orchestrator WebUI can contain spaces (e.g., "Pending Approval"). When dynamically injecting these into HTML as CSS class names (like `class="status-${status}"`), spaces create invalid multiple class assignments, breaking styles.
+**Action:** Always sanitize dynamic strings replacing spaces with hyphens (e.g., `status.replace(/\s+/g, '-')`) before using them as class names, and ensure matching CSS rules exist for all possible states (like `.status-Canceled`, `.status-Error`, `.status-Pending-Approval`).
