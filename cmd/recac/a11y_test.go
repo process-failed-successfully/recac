@@ -10,7 +10,6 @@ import (
 
 	"recac/internal/agent"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -244,9 +243,3 @@ func TestA11yCmd_Run(t *testing.T) {
 	})
 }
 
-// Helper to avoid polluting global state
-func NewRootCmdForTest() *cobra.Command {
-	// In this codebase, commands are added to global rootCmd in init().
-	// So we can reuse rootCmd but we need to reset flags.
-	return rootCmd
-}

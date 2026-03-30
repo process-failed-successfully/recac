@@ -28,10 +28,6 @@ func NewJiraManager(baseURL, username, apiToken, projectKey string) *JiraManager
 	}
 }
 
-func (m *JiraManager) Authenticate(ctx context.Context) error {
-	return m.Client.Authenticate(ctx)
-}
-
 func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoURL, provider, model string) (string, map[string]string, error) {
 	scenario, ok := scenarios.Registry[scenarioName]
 	if !ok {
