@@ -76,6 +76,39 @@ func TestOrchestrator_PurgeJobsByStatus(t *testing.T) {
 	mockPersistence.AssertExpectations(t)
 }
 
+func TestOrchestrator_PurgeJobsOlderThan(t *testing.T) {
+	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
+
+	mockPersistence := &mockPersistenceClear{}
+	orch.SetPersistence(mockPersistence)
+
+	now := time.Now()
+
+	job1 := JobInfo{ID: "JOB-1", StartTime: now.Add(-30 * time.Hour), EndTime: now.Add(-29 * time.Hour)}
+	job2 := JobInfo{ID: "JOB-2", StartTime: now.Add(-10 * time.Hour), EndTime: now.Add(-9 * time.Hour)}
+	job3 := JobInfo{ID: "JOB-3", StartTime: now.Add(-48 * time.Hour)} // No EndTime
+
+	orch.completedJobs = append(orch.completedJobs, job1, job2, job3)
+
+	dbJobs := []JobInfo{
+		{ID: "JOB-4", StartTime: now.Add(-5 * time.Hour), EndTime: now.Add(-4 * time.Hour)},
+		{ID: "JOB-5", StartTime: now.Add(-100 * time.Hour), EndTime: now.Add(-99 * time.Hour)},
+	}
+	mockPersistence.On("GetJobs", 10000).Return(dbJobs, nil)
+	mockPersistence.On("PurgeJob", "JOB-5").Return(nil)
+
+	// Purge jobs older than 24 hours
+	count, err := orch.PurgeJobsOlderThan(24*time.Hour, silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, count) // JOB-1, JOB-3, JOB-5
+
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 1)
+	assert.Equal(t, "JOB-2", completed[0].ID)
+
+	mockPersistence.AssertExpectations(t)
+}
+
 func TestOrchestrator_PurgeJobsByMatch(t *testing.T) {
 	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
 

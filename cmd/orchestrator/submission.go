@@ -1436,6 +1436,47 @@ func purgeJobsByMatch(host, match string) {
 }
 
 
+func purgeJobsOlderThan(host, olderThan string) {
+	urlStr := fmt.Sprintf("%s/history?older_than=%s", host, url.QueryEscape(olderThan))
+	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to purge jobs older than %s: %s\n", olderThan, strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	cleared, ok := result["cleared"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully purged %d jobs older than '%s'.\n", int(cleared), olderThan)
+}
+
 func updateDependencies(host, jobID string, deps []string) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/dependencies", host, url.PathEscape(jobID))
 
