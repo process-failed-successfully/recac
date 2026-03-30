@@ -42,3 +42,7 @@
 ## 2024-05-19 - Screen Reader Modals
 **Learning:** Vanilla JS modals defined with just CSS classes (`.modal`) in pure HTML strings aren't inherently recognized as dialogs by screen readers, leading to confusing navigation states for users relying on assistive tech.
 **Action:** Always include `role="dialog"` and `aria-modal="true"` directly on the parent modal wrapper element when building manual HTML modals to ensure they trap screen reader context properly.
+## 2024-03-27 - Added Loading States to Async Buttons
+
+**Learning:** Buttons triggering async network requests (like `fetch`) that don't have loading states can be frustrating to users because they lack visual feedback, making users unsure if their click registered, potentially leading to double-submissions.
+**Action:** Always ensure async buttons disable themselves and update their text (e.g., to "Wait..." or a spinner) while the request is in flight, and use a `finally` block to guarantee the original state is restored.
