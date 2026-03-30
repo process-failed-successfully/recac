@@ -53,6 +53,53 @@ func TestExportGraphToMermaid(t *testing.T) {
 	assert.NotContains(t, mermaid, "job_unknown --> job_3;")
 }
 
+func TestExportGraphToPlantUML(t *testing.T) {
+	jobs := []JobInfo{
+		{
+			ID:     "job-1",
+			Status: "Completed",
+			WorkItem: WorkItem{
+				DependsOn: []string{},
+			},
+		},
+		{
+			ID:     "job-2",
+			Status: "Failed",
+			WorkItem: WorkItem{
+				DependsOn: []string{"job-1"},
+			},
+		},
+		{
+			ID:     "job.3", // Test sanitization
+			Status: "Running",
+			WorkItem: WorkItem{
+				DependsOn: []string{"job-1", "job-unknown"}, // Test unknown dependency ignores edge
+			},
+		},
+	}
+
+	plantuml := ExportGraphToPlantUML(jobs)
+
+	// Check header
+	assert.True(t, strings.HasPrefix(plantuml, "@startuml\n"))
+	assert.Contains(t, plantuml, "skinparam componentStyle rectangle")
+
+	// Check nodes mapping
+	assert.Contains(t, plantuml, "component \"job-1\\n(Completed)\" as job_1 #LightGreen")
+	assert.Contains(t, plantuml, "component \"job-2\\n(Failed)\" as job_2 #LightCoral")
+	assert.Contains(t, plantuml, "component \"job.3\\n(Running)\" as job_3 #LightBlue")
+
+	// Check edges
+	assert.Contains(t, plantuml, "job_1 --> job_2")
+	assert.Contains(t, plantuml, "job_1 --> job_3")
+
+	// Edge for job-unknown should not exist
+	assert.NotContains(t, plantuml, "job_unknown --> job_3")
+
+	// Check footer
+	assert.True(t, strings.HasSuffix(plantuml, "@enduml\n"))
+}
+
 func TestExportGraphToDOT(t *testing.T) {
 	jobs := []JobInfo{
 		{

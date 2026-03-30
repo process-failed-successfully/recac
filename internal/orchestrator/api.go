@@ -508,8 +508,11 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		case "mermaid":
 			w.Header().Set("Content-Type", "text/plain")
 			graphStr = ExportGraphToMermaid(jobs)
+		case "plantuml":
+			w.Header().Set("Content-Type", "text/plain")
+			graphStr = ExportGraphToPlantUML(jobs)
 		default:
-			http.Error(w, "Invalid format. Supported formats: mermaid, dot", http.StatusBadRequest)
+			http.Error(w, "Invalid format. Supported formats: mermaid, dot, plantuml", http.StatusBadRequest)
 			return
 		}
 

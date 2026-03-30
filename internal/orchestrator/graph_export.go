@@ -78,6 +78,75 @@ func ExportGraphToMermaid(jobs []JobInfo) string {
 	return builder.String()
 }
 
+// sanitizePlantUMLNodeName is a helper to sanitize job IDs for PlantUML node names
+func sanitizePlantUMLNodeName(id string) string {
+	var sb strings.Builder
+	sb.Grow(len(id))
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c == '-' || c == '.' {
+			sb.WriteByte('_')
+		} else {
+			sb.WriteByte(c)
+		}
+	}
+	return sb.String()
+}
+
+// ExportGraphToPlantUML converts a list of jobs into a PlantUML representation.
+func ExportGraphToPlantUML(jobs []JobInfo) string {
+	var builder strings.Builder
+
+	builder.WriteString("@startuml\n")
+	builder.WriteString("skinparam componentStyle rectangle\n\n")
+
+	// Output nodes with styling based on status
+	for _, job := range jobs {
+		nodeName := sanitizePlantUMLNodeName(job.ID)
+
+		color := "#LightGray"
+		switch strings.ToLower(job.Status) {
+		case "completed":
+			color = "#LightGreen"
+		case "failed", "error":
+			color = "#LightCoral"
+		case "running", "active", "spawning":
+			color = "#LightBlue"
+		case "pending", "pending approval":
+			color = "#LightYellow"
+		case "canceled":
+			color = "#Gainsboro"
+		}
+
+		label := fmt.Sprintf("%s\\n(%s)", job.ID, job.Status)
+		builder.WriteString(fmt.Sprintf("component \"%s\" as %s %s\n", label, nodeName, color))
+	}
+
+	builder.WriteString("\n")
+
+	// Output edges
+	for _, job := range jobs {
+		nodeName := sanitizePlantUMLNodeName(job.ID)
+		for _, dep := range job.WorkItem.DependsOn {
+			// Find dependency in the job list
+			depExists := false
+			for _, dJob := range jobs {
+				if dJob.ID == dep {
+					depExists = true
+					break
+				}
+			}
+			if depExists {
+				depNodeName := sanitizePlantUMLNodeName(dep)
+				builder.WriteString(fmt.Sprintf("%s --> %s\n", depNodeName, nodeName))
+			}
+		}
+	}
+
+	builder.WriteString("@enduml\n")
+	return builder.String()
+}
+
 // sanitizeDotNodeName is a helper to sanitize job IDs for DOT node names
 func sanitizeDotNodeName(id string) string {
 	var sb strings.Builder
