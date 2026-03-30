@@ -69,6 +69,7 @@ const DashboardHTML = `
                 <button type="button" onclick="generateChangelog(this)" aria-label="Generate Changelog" style="background-color: #17a2b8; margin-right: 10px;">Generate Changelog</button>
                 <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; margin-right: 10px;">Generate Postmortem</button>
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
+                <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; margin-right: 10px;">Analyze Durations</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
@@ -224,6 +225,16 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeFailuresModal()">&times;</button>
                 <h2 style="margin-bottom: 0;">Analyze Failures</h2>
                 <div id="analyze-failures-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    Loading analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="analyzeDurationsModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeDurationsModal()">&times;</button>
+                <h2 style="margin-bottom: 0;">Analyze Durations</h2>
+                <div id="analyze-durations-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -1101,6 +1112,66 @@ const DashboardHTML = `
 
         function closeAnalyzeFailuresModal() {
             document.getElementById('analyzeFailuresModal').style.display = 'none';
+        }
+
+        async function openAnalyzeDurationsModal() {
+            const modal = document.getElementById('analyzeDurationsModal');
+            const contentDiv = document.getElementById('analyze-durations-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Loading analysis...';
+
+            try {
+                const res = await fetch('/jobs/analyze/durations?limit=10');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to load duration analysis: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                if (!data || data.total_jobs === 0) {
+                    contentDiv.innerHTML = '<span>No valid completed jobs with duration found.</span>';
+                    return;
+                }
+
+                let html = '<h3>Overall Statistics</h3>';
+                html += '<div style="display: flex; gap: 20px; flex-wrap: wrap;">';
+                html += '<div><strong>Total Jobs:</strong> ' + data.total_jobs + '</div>';
+                html += '<div><strong>Mean:</strong> ' + (data.mean_duration_ms / 1000).toFixed(2) + 's</div>';
+                html += '<div><strong>Median:</strong> ' + (data.median_duration_ms / 1000).toFixed(2) + 's</div>';
+                html += '<div><strong>Min:</strong> ' + (data.min_duration_ms / 1000).toFixed(2) + 's</div>';
+                html += '<div><strong>Max:</strong> ' + (data.max_duration_ms / 1000).toFixed(2) + 's</div>';
+                html += '<div><strong>Total:</strong> ' + (data.total_duration_ms / 1000).toFixed(2) + 's</div>';
+                html += '</div>';
+
+                if (data.tag_stats && data.tag_stats.length > 0) {
+                    html += '<h3 style="margin-top: 20px;">Average Duration by Tag</h3>';
+                    html += '<table><thead><tr><th>Tag</th><th>Count</th><th>Mean Duration (s)</th></tr></thead><tbody>';
+                    data.tag_stats.forEach(ts => {
+                        html += '<tr><td>' + escapeHTML(ts.tag) + '</td><td>' + ts.count + '</td><td>' + (ts.mean_duration_ms / 1000).toFixed(2) + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                if (data.top_slowest && data.top_slowest.length > 0) {
+                    html += '<h3 style="margin-top: 20px;">Top ' + data.top_slowest.length + ' Slowest Jobs</h3>';
+                    html += '<table><thead><tr><th>ID</th><th>Summary</th><th>Status</th><th>Duration (s)</th></tr></thead><tbody>';
+                    data.top_slowest.forEach(job => {
+                        const start = new Date(job.start_time).getTime();
+                        const end = new Date(job.end_time).getTime();
+                        const duration = ((end - start) / 1000).toFixed(2);
+                        html += '<tr><td>' + escapeHTML(job.id) + '</td><td>' + escapeHTML(job.summary) + '</td><td class="status-' + escapeHTML(job.status).replace(/\s+/g, '-') + '">' + escapeHTML(job.status) + '</td><td>' + duration + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                contentDiv.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error fetching duration analysis: ' + err.message + '</span>';
+            }
+        }
+
+        function closeAnalyzeDurationsModal() {
+            document.getElementById('analyzeDurationsModal').style.display = 'none';
         }
 
         function openSearchLogsModal() {

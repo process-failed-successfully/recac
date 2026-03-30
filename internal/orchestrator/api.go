@@ -231,6 +231,137 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 	mux.HandleFunc("GET /diagnose", handleDiagnose(orch, logger))
 
+
+	mux.HandleFunc("GET /jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
+		limitStr := r.URL.Query().Get("limit")
+		limit := 10 // Default limit
+		if limitStr != "" {
+			if l, err := strconv.Atoi(limitStr); err == nil && l >= 0 {
+				limit = l
+			}
+		}
+
+		jobs := orch.GetCompletedJobs()
+		var validJobs []JobInfo
+		for _, job := range jobs {
+			if !job.StartTime.IsZero() && !job.EndTime.IsZero() {
+				dur := job.EndTime.Sub(job.StartTime)
+				if dur > 0 {
+					validJobs = append(validJobs, job)
+				}
+			}
+		}
+
+		type TagStat struct {
+			Tag          string  `json:"tag"`
+			Count        int     `json:"count"`
+			MeanDuration float64 `json:"mean_duration_ms"` // in milliseconds for easier frontend formatting
+		}
+
+		type DurationStats struct {
+			TotalJobs      int            `json:"total_jobs"`
+			TotalDuration  float64        `json:"total_duration_ms"`
+			MeanDuration   float64        `json:"mean_duration_ms"`
+			MedianDuration float64        `json:"median_duration_ms"`
+			MinDuration    float64        `json:"min_duration_ms"`
+			MaxDuration    float64        `json:"max_duration_ms"`
+			TagStats       []TagStat      `json:"tag_stats"`
+			TopSlowest     []JobInfo      `json:"top_slowest"`
+		}
+
+		if len(validJobs) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(DurationStats{TagStats: []TagStat{}, TopSlowest: []JobInfo{}})
+			return
+		}
+
+		var totalDuration time.Duration
+		var minDuration time.Duration = -1
+		var maxDuration time.Duration
+		var durations []time.Duration
+		tagDurations := make(map[string][]time.Duration)
+
+		for _, job := range validJobs {
+			dur := job.EndTime.Sub(job.StartTime)
+			totalDuration += dur
+			durations = append(durations, dur)
+
+			if minDuration == -1 || dur < minDuration {
+				minDuration = dur
+			}
+			if dur > maxDuration {
+				maxDuration = dur
+			}
+
+			for _, tag := range job.WorkItem.Tags {
+				tagDurations[tag] = append(tagDurations[tag], dur)
+			}
+		}
+
+		meanDuration := totalDuration / time.Duration(len(validJobs))
+
+		sort.Slice(durations, func(i, j int) bool {
+			return durations[i] < durations[j]
+		})
+
+		var medianDuration time.Duration
+		mid := len(durations) / 2
+		if len(durations)%2 == 0 {
+			medianDuration = (durations[mid-1] + durations[mid]) / 2
+		} else {
+			medianDuration = durations[mid]
+		}
+
+		sort.Slice(validJobs, func(i, j int) bool {
+			return validJobs[i].EndTime.Sub(validJobs[i].StartTime) > validJobs[j].EndTime.Sub(validJobs[j].StartTime)
+		})
+
+		topSlowest := validJobs
+		if len(topSlowest) > limit {
+			topSlowest = topSlowest[:limit]
+		}
+
+		var tagStats []TagStat
+		for tag, tagDurs := range tagDurations {
+			var tagTotal time.Duration
+			for _, d := range tagDurs {
+				tagTotal += d
+			}
+			tagStats = append(tagStats, TagStat{
+				Tag:          tag,
+				Count:        len(tagDurs),
+				MeanDuration: float64(tagTotal.Milliseconds()) / float64(len(tagDurs)),
+			})
+		}
+
+		sort.Slice(tagStats, func(i, j int) bool {
+			return tagStats[i].MeanDuration > tagStats[j].MeanDuration
+		})
+
+		stats := DurationStats{
+			TotalJobs:      len(validJobs),
+			TotalDuration:  float64(totalDuration.Milliseconds()),
+			MeanDuration:   float64(meanDuration.Milliseconds()),
+			MedianDuration: float64(medianDuration.Milliseconds()),
+			MinDuration:    float64(minDuration.Milliseconds()),
+			MaxDuration:    float64(maxDuration.Milliseconds()),
+			TagStats:       tagStats,
+			TopSlowest:     topSlowest,
+		}
+
+		if stats.TagStats == nil {
+			stats.TagStats = []TagStat{}
+		}
+		if stats.TopSlowest == nil {
+			stats.TopSlowest = []JobInfo{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(stats); err != nil {
+			logger.Error("Failed to encode duration stats", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/search/logs", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
 		if query == "" {
