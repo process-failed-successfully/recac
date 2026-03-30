@@ -66,7 +66,13 @@ const (
 	viewCriticalPath
 	viewBlockers
 	viewDependents
+	viewTags
 )
+
+type TagInfo struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
 
 type DashboardModel struct {
 	host          string
@@ -147,6 +153,11 @@ type blockersMsg struct {
 	Jobs  []orchestrator.JobInfo
 	JobID string
 	Err   error
+}
+
+type tagsMsg struct {
+	Tags []TagInfo
+	Err  error
 }
 
 type dependentsMsg struct {
@@ -240,6 +251,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.analytics = msg.Analytics
 			m.viewState = viewAnalytics
 			m.viewport.SetContent(renderAnalytics(m.analytics))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case tagsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewTags
+			m.viewport.SetContent(renderTags(msg.Tags))
 			m.viewport.GotoTop()
 		}
 		return m, nil
@@ -424,7 +445,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -605,6 +626,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "L":
+			return m, fetchTagsCmd(m.host)
 		case "b":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -1654,7 +1677,10 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+	case viewTags:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -3158,6 +3184,43 @@ func renderJobTable(jobs []orchestrator.JobInfo, title string) string {
 	return sb.String()
 }
 
+func renderTags(tags []TagInfo) string {
+	if len(tags) == 0 {
+		return "No tags found across any jobs.\n\nPress 'q' or 'esc' to go back."
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		Padding(0, 1)
+
+	rowStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Job Tags (%d)", len(tags))) + "\n\n")
+
+	headerCol1 := headerStyle.Width(30).Render("Tag Name")
+	headerCol2 := headerStyle.Width(10).Render("Count")
+	sb.WriteString(fmt.Sprintf("%s %s\n", headerCol1, headerCol2))
+
+	for _, tag := range tags {
+		rowCol1 := rowStyle.Width(30).Render(limitString(tag.Name, 28))
+		rowCol2 := rowStyle.Width(10).Render(fmt.Sprintf("%d", tag.Count))
+		sb.WriteString(fmt.Sprintf("%s %s\n", rowCol1, rowCol2))
+	}
+	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+
+	return sb.String()
+}
+
 func fetchBlockersCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
 		resp, err := http.Get(host + "/jobs/" + id + "/blockers")
@@ -3177,6 +3240,28 @@ func fetchBlockersCmd(host, id string) tea.Cmd {
 		}
 
 		return blockersMsg{Jobs: jobs, JobID: id}
+	}
+}
+
+func fetchTagsCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/tags", host))
+		if err != nil {
+			return tagsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return tagsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var tags []TagInfo
+		if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+			return tagsMsg{Err: err}
+		}
+
+		return tagsMsg{Tags: tags}
 	}
 }
 
