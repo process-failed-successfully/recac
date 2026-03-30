@@ -11,9 +11,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type LogMatch struct {
+type ContextLine struct {
 	LineNumber int    `json:"line_number"`
 	Text       string `json:"text"`
+}
+
+type LogMatch struct {
+	LineNumber    int           `json:"line_number"`
+	Text          string        `json:"text"`
+	ContextBefore []ContextLine `json:"context_before,omitempty"`
+	ContextAfter  []ContextLine `json:"context_after,omitempty"`
 }
 
 type JobLogResult struct {
@@ -23,7 +30,7 @@ type JobLogResult struct {
 	Matches []LogMatch `json:"matches"`
 }
 
-func searchLogs(host, query, tag, status string) {
+func searchLogs(host, query, tag, status string, contextLines int) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/search/logs", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse host URL: %v\n", err)
@@ -38,6 +45,9 @@ func searchLogs(host, query, tag, status string) {
 	}
 	if status != "" {
 		q.Set("status", status)
+	}
+	if contextLines > 0 {
+		q.Set("context", fmt.Sprintf("%d", contextLines))
 	}
 	u.RawQuery = q.Encode()
 
@@ -96,10 +106,25 @@ func searchLogs(host, query, tag, status string) {
 		fmt.Fprintf(stdout, "Summary: %s\n", job.Summary)
 
 		for _, match := range job.Matches {
+			for _, ctx := range match.ContextBefore {
+				fmt.Fprintf(stdout, "  %s %s\n",
+					lineNumStyle.Render(fmt.Sprintf("Line %d:", ctx.LineNumber)),
+					lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render(strings.TrimSpace(ctx.Text)),
+				)
+			}
 			fmt.Fprintf(stdout, "  %s %s\n",
 				lineNumStyle.Render(fmt.Sprintf("Line %d:", match.LineNumber)),
 				textStyle.Render(strings.TrimSpace(match.Text)),
 			)
+			for _, ctx := range match.ContextAfter {
+				fmt.Fprintf(stdout, "  %s %s\n",
+					lineNumStyle.Render(fmt.Sprintf("Line %d:", ctx.LineNumber)),
+					lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render(strings.TrimSpace(ctx.Text)),
+				)
+			}
+			if len(match.ContextBefore) > 0 || len(match.ContextAfter) > 0 {
+				fmt.Fprintln(stdout, "  ---")
+			}
 		}
 		fmt.Fprintln(stdout, "")
 	}

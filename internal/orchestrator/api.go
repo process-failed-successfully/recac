@@ -375,6 +375,13 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			return
 		}
 
+		contextLines := 0
+		if ctxStr := r.URL.Query().Get("context"); ctxStr != "" {
+			if parsed, err := strconv.Atoi(ctxStr); err == nil && parsed > 0 {
+				contextLines = parsed
+			}
+		}
+
 		tagFilter := r.URL.Query().Get("tag")
 		statusFilter := r.URL.Query().Get("status")
 
@@ -402,9 +409,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			filtered = append(filtered, job)
 		}
 
-		type LogMatch struct {
+		type ContextLine struct {
 			LineNumber int    `json:"line_number"`
 			Text       string `json:"text"`
+		}
+
+		type LogMatch struct {
+			LineNumber    int           `json:"line_number"`
+			Text          string        `json:"text"`
+			ContextBefore []ContextLine `json:"context_before,omitempty"`
+			ContextAfter  []ContextLine `json:"context_after,omitempty"`
 		}
 
 		type JobLogResult struct {
@@ -426,19 +440,88 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			lineNum := 1
 			var matches []LogMatch
 
+			var circularBuffer []ContextLine
+			var afterCountdown int
+			var currentMatch *LogMatch
+
 			for scanner.Scan() {
 				line := scanner.Text()
-				if matcher.MatchString(line) {
-					matches = append(matches, LogMatch{
+
+				isMatch := matcher.MatchString(line)
+
+				// If we are currently collecting ContextAfter lines for a previous match
+				if afterCountdown > 0 {
+					currentMatch.ContextAfter = append(currentMatch.ContextAfter, ContextLine{
 						LineNumber: lineNum,
 						Text:       line,
 					})
-					if len(matches) >= 10 { // Limit matches per job to avoid huge responses
-						break
+					afterCountdown--
+
+					// If a new match occurs while we are collecting "after" context,
+					// we just finalize the current match and start a new one
+					if isMatch {
+						// Don't count the new match as an after line, let it be the main match
+						currentMatch.ContextAfter = currentMatch.ContextAfter[:len(currentMatch.ContextAfter)-1]
+						afterCountdown = 0
+					} else if afterCountdown == 0 {
+						matches = append(matches, *currentMatch)
+						currentMatch = nil
+						if len(matches) >= 10 { // Limit matches per job to avoid huge responses
+							break
+						}
 					}
 				}
+
+				if isMatch {
+					if currentMatch != nil {
+						// We hit a new match before finishing the "after" context of the previous one
+						matches = append(matches, *currentMatch)
+						currentMatch = nil
+						if len(matches) >= 10 {
+							break
+						}
+					}
+
+					// Copy the current circular buffer as ContextBefore
+					ctxBefore := make([]ContextLine, len(circularBuffer))
+					copy(ctxBefore, circularBuffer)
+
+					currentMatch = &LogMatch{
+						LineNumber:    lineNum,
+						Text:          line,
+						ContextBefore: ctxBefore,
+					}
+
+					if contextLines > 0 {
+						afterCountdown = contextLines
+					} else {
+						matches = append(matches, *currentMatch)
+						currentMatch = nil
+						if len(matches) >= 10 {
+							break
+						}
+					}
+				}
+
+				// Always maintain the circular buffer of past lines
+				if contextLines > 0 {
+					circularBuffer = append(circularBuffer, ContextLine{
+						LineNumber: lineNum,
+						Text:       line,
+					})
+					if len(circularBuffer) > contextLines {
+						circularBuffer = circularBuffer[1:]
+					}
+				}
+
 				lineNum++
 			}
+
+			// If EOF and we still have a pending match
+			if currentMatch != nil {
+				matches = append(matches, *currentMatch)
+			}
+
 			logStream.Close()
 
 			if len(matches) > 0 {

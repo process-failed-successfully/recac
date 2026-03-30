@@ -261,6 +261,9 @@ const DashboardHTML = `
                                 <option value="Canceled">Canceled</option>
                             </select>
                         </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <input type="number" id="search-logs-context" placeholder="Context lines" aria-label="Context lines" min="0" value="0">
+                        </div>
                         <button type="submit" aria-label="Execute Search" id="btn-search-logs" style="background-color: #007bff; min-width: 100px;">Search</button>
                     </div>
                 </form>
@@ -1187,6 +1190,7 @@ const DashboardHTML = `
             const query = document.getElementById('search-logs-query').value.trim();
             const tag = document.getElementById('search-logs-tag').value.trim();
             const status = document.getElementById('search-logs-status').value;
+            const contextLines = document.getElementById('search-logs-context').value;
             const resultsDiv = document.getElementById('search-logs-results');
             const btn = document.getElementById('btn-search-logs');
 
@@ -1200,6 +1204,7 @@ const DashboardHTML = `
                 let url = '/jobs/search/logs?q=' + encodeURIComponent(query);
                 if (tag) url += '&tag=' + encodeURIComponent(tag);
                 if (status) url += '&status=' + encodeURIComponent(status);
+                if (contextLines && parseInt(contextLines) > 0) url += '&context=' + encodeURIComponent(parseInt(contextLines));
 
                 const res = await fetch(url);
 
@@ -1224,10 +1229,29 @@ const DashboardHTML = `
                     html += '<div style="background: #111; padding: 10px; border-radius: 3px; border-left: 3px solid #61dafb;">';
 
                     job.matches.forEach(match => {
-                        html += '<div style="display: flex; margin-bottom: 4px;">';
+                        if (match.context_before) {
+                            match.context_before.forEach(ctx => {
+                                html += '<div style="display: flex; margin-bottom: 4px;">';
+                                html += '<span style="color: #888; margin-right: 15px; user-select: none;">' + ctx.line_number + ':</span>';
+                                html += '<span style="color: #aaa; white-space: pre-wrap; word-break: break-all;">' + escapeHTML(ctx.text.trim()) + '</span>';
+                                html += '</div>';
+                            });
+                        }
+                        html += '<div style="display: flex; margin-bottom: 4px; background: rgba(230, 219, 116, 0.1);">';
                         html += '<span style="color: #888; margin-right: 15px; user-select: none;">' + match.line_number + ':</span>';
-                        html += '<span style="color: #e6db74; white-space: pre-wrap; word-break: break-all;">' + escapeHTML(match.text.trim()) + '</span>';
+                        html += '<span style="color: #e6db74; white-space: pre-wrap; word-break: break-all; font-weight: bold;">' + escapeHTML(match.text.trim()) + '</span>';
                         html += '</div>';
+                        if (match.context_after) {
+                            match.context_after.forEach(ctx => {
+                                html += '<div style="display: flex; margin-bottom: 4px;">';
+                                html += '<span style="color: #888; margin-right: 15px; user-select: none;">' + ctx.line_number + ':</span>';
+                                html += '<span style="color: #aaa; white-space: pre-wrap; word-break: break-all;">' + escapeHTML(ctx.text.trim()) + '</span>';
+                                html += '</div>';
+                            });
+                        }
+                        if (match.context_before?.length || match.context_after?.length) {
+                            html += '<hr style="border: 0; border-bottom: 1px solid #444; margin: 10px 0;">';
+                        }
                     });
 
                     html += '</div></div>';

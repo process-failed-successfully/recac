@@ -31,7 +31,12 @@ func TestSearchLogs_MatchFound(t *testing.T) {
 				"summary": "Build Backend",
 				"status": "Failed",
 				"matches": [
-					{"line_number": 42, "text": "panic: runtime error: index out of range"}
+					{
+						"line_number": 42,
+						"text": "panic: runtime error: index out of range",
+						"context_before": [{"line_number": 41, "text": "about to panic"}],
+						"context_after": [{"line_number": 43, "text": "never reached"}]
+					}
 				]
 			}
 		]`))
@@ -43,7 +48,7 @@ func TestSearchLogs_MatchFound(t *testing.T) {
 	stdout = pw
 	defer func() { stdout = oldStdout }()
 
-	searchLogs(server.URL, "panic", "tag1", "failed")
+	searchLogs(server.URL, "panic", "tag1", "failed", 1)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -52,7 +57,9 @@ func TestSearchLogs_MatchFound(t *testing.T) {
 	assert.Contains(t, outStr, "Log Search Results (query: \"panic\")")
 	assert.Contains(t, outStr, "Job: JOB-123 (Failed)")
 	assert.Contains(t, outStr, "Summary: Build Backend")
+	assert.Contains(t, outStr, "Line 41: about to panic")
 	assert.Contains(t, outStr, "Line 42: panic: runtime error: index out of range")
+	assert.Contains(t, outStr, "Line 43: never reached")
 	assert.Equal(t, 0, exitCode)
 }
 
@@ -74,7 +81,7 @@ func TestSearchLogs_NoMatch(t *testing.T) {
 	stdout = pw
 	defer func() { stdout = oldStdout }()
 
-	searchLogs(server.URL, "panic", "", "")
+	searchLogs(server.URL, "panic", "", "", 0)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -95,7 +102,7 @@ func TestSearchLogs_ConnectionError(t *testing.T) {
 	stdout = pw
 	defer func() { stdout = oldStdout }()
 
-	searchLogs("http://localhost:123456", "panic", "", "")
+	searchLogs("http://localhost:123456", "panic", "", "", 0)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -122,7 +129,7 @@ func TestSearchLogs_ErrorResponse(t *testing.T) {
 	stdout = pw
 	defer func() { stdout = oldStdout }()
 
-	searchLogs(server.URL, "[invalid", "", "")
+	searchLogs(server.URL, "[invalid", "", "", 0)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
