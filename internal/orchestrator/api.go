@@ -250,15 +250,16 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
 		var filtered []JobInfo
 
+		// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive comparisons
 		for _, job := range jobs {
-			if statusFilter != "" && strings.ToLower(job.Status) != strings.ToLower(statusFilter) {
+			if statusFilter != "" && !strings.EqualFold(job.Status, statusFilter) {
 				continue
 			}
 
 			if tagFilter != "" {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == strings.ToLower(tagFilter) {
+					if strings.EqualFold(t, tagFilter) {
 						hasTag = true
 						break
 					}
