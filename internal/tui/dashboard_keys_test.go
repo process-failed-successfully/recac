@@ -359,6 +359,17 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "", m.envInput.Value())
 	})
 
+	t.Run("View Tags Key (L)", func(t *testing.T) {
+		model = NewDashboardModel("http://localhost")
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		// We can only test that it attempts to fetch tags since we aren't mocking the HTTP layer here directly
+		// It returns a fetchTagsCmd tea.Cmd. We just assert the view didn't change unexpectedly and state is intact.
+		assert.Equal(t, viewMain, m.viewState)
+	})
+
 	t.Run("Update Tags (G) - Multiple", func(t *testing.T) {
 		model = NewDashboardModel("http://localhost")
 		model.table = tModel
@@ -584,6 +595,7 @@ func TestDashboardModel_View_AllStates(t *testing.T) {
         viewCompare,
         viewSearchLogsInput,
         viewSearchLogsResult,
+        viewTags,
     }
 
     for _, v := range views {
