@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"context"
 	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/db"
@@ -10,20 +9,6 @@ import (
 
 	"github.com/spf13/viper"
 )
-
-// MockAgentForInheritance records which model/provider it was initialized with
-type MockAgentForInheritance struct {
-	Provider string
-	Model    string
-}
-
-func (m *MockAgentForInheritance) Send(ctx context.Context, prompt string) (string, error) {
-	return "PASS", nil
-}
-
-func (m *MockAgentForInheritance) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return "PASS", nil
-}
 
 func TestAgentInheritance(t *testing.T) {
 	// Setup

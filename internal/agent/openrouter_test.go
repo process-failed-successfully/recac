@@ -2,18 +2,8 @@ package agent
 
 import (
 	"context"
-	"net/http"
 	"testing"
 )
-
-// MockRoundTripper implements http.RoundTripper
-type MockRoundTripper struct {
-	RoundTripFunc func(req *http.Request) *http.Response
-}
-
-func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	return m.RoundTripFunc(req), nil
-}
 
 func TestOpenRouterClient(t *testing.T) {
 	client := NewOpenRouterClient("dummy-key", "test-model", "test-project")

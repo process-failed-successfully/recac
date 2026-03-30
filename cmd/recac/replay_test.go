@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"recac/internal/runner"
 	"testing"
 
@@ -168,18 +167,3 @@ func TestFindNextReplayName(t *testing.T) {
 	}
 }
 
-// This test setup is now simplified by using the shared helpers.
-// A mock implementation of ISessionManager is defined in test_helpers_test.go.
-
-func setupRealSM(t *testing.T) (string, ISessionManager, func()) {
-	dir, err := os.MkdirTemp("", "replay-test-")
-	require.NoError(t, err)
-	sm, err := runner.NewSessionManagerWithDir(dir)
-	require.NoError(t, err)
-
-	cleanup := func() {
-		os.RemoveAll(dir)
-	}
-
-	return dir, sm, cleanup
-}
