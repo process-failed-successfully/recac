@@ -26,9 +26,10 @@ const DashboardHTML = `
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f8f8; }
         .status-Completed { color: green; font-weight: bold; }
-        .status-Failed { color: red; font-weight: bold; }
+        .status-Failed, .status-Error { color: red; font-weight: bold; }
         .status-Running, .status-Active, .status-Spawning { color: blue; font-weight: bold; }
-        .status-Pending { color: orange; font-weight: bold; }
+        .status-Pending, .status-Pending-Approval { color: orange; font-weight: bold; }
+        .status-Canceled { color: #6c757d; font-weight: bold; }
         .actions { margin-top: 20px; display: flex; gap: 10px; }
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
         button:hover { background: #0056b3; }
@@ -752,7 +753,7 @@ const DashboardHTML = `
                     let row = '<tr>' +
                         '<td><strong>' + safeId + '</strong></td>' +
                         '<td>' + safeSummary + '</td>' +
-                        '<td class="status-' + safeStatus + '">' + safeStatus + '</td>' +
+                        '<td class="status-' + safeStatus.replace(/\s+/g, '-') + '">' + safeStatus + '</td>' +
                         '<td>' + formatDate(j.start_time) + '</td>' +
                         '<td>' + duration + actionButtons + '</td>' +
                     '</tr>';
