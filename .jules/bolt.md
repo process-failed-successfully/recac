@@ -32,3 +32,7 @@
 ## 2026-03-26 - Single-pass string builder over regex replacement
 **Learning:** Using `regexp.ReplaceAllString` combined with `strings.ToLower` creates a huge bottleneck in high-throughput loops due to state machine overhead and multiple allocations. A regex replacement is significantly slower than iterating bytes.
 **Action:** For string formatting like sanitizing Kubernetes resource names, drop the regex and use a single-pass `strings.Builder`. This eliminates intermediate allocations and runs nearly 20x faster.
+
+## 2026-03-31 - [Optimize strings.ToLower with strings.EqualFold]
+**Learning:** Using `strings.ToLower` for case-insensitive comparisons creates intermediate string allocations. Calling it repeatedly in a loop creates significant overhead.
+**Action:** Always use `strings.EqualFold` for case-insensitive string equality comparisons instead of allocating a new string with `strings.ToLower`. `strings.EqualFold` compares the strings in-place without memory allocations, running significantly faster than allocation loops.

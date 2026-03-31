@@ -475,11 +475,10 @@ func (o *Orchestrator) DeletePendingJobsByTag(ctx context.Context, tag string, l
 	defer o.mu.Unlock()
 
 	count := 0
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				if t_timer, ok := o.delayTimers[id]; ok {
 					t_timer.Stop()
 					delete(o.delayTimers, id)
@@ -558,15 +557,14 @@ func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger
 func (o *Orchestrator) CancelJobsByStatus(ctx context.Context, status string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerStatus := strings.ToLower(status)
 
 	for id, job := range o.activeJobs {
-		if strings.ToLower(job.Status) == lowerStatus {
+		if strings.EqualFold(job.Status, status) {
 			jobIDs = append(jobIDs, id)
 		}
 	}
 	for id, job := range o.pendingJobs {
-		if strings.ToLower(job.Status) == lowerStatus {
+		if strings.EqualFold(job.Status, status) {
 			jobIDs = append(jobIDs, id)
 		}
 	}
@@ -632,11 +630,10 @@ func (o *Orchestrator) CancelJobsByMatch(ctx context.Context, match string, logg
 func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.activeJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -644,7 +641,7 @@ func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *
 	}
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -757,12 +754,11 @@ func (o *Orchestrator) ForceCompleteJob(ctx context.Context, jobID string, logge
 func (o *Orchestrator) ForceCompleteJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.RLock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	// We gather IDs to avoid locking while calling ForceCompleteJob
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -770,7 +766,7 @@ func (o *Orchestrator) ForceCompleteJobsByTag(ctx context.Context, tag string, l
 	}
 	for id, job := range o.activeJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -779,7 +775,7 @@ func (o *Orchestrator) ForceCompleteJobsByTag(ctx context.Context, tag string, l
 	for _, job := range o.completedJobs {
 		if job.Status == "Failed" || job.Status == "Canceled" {
 			for _, t := range job.WorkItem.Tags {
-				if strings.ToLower(t) == lowerTag {
+				if strings.EqualFold(t, tag) {
 					jobIDs = append(jobIDs, job.ID)
 					break
 				}
@@ -1008,11 +1004,10 @@ func (o *Orchestrator) SkipJobsByTag(ctx context.Context, tag string, logger *sl
 	defer o.mu.Unlock()
 
 	count := 0
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				delete(o.pendingJobs, id)
 				job.Status = "Skipped"
 				job.EndTime = time.Now()
@@ -1199,7 +1194,6 @@ func (o *Orchestrator) ApproveJob(ctx context.Context, jobID string, logger *slo
 func (o *Orchestrator) ApproveJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	count := 0
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		if job.Status != "Pending Approval" {
@@ -1208,7 +1202,7 @@ func (o *Orchestrator) ApproveJobsByTag(ctx context.Context, tag string, logger 
 
 		hasTag := false
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				hasTag = true
 				break
 			}
@@ -1340,11 +1334,10 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 func (o *Orchestrator) UpdateJobsDependenciesByTag(ctx context.Context, tag string, dependsOn []string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -1431,11 +1424,10 @@ func (o *Orchestrator) UpdateJobEnv(ctx context.Context, jobID string, envVars m
 func (o *Orchestrator) UpdateJobsEnvByTag(ctx context.Context, tag string, envVars map[string]string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -1522,11 +1514,10 @@ func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []s
 func (o *Orchestrator) UpdateJobsTagsByTag(ctx context.Context, tag string, tags []string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -1663,11 +1654,10 @@ func (o *Orchestrator) UpdateJobMaxRetries(ctx context.Context, jobID string, ma
 func (o *Orchestrator) UpdateJobsMaxRetriesByTag(ctx context.Context, tag string, maxRetries int, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -1716,11 +1706,10 @@ func (o *Orchestrator) UpdateJobsMaxRetriesByMatch(ctx context.Context, match st
 func (o *Orchestrator) UpdateJobsTimeoutByTag(ctx context.Context, tag string, newTimeout time.Duration, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
@@ -1884,12 +1873,11 @@ func (o *Orchestrator) UpdateJobWorkItem(ctx context.Context, jobID string, newI
 func (o *Orchestrator) HoldJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	count := 0
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		hasTag := false
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				hasTag = true
 				break
 			}
@@ -2083,12 +2071,11 @@ func (o *Orchestrator) HoldJob(ctx context.Context, jobID string, logger *slog.L
 func (o *Orchestrator) UnholdJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	count := 0
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		hasTag := false
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				hasTag = true
 				break
 			}
@@ -2236,13 +2223,12 @@ func (o *Orchestrator) UpdateJobsPriorityByTag(ctx context.Context, tag string, 
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	lowerTag := strings.ToLower(tag)
 	updatedCount := 0
 
 	for id, job := range o.pendingJobs {
 		hasTag := false
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				hasTag = true
 				break
 			}
@@ -2443,7 +2429,6 @@ func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *
 		}
 	}
 
-	lowerTag := strings.ToLower(tag)
 
 	o.mu.RLock()
 	var toHeal []JobInfo
@@ -2456,7 +2441,7 @@ func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *
 			if tag != "" {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == lowerTag {
+					if strings.EqualFold(t, tag) {
 						hasTag = true
 						break
 					}
@@ -2534,7 +2519,6 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 		}
 	}
 
-	lowerTag := strings.ToLower(tag)
 
 	o.mu.RLock()
 	var toRetry []WorkItem
@@ -2547,7 +2531,7 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 			if tag != "" {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == lowerTag {
+					if strings.EqualFold(t, tag) {
 						hasTag = true
 						break
 					}
@@ -3811,14 +3795,13 @@ func (o *Orchestrator) PurgeJobsByStatus(status string, logger *slog.Logger) (in
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	lowerStatus := strings.ToLower(status)
 
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
 	var newCompleted []JobInfo
 	for _, job := range o.completedJobs {
-		if strings.ToLower(job.Status) == lowerStatus {
+		if strings.EqualFold(job.Status, status) {
 			purgedIDs[job.ID] = true
 			if logger != nil {
 				logger.Info("Job purged from history by status", "id", job.ID, "status", status)
@@ -3835,7 +3818,7 @@ func (o *Orchestrator) PurgeJobsByStatus(status string, logger *slog.Logger) (in
 		jobsInDb, err := o.Persistence.GetJobs(10000)
 		if err == nil {
 			for _, job := range jobsInDb {
-				if strings.ToLower(job.Status) == lowerStatus {
+				if strings.EqualFold(job.Status, status) {
 					if err := o.Persistence.PurgeJob(job.ID); err == nil {
 						if !purgedIDs[job.ID] {
 							purgedIDs[job.ID] = true
@@ -3908,7 +3891,6 @@ func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, err
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	lowerTag := strings.ToLower(tag)
 
 	purgedIDs := make(map[string]bool)
 
@@ -3917,7 +3899,7 @@ func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, err
 	for _, job := range o.completedJobs {
 		hasTag := false
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				hasTag = true
 				break
 			}
@@ -3945,7 +3927,7 @@ func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, err
 			for _, job := range jobsInDb {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == lowerTag {
+					if strings.EqualFold(t, tag) {
 						hasTag = true
 						break
 					}
@@ -4151,11 +4133,10 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 func (o *Orchestrator) UpdateJobsAgentByTag(ctx context.Context, tag string, agentProvider string, agentModel string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	var jobIDs []string
-	lowerTag := strings.ToLower(tag)
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
-			if strings.ToLower(t) == lowerTag {
+			if strings.EqualFold(t, tag) {
 				jobIDs = append(jobIDs, id)
 				break
 			}
