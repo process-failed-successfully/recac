@@ -26,7 +26,11 @@ func TestDashboardSearchLogsInteractive(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/search/logs", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
+		contextLines := r.URL.Query().Get("context")
 		if q == "error" {
+			if contextLines == "5" {
+				w.Header().Set("X-Test-Context", "5")
+			}
 			results := []JobLogResult{
 				{
 					JobID:   "JOB-1",
@@ -60,6 +64,17 @@ func TestDashboardSearchLogsInteractive(t *testing.T) {
 	mModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("error")})
 	m = mModel.(DashboardModel)
 	assert.Equal(t, "error", m.searchInput.Value())
+
+	// Press enter to move to context lines
+	mModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = mModel.(DashboardModel)
+	assert.Equal(t, viewSearchLogsContextInput, m.viewState)
+	assert.NotNil(t, cmd) // Blink command
+
+	// Type context "5"
+	mModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("5")})
+	m = mModel.(DashboardModel)
+	assert.Equal(t, "5", m.searchContextInput.Value())
 
 	// Press enter to search
 	mModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -96,8 +111,13 @@ func TestDashboardSearchLogsNoResults(t *testing.T) {
 	m.viewState = viewSearchLogsInput
 	m.searchInput.SetValue("nothing")
 
-	// Press enter
+	// Press enter (transitions to context view)
 	mModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = mModel.(DashboardModel)
+	assert.NotNil(t, cmd)
+
+	// Press enter again to search
+	mModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = mModel.(DashboardModel)
 	assert.NotNil(t, cmd)
 
@@ -123,6 +143,18 @@ func TestDashboardSearchLogsCancel(t *testing.T) {
 	m = mModel.(DashboardModel)
 	assert.Equal(t, viewMain, m.viewState)
 	assert.Equal(t, "", m.searchInput.Value()) // Input cleared
+	assert.Nil(t, cmd)
+
+	// Cancel from Context Input
+	m.viewState = viewSearchLogsContextInput
+	m.searchInput.SetValue("error")
+	m.searchContextInput.SetValue("5")
+
+	mModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = mModel.(DashboardModel)
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Equal(t, "", m.searchInput.Value())
+	assert.Equal(t, "", m.searchContextInput.Value())
 	assert.Nil(t, cmd)
 }
 
