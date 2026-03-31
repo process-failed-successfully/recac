@@ -3308,11 +3308,43 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Logger) {
 	o.mu.Lock()
 	type pendingJob struct {
-		item       WorkItem
-		retryCount int
-		approved   bool
+		item              WorkItem
+		retryCount        int
+		approved          bool
+		effectivePriority int
 	}
 	var toProcess []pendingJob
+
+	// Build downstream map for effective priority inheritance
+	downstreamMap := make(map[string][]string)
+	for id, jobInfo := range o.pendingJobs {
+		for _, dep := range jobInfo.WorkItem.DependsOn {
+			downstreamMap[dep] = append(downstreamMap[dep], id)
+		}
+	}
+
+	memo := make(map[string]int)
+	var getEffectivePriority func(string) int
+	getEffectivePriority = func(id string) int {
+		if val, exists := memo[id]; exists {
+			return val
+		}
+
+		jobInfo, exists := o.pendingJobs[id]
+		if !exists {
+			return 0
+		}
+
+		maxPri := jobInfo.WorkItem.Priority
+		for _, downID := range downstreamMap[id] {
+			if dp := getEffectivePriority(downID); dp > maxPri {
+				maxPri = dp
+			}
+		}
+		memo[id] = maxPri
+		return maxPri
+	}
+
 	for id, jobInfo := range o.pendingJobs {
 		if !jobInfo.RetryAfter.IsZero() && time.Now().Before(jobInfo.RetryAfter) {
 			continue
@@ -3366,7 +3398,12 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 					t.Stop()
 					delete(o.delayTimers, id)
 				}
-				toProcess = append(toProcess, pendingJob{item: item, retryCount: jobInfo.RetryCount, approved: jobInfo.Approved})
+				toProcess = append(toProcess, pendingJob{
+					item:              item,
+					retryCount:        jobInfo.RetryCount,
+					approved:          jobInfo.Approved,
+					effectivePriority: getEffectivePriority(id),
+				})
 				delete(o.pendingJobs, id)
 			}
 		} else if shouldFail {
@@ -3415,8 +3452,11 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 	}
 	o.mu.Unlock()
 
-	// Sort pending jobs by Priority (descending) and ID (ascending) to ensure stable processing order
+	// Sort pending jobs by Effective Priority (descending), then Priority (descending) and ID (ascending)
 	sort.Slice(toProcess, func(i, j int) bool {
+		if toProcess[i].effectivePriority != toProcess[j].effectivePriority {
+			return toProcess[i].effectivePriority > toProcess[j].effectivePriority
+		}
 		if toProcess[i].item.Priority != toProcess[j].item.Priority {
 			return toProcess[i].item.Priority > toProcess[j].item.Priority
 		}

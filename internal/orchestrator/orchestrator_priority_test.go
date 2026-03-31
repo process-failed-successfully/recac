@@ -124,7 +124,81 @@ func TestOrchestrator_PrioritySorting(t *testing.T) {
 	// Then HIGH finishes (it doesn't block), evaluate spawns MED, etc.
 	// This perfectly tests the Priority sorting!
 
+	// Note: Because of Priority Inheritance, HIGH (10) depends on BLOCKER, LOW depends on BLOCKER.
+	// In the setup, LOW, HIGH, MED, SAME-A, SAME-B all depend on BLOCKER.
+	// But wait! There's no HIGH depending on LOW in this test!
+	// Ah, in TestOrchestrator_PrioritySorting, the dependencies are:
+	// itemLow.DependsOn = []string{"BLOCKER"}
+	// itemHigh.DependsOn = []string{"BLOCKER"}
+	// Since HIGH does NOT depend on LOW, no inheritance boosts LOW.
+	// Order should still be HIGH (10) -> MED (5) -> SAME-A (5) -> SAME-B (5) -> LOW (1).
 	assert.Equal(t, []string{"BLOCKER", "HIGH", "MED", "SAME-A", "SAME-B", "LOW"}, spawner.spawnedOrder)
+
+	cancel()
+}
+
+func TestOrchestrator_PriorityInheritance(t *testing.T) {
+	// BLOCKER to hold capacity initially
+	itemBlock := WorkItem{ID: "BLOCKER", Priority: 0}
+
+	// LOW depends on BLOCKER
+	itemLow := WorkItem{ID: "LOW", Priority: 1, DependsOn: []string{"BLOCKER"}}
+	// HIGH depends on LOW. This should boost LOW's effective priority to 10
+	itemHigh := WorkItem{ID: "HIGH", Priority: 10, DependsOn: []string{"LOW"}}
+	// MED depends on BLOCKER. Normally, MED (5) > LOW (1).
+	itemMed := WorkItem{ID: "MED", Priority: 5, DependsOn: []string{"BLOCKER"}}
+
+	blockCh := make(chan struct{})
+	spawner := &priorityMockSpawner{
+		blockChs: map[string]chan struct{}{
+			"BLOCKER": blockCh,
+		},
+	}
+
+	poller := newMockPoller([]WorkItem{itemBlock})
+
+	orch := New(poller, spawner, 20*time.Millisecond)
+	orch.MaxConcurrentJobs = 1
+
+	ctx, cancel := context.WithCancel(context.Background())
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Start orchestrator
+	go orch.Run(ctx, logger)
+
+	// Wait for BLOCKER to spawn
+	time.Sleep(50 * time.Millisecond)
+
+	spawner.mu.Lock()
+	assert.Equal(t, []string{"BLOCKER"}, spawner.spawnedOrder)
+	spawner.mu.Unlock()
+
+	// Manually submit pending jobs
+	orch.SubmitJob(ctx, itemLow, logger)
+	orch.SubmitJob(ctx, itemHigh, logger)
+	orch.SubmitJob(ctx, itemMed, logger)
+
+	orch.mu.RLock()
+	assert.Len(t, orch.pendingJobs, 3)
+	orch.mu.RUnlock()
+
+	// Unblock "BLOCKER"
+	close(blockCh)
+
+	// Wait for jobs to be evaluated and spawned
+	assert.Eventually(t, func() bool {
+		spawner.mu.Lock()
+		defer spawner.mu.Unlock()
+		return len(spawner.spawnedOrder) == 4
+	}, 2*time.Second, 10*time.Millisecond, "Expected 4 jobs to be spawned")
+
+	spawner.mu.Lock()
+	defer spawner.mu.Unlock()
+
+	// Due to priority inheritance, LOW inherits Priority 10.
+	// Between LOW (effective 10) and MED (effective 5), LOW should run first.
+	// Then HIGH (effective 10) will run, then MED (effective 5).
+	assert.Equal(t, []string{"BLOCKER", "LOW", "HIGH", "MED"}, spawner.spawnedOrder)
 
 	cancel()
 }
