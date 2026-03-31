@@ -58,6 +58,7 @@ const (
 	viewTagsInput
 	viewAgentInput
 	viewRenameInput
+	viewMaxRetriesInput
 	viewExplain
 	viewCompare
 	viewSearchLogsInput
@@ -120,6 +121,9 @@ type DashboardModel struct {
 
 	// Rename input field
 	renameInput textinput.Model
+
+	// Max retries input field
+	maxRetriesInput textinput.Model
 
 	searchInput        textinput.Model
 	searchContextInput textinput.Model
@@ -473,6 +477,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewRenameInput:
 		m, cmd = m.updateRenameInput(msg)
+		cmds = append(cmds, cmd)
+	case viewMaxRetriesInput:
+		m, cmd = m.updateMaxRetriesInput(msg)
 		cmds = append(cmds, cmd)
 	case viewSearchLogsInput:
 		m, cmd = m.updateSearchLogsInput(msg)
@@ -1001,6 +1008,31 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 					}
 				}
 			}
+		case "Z":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_max_retries"
+				m.viewState = viewMaxRetriesInput
+				m.maxRetriesInput.SetValue("")
+				m.maxRetriesInput.Focus()
+				return m, textinput.Blink
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						m.pendingJobId = id
+						m.viewState = viewMaxRetriesInput
+						if job.WorkItem.MaxRetries != nil {
+							m.maxRetriesInput.SetValue(fmt.Sprintf("%d", *job.WorkItem.MaxRetries))
+						} else {
+							m.maxRetriesInput.SetValue("")
+						}
+						m.maxRetriesInput.Focus()
+						return m, textinput.Blink
+					}
+				}
+			}
 		case "e":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -1475,6 +1507,52 @@ func (m DashboardModel) updateRenameInput(msg tea.Msg) (DashboardModel, tea.Cmd)
 	return m, cmd
 }
 
+func (m DashboardModel) updateMaxRetriesInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.maxRetriesInput.Blur()
+			m.pendingJobId = ""
+			return m, nil
+		case "enter":
+			valStr := strings.TrimSpace(m.maxRetriesInput.Value())
+			id := m.pendingJobId
+			m.viewState = viewMain
+			m.maxRetriesInput.Blur()
+			m.pendingJobId = ""
+
+			if valStr == "" {
+				m.err = fmt.Errorf("Max retries cannot be empty")
+				return m, nil
+			}
+
+			var val int
+			_, err := fmt.Sscanf(valStr, "%d", &val)
+			if err != nil || val < 0 {
+				m.err = fmt.Errorf("Invalid max retries value: must be a non-negative integer")
+				return m, nil
+			}
+
+			if id == "MULTIPLE_max_retries" && len(m.selectedJobs) > 0 {
+				var cmds []tea.Cmd
+				for jobId := range m.selectedJobs {
+					cmds = append(cmds, updateMaxRetriesCmd(m.host, jobId, val))
+				}
+				m.selectedJobs = make(map[string]bool)
+				m.updateTableContent()
+				return m, tea.Batch(cmds...)
+			}
+
+			return m, updateMaxRetriesCmd(m.host, id, val)
+		}
+	}
+	m.maxRetriesInput, cmd = m.maxRetriesInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -1707,7 +1785,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewTags:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1885,6 +1963,25 @@ func (m DashboardModel) View() string {
 			Padding(1, 2)
 
 		dialogContent := fmt.Sprintf("Rename Job %s\n\n%s", m.pendingJobId, m.renameInput.View())
+
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		// Render the dialog centered
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewMaxRetriesInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+
+		dialogContent := fmt.Sprintf("Update Max Retries for %s\n\n%s", m.pendingJobId, m.maxRetriesInput.View())
 
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
@@ -2444,6 +2541,41 @@ func updateRenameCmd(host, id, newID string) tea.Cmd {
 		}
 
 		return actionMsg{Message: fmt.Sprintf("Renamed job %s to %s", id, newID)}
+	}
+}
+
+func updateMaxRetriesCmd(host, id string, maxRetries int) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := host + "/jobs/" + id + "/max-retries"
+
+		reqBody := struct {
+			MaxRetries int `json:"max_retries"`
+		}{
+			MaxRetries: maxRetries,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(payload))
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Updated max retries for job %s to %d", id, maxRetries)}
 	}
 }
 
@@ -3113,6 +3245,11 @@ func NewDashboardModel(host string) DashboardModel {
 	ri.Prompt = "New Job ID: "
 	ri.Width = 40
 
+	mri := textinput.New()
+	mri.Placeholder = "e.g., 3"
+	mri.Prompt = "New Max Retries: "
+	mri.Width = 20
+
 	si := textinput.New()
 	si.Placeholder = "e.g., error|panic"
 	si.Prompt = "Query: "
@@ -3139,6 +3276,7 @@ func NewDashboardModel(host string) DashboardModel {
 		agentProviderInput: api,
 		agentModelInput:    ami,
 		renameInput:        ri,
+		maxRetriesInput:    mri,
 		searchInput:        si,
 		searchContextInput: sci,
 		selectedJobs:       make(map[string]bool),
