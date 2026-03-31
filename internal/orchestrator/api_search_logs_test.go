@@ -77,6 +77,51 @@ func TestAPI_SearchLogs_MatchFound(t *testing.T) {
 	assert.Equal(t, "panic: runtime error", match["text"])
 }
 
+func TestAPI_SearchLogs_Context(t *testing.T) {
+	orch, mockSpawner := setupTestOrchestratorForLogs(t)
+
+	mockSpawner.On("GetLogs", mock.Anything, "JOB-1").Return(
+		io.NopCloser(strings.NewReader("line 1\nline 2\npanic: runtime error\nline 4\nline 5\n")), nil,
+	)
+	mockSpawner.On("GetLogs", mock.Anything, "JOB-2").Return(
+		io.NopCloser(strings.NewReader("everything is fine\n")), nil,
+	)
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, slog.Default(), context.Background())
+
+	req := httptest.NewRequest("GET", "/jobs/search/logs?q=panic&context=1", nil)
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var results []map[string]interface{}
+	err := json.NewDecoder(rr.Body).Decode(&results)
+	assert.NoError(t, err)
+
+	assert.Len(t, results, 1)
+	assert.Equal(t, "JOB-1", results[0]["job_id"])
+
+	matches := results[0]["matches"].([]interface{})
+	assert.Len(t, matches, 1)
+
+	match := matches[0].(map[string]interface{})
+	assert.Equal(t, float64(3), match["line_number"])
+	assert.Equal(t, "panic: runtime error", match["text"])
+
+	ctxBefore := match["context_before"].([]interface{})
+	assert.Len(t, ctxBefore, 1)
+	assert.Equal(t, float64(2), ctxBefore[0].(map[string]interface{})["line_number"])
+	assert.Equal(t, "line 2", ctxBefore[0].(map[string]interface{})["text"])
+
+	ctxAfter := match["context_after"].([]interface{})
+	assert.Len(t, ctxAfter, 1)
+	assert.Equal(t, float64(4), ctxAfter[0].(map[string]interface{})["line_number"])
+	assert.Equal(t, "line 4", ctxAfter[0].(map[string]interface{})["text"])
+}
+
 func TestAPI_SearchLogs_NoMatch(t *testing.T) {
 	orch, mockSpawner := setupTestOrchestratorForLogs(t)
 

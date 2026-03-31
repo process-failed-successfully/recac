@@ -255,6 +255,7 @@ func main() {
 	pflag.String("search-logs", "", "Search logs of all active and completed jobs for a regex pattern")
 	pflag.String("search-tag", "", "Optional tag filter when searching logs")
 	pflag.String("search-status", "", "Optional status filter when searching logs")
+	pflag.Int("search-context", 0, "Number of lines of context to include before and after the match")
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
@@ -596,6 +597,7 @@ func main() {
 	viper.BindPFlag("orchestrator.search_logs", pflag.Lookup("search-logs"))
 	viper.BindPFlag("orchestrator.search_tag", pflag.Lookup("search-tag"))
 	viper.BindPFlag("orchestrator.search_status", pflag.Lookup("search-status"))
+	viper.BindPFlag("orchestrator.search_context", pflag.Lookup("search-context"))
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
@@ -1963,7 +1965,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		tag := viper.GetString("orchestrator.search_tag")
 		status := viper.GetString("orchestrator.search_status")
-		searchLogs(host, query, tag, status)
+		contextLines := viper.GetInt("orchestrator.search_context")
+		searchLogs(host, query, tag, status, contextLines)
 		return nil
 	}
 
