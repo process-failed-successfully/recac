@@ -1,6 +1,7 @@
 package main
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"bytes"
 	"recac/internal/analysis"
 	"testing"
@@ -30,7 +31,7 @@ func TestDepsCommand(t *testing.T) {
 
 	// Mock StartDeps
 	var capturedDeps map[string][]string
-	startDepsFunc = func(deps map[string][]string) error {
+	startDepsFunc = func(deps map[string][]string, opts ...tea.ProgramOption) error {
 		capturedDeps = deps
 		return nil
 	}
