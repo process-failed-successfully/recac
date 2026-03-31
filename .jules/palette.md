@@ -50,3 +50,7 @@
 ## 2026-03-30 - Sanitize CSS Class Names Built from Data
 **Learning:** Job statuses in the Orchestrator WebUI can contain spaces (e.g., "Pending Approval"). When dynamically injecting these into HTML as CSS class names (like `class="status-${status}"`), spaces create invalid multiple class assignments, breaking styles.
 **Action:** Always sanitize dynamic strings replacing spaces with hyphens (e.g., `status.replace(/\s+/g, '-')`) before using them as class names, and ensure matching CSS rules exist for all possible states (like `.status-Canceled`, `.status-Error`, `.status-Pending-Approval`).
+
+## 2026-03-31 - Focus Visible on Checkbox and Number Inputs
+**Learning:** In custom dashboards, form-group level CSS targeting `:focus-visible` (e.g. `.form-group input[type="text"]:focus-visible`) often inadvertently omits other standard input types like `number` or `checkbox`, leaving them completely inaccessible to keyboard users because they lack a focus ring.
+**Action:** Always ensure that `input[type="number"]` and `input[type="checkbox"]` have explicitly defined `:focus-visible` outline styles, alongside standard `text` and `textarea` inputs, to guarantee comprehensive keyboard navigation accessibility.
