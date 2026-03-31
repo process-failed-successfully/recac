@@ -285,7 +285,7 @@ func main() {
 	pflag.String("export-job-out", "", "Output file for the exported job (use '-' or leave empty for stdout)")
 	pflag.String("export-jobs", "", "Export all jobs to a file (use '-' for stdout)")
 	pflag.String("import-jobs", "", "Import jobs from an exported JSON file")
-	pflag.String("export-format", "json", "Format for exported jobs ('json' or 'csv')")
+	pflag.String("export-format", "json", "Format for exported jobs ('json', 'csv', or 'junit')")
 	pflag.String("export-pipeline", "", "Export active and pending jobs as a pipeline YAML (use '-' for stdout)")
 	pflag.String("export-graph", "", "Export the job dependency graph (use '-' for stdout)")
 	pflag.String("export-graph-format", "mermaid", "Format for exported graph ('mermaid', 'dot', or 'plantuml')")

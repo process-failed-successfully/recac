@@ -78,7 +78,35 @@ func TestExportJobs_InvalidFormat(t *testing.T) {
 	exportJobs("http://localhost:2112", "out.txt", "xml")
 
 	assert.True(t, exited)
-	assert.Contains(t, buf.String(), "Invalid format")
+	assert.Contains(t, buf.String(), "Invalid export format")
+}
+
+func TestExportJobs_JUnit(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/export", r.URL.Path)
+		assert.Equal(t, "junit", r.URL.Query().Get("format"))
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, `<?xml version="1.0" encoding="UTF-8"?><testsuites/>`)
+	}))
+	defer ts.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	tmpDir := t.TempDir()
+	outFile := filepath.Join(tmpDir, "export.xml")
+
+	exportJobs(ts.URL, outFile, "junit")
+
+	assert.Contains(t, buf.String(), "Jobs successfully exported")
+	assert.FileExists(t, outFile)
+
+	content, err := os.ReadFile(outFile)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "testsuites")
 }
 
 func TestExportJobs_Errors(t *testing.T) {
