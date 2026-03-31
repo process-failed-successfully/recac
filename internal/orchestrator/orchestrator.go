@@ -3391,7 +3391,7 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 	o.mu.Unlock()
 
 	// Sort pending jobs by Priority (descending) and ID (ascending) to ensure stable processing order
-	sort.SliceStable(toProcess, func(i, j int) bool {
+	sort.Slice(toProcess, func(i, j int) bool {
 		if toProcess[i].item.Priority != toProcess[j].item.Priority {
 			return toProcess[i].item.Priority > toProcess[j].item.Priority
 		}
