@@ -2357,9 +2357,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("DELETE /jobs/pending", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
-		if tag == "" && match == "" {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk delete pending jobs", http.StatusBadRequest)
+		if tag == "" && match == "" && group == "" {
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk delete pending jobs", http.StatusBadRequest)
 			return
 		}
 
@@ -2370,6 +2371,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.DeletePendingJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.DeletePendingJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.DeletePendingJobsByConcurrencyGroup(r.Context(), group, logger)
 		}
 
 		if err != nil {

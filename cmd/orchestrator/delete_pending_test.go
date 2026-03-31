@@ -101,6 +101,112 @@ func TestDeletePendingJob(t *testing.T) {
 	}
 }
 
+func TestDeletePendingJobsByGroup(t *testing.T) {
+	tests := []struct {
+		name         string
+		group        string
+		method       string
+		path         string
+		statusCode   int
+		responseBody string
+		clientError  bool
+		urlError     bool
+		expectExit   bool
+		expectedOut  string
+	}{
+		{
+			name:         "Success",
+			group:        "test-group",
+			method:       http.MethodDelete,
+			path:         "/jobs/pending",
+			statusCode:   http.StatusOK,
+			responseBody: `{"deleted": 2}`,
+			expectExit:   false,
+			expectedOut:  "Successfully deleted 2 pending jobs by concurrency group.\n",
+		},
+		{
+			name:         "HTTP Error",
+			group:        "test-group",
+			method:       http.MethodDelete,
+			path:         "/jobs/pending",
+			statusCode:   http.StatusInternalServerError,
+			responseBody: "internal server error",
+			expectExit:   true,
+			expectedOut:  "Failed to delete pending jobs by concurrency group: internal server error\n",
+		},
+		{
+			name:         "JSON Decode Error",
+			group:        "test-group",
+			method:       http.MethodDelete,
+			path:         "/jobs/pending",
+			statusCode:   http.StatusOK,
+			responseBody: `invalid json`,
+			expectExit:   true,
+		},
+		{
+			name:       "URL Error",
+			group:      "test-group",
+			urlError:   true,
+			expectExit: true,
+		},
+		{
+			name:        "Client Error",
+			group:       "test-group",
+			clientError: true,
+			expectExit:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method {
+					t.Errorf("Expected %s method, got %s", tt.method, r.Method)
+				}
+				if r.URL.Path != tt.path {
+					t.Errorf("Expected %s path, got %s", tt.path, r.URL.Path)
+				}
+				if r.URL.Query().Get("group") != tt.group {
+					t.Errorf("Expected group %s, got %s", tt.group, r.URL.Query().Get("group"))
+				}
+				w.WriteHeader(tt.statusCode)
+				if tt.responseBody != "" {
+					fmt.Fprint(w, tt.responseBody)
+				}
+			}))
+			defer ts.Close()
+
+			var out bytes.Buffer
+			oldStdout := stdout
+			stdout = &out
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExitFunc := exitFunc
+			exitFunc = func(code int) { exitCalled = true }
+			defer func() { exitFunc = oldExitFunc }()
+
+			var host string
+			if tt.urlError {
+				host = "http://invalid\nurl"
+			} else if tt.clientError {
+				host = "http://localhost:0"
+			} else {
+				host = ts.URL
+			}
+
+			deletePendingJobsByGroup(host, tt.group)
+
+			if exitCalled != tt.expectExit {
+				t.Errorf("Expected exit=%v, got %v", tt.expectExit, exitCalled)
+			}
+			if tt.expectedOut != "" && out.String() != tt.expectedOut {
+				t.Errorf("Expected output %q, got %q", tt.expectedOut, out.String())
+			}
+		})
+	}
+}
+
 func TestDeletePendingJobsByTag(t *testing.T) {
 	tests := []struct {
 		name         string

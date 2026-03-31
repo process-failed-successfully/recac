@@ -526,6 +526,31 @@ func (o *Orchestrator) DeletePendingJobsByMatch(ctx context.Context, match strin
 	return count, nil
 }
 
+// DeletePendingJobsByConcurrencyGroup removes pending jobs matching the given concurrency group.
+func (o *Orchestrator) DeletePendingJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			if t_timer, ok := o.delayTimers[id]; ok {
+				t_timer.Stop()
+				delete(o.delayTimers, id)
+			}
+			delete(o.pendingJobs, id)
+			o.BroadcastEvent("job_deleted", job)
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Deleted jobs from pending queue by concurrency group", "group", group, "count", count)
+	}
+	return count, nil
+}
+
 // ClearPendingJobs cancels all jobs currently waiting for dependencies.
 func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger) int {
 	o.mu.Lock()

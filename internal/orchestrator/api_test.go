@@ -1003,6 +1003,38 @@ func TestAPI_PurgeJob(t *testing.T) {
 	})
 }
 
+func TestAPI_DeletePendingByGroup(t *testing.T) {
+	orch := New(&mockPoller{}, &mockSpawner{}, 0)
+
+	jobWithGroup := JobInfo{
+		ID:     "GROUP-JOB-1",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-group",
+		},
+	}
+	orch.mu.Lock()
+	orch.pendingJobs["GROUP-JOB-1"] = jobWithGroup
+	orch.mu.Unlock()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	t.Run("DELETE /jobs/pending?group=", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/jobs/pending?group=test-group", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"deleted": 1`)
+
+		// Verify it was purged
+		_, err := orch.GetJob("GROUP-JOB-1")
+		assert.Error(t, err)
+	})
+}
+
 func TestAPI_ClearHistory(t *testing.T) {
 	orch := New(&mockPoller{}, &mockSpawner{}, 0)
 	orch.completedJobs = []JobInfo{{ID: "1"}, {ID: "2"}} // add mock completed jobs
