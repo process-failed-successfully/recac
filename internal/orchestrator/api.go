@@ -162,9 +162,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 		if statusFilter != "" {
 			var filtered []JobInfo
-			lowerStatusFilter := strings.ToLower(statusFilter)
 			for _, job := range jobs {
-				if strings.ToLower(job.Status) == lowerStatusFilter {
+				if strings.EqualFold(job.Status, statusFilter) {
 					filtered = append(filtered, job)
 				}
 			}
@@ -173,11 +172,10 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 		if tagFilter != "" {
 			var filtered []JobInfo
-			lowerTagFilter := strings.ToLower(tagFilter)
 			for _, job := range jobs {
 				hasTag := false
 				for _, tag := range job.WorkItem.Tags {
-					if strings.ToLower(tag) == lowerTagFilter {
+					if strings.EqualFold(tag, tagFilter) {
 						hasTag = true
 						break
 					}
@@ -645,10 +643,10 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
 			completedJobs := orch.GetCompletedJobs()
 			for _, job := range completedJobs {
-				if stateFilter == "failed" && strings.ToLower(job.Status) != "failed" {
+				if stateFilter == "failed" && !strings.EqualFold(job.Status, "failed") {
 					continue
 				}
-				if stateFilter == "completed" && strings.ToLower(job.Status) != "completed" {
+				if stateFilter == "completed" && !strings.EqualFold(job.Status, "completed") {
 					continue
 				}
 				jobs = append(jobs, job)
@@ -679,10 +677,10 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
 			completedJobs := orch.GetCompletedJobs()
 			for _, job := range completedJobs {
-				if stateFilter == "failed" && strings.ToLower(job.Status) != "failed" {
+				if stateFilter == "failed" && !strings.EqualFold(job.Status, "failed") {
 					continue
 				}
-				if stateFilter == "completed" && strings.ToLower(job.Status) != "completed" {
+				if stateFilter == "completed" && !strings.EqualFold(job.Status, "completed") {
 					continue
 				}
 				jobs = append(jobs, job)
@@ -1091,11 +1089,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		var filtered []JobInfo
 
 		if tag != "" {
-			lowerTag := strings.ToLower(tag)
 			for _, job := range jobs {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == lowerTag {
+					if strings.EqualFold(t, tag) {
 						hasTag = true
 						break
 					}
@@ -1116,9 +1113,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 				}
 			}
 		} else if status != "" {
-			lowerStatus := strings.ToLower(status)
 			for _, job := range jobs {
-				if strings.ToLower(job.Status) == lowerStatus {
+				if strings.EqualFold(job.Status, status) {
 					filtered = append(filtered, job)
 				}
 			}
@@ -2037,11 +2033,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		var filtered []JobInfo
 
 		if tag != "" {
-			lowerTag := strings.ToLower(tag)
 			for _, job := range jobs {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == lowerTag {
+					if strings.EqualFold(t, tag) {
 						hasTag = true
 						break
 					}
