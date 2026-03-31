@@ -102,6 +102,7 @@ func main() {
 	pflag.String("list-jobs-priority", "", "Filter jobs by a specific priority")
 	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
 	pflag.String("format", "text", "Output format for status and analytics (text, json)")
+	pflag.Bool("summary", false, "Get a summary of job counts by status")
 	pflag.Bool("watch", false, "Continuously watch the output of list-jobs or list-pending")
 	pflag.Duration("watch-interval", 2*time.Second, "Refresh interval for watch mode (e.g. 2s, 1m)")
 	pflag.Bool("status", false, "Get the current status of the orchestrator")
@@ -450,6 +451,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_priority", pflag.Lookup("list-jobs-priority"))
 	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
 	viper.BindPFlag("orchestrator.format", pflag.Lookup("format"))
+	viper.BindPFlag("orchestrator.summary", pflag.Lookup("summary"))
 	viper.BindPFlag("orchestrator.watch", pflag.Lookup("watch"))
 	viper.BindPFlag("orchestrator.watch_interval", pflag.Lookup("watch-interval"))
 	viper.BindPFlag("orchestrator.status", pflag.Lookup("status"))
@@ -899,6 +901,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if listBlockersID := viper.GetString("orchestrator.list_blockers"); listBlockersID != "" {
 		host := viper.GetString("orchestrator.host")
 		listBlockers(host, listBlockersID)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.summary") {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.format")
+		summaryJobs(host, format)
 		return nil
 	}
 
