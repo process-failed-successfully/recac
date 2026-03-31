@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -228,7 +229,18 @@ func TestStartExplorer_Run(t *testing.T) {
 }
 
 func TestStartExplorer_Execute(t *testing.T) {
-    // Instead of actually calling StartExplorer, we'll verify it's just a simple wrapper and skip running tea Program
-    // unless we use tea.WithInput(nil) which we cannot pass to StartExplorer because it's hardcoded to os.Stdin
-    // TUI start methods are notoriously hard to test without blocking. We'll skip it in coverage and just run other tui code.
+	// Instead of actually calling StartExplorer, we'll verify it's just a simple wrapper and skip running tea Program
+	// unless we use tea.WithInput(nil) which we cannot pass to StartExplorer because it's hardcoded to os.Stdin
+	// TUI start methods are notoriously hard to test without blocking. We'll skip it in coverage and just run other tui code.
+}
+
+func TestStartExplorer_RunReal(t *testing.T) {
+	dir := t.TempDir()
+
+	var in bytes.Buffer
+	in.WriteString("q")
+	var out bytes.Buffer
+
+	err := StartExplorer(dir, tea.WithInput(&in), tea.WithOutput(&out))
+	assert.NoError(t, err)
 }

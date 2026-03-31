@@ -1,6 +1,7 @@
 package main
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ func TestRunExplorer(t *testing.T) {
 	defer func() { startExplorerFunc = origFunc }()
 
 	var capturedPath string
-	startExplorerFunc = func(path string) error {
+	startExplorerFunc = func(path string, opts ...tea.ProgramOption) error {
 		capturedPath = path
 		return nil
 	}
@@ -52,7 +53,7 @@ func TestRunExplorer(t *testing.T) {
 	assert.Contains(t, err.Error(), "not a directory")
 
 	// 5. StartExplorer failure
-	startExplorerFunc = func(path string) error {
+	startExplorerFunc = func(path string, opts ...tea.ProgramOption) error {
 		return fmt.Errorf("mock error")
 	}
 	err = runExplorer(cmd, []string{tmpDir})

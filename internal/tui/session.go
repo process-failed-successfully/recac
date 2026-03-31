@@ -105,8 +105,9 @@ func NewSessionModel(ag agent.Agent, initialPersonaID string) SessionModel {
 	}
 }
 
-func StartSession(ag agent.Agent, initialPersonaID string) error {
-	p := tea.NewProgram(NewSessionModel(ag, initialPersonaID), tea.WithAltScreen())
+func StartSession(ag agent.Agent, initialPersonaID string, opts ...tea.ProgramOption) error {
+	options := append([]tea.ProgramOption{tea.WithAltScreen()}, opts...)
+	p := tea.NewProgram(NewSessionModel(ag, initialPersonaID), options...)
 	if _, err := p.Run(); err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"context"
 	"recac/internal/agent"
 	"testing"
@@ -40,7 +41,7 @@ func TestRunSession(t *testing.T) {
 	defer func() { startSessionFunc = origStartSession }()
 
 	startSessionCalled := false
-	startSessionFunc = func(ag agent.Agent, personaID string) error {
+	startSessionFunc = func(ag agent.Agent, personaID string, opts ...tea.ProgramOption) error {
 		startSessionCalled = true
 		assert.Equal(t, mockAgent, ag)
 		assert.Equal(t, "default", personaID) // Default value check
@@ -75,7 +76,7 @@ func TestRunSessionWithPersona(t *testing.T) {
 	defer func() { startSessionFunc = origStartSession }()
 
 	startSessionCalled := false
-	startSessionFunc = func(ag agent.Agent, personaID string) error {
+	startSessionFunc = func(ag agent.Agent, personaID string, opts ...tea.ProgramOption) error {
 		startSessionCalled = true
 		assert.Equal(t, mockAgent, ag)
 		assert.Equal(t, "security", personaID) // Custom value check

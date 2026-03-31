@@ -3145,10 +3145,11 @@ func NewDashboardModel(host string) DashboardModel {
 	}
 }
 
-func StartDashboard(host string) error {
+func StartDashboard(host string, opts ...tea.ProgramOption) error {
 	m := NewDashboardModel(host)
 	// Enable alt screen for full screen view
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	options := append([]tea.ProgramOption{tea.WithAltScreen()}, opts...)
+	p := tea.NewProgram(m, options...)
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
@@ -306,4 +307,16 @@ func TestSessionModel_StartSession(t *testing.T) {
 	// similar to explorer
 	m := NewSessionModel(nil, "default")
 	assert.NotNil(t, m.input)
+}
+
+func TestStartSession_RunReal(t *testing.T) {
+	mockAg := agent.NewMockAgent()
+
+	var in bytes.Buffer
+	// Add esc to quit
+	in.Write([]byte{27}) // esc key
+	var out bytes.Buffer
+
+	err := StartSession(mockAg, "default", tea.WithInput(&in), tea.WithOutput(&out))
+	assert.NoError(t, err)
 }

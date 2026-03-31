@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -349,8 +350,8 @@ func TestDashboardModel_ForceCompleteKeybind(t *testing.T) {
 	)
 
 	m := DashboardModel{
-		table:     tbl,
-		viewState: viewMain,
+		table:        tbl,
+		viewState:    viewMain,
 		selectedJobs: map[string]bool{},
 	}
 
@@ -893,4 +894,39 @@ func TestDashboardModel_UpdateSearchLogsResult(t *testing.T) {
 	mEnter := newModelEnter.(DashboardModel)
 	assert.NotNil(t, mEnter)
 	assert.Equal(t, viewSearchLogsContextInput, mEnter.viewState)
+}
+
+func TestStartDashboard_Run(t *testing.T) {
+	var in bytes.Buffer
+	in.WriteString("q")
+
+	var out bytes.Buffer
+
+	// Use empty host so we don't start a background timer that triggers real polling immediately,
+	// though "http://localhost:2112" is fine.
+	err := StartDashboard("http://localhost:2112", tea.WithInput(&in), tea.WithOutput(&out))
+	assert.NoError(t, err)
+}
+
+func TestDashboardModel_Init(t *testing.T) {
+	m := NewDashboardModel("http://localhost:2112")
+	cmd := m.Init()
+	assert.NotNil(t, cmd)
+}
+func TestDashboardModel_RenderTags(t *testing.T) {
+	// Create some dummy tags data
+	tags := []TagInfo{
+		{Name: "tag1", Count: 10},
+		{Name: "tag2", Count: 5},
+	}
+
+	output := renderTags(tags)
+	assert.Contains(t, output, "tag1")
+	assert.Contains(t, output, "tag2")
+	assert.Contains(t, output, "10")
+	assert.Contains(t, output, "5")
+
+	// Empty case
+	outputEmpty := renderTags([]TagInfo{})
+	assert.Contains(t, outputEmpty, "No tags found across any jobs.")
 }
