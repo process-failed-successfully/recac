@@ -227,6 +227,21 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/summary", func(w http.ResponseWriter, r *http.Request) {
+		summary := make(map[string]int)
+		for _, job := range orch.GetActiveJobs() {
+			summary[job.Status]++
+		}
+		for _, job := range orch.GetCompletedJobs() {
+			summary[job.Status]++
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(summary); err != nil {
+			logger.Error("Failed to encode summary", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /diagnose", handleDiagnose(orch, logger))
 
 
