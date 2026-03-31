@@ -158,6 +158,57 @@ func TestOrchestrator_DeletePendingJob_Timer(t *testing.T) {
 	assert.False(t, timerOk)
 }
 
+func TestOrchestrator_DeletePendingJobsByConcurrencyGroup(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	job1 := JobInfo{
+		ID:       "TEST-1",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "TEST-1", ConcurrencyGroup: "group1"},
+	}
+	job2 := JobInfo{
+		ID:       "TEST-2",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "TEST-2", ConcurrencyGroup: "group1"},
+	}
+	job3 := JobInfo{
+		ID:       "TEST-3",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "TEST-3", ConcurrencyGroup: "group2"},
+	}
+
+	orch.pendingJobs["TEST-1"] = job1
+	orch.pendingJobs["TEST-2"] = job2
+	orch.pendingJobs["TEST-3"] = job3
+
+	count, err := orch.DeletePendingJobsByConcurrencyGroup(context.Background(), "group1", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	_, exists1 := orch.pendingJobs["TEST-1"]
+	assert.False(t, exists1)
+	_, exists2 := orch.pendingJobs["TEST-2"]
+	assert.False(t, exists2)
+	_, exists3 := orch.pendingJobs["TEST-3"]
+	assert.True(t, exists3)
+}
+
+func TestOrchestrator_DeletePendingJobsByConcurrencyGroup_Timer(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+
+	orch.pendingJobs["TEST-1"] = JobInfo{ID: "TEST-1", WorkItem: WorkItem{ConcurrencyGroup: "group1"}}
+	orch.delayTimers["TEST-1"] = time.AfterFunc(1*time.Hour, func() {})
+
+	count, err := orch.DeletePendingJobsByConcurrencyGroup(context.Background(), "group1", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	_, ok := orch.pendingJobs["TEST-1"]
+	assert.False(t, ok)
+	_, timerOk := orch.delayTimers["TEST-1"]
+	assert.False(t, timerOk)
+}
+
 func TestOrchestrator_DeletePendingJobsByMatch_InvalidRegex(t *testing.T) {
 	orch := New(nil, nil, time.Minute)
 
