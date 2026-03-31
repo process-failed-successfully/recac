@@ -756,6 +756,20 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		format := r.URL.Query().Get("format")
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
 
+		if format == "junit" {
+			xmlStr, err := ExportJobsToJUnitXML(jobs)
+			if err != nil {
+				logger.Error("Failed to generate JUnit XML report", "error", err)
+				http.Error(w, "Failed to generate JUnit XML report", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/xml")
+			w.Header().Set("Content-Disposition", "attachment; filename=jobs_export.xml")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(xmlStr))
+			return
+		}
+
 		if format == "csv" {
 			w.Header().Set("Content-Type", "text/csv")
 			w.Header().Set("Content-Disposition", "attachment; filename=jobs_export.csv")

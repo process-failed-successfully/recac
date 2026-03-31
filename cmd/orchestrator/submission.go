@@ -1925,8 +1925,8 @@ func addJobMetrics(host, jobID, key string, val float64) {
 }
 
 func exportJobs(host, path, format string) {
-	if format != "json" && format != "csv" {
-		fmt.Fprintf(stdout, "Invalid format: %s. Must be 'json' or 'csv'.\n", format)
+	if format != "json" && format != "csv" && format != "junit" {
+		fmt.Fprintf(stdout, "Error: Invalid export format '%s'. Must be 'json', 'csv', or 'junit'.\n", format)
 		exitFunc(1)
 		return
 	}
