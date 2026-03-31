@@ -887,8 +887,10 @@ func TestDashboardModel_UpdateSearchLogsResult(t *testing.T) {
 	m.viewState = viewSearchLogsInput
 	m.searchInput.Focus()
 	m.searchInput.SetValue("error")
+
+	// Transitions to Context Input
 	newModelEnter, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter"), Alt: false})
 	mEnter := newModelEnter.(DashboardModel)
 	assert.NotNil(t, mEnter)
-	assert.Equal(t, viewSearchLogsInput, mEnter.viewState)
+	assert.Equal(t, viewSearchLogsContextInput, mEnter.viewState)
 }

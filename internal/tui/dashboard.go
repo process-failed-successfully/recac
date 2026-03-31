@@ -61,6 +61,7 @@ const (
 	viewExplain
 	viewCompare
 	viewSearchLogsInput
+	viewSearchLogsContextInput
 	viewSearchLogsResult
 	viewAnalyzeFailures
 	viewCriticalPath
@@ -120,7 +121,8 @@ type DashboardModel struct {
 	// Rename input field
 	renameInput textinput.Model
 
-	searchInput textinput.Model
+	searchInput        textinput.Model
+	searchContextInput textinput.Model
 
 	explain     string
 	compareJobs [2]orchestrator.JobInfo
@@ -474,6 +476,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case viewSearchLogsInput:
 		m, cmd = m.updateSearchLogsInput(msg)
+		cmds = append(cmds, cmd)
+	case viewSearchLogsContextInput:
+		m, cmd = m.updateSearchLogsContextInput(msg)
 		cmds = append(cmds, cmd)
 	case viewSearchLogsResult:
 		m, cmd = m.updateViewport(msg)
@@ -1570,6 +1575,28 @@ func (m DashboardModel) updateAgentInput(msg tea.Msg) (DashboardModel, tea.Cmd) 
 	return m, tea.Batch(cmds...)
 }
 
+func (m DashboardModel) updateSearchLogsContextInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.viewState = viewMain
+			m.searchInput.SetValue("")
+			m.searchContextInput.SetValue("")
+			m.searchContextInput.Blur()
+			return m, nil
+		case "enter":
+			val := m.searchInput.Value()
+			ctxVal := m.searchContextInput.Value()
+			m.searchContextInput.Blur()
+			return m, searchLogsCmd(m.host, val, ctxVal)
+		}
+	}
+	m.searchContextInput, cmd = m.searchContextInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateSearchLogsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -1586,7 +1613,10 @@ func (m DashboardModel) updateSearchLogsInput(msg tea.Msg) (DashboardModel, tea.
 				return m, nil
 			}
 			m.searchInput.Blur()
-			return m, searchLogsCmd(m.host, val)
+			m.viewState = viewSearchLogsContextInput
+			m.searchContextInput.SetValue("")
+			m.searchContextInput.Focus()
+			return m, textinput.Blink
 		}
 	}
 	m.searchInput, cmd = m.searchInput.Update(msg)
@@ -1709,6 +1739,16 @@ func (m DashboardModel) View() string {
 		inputView := lipgloss.NewStyle().Margin(1, 2).Render(
 			titleStyle.Render("Search Logs (Regex):") + "\n" +
 				m.searchInput.View() + "\n\n" +
+				statusStyle.Render("enter: next | esc: cancel"),
+		)
+		contentView = baseStyle.Render(inputView)
+		helpView = statusStyle.Render("enter: next | esc: cancel")
+	case viewSearchLogsContextInput:
+		inputView := lipgloss.NewStyle().Margin(1, 2).Render(
+			titleStyle.Render("Search Logs (Regex):") + "\n" +
+				m.searchInput.View() + "\n\n" +
+				titleStyle.Render("Context Lines (optional):") + "\n" +
+				m.searchContextInput.View() + "\n\n" +
 				statusStyle.Render("enter: search | esc: cancel"),
 		)
 		contentView = baseStyle.Render(inputView)
@@ -2100,9 +2140,13 @@ func waitForLogChunk(r io.Reader) tea.Cmd {
 	}
 }
 
-func searchLogsCmd(host, query string) tea.Cmd {
+func searchLogsCmd(host, query, contextLines string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(host + "/jobs/search/logs?q=" + query)
+		urlStr := host + "/jobs/search/logs?q=" + url.QueryEscape(query)
+		if contextLines != "" {
+			urlStr += "&context=" + url.QueryEscape(contextLines)
+		}
+		resp, err := http.Get(urlStr)
 		if err != nil {
 			return searchLogsResultMsg{Err: err}
 		}
@@ -3074,6 +3118,11 @@ func NewDashboardModel(host string) DashboardModel {
 	si.Prompt = "Query: "
 	si.Width = 40
 
+	sci := textinput.New()
+	sci.Placeholder = "e.g., 5"
+	sci.Prompt = "Context Lines: "
+	sci.Width = 40
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -3091,6 +3140,7 @@ func NewDashboardModel(host string) DashboardModel {
 		agentModelInput:    ami,
 		renameInput:        ri,
 		searchInput:        si,
+		searchContextInput: sci,
 		selectedJobs:       make(map[string]bool),
 	}
 }
