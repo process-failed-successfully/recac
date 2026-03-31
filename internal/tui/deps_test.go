@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -140,4 +141,17 @@ func TestDepsModel_RenderInstabilityBar(t *testing.T) {
 
 func TestStartDeps_Success(t *testing.T) {
 	// Dummy test
+}
+
+func TestStartDeps_Run(t *testing.T) {
+	outgoing := map[string][]string{
+		"pkgA": {"pkgB"},
+	}
+
+	var in bytes.Buffer
+	in.WriteString("q")
+	var out bytes.Buffer
+
+	err := StartDeps(outgoing, tea.WithInput(&in), tea.WithOutput(&out))
+	assert.NoError(t, err)
 }

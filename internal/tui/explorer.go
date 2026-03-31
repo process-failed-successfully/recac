@@ -66,9 +66,10 @@ func NewExplorerModel(path string) ExplorerModel {
 	return m
 }
 
-func StartExplorer(path string) error {
+func StartExplorer(path string, opts ...tea.ProgramOption) error {
 	m := NewExplorerModel(path)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	options := append([]tea.ProgramOption{tea.WithAltScreen()}, opts...)
+	p := tea.NewProgram(m, options...)
 	_, err := p.Run()
 	return err
 }

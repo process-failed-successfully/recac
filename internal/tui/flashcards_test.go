@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"recac/internal/flashcards"
 	"testing"
 	"time"
@@ -301,4 +302,16 @@ func TestFlashcardsModel_Update_TableDriven(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStartFlashcardsSession_Run(t *testing.T) {
+	store := NewMockStore()
+	store.Add(flashcards.NewFlashcard("Q", "A", "ctx", "topic"))
+
+	var in bytes.Buffer
+	in.WriteString("q")
+	var out bytes.Buffer
+
+	err := StartFlashcardsSession(store, tea.WithInput(&in), tea.WithOutput(&out))
+	assert.NoError(t, err)
 }

@@ -32,14 +32,15 @@ type FlashcardsModel struct {
 	learned  int
 }
 
-func StartFlashcardsSession(store flashcards.Store) error {
+func StartFlashcardsSession(store flashcards.Store, opts ...tea.ProgramOption) error {
 	queue := store.GetDue()
 	if len(queue) == 0 {
 		fmt.Println("No cards due for review! Great job.")
 		return nil
 	}
 
-	p := tea.NewProgram(initialFlashcardsModel(store, queue), tea.WithAltScreen())
+	options := append([]tea.ProgramOption{tea.WithAltScreen()}, opts...)
+	p := tea.NewProgram(initialFlashcardsModel(store, queue), options...)
 	if _, err := p.Run(); err != nil {
 		return err
 	}

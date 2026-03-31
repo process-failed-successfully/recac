@@ -275,9 +275,10 @@ func (m DepsModel) View() string {
 }
 
 // StartDeps launches the interactive dependency explorer
-func StartDeps(outgoing map[string][]string) error {
+func StartDeps(outgoing map[string][]string, opts ...tea.ProgramOption) error {
 	m := NewDepsModel(outgoing)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	options := append([]tea.ProgramOption{tea.WithAltScreen()}, opts...)
+	p := tea.NewProgram(m, options...)
 	_, err := p.Run()
 	return err
 }
