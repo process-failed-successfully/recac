@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewPostgresStore(t *testing.T) {
+func TestNewSQLiteStore(t *testing.T) {
 	// Use mock db instead of real connection
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -25,22 +25,12 @@ func TestNewPostgresStore(t *testing.T) {
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS project_features").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS project_specs").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS file_locks").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_observations_project_created ON observations").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("ALTER TABLE observations").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("ALTER TABLE signals").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE signals").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_features").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_features").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_features").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_features").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_specs").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_specs").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_specs").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE project_specs").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE file_locks").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE file_locks").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("ALTER TABLE file_locks").WillReturnResult(sqlmock.NewResult(0, 0))
 
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 	err = store.migrate()
 	assert.NoError(t, err)
 
@@ -50,24 +40,24 @@ func TestNewPostgresStore(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_SaveObservation(t *testing.T) {
+func TestSQLiteStore_SaveObservation(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
-	mock.ExpectExec("INSERT INTO observations").WithArgs("proj1", "agent1", "content").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO observations").WithArgs("proj1", "agent1", "content", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = store.SaveObservation("proj1", "agent1", "content")
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestPostgresStore_QueryHistory(t *testing.T) {
+func TestSQLiteStore_QueryHistory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	rows := sqlmock.NewRows([]string{"id", "agent_id", "content", "created_at"}).
 		AddRow(1, "agent1", "hello", time.Now())
@@ -82,23 +72,23 @@ func TestPostgresStore_QueryHistory(t *testing.T) {
 	assert.Equal(t, "agent1", obs[0].AgentID)
 }
 
-func TestPostgresStore_SetSignal(t *testing.T) {
+func TestSQLiteStore_SetSignal(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
-	mock.ExpectExec("INSERT INTO signals").WithArgs("proj1", "key1", "val1").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT OR REPLACE INTO signals").WithArgs("proj1", "key1", "val1", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = store.SetSignal("proj1", "key1", "val1")
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_GetSignal(t *testing.T) {
+func TestSQLiteStore_GetSignal(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	rows := sqlmock.NewRows([]string{"value"}).AddRow("val1")
 	mock.ExpectQuery("SELECT value FROM signals").WithArgs("proj1", "key1").WillReturnRows(rows)
@@ -113,11 +103,11 @@ func TestPostgresStore_GetSignal(t *testing.T) {
 	assert.Equal(t, "", val2)
 }
 
-func TestPostgresStore_DeleteSignal(t *testing.T) {
+func TestSQLiteStore_DeleteSignal(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	mock.ExpectExec("DELETE FROM signals").WithArgs("proj1", "key1").WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -125,23 +115,23 @@ func TestPostgresStore_DeleteSignal(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_SaveFeatures(t *testing.T) {
+func TestSQLiteStore_SaveFeatures(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
-	mock.ExpectExec("INSERT INTO project_features").WithArgs("proj1", "{}").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT OR REPLACE INTO project_features").WithArgs("proj1", "{}", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = store.SaveFeatures("proj1", "{}")
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_GetFeatures(t *testing.T) {
+func TestSQLiteStore_GetFeatures(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	rows := sqlmock.NewRows([]string{"content"}).AddRow("{}")
 	mock.ExpectQuery("SELECT content FROM project_features").WithArgs("proj1").WillReturnRows(rows)
@@ -151,23 +141,23 @@ func TestPostgresStore_GetFeatures(t *testing.T) {
 	assert.Equal(t, "{}", val)
 }
 
-func TestPostgresStore_SaveSpec(t *testing.T) {
+func TestSQLiteStore_SaveSpec(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
-	mock.ExpectExec("INSERT INTO project_specs").WithArgs("proj1", "spec content").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT OR REPLACE INTO project_specs").WithArgs("proj1", "spec content", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = store.SaveSpec("proj1", "spec content")
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_GetSpec(t *testing.T) {
+func TestSQLiteStore_GetSpec(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	rows := sqlmock.NewRows([]string{"content"}).AddRow("spec content")
 	mock.ExpectQuery("SELECT content FROM project_specs").WithArgs("proj1").WillReturnRows(rows)
@@ -177,12 +167,33 @@ func TestPostgresStore_GetSpec(t *testing.T) {
 	assert.Equal(t, "spec content", val)
 }
 
-func TestPostgresStore_AcquireLock(t *testing.T) {
-	// Simple test for AcquireLock (doesn't exist, successful insert)
+func TestSQLiteStore_UpdateFeatureStatus(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
+
+	// Mock GetFeatures
+	featuresJSON := `{"features": [{"id": "feat1", "status": "pending", "passes": false}]}`
+	rows := sqlmock.NewRows([]string{"content"}).AddRow(featuresJSON)
+	mock.ExpectQuery("SELECT content FROM project_features WHERE project_id = \\?").
+		WithArgs("proj1").
+		WillReturnRows(rows)
+
+	// Mock SaveFeatures
+	mock.ExpectExec("INSERT OR REPLACE INTO project_features").
+		WithArgs("proj1", sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
+	assert.NoError(t, err)
+}
+
+func TestSQLiteStore_AcquireLock(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	store := &SQLiteStore{db: db}
 
 	mock.ExpectQuery("SELECT agent_id, expires_at FROM file_locks").
 		WithArgs("proj1", "file.txt").
@@ -197,11 +208,11 @@ func TestPostgresStore_AcquireLock(t *testing.T) {
 	assert.True(t, acquired)
 }
 
-func TestPostgresStore_ReleaseLock(t *testing.T) {
+func TestSQLiteStore_ReleaseLock(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	mock.ExpectExec("DELETE FROM file_locks").
 		WithArgs("proj1", "file.txt", "agent1").
@@ -211,11 +222,11 @@ func TestPostgresStore_ReleaseLock(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_ReleaseAllLocks(t *testing.T) {
+func TestSQLiteStore_ReleaseAllLocks(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	mock.ExpectExec("DELETE FROM file_locks").
 		WithArgs("proj1", "agent1").
@@ -225,13 +236,13 @@ func TestPostgresStore_ReleaseAllLocks(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_Cleanup(t *testing.T) {
+func TestSQLiteStore_Cleanup(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
-	mock.ExpectExec("DELETE FROM file_locks WHERE expires_at < NOW()").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM file_locks WHERE expires_at < CURRENT_TIMESTAMP").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("DELETE FROM signals WHERE created_at").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("DELETE FROM observations WHERE id").WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -239,39 +250,11 @@ func TestPostgresStore_Cleanup(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostgresStore_UpdateFeatureStatus(t *testing.T) {
+func TestSQLiteStore_GetActiveLocks(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-	store := &PostgresStore{db: db}
-
-	// Mock Begin
-	mock.ExpectBegin()
-
-	// Mock QueryRow for existing features
-	featuresJSON := `{"features": [{"id": "feat1", "status": "pending", "passes": false}]}`
-	rows := sqlmock.NewRows([]string{"content"}).AddRow(featuresJSON)
-	mock.ExpectQuery("SELECT content FROM project_features WHERE project_id = \\$1 FOR UPDATE").
-		WithArgs("proj1").
-		WillReturnRows(rows)
-
-	// Mock Exec for update
-	mock.ExpectExec("UPDATE project_features SET content = \\$1, updated_at = NOW\\(\\) WHERE project_id = \\$2").
-		WithArgs(sqlmock.AnyArg(), "proj1").
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	// Mock Commit
-	mock.ExpectCommit()
-
-	err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
-	assert.NoError(t, err)
-}
-
-func TestPostgresStore_GetActiveLocks(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-	store := &PostgresStore{db: db}
+	store := &SQLiteStore{db: db}
 
 	rows := sqlmock.NewRows([]string{"path", "agent_id", "expires_at"}).
 		AddRow("file.txt", "agent1", time.Now().Add(time.Hour))
