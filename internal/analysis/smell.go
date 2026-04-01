@@ -26,7 +26,6 @@ func AnalyzeFunction(fn *ast.FuncDecl, fset *token.FileSet) FunctionMetrics {
 	// Calculate Parameter Count
 	paramCount := 0
 	if fn.Type.Params != nil {
-		paramCount = len(fn.Type.Params.List)
 		// Handle "a, b int" as 2 params
 		// Actually Type.Params.List contains "a, b int" as one field with 2 names
 		// So we count names if present, or just fields if no names?

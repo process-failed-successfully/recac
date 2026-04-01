@@ -164,7 +164,7 @@ func (s *RedisChallengeScenario) testRESP(addr string) error {
 
 	// 2. SET/GET
 	fmt.Fprintf(conn, "*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n")
-	resp, _ = reader.ReadString('\n') // +OK
+	_, _ = reader.ReadString('\n') // +OK
 
 	fmt.Fprintf(conn, "*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n")
 	_, _ = reader.ReadString('\n')      // $3
