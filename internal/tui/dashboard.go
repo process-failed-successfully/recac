@@ -69,6 +69,9 @@ const (
 	viewBlockers
 	viewDependents
 	viewTags
+	viewDeletePendingGroupInput
+	viewDeletePendingTagInput
+	viewDeletePendingMatchInput
 )
 
 type TagInfo struct {
@@ -124,6 +127,11 @@ type DashboardModel struct {
 
 	// Max retries input field
 	maxRetriesInput textinput.Model
+
+	// Delete pending inputs
+	deletePendingGroupInput textinput.Model
+	deletePendingTagInput   textinput.Model
+	deletePendingMatchInput textinput.Model
 
 	searchInput        textinput.Model
 	searchContextInput textinput.Model
@@ -481,6 +489,15 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewMaxRetriesInput:
 		m, cmd = m.updateMaxRetriesInput(msg)
 		cmds = append(cmds, cmd)
+	case viewDeletePendingGroupInput:
+		m, cmd = m.updateDeletePendingGroupInput(msg)
+		cmds = append(cmds, cmd)
+	case viewDeletePendingTagInput:
+		m, cmd = m.updateDeletePendingTagInput(msg)
+		cmds = append(cmds, cmd)
+	case viewDeletePendingMatchInput:
+		m, cmd = m.updateDeletePendingMatchInput(msg)
+		cmds = append(cmds, cmd)
 	case viewSearchLogsInput:
 		m, cmd = m.updateSearchLogsInput(msg)
 		cmds = append(cmds, cmd)
@@ -640,6 +657,21 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, fetchAnalytics(m.host)
 		case "L":
 			return m, fetchTagsCmd(m.host)
+		case "ctrl+g":
+			m.viewState = viewDeletePendingGroupInput
+			m.deletePendingGroupInput.SetValue("")
+			m.deletePendingGroupInput.Focus()
+			return m, textinput.Blink
+		case "ctrl+t":
+			m.viewState = viewDeletePendingTagInput
+			m.deletePendingTagInput.SetValue("")
+			m.deletePendingTagInput.Focus()
+			return m, textinput.Blink
+		case "ctrl+v":
+			m.viewState = viewDeletePendingMatchInput
+			m.deletePendingMatchInput.SetValue("")
+			m.deletePendingMatchInput.Focus()
+			return m, textinput.Blink
 		case "b":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -1653,6 +1685,78 @@ func (m DashboardModel) updateAgentInput(msg tea.Msg) (DashboardModel, tea.Cmd) 
 	return m, tea.Batch(cmds...)
 }
 
+func (m DashboardModel) updateDeletePendingGroupInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.deletePendingGroupInput.Blur()
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.deletePendingGroupInput.Value())
+			m.viewState = viewMain
+			m.deletePendingGroupInput.Blur()
+			if val == "" {
+				m.err = fmt.Errorf("Concurrency group cannot be empty")
+				return m, nil
+			}
+			return m, deletePendingBulkCmd(m.host, "group", val)
+		}
+	}
+	m.deletePendingGroupInput, cmd = m.deletePendingGroupInput.Update(msg)
+	return m, cmd
+}
+
+func (m DashboardModel) updateDeletePendingTagInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.deletePendingTagInput.Blur()
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.deletePendingTagInput.Value())
+			m.viewState = viewMain
+			m.deletePendingTagInput.Blur()
+			if val == "" {
+				m.err = fmt.Errorf("Tag cannot be empty")
+				return m, nil
+			}
+			return m, deletePendingBulkCmd(m.host, "tag", val)
+		}
+	}
+	m.deletePendingTagInput, cmd = m.deletePendingTagInput.Update(msg)
+	return m, cmd
+}
+
+func (m DashboardModel) updateDeletePendingMatchInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.deletePendingMatchInput.Blur()
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.deletePendingMatchInput.Value())
+			m.viewState = viewMain
+			m.deletePendingMatchInput.Blur()
+			if val == "" {
+				m.err = fmt.Errorf("Match regex cannot be empty")
+				return m, nil
+			}
+			return m, deletePendingBulkCmd(m.host, "match", val)
+		}
+	}
+	m.deletePendingMatchInput, cmd = m.deletePendingMatchInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateSearchLogsContextInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -1785,7 +1889,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewTags:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -1813,6 +1917,51 @@ func (m DashboardModel) View() string {
 	case viewTree:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
+	case viewDeletePendingGroupInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+		dialogContent := fmt.Sprintf("Delete Pending by Concurrency Group\n\n%s", m.deletePendingGroupInput.View())
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewDeletePendingTagInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+		dialogContent := fmt.Sprintf("Delete Pending by Tag\n\n%s", m.deletePendingTagInput.View())
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewDeletePendingMatchInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+		dialogContent := fmt.Sprintf("Delete Pending by Match Regex\n\n%s", m.deletePendingMatchInput.View())
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
 	case viewSearchLogsInput:
 		inputView := lipgloss.NewStyle().Margin(1, 2).Render(
 			titleStyle.Render("Search Logs (Regex):") + "\n" +
@@ -2964,6 +3113,44 @@ func deletePendingCmd(host, id string) tea.Cmd {
 	}
 }
 
+func deletePendingBulkCmd(host, filterType, filterValue string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(host + "/jobs/pending")
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		q := u.Query()
+		q.Set(filterType, filterValue)
+		u.RawQuery = q.Encode()
+
+		req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return actionMsg{Err: fmt.Errorf("failed to parse response: %v", err)}
+		}
+		deleted, ok := result["deleted"].(float64)
+		if !ok {
+			return actionMsg{Err: fmt.Errorf("invalid response format")}
+		}
+
+		return actionMsg{Message: fmt.Sprintf("Deleted %d pending jobs by %s", int(deleted), filterType)}
+	}
+}
+
 func archiveBulkJobsCmd(host string, selectedJobs map[string]bool) tea.Cmd {
 	return func() tea.Msg {
 		var ids []string
@@ -3250,6 +3437,21 @@ func NewDashboardModel(host string) DashboardModel {
 	mri.Prompt = "New Max Retries: "
 	mri.Width = 20
 
+		dpgi := textinput.New()
+		dpgi.Placeholder = "e.g., group-1"
+		dpgi.Prompt = "Concurrency Group: "
+		dpgi.Width = 40
+
+		dpti := textinput.New()
+		dpti.Placeholder = "e.g., tag-1"
+		dpti.Prompt = "Tag: "
+		dpti.Width = 40
+
+		dpmi := textinput.New()
+		dpmi.Placeholder = "e.g., ^job-.*$"
+		dpmi.Prompt = "Match Regex: "
+		dpmi.Width = 40
+
 	si := textinput.New()
 	si.Placeholder = "e.g., error|panic"
 	si.Prompt = "Query: "
@@ -3276,10 +3478,13 @@ func NewDashboardModel(host string) DashboardModel {
 		agentProviderInput: api,
 		agentModelInput:    ami,
 		renameInput:        ri,
-		maxRetriesInput:    mri,
-		searchInput:        si,
-		searchContextInput: sci,
-		selectedJobs:       make(map[string]bool),
+		maxRetriesInput:         mri,
+		deletePendingGroupInput: dpgi,
+		deletePendingTagInput:   dpti,
+		deletePendingMatchInput: dpmi,
+		searchInput:             si,
+		searchContextInput:      sci,
+		selectedJobs:            make(map[string]bool),
 	}
 }
 
