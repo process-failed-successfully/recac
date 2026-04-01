@@ -526,6 +526,38 @@ func (o *Orchestrator) DeletePendingJobsByMatch(ctx context.Context, match strin
 	return count, nil
 }
 
+// PromoteJob finds the highest priority among all pending jobs and sets the target job's priority to max + 1.
+func (o *Orchestrator) PromoteJob(ctx context.Context, jobID string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		return 0, fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	maxPriority := 0
+	for id, pJob := range o.pendingJobs {
+		if id != jobID && pJob.WorkItem.Priority > maxPriority {
+			maxPriority = pJob.WorkItem.Priority
+		}
+	}
+
+	newPriority := maxPriority + 1
+	if newPriority <= job.WorkItem.Priority {
+		newPriority = job.WorkItem.Priority + 1
+	}
+
+	job.WorkItem.Priority = newPriority
+	o.pendingJobs[jobID] = job
+
+	if logger != nil {
+		logger.Info("Promoted job to maximum priority", "job_id", jobID, "new_priority", newPriority)
+	}
+
+	return newPriority, nil
+}
+
 // DeletePendingJobsByConcurrencyGroup removes pending jobs matching the given concurrency group.
 func (o *Orchestrator) DeletePendingJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
