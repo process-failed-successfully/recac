@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
@@ -929,4 +930,293 @@ func TestDashboardModel_RenderTags(t *testing.T) {
 	// Empty case
 	outputEmpty := renderTags([]TagInfo{})
 	assert.Contains(t, outputEmpty, "No tags found across any jobs.")
+}
+
+func TestFetchTagsCmd(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/tags", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"name": "test-tag", "count": 5}]`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchTagsCmd(ts.URL)
+	msg := cmd()
+	tagsMsg, ok := msg.(tagsMsg)
+	assert.True(t, ok)
+	assert.NoError(t, tagsMsg.Err)
+	assert.Len(t, tagsMsg.Tags, 1)
+	assert.Equal(t, "test-tag", tagsMsg.Tags[0].Name)
+	assert.Equal(t, 5, tagsMsg.Tags[0].Count)
+}
+
+func TestFetchTagsCmd_Error(t *testing.T) {
+	cmd := fetchTagsCmd("http://localhost:0")
+	msg := cmd()
+	tagsMsg, ok := msg.(tagsMsg)
+	assert.True(t, ok)
+	assert.Error(t, tagsMsg.Err)
+}
+
+func TestFetchTagsCmd_BadStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchTagsCmd(ts.URL)
+	msg := cmd()
+	tagsMsg, ok := msg.(tagsMsg)
+	assert.True(t, ok)
+	assert.Error(t, tagsMsg.Err)
+	assert.Contains(t, tagsMsg.Err.Error(), "status 500")
+}
+
+func TestFetchTagsCmd_BadJSON(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchTagsCmd(ts.URL)
+	msg := cmd()
+	tagsMsg, ok := msg.(tagsMsg)
+	assert.True(t, ok)
+	assert.Error(t, tagsMsg.Err)
+}
+
+func TestUpdateDeletePendingTagInput(t *testing.T) {
+	model := DashboardModel{
+		viewState: viewDeletePendingTagInput,
+		deletePendingTagInput: textinput.New(),
+	}
+	model.deletePendingTagInput.Focus()
+
+	// Test ESC
+	msgEsc := tea.KeyMsg{Type: tea.KeyEsc}
+	newModel, cmd := model.updateDeletePendingTagInput(msgEsc)
+	assert.Equal(t, viewMain, newModel.viewState)
+	assert.False(t, newModel.deletePendingTagInput.Focused())
+	assert.Nil(t, cmd)
+
+	// Test Enter with empty value
+	msgEnter := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter")}
+	model.deletePendingTagInput.SetValue("")
+	newModel, cmd = model.updateDeletePendingTagInput(msgEnter)
+	assert.Equal(t, viewMain, newModel.viewState)
+	assert.Error(t, newModel.err)
+	assert.Contains(t, newModel.err.Error(), "Tag cannot be empty")
+	assert.Nil(t, cmd)
+
+	// Test Enter with valid value
+	model.deletePendingTagInput.SetValue("my-tag")
+	newModel, cmd = model.updateDeletePendingTagInput(msgEnter)
+	assert.Equal(t, viewMain, newModel.viewState)
+	assert.Nil(t, newModel.err)
+	assert.NotNil(t, cmd)
+
+	// Test other key
+	msgOther := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+	newModel, cmd = model.updateDeletePendingTagInput(msgOther)
+	assert.Equal(t, "my-taga", newModel.deletePendingTagInput.Value())
+}
+
+func TestUpdateDeletePendingMatchInput(t *testing.T) {
+	model := DashboardModel{
+		viewState: viewDeletePendingMatchInput,
+		deletePendingMatchInput: textinput.New(),
+	}
+	model.deletePendingMatchInput.Focus()
+
+	// Test ESC
+	msgEsc := tea.KeyMsg{Type: tea.KeyEsc}
+	newModel, cmd := model.updateDeletePendingMatchInput(msgEsc)
+	assert.Equal(t, viewMain, newModel.viewState)
+	assert.False(t, newModel.deletePendingMatchInput.Focused())
+	assert.Nil(t, cmd)
+
+	// Test Enter with empty value
+	msgEnter := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter")}
+	model.deletePendingMatchInput.SetValue("")
+	newModel, cmd = model.updateDeletePendingMatchInput(msgEnter)
+	assert.Equal(t, viewMain, newModel.viewState)
+	assert.Error(t, newModel.err)
+	assert.Contains(t, newModel.err.Error(), "Match regex cannot be empty")
+	assert.Nil(t, cmd)
+
+	// Test Enter with valid value
+	model.deletePendingMatchInput.SetValue("my-match")
+	newModel, cmd = model.updateDeletePendingMatchInput(msgEnter)
+	assert.Equal(t, viewMain, newModel.viewState)
+	assert.Nil(t, newModel.err)
+	assert.NotNil(t, cmd)
+
+	// Test other key
+	msgOther := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+	newModel, cmd = model.updateDeletePendingMatchInput(msgOther)
+	assert.Equal(t, "my-matcha", newModel.deletePendingMatchInput.Value())
+}
+
+func TestFetchBlockersCmd(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/job-1/blockers", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"ID": "job-2", "State": "pending"}]`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchBlockersCmd(ts.URL, "job-1")
+	msg := cmd()
+	blockersMsg, ok := msg.(blockersMsg)
+	assert.True(t, ok)
+	assert.NoError(t, blockersMsg.Err)
+	assert.Len(t, blockersMsg.Jobs, 1)
+	assert.Equal(t, "job-2", blockersMsg.Jobs[0].ID)
+	assert.Equal(t, "job-1", blockersMsg.JobID)
+}
+
+func TestFetchBlockersCmd_Error(t *testing.T) {
+	cmd := fetchBlockersCmd("http://localhost:0", "job-1")
+	msg := cmd()
+	blockersMsg, ok := msg.(blockersMsg)
+	assert.True(t, ok)
+	assert.Error(t, blockersMsg.Err)
+}
+
+func TestFetchBlockersCmd_BadStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchBlockersCmd(ts.URL, "job-1")
+	msg := cmd()
+	blockersMsg, ok := msg.(blockersMsg)
+	assert.True(t, ok)
+	assert.Error(t, blockersMsg.Err)
+	assert.Contains(t, blockersMsg.Err.Error(), "status 500")
+}
+
+func TestFetchBlockersCmd_BadJSON(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchBlockersCmd(ts.URL, "job-1")
+	msg := cmd()
+	blockersMsg, ok := msg.(blockersMsg)
+	assert.True(t, ok)
+	assert.Error(t, blockersMsg.Err)
+}
+
+func TestFetchDependentsCmd(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/job-1/dependents", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"ID": "job-2", "State": "pending"}]`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchDependentsCmd(ts.URL, "job-1")
+	msg := cmd()
+	dependentsMsg, ok := msg.(dependentsMsg)
+	assert.True(t, ok)
+	assert.NoError(t, dependentsMsg.Err)
+	assert.Len(t, dependentsMsg.Jobs, 1)
+	assert.Equal(t, "job-2", dependentsMsg.Jobs[0].ID)
+	assert.Equal(t, "job-1", dependentsMsg.JobID)
+}
+
+func TestFetchDependentsCmd_Error(t *testing.T) {
+	cmd := fetchDependentsCmd("http://localhost:0", "job-1")
+	msg := cmd()
+	dependentsMsg, ok := msg.(dependentsMsg)
+	assert.True(t, ok)
+	assert.Error(t, dependentsMsg.Err)
+}
+
+func TestFetchDependentsCmd_BadStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchDependentsCmd(ts.URL, "job-1")
+	msg := cmd()
+	dependentsMsg, ok := msg.(dependentsMsg)
+	assert.True(t, ok)
+	assert.Error(t, dependentsMsg.Err)
+	assert.Contains(t, dependentsMsg.Err.Error(), "status 500")
+}
+
+func TestFetchDependentsCmd_BadJSON(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchDependentsCmd(ts.URL, "job-1")
+	msg := cmd()
+	dependentsMsg, ok := msg.(dependentsMsg)
+	assert.True(t, ok)
+	assert.Error(t, dependentsMsg.Err)
+}
+
+func TestFetchAnalytics(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/analytics", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"total_jobs": 10}`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchAnalytics(ts.URL)
+	msg := cmd()
+	analyticsMsg, ok := msg.(analyticsMsg)
+	assert.True(t, ok)
+	assert.NoError(t, analyticsMsg.Err)
+}
+
+func TestFetchAnalytics_Error(t *testing.T) {
+	cmd := fetchAnalytics("http://localhost:0")
+	msg := cmd()
+	analyticsMsg, ok := msg.(analyticsMsg)
+	assert.True(t, ok)
+	assert.Error(t, analyticsMsg.Err)
+}
+
+func TestFetchAnalytics_BadStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchAnalytics(ts.URL)
+	msg := cmd()
+	analyticsMsg, ok := msg.(analyticsMsg)
+	assert.True(t, ok)
+	assert.Error(t, analyticsMsg.Err)
+	assert.Contains(t, analyticsMsg.Err.Error(), "status 500")
+}
+
+func TestFetchAnalytics_BadJSON(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchAnalytics(ts.URL)
+	msg := cmd()
+	analyticsMsg, ok := msg.(analyticsMsg)
+	assert.True(t, ok)
+	assert.Error(t, analyticsMsg.Err)
 }

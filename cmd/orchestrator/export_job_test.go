@@ -146,3 +146,54 @@ func TestExportSingleJob_ConnectionError(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
 }
+
+func TestExportSingleJob_DecodeError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = os.Exit }()
+
+	exportSingleJob(server.URL, "TEST-JOB-1", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to decode job response")
+}
+
+func TestExportSingleJob_FileError(t *testing.T) {
+	mockJob := orchestrator.JobInfo{
+		ID: "TEST-JOB-1",
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(mockJob)
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = os.Exit }()
+
+	// Provide a directory path instead of a file
+	exportSingleJob(server.URL, "TEST-JOB-1", t.TempDir())
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to write exported job to file")
+}

@@ -156,3 +156,147 @@ func TestInspectDataflow_NoDependencies(t *testing.T) {
 	assert.Contains(t, output, "Dataflow Inspection: JOB-TARGET")
 	assert.Contains(t, output, "This job has no upstream dependencies.")
 }
+
+func TestInspectDataflow_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	inspectDataflow("http://localhost:0", "job-1")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to connect to orchestrator")
+}
+
+func TestInspectDataflow_HTTPError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/job-1", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal error`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	inspectDataflow(server.URL, "job-1")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to fetch job details: internal error")
+}
+
+func TestInspectDataflow_DecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/job-1", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	inspectDataflow(server.URL, "job-1")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to decode response")
+}
+
+func TestInspectDataflow_DepFetchError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/job-1", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{
+			"id": "job-1",
+			"work_item": {
+				"depends_on": ["job-0"]
+			}
+		}`))
+	})
+	mux.HandleFunc("/jobs/job-0", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal error`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	inspectDataflow(server.URL, "job-1")
+
+	assert.False(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Could not fetch dependency (status 500)")
+}
+
+func TestInspectDataflow_DepDecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/job-1", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{
+			"id": "job-1",
+			"work_item": {
+				"depends_on": ["job-0"]
+			}
+		}`))
+	})
+	mux.HandleFunc("/jobs/job-0", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	inspectDataflow(server.URL, "job-1")
+
+	assert.False(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to decode dependency")
+}
