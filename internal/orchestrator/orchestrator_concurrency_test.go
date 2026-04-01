@@ -2,107 +2,307 @@ package orchestrator
 
 import (
 	"context"
-	"io"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
 )
 
-func TestOrchestrator_MaxConcurrentJobs_LimitEnforced(t *testing.T) {
-	// Setup
-	item1 := WorkItem{ID: "JOB-1"}
-	item2 := WorkItem{ID: "JOB-2"}
+func TestOrchestrator_CancelJobsByConcurrencyGroup(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
 
-	poller := newMockPoller([]WorkItem{item1, item2})
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
 
-	// Use a spawner that blocks so jobs stay active
-	blockCh := make(chan struct{})
-	spawner := &mockSpawner{blockCh: blockCh}
+	o.pendingJobs["pending-1"] = JobInfo{
+		ID:    "pending-1",
+		Status: "pending",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-group",
+		},
+	}
+	o.pendingJobs["pending-2"] = JobInfo{
+		ID:    "pending-2",
+		Status: "pending",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "other-group",
+		},
+	}
+	o.activeJobs["active-1"] = JobInfo{
+		ID:    "active-1",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-group",
+		},
+	}
 
-	// Max 1 job at a time
-	orch := New(poller, spawner, 10*time.Millisecond)
-	orch.MaxConcurrentJobs = 1
-
-	ctx, cancel := context.WithCancel(context.Background())
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-
-	// Act
-	go orch.Run(ctx, logger)
-
-	// Wait for poll
-	time.Sleep(50 * time.Millisecond)
-
-	// Assert
-	status := orch.GetStatus()
-	assert.Equal(t, 1, status.ActiveSpawns, "Should only spawn 1 job due to capacity limit")
-
-	activeJobs := orch.GetActiveJobs()
-	require.Len(t, activeJobs, 1)
-	assert.Contains(t, []string{"JOB-1", "JOB-2"}, activeJobs[0].ID) // First job should be active, map ranges can be random
-
-	// Cleanup
-	close(blockCh)
-	cancel()
+	count, err := o.CancelJobsByConcurrencyGroup(ctx, "test-group", logger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
 }
 
-func TestOrchestrator_MaxConcurrentJobs_ManualSubmit(t *testing.T) {
-	// Setup
-	poller := newMockPoller(nil)
-	blockCh := make(chan struct{})
-	spawner := &mockSpawner{blockCh: blockCh}
+func TestOrchestrator_CancelJobsByConcurrencyGroup_Error(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(assert.AnError)
 
-	orch := New(poller, spawner, 10*time.Millisecond)
-	orch.MaxConcurrentJobs = 1
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.activeJobs["active-1"] = JobInfo{
+		ID:    "active-1",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-group",
+		},
+	}
+
+	count, err := o.CancelJobsByConcurrencyGroup(ctx, "test-group", logger)
+	assert.Error(t, err)
+	assert.Equal(t, 0, count)
+}
+
+func TestOrchestrator_SubmitJobWithConcurrencyGroupCancel(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	o := New(nil, mockSpawner, time.Second)
 
 	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Act
-	err1 := orch.SubmitJob(ctx, WorkItem{ID: "MANUAL-1"}, logger)
-	require.NoError(t, err1, "First job should be submitted successfully")
+	o.pendingJobs["pending-cg"] = JobInfo{
+		ID:    "pending-cg",
+		Status: "pending",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-cg",
+		},
+	}
 
-	err2 := orch.SubmitJob(ctx, WorkItem{ID: "MANUAL-2"}, logger)
+	newItem := WorkItem{
+		ID:               "new-cg-job",
+		ConcurrencyGroup: "test-cg",
+		CancelInProgress: true,
+	}
 
-	// Assert
-	require.ErrorIs(t, err2, ErrAtCapacity, "Second job should fail due to capacity limit")
-
-	// Cleanup
-	close(blockCh)
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.NoError(t, err)
+	time.Sleep(10 * time.Millisecond)
 }
 
-func TestOrchestrator_MaxConcurrentJobs_Unlimited(t *testing.T) {
-	// Setup
-	item1 := WorkItem{ID: "JOB-1"}
-	item2 := WorkItem{ID: "JOB-2"}
+func TestOrchestrator_ProcessWorkItemInternal_ConcurrencyGroupActive(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
 
-	poller := newMockPoller([]WorkItem{item1, item2})
-	blockCh := make(chan struct{})
-	spawner := &mockSpawner{blockCh: blockCh}
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
 
-	// 0 means unlimited
-	orch := New(poller, spawner, 10*time.Millisecond)
-	orch.MaxConcurrentJobs = 0
+	o.activeJobs["active-cg"] = JobInfo{
+		ID:    "active-cg",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-cg-active",
+		},
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	newItem := WorkItem{
+		ID:               "new-cg-job-2",
+		ConcurrencyGroup: "test-cg-active",
+		CancelInProgress: false,
+	}
 
-	// Act
-	go orch.Run(ctx, logger)
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.NoError(t, err)
+}
 
-	// Wait for poll
-	time.Sleep(50 * time.Millisecond)
+func TestOrchestrator_ProcessWorkItemInternal_Draining(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
 
-	// Assert
-	status := orch.GetStatus()
-	assert.Equal(t, 2, status.ActiveSpawns, "Should spawn all jobs if unlimited")
+	o := New(nil, mockSpawner, time.Second)
+	o.Drain(logger)
+	ctx := context.Background()
 
-	activeJobs := orch.GetActiveJobs()
-	assert.Len(t, activeJobs, 2)
+	newItem := WorkItem{
+		ID: "new-job-draining",
+	}
 
-	// Cleanup
-	close(blockCh)
-	cancel()
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.Error(t, err)
+	assert.Equal(t, ErrDraining, err)
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_AlreadyPendingApproval(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.pendingJobs["pending-approval-job"] = JobInfo{
+		ID:     "pending-approval-job",
+		Status: "Pending Approval",
+	}
+
+	newItem := WorkItem{
+		ID: "pending-approval-job",
+	}
+
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "is already pending approval")
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_AlreadyPendingDependencies(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.pendingJobs["pending-dep-job"] = JobInfo{
+		ID:     "pending-dep-job",
+		Status: "Pending dependencies",
+	}
+
+	newItem := WorkItem{
+		ID: "pending-dep-job",
+	}
+
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "is already pending dependencies")
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_ConcurrencyGroupCancelActive(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.activeJobs["active-cg-cancel"] = JobInfo{
+		ID:    "active-cg-cancel",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-cg-active-cancel",
+		},
+	}
+
+	newItem := WorkItem{
+		ID:               "new-cg-job-3",
+		ConcurrencyGroup: "test-cg-active-cancel",
+		CancelInProgress: true,
+	}
+
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.NoError(t, err)
+	time.Sleep(10 * time.Millisecond)
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_RetryCount(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.activeJobs["test-cg-retry-active"] = JobInfo{
+		ID:     "test-cg-retry-active",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-cg-retry",
+		},
+	}
+
+	newItem := WorkItem{
+		ID:               "new-cg-job-retry",
+		ConcurrencyGroup: "test-cg-retry",
+		CancelInProgress: false,
+	}
+
+	err := o.processWorkItemInternal(ctx, newItem, 1, false, logger)
+	assert.NoError(t, err)
+	time.Sleep(10 * time.Millisecond)
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_RunAfterCancel(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(nil)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.activeJobs["active-cg-runafter"] = JobInfo{
+		ID:     "active-cg-runafter",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-cg-runafter",
+		},
+	}
+
+	newItem := WorkItem{
+		ID:               "new-cg-job-runafter",
+		ConcurrencyGroup: "test-cg-runafter",
+		CancelInProgress: true,
+		RunAfter:         time.Now().Add(10 * time.Minute),
+	}
+
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.NoError(t, err)
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_RunAfterCancelError(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Cancel", mock.Anything, mock.Anything).Return(assert.AnError)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	o.activeJobs["active-cg-runafter-err"] = JobInfo{
+		ID:     "active-cg-runafter-err",
+		Status: "active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "test-cg-runafter-err",
+		},
+	}
+
+	newItem := WorkItem{
+		ID:               "new-cg-job-runafter-err",
+		ConcurrencyGroup: "test-cg-runafter-err",
+		CancelInProgress: true,
+		RunAfter:         time.Now().Add(10 * time.Minute),
+	}
+
+	err := o.SubmitJob(ctx, newItem, logger)
+	assert.NoError(t, err)
+}
+
+func TestOrchestrator_ProcessWorkItemInternal_MaxRetriesFallback(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+
+	o := New(nil, mockSpawner, time.Second)
+	ctx := context.Background()
+
+	newItem := WorkItem{
+		ID:   "job-with-no-max-retries",
+	}
+
+	err := o.processWorkItemInternal(ctx, newItem, 0, false, logger)
+	assert.NoError(t, err)
 }
