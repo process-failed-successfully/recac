@@ -1192,6 +1192,52 @@ func cancelAllJobs(host string) {
 	fmt.Fprintf(stdout, "Successfully canceled %d jobs.\n", int(canceled))
 }
 
+func cancelJobsByGroup(host, group string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	q.Set("group", group)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to cancel jobs by concurrency group: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Canceled int `json:"canceled"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully canceled %d jobs by concurrency group.\n", result.Canceled)
+}
+
 func cancelJobsByTag(host, tag string) {
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs?tag=%s", host, url.QueryEscape(tag)), nil)
 	if err != nil {

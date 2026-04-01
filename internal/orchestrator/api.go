@@ -2457,6 +2457,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		tag := r.URL.Query().Get("tag")
 		status := r.URL.Query().Get("status")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
 		var count int
 		var err error
@@ -2467,6 +2468,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.CancelJobsByStatus(r.Context(), status, logger)
 		} else if match != "" {
 			count, err = orch.CancelJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.CancelJobsByConcurrencyGroup(r.Context(), group, logger)
 		} else {
 			count, err = orch.CancelAllJobs(r.Context())
 		}

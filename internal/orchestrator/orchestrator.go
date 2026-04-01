@@ -669,6 +669,40 @@ func (o *Orchestrator) CancelJobsByStatus(ctx context.Context, status string, lo
 	return count, lastErr
 }
 
+// CancelJobsByConcurrencyGroup cancels all running and pending jobs that belong to the specified concurrency group.
+func (o *Orchestrator) CancelJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+
+	for id, job := range o.activeJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && len(jobIDs) > 0 {
+		logger.Info("Canceling jobs by concurrency group", "group", group, "count", len(jobIDs))
+	}
+
+	count := 0
+	var lastErr error
+	for _, id := range jobIDs {
+		if err := o.CancelJob(ctx, id); err != nil {
+			lastErr = err
+		} else {
+			count++
+		}
+	}
+
+	return count, lastErr
+}
+
 // CancelJobsByMatch cancels all running and pending jobs where the summary or error matches the given regex.
 func (o *Orchestrator) CancelJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
 	matcher, err := regexp.Compile("(?i)" + match)
