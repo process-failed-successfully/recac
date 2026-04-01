@@ -52,13 +52,13 @@ func TestJiraEpicSmoketest_GoCalculator(t *testing.T) {
 	ctx := context.Background()
 	jClient := jira.NewClient(jiraURL, jiraUser, jiraToken)
 
-	// Build recac binary
+	// Build orchestrator binary
 	root, _ := filepath.Abs("../../") // Assuming running from tests/e2e
-	binPath := filepath.Join(root, "recac-app-smoketest")
-	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/recac")
+	binPath := filepath.Join(root, "orchestrator-smoketest")
+	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/orchestrator")
 	buildCmd.Dir = root
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build recac: %v\n%s", err, out)
+		t.Fatalf("Failed to build orchestrator: %v\n%s", err, out)
 	}
 	defer os.Remove(binPath) // Cleanup binary
 

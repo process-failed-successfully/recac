@@ -41,7 +41,6 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -buildvcs=false -o recac ./cmd/recac
 RUN go build -buildvcs=false -o orchestrator ./cmd/orchestrator
 RUN go build -buildvcs=false -o recac-agent ./cmd/agent
 RUN go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
@@ -49,10 +48,9 @@ RUN go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 # Production Image
 FROM base AS production
 WORKDIR /app
-COPY --from=builder /app/recac /usr/local/bin/recac
 COPY --from=builder /app/orchestrator /usr/local/bin/orchestrator
 COPY --from=builder /app/recac-agent /usr/local/bin/recac-agent
 COPY --from=builder /app/agent-bridge /usr/local/bin/agent-bridge
 
 # Default entrypoint
-CMD ["recac"]
+CMD ["orchestrator"]

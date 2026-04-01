@@ -70,7 +70,7 @@ You can run the orchestrator locally (pointing to K8s) or deploy it. To run loca
 ```bash
 # Requires valid KUBECONFIG and .env
 # Enable K8s mode via flag, and point to the image built above
-go run ./cmd/recac orchestrate \
+go run ./cmd/orchestrator \
   --mode k8s \
   --image ttl.sh/$TAG \
   --jira-label recac-agent \

@@ -94,8 +94,8 @@ recac signal set PROJECT_SIGNED_OFF true
   },
   {
     "title": "Entry Point",
-    "filepath": "cmd/recac/main.go",
-    "description": "This is the main entry point for the CLI. It uses ` + "`cobra`" + ` to handle commands."
+    "filepath": "cmd/orchestrator/main.go",
+    "description": "This is the main entry point for the orchestrator."
   },
   {
     "title": "Core Logic",

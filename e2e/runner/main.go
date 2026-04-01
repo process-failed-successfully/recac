@@ -175,11 +175,11 @@ func run() error {
 		}
 	}
 
-	// 1b. Build recac CLI (Before generating scenario which might use it)
-	fmt.Println("=== Building recac CLI ===")
-	buildCmd := exec.Command("go", "build", "-o", "recac", "./cmd/recac")
+	// 1b. Build orchestrator (Before generating scenario which might use it)
+	fmt.Println("=== Building orchestrator ===")
+	buildCmd := exec.Command("go", "build", "-o", "orchestrator", "./cmd/orchestrator")
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to build recac CLI: %v\nOutput: %s", err, out)
+		return fmt.Errorf("failed to build orchestrator: %v\nOutput: %s", err, out)
 	}
 
 	// 2. Setup Jira

@@ -75,13 +75,13 @@ func TestJiraEpicWorkflow_E2E(t *testing.T) {
 	}
 	t.Logf("Created Child Task: %s (Parent: %s)", childID, epicID)
 
-	// 3. Build recac-app
-	buildCmd := exec.Command("go", "build", "-o", "recac-app-epic", "./cmd/recac")
+	// 3. Build orchestrator
+	buildCmd := exec.Command("go", "build", "-o", "orchestrator-epic", "./cmd/orchestrator")
 	buildCmd.Dir = "../../" // root
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build recac: %v\n%s", err, out)
+		t.Fatalf("Failed to build orchestrator: %v\n%s", err, out)
 	}
-	binPath, _ := filepath.Abs("../../recac-app-epic")
+	binPath, _ := filepath.Abs("../../orchestrator-epic")
 
 	// 4. Run recac start
 	// We use --mock to avoid real agent costs, but start.go logic for Jira happens *before* mock loop.

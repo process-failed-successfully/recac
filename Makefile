@@ -2,7 +2,6 @@
 
 BINARY_NAME=recac
 DOCKER_IMAGE=recac-build
-MAIN_PATH=./cmd/recac
 DOCKER_RUN_OPTS=--rm -v $(CURDIR):/app
 
 # Tools (Run inside Docker)
@@ -17,10 +16,7 @@ help: ## Show this help message
 image: ## Build the helper Docker image
 	docker build -t $(DOCKER_IMAGE) -f Dockerfile .
 
-build: build-recac build-orchestrator build-agent ## Build all binaries
-
-build-recac: ## Build the legacy recac binary
-	go build -o $(BINARY_NAME) $(MAIN_PATH)
+build: build-orchestrator build-agent ## Build all binaries
 
 build-orchestrator: ## Build the orchestrator binary
 	go build -o orchestrator ./cmd/orchestrator

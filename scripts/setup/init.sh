@@ -49,12 +49,13 @@ echo "✓ Dependencies installed"
 
 # Build the application
 echo "Building recac..."
-go build -o recac ./cmd/recac
+go build -o orchestrator ./cmd/orchestrator
+go build -o recac-agent ./cmd/agent
 
 echo "✓ Application built"
 
 # Make it executable
-chmod +x recac
+chmod +x orchestrator recac-agent
 
 # Create necessary directories
 echo "Creating project directories..."
