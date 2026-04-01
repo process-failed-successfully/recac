@@ -1539,6 +1539,11 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"priority": %d}`, req.Priority)
 	})
 
+	mux.HandleFunc("PUT /jobs/{id}/artifacts/{filename}", handleUploadArtifact(orch, logger))
+	mux.HandleFunc("GET /jobs/{id}/artifacts/{filename}", handleDownloadArtifact(orch, logger))
+	mux.HandleFunc("GET /jobs/{id}/artifacts", handleListArtifacts(orch, logger))
+	mux.HandleFunc("DELETE /jobs/{id}/artifacts/{filename}", handleDeleteArtifact(orch, logger))
+
 	mux.HandleFunc("POST /jobs/{id}/promote", func(w http.ResponseWriter, r *http.Request) {
 		jobID := r.PathValue("id")
 

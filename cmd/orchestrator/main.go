@@ -299,6 +299,13 @@ func main() {
 	pflag.String("export-trace", "", "Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout)")
 	pflag.String("export-trace-state", "all", "State of jobs to export trace for ('all', 'active', 'completed', 'failed')")
 
+	pflag.String("upload-artifact", "", "Path to the local file to upload as an artifact (requires --job-id)")
+	pflag.String("download-artifact", "", "Filename of the artifact to download (requires --job-id)")
+	pflag.String("artifact-out", "", "Output path for the downloaded artifact (used with --download-artifact)")
+	pflag.Bool("list-artifacts", false, "List all artifacts for a specific job (requires --job-id)")
+	pflag.String("delete-artifact", "", "Filename of the artifact to delete (requires --job-id)")
+	pflag.String("job-id", "", "Job ID to operate on (used with artifact commands)")
+
 	pflag.String("generate-pipeline", "", "Generate a pipeline YAML using AI based on the provided prompt")
 	pflag.String("generate-pipeline-out", "", "Output file for the generated pipeline YAML (use '-' or leave empty for stdout)")
 
@@ -331,6 +338,7 @@ func main() {
 	pflag.Duration("job-timeout", 0, "Maximum execution time for a job (0 = unlimited)")
 	pflag.Int("max-retries", 0, "Maximum number of automatic retries for failed jobs")
 	pflag.String("log-dir", "", "Directory to store persistent compressed job logs")
+	pflag.String("artifacts-dir", "", "Directory to store job artifacts")
 	pflag.Duration("retry-delay", 5*time.Second, "Delay between automatic retries")
 	pflag.Int("circuit-breaker-max", 5, "Number of consecutive spawn failures before circuit breaker trips (0 to disable)")
 
@@ -648,6 +656,13 @@ func main() {
 	viper.BindPFlag("orchestrator.export_trace", pflag.Lookup("export-trace"))
 	viper.BindPFlag("orchestrator.export_trace_state", pflag.Lookup("export-trace-state"))
 
+	viper.BindPFlag("orchestrator.upload_artifact", pflag.Lookup("upload-artifact"))
+	viper.BindPFlag("orchestrator.download_artifact", pflag.Lookup("download-artifact"))
+	viper.BindPFlag("orchestrator.artifact_out", pflag.Lookup("artifact-out"))
+	viper.BindPFlag("orchestrator.list_artifacts", pflag.Lookup("list-artifacts"))
+	viper.BindPFlag("orchestrator.delete_artifact", pflag.Lookup("delete-artifact"))
+	viper.BindPFlag("orchestrator.job_id", pflag.Lookup("job-id"))
+
 	viper.BindPFlag("orchestrator.generate_pipeline", pflag.Lookup("generate-pipeline"))
 	viper.BindPFlag("orchestrator.generate_pipeline_out", pflag.Lookup("generate-pipeline-out"))
 
@@ -679,6 +694,7 @@ func main() {
 	viper.BindPFlag("orchestrator.job_timeout", pflag.Lookup("job-timeout"))
 	viper.BindPFlag("orchestrator.max_retries", pflag.Lookup("max-retries"))
 	viper.BindPFlag("orchestrator.log_dir", pflag.Lookup("log-dir"))
+	viper.BindPFlag("orchestrator.artifacts_dir", pflag.Lookup("artifacts-dir"))
 	viper.BindPFlag("orchestrator.retry_delay", pflag.Lookup("retry-delay"))
 	viper.BindPFlag("orchestrator.circuit_breaker_max", pflag.Lookup("circuit-breaker-max"))
 
@@ -759,6 +775,7 @@ func main() {
 	viper.BindEnv("orchestrator.job_timeout", "RECAC_JOB_TIMEOUT")
 	viper.BindEnv("orchestrator.max_retries", "RECAC_MAX_RETRIES")
 	viper.BindEnv("orchestrator.log_dir", "RECAC_LOG_DIR")
+	viper.BindEnv("orchestrator.artifacts_dir", "RECAC_ARTIFACTS_DIR")
 	viper.BindEnv("orchestrator.retry_delay", "RECAC_RETRY_DELAY")
 	viper.BindEnv("orchestrator.circuit_breaker_max", "RECAC_CIRCUIT_BREAKER_MAX")
 	viper.BindEnv("orchestrator.require_approval", "RECAC_REQUIRE_APPROVAL")
@@ -2152,6 +2169,55 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	if uploadFilePath := viper.GetString("orchestrator.upload_artifact"); uploadFilePath != "" {
+		host := viper.GetString("orchestrator.host")
+		jobID := viper.GetString("orchestrator.job_id")
+		if jobID == "" {
+			fmt.Fprintf(stdout, "Error: --job-id is required when using --upload-artifact\n")
+			exitFunc(1)
+			return nil
+		}
+		uploadArtifact(host, jobID, uploadFilePath)
+		return nil
+	}
+
+	if downloadFilename := viper.GetString("orchestrator.download_artifact"); downloadFilename != "" {
+		host := viper.GetString("orchestrator.host")
+		jobID := viper.GetString("orchestrator.job_id")
+		if jobID == "" {
+			fmt.Fprintf(stdout, "Error: --job-id is required when using --download-artifact\n")
+			exitFunc(1)
+			return nil
+		}
+		outPath := viper.GetString("orchestrator.artifact_out")
+		downloadArtifact(host, jobID, downloadFilename, outPath)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.list_artifacts") {
+		host := viper.GetString("orchestrator.host")
+		jobID := viper.GetString("orchestrator.job_id")
+		if jobID == "" {
+			fmt.Fprintf(stdout, "Error: --job-id is required when using --list-artifacts\n")
+			exitFunc(1)
+			return nil
+		}
+		listArtifacts(host, jobID)
+		return nil
+	}
+
+	if deleteFilename := viper.GetString("orchestrator.delete_artifact"); deleteFilename != "" {
+		host := viper.GetString("orchestrator.host")
+		jobID := viper.GetString("orchestrator.job_id")
+		if jobID == "" {
+			fmt.Fprintf(stdout, "Error: --job-id is required when using --delete-artifact\n")
+			exitFunc(1)
+			return nil
+		}
+		deleteArtifact(host, jobID, deleteFilename)
+		return nil
+	}
+
 	if generatePrompt := viper.GetString("orchestrator.generate_pipeline"); generatePrompt != "" {
 		host := viper.GetString("orchestrator.host")
 		outFile := viper.GetString("orchestrator.generate_pipeline_out")
@@ -2404,6 +2470,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	orch.JobTimeout = viper.GetDuration("orchestrator.job_timeout")
 	orch.MaxRetries = viper.GetInt("orchestrator.max_retries")
 	orch.LogDir = viper.GetString("orchestrator.log_dir")
+	orch.ArtifactsDir = viper.GetString("orchestrator.artifacts_dir")
 	orch.RetryDelay = viper.GetDuration("orchestrator.retry_delay")
 	orch.CircuitBreakerMaxFailures = viper.GetInt("orchestrator.circuit_breaker_max")
 	orch.RequireApproval = viper.GetBool("orchestrator.require_approval")
