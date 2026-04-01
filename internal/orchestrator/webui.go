@@ -70,6 +70,7 @@ const DashboardHTML = `
                 <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; margin-right: 10px;">Generate Postmortem</button>
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
                 <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; margin-right: 10px;">Analyze Durations</button>
+                <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff; margin-right: 10px;">Analyze Reliability</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
@@ -235,6 +236,16 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeDurationsModal()">&times;</button>
                 <h2 style="margin-bottom: 0;">Analyze Durations</h2>
                 <div id="analyze-durations-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    Loading analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="reliabilityModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeReliabilityModal()">&times;</button>
+                <h2 style="margin-bottom: 0;">Pipeline Reliability Report</h2>
+                <div id="reliability-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -1175,6 +1186,73 @@ const DashboardHTML = `
 
         function closeAnalyzeDurationsModal() {
             document.getElementById('analyzeDurationsModal').style.display = 'none';
+        }
+
+        function openReliabilityModal() {
+            const modal = document.getElementById('reliabilityModal');
+            modal.style.display = 'block';
+            const content = document.getElementById('reliability-content');
+            content.innerHTML = 'Loading analysis...';
+
+            fetch('/jobs/analyze/reliability?limit=10')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.total_jobs === 0) {
+                        content.innerHTML = '<p>No completed jobs found for reliability analysis.</p>';
+                        return;
+                    }
+
+                    let html = '<h3>Overall Stats</h3>';
+                    html += '<ul>' +
+                        '<li>Total Evaluated Jobs: ' + data.total_jobs + '</li>' +
+                        '<li>Successful Jobs: <span style="color: #4CAF50">' + data.successful_jobs + ' (' + (data.successful_jobs/data.total_jobs*100).toFixed(2) + '%)</span></li>' +
+                        '<li>Flaky Jobs: <span style="color: #FF9800">' + data.flaky_jobs + ' (' + data.flakiness_rate.toFixed(2) + '%)</span></li>' +
+                        '<li>Failed Jobs: <span style="color: #F44336">' + data.failed_jobs + ' (' + data.failure_rate.toFixed(2) + '%)</span></li>' +
+                        '<li>Overall Success Rate (incl. Flaky): <strong>' + data.success_rate.toFixed(2) + '%</strong></li>' +
+                        '<li>Total Retries Performed: ' + data.total_retries + '</li>' +
+                    '</ul>';
+
+                    html += '<h3>Top Flaky Jobs (Succeeded eventually with retries)</h3>';
+                    if (data.top_flaky_jobs && data.top_flaky_jobs.length > 0) {
+                        html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                        html += '<tr><th style="border: 1px solid #ccc; padding: 8px;">Summary</th><th style="border: 1px solid #ccc; padding: 8px;">Occurrences</th><th style="border: 1px solid #ccc; padding: 8px;">Total Retries</th><th style="border: 1px solid #ccc; padding: 8px;">Avg Retries</th></tr>';
+                        data.top_flaky_jobs.forEach(stat => {
+                            html += '<tr>' +
+                                '<td style="border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</td>' +
+                                '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.occurrences + '</td>' +
+                                '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.total_retries + '</td>' +
+                                '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.avg_retries.toFixed(2) + '</td>' +
+                            '</tr>';
+                        });
+                        html += '</table>';
+                    } else {
+                        html += '<p>No flaky jobs found.</p>';
+                    }
+
+                    html += '<h3 style="margin-top: 20px;">Top Failing Jobs (Failed completely)</h3>';
+                    if (data.top_failing_jobs && data.top_failing_jobs.length > 0) {
+                        html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                        html += '<tr><th style="border: 1px solid #ccc; padding: 8px;">Summary</th><th style="border: 1px solid #ccc; padding: 8px;">Occurrences</th></tr>';
+                        data.top_failing_jobs.forEach(stat => {
+                            html += '<tr>' +
+                                '<td style="border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</td>' +
+                                '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.occurrences + '</td>' +
+                            '</tr>';
+                        });
+                        html += '</table>';
+                    } else {
+                        html += '<p>No failing jobs found.</p>';
+                    }
+
+                    content.innerHTML = html;
+                })
+                .catch(err => {
+                    content.innerHTML = '<div class="error">Failed to fetch analysis: ' + err.message + '</div>';
+                });
+        }
+
+        function closeReliabilityModal() {
+            document.getElementById('reliabilityModal').style.display = 'none';
         }
 
         function openSearchLogsModal() {
