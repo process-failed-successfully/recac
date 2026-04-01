@@ -2072,9 +2072,6 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back | streaming logs...")
 	case viewConfirmation:
-		// Keep showing the main table in the background
-		_ = baseStyle.Render(m.table.View()) // Original intention, although overlaid later
-
 		// Create a modal dialog
 		var dialogMsg string
 		if m.pendingAction == "cancel all" {
