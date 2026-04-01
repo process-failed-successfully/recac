@@ -375,6 +375,101 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/analyze/reliability", func(w http.ResponseWriter, r *http.Request) {
+		limitStr := r.URL.Query().Get("limit")
+		limit := 10
+		if limitStr != "" {
+			if l, err := strconv.Atoi(limitStr); err == nil && l >= 0 {
+				limit = l
+			}
+		}
+
+		jobs := orch.GetCompletedJobs()
+
+		var stats ReliabilityStats
+		flakyMap := make(map[string]*FlakyJobStat)
+		failedMap := make(map[string]*FailedJobStat)
+
+		for _, job := range jobs {
+			if job.Status == "Canceled" || job.Status == "Skipped" {
+				continue
+			}
+
+			stats.TotalJobs++
+
+			if job.Status == "Completed" {
+				if job.RetryCount > 0 {
+					stats.FlakyJobs++
+					stats.TotalRetries += job.RetryCount
+
+					fStat, exists := flakyMap[job.Summary]
+					if !exists {
+						fStat = &FlakyJobStat{Summary: job.Summary}
+						flakyMap[job.Summary] = fStat
+					}
+					fStat.Occurrences++
+					fStat.TotalRetries += job.RetryCount
+				} else {
+					stats.SuccessfulJobs++
+				}
+			} else if job.Status == "Failed" || job.Status == "error" {
+				stats.FailedJobs++
+				stats.TotalRetries += job.RetryCount // failed jobs might also have retries
+
+				fStat, exists := failedMap[job.Summary]
+				if !exists {
+					fStat = &FailedJobStat{Summary: job.Summary}
+					failedMap[job.Summary] = fStat
+				}
+				fStat.Occurrences++
+			}
+		}
+
+		if stats.TotalJobs > 0 {
+			stats.SuccessRate = float64(stats.SuccessfulJobs+stats.FlakyJobs) / float64(stats.TotalJobs) * 100.0
+			stats.FlakinessRate = float64(stats.FlakyJobs) / float64(stats.TotalJobs) * 100.0
+			stats.FailureRate = float64(stats.FailedJobs) / float64(stats.TotalJobs) * 100.0
+		}
+
+		for _, stat := range flakyMap {
+			stat.AvgRetries = float64(stat.TotalRetries) / float64(stat.Occurrences)
+			stats.TopFlakyJobs = append(stats.TopFlakyJobs, *stat)
+		}
+		for _, stat := range failedMap {
+			stats.TopFailingJobs = append(stats.TopFailingJobs, *stat)
+		}
+
+		// Sort top flaky
+		sort.Slice(stats.TopFlakyJobs, func(i, j int) bool {
+			if stats.TopFlakyJobs[i].Occurrences == stats.TopFlakyJobs[j].Occurrences {
+				return stats.TopFlakyJobs[i].AvgRetries > stats.TopFlakyJobs[j].AvgRetries
+			}
+			return stats.TopFlakyJobs[i].Occurrences > stats.TopFlakyJobs[j].Occurrences
+		})
+		if len(stats.TopFlakyJobs) > limit {
+			stats.TopFlakyJobs = stats.TopFlakyJobs[:limit]
+		}
+		if stats.TopFlakyJobs == nil {
+			stats.TopFlakyJobs = []FlakyJobStat{}
+		}
+
+		// Sort top failing
+		sort.Slice(stats.TopFailingJobs, func(i, j int) bool {
+			return stats.TopFailingJobs[i].Occurrences > stats.TopFailingJobs[j].Occurrences
+		})
+		if len(stats.TopFailingJobs) > limit {
+			stats.TopFailingJobs = stats.TopFailingJobs[:limit]
+		}
+		if stats.TopFailingJobs == nil {
+			stats.TopFailingJobs = []FailedJobStat{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(stats); err != nil {
+			logger.Error("Failed to encode reliability stats", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/search/logs", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
 		if query == "" {

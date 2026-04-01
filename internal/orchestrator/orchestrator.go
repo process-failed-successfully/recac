@@ -101,6 +101,31 @@ type Analytics struct {
 	TotalMetrics    map[string]float64 `json:"total_metrics,omitempty"`
 }
 
+type FlakyJobStat struct {
+	Summary      string  `json:"summary"`
+	Occurrences  int     `json:"occurrences"`
+	TotalRetries int     `json:"total_retries"`
+	AvgRetries   float64 `json:"avg_retries"`
+}
+
+type FailedJobStat struct {
+	Summary     string `json:"summary"`
+	Occurrences int    `json:"occurrences"`
+}
+
+type ReliabilityStats struct {
+	TotalJobs      int             `json:"total_jobs"`
+	SuccessfulJobs int             `json:"successful_jobs"`
+	FlakyJobs      int             `json:"flaky_jobs"`
+	FailedJobs     int             `json:"failed_jobs"`
+	SuccessRate    float64         `json:"success_rate"`
+	FlakinessRate  float64         `json:"flakiness_rate"`
+	FailureRate    float64         `json:"failure_rate"`
+	TotalRetries   int             `json:"total_retries"`
+	TopFlakyJobs   []FlakyJobStat  `json:"top_flaky_jobs"`
+	TopFailingJobs []FailedJobStat `json:"top_failing_jobs"`
+}
+
 
 // recordSpawnFailure increments the consecutive failure counter and checks the circuit breaker.
 func (o *Orchestrator) recordSpawnFailure(logger *slog.Logger) {
