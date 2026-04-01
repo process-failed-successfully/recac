@@ -290,7 +290,7 @@ func TestQuizModel_Update_Keys(t *testing.T) {
 
 	// Ignore other keys while finished
 	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
-	assert.Equal(t, tea.Quit(), cmd())
+	assert.Nil(t, cmd)
 }
 
 func TestQuizModel_Update_QuitKeys(t *testing.T) {

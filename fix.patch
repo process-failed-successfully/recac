@@ -1,0 +1,7 @@
+--- cmd/recac/quiz_test.go
++++ cmd/recac/quiz_test.go
+@@ -291,3 +291,3 @@
+	// Ignore other keys while finished
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+-	assert.Nil(t, cmd)
++	assert.Equal(t, tea.Quit(), cmd())
