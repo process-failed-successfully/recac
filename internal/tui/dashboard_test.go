@@ -1220,3 +1220,83 @@ func TestFetchAnalytics_BadJSON(t *testing.T) {
 	assert.True(t, ok)
 	assert.Error(t, analyticsMsg.Err)
 }
+
+func TestDashboardModel_Update_AnalyzeDurations(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/analyze/durations" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"total_jobs": 5, "mean_duration_ms": 1000}`))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	m := NewDashboardModel(server.URL)
+	cmd := fetchAnalyzeDurationsCmd(m.host)
+	msg := cmd()
+
+	switch msg := msg.(type) {
+	case analyzeDurationsMsg:
+		assert.NoError(t, msg.Err)
+		assert.Equal(t, 5, msg.Stats.TotalJobs)
+	default:
+		t.Fatalf("Expected analyzeDurationsMsg, got %T", msg)
+	}
+
+	newM, _ := m.Update(msg)
+	updatedModel := newM.(DashboardModel)
+	assert.Equal(t, viewAnalyzeDurations, updatedModel.viewState)
+	assert.Contains(t, updatedModel.viewport.View(), "Duration Analysis")
+}
+
+func TestDashboardModel_Update_AnalyzeReliability(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/analyze/reliability" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"total_jobs": 10, "successful_jobs": 8, "success_rate": 80.0}`))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	m := NewDashboardModel(server.URL)
+	cmd := fetchAnalyzeReliabilityCmd(m.host)
+	msg := cmd()
+
+	switch msg := msg.(type) {
+	case analyzeReliabilityMsg:
+		assert.NoError(t, msg.Err)
+		assert.Equal(t, 10, msg.Stats.TotalJobs)
+	default:
+		t.Fatalf("Expected analyzeReliabilityMsg, got %T", msg)
+	}
+
+	newM, _ := m.Update(msg)
+	updatedModel := newM.(DashboardModel)
+	assert.Equal(t, viewAnalyzeReliability, updatedModel.viewState)
+	assert.Contains(t, updatedModel.viewport.View(), "Pipeline Reliability Report")
+}
+
+func TestDashboardModel_Keybinds_Analyze(t *testing.T) {
+	m := NewDashboardModel("http://localhost")
+
+	// Test ctrl+d keybind
+	msg := tea.KeyMsg{Type: tea.KeyCtrlD}
+	newM, cmd := m.Update(msg)
+	updatedModel := newM.(DashboardModel)
+
+	// Expected to return a fetch command
+	assert.NotNil(t, cmd)
+	assert.Equal(t, viewMain, updatedModel.viewState) // State changes when msg is returned, not on keypress
+
+	// Test ctrl+r keybind
+	msg = tea.KeyMsg{Type: tea.KeyCtrlR}
+	newM, cmd = m.Update(msg)
+	updatedModel = newM.(DashboardModel)
+
+	// Expected to return a fetch command
+	assert.NotNil(t, cmd)
+	assert.Equal(t, viewMain, updatedModel.viewState) // State changes when msg is returned, not on keypress
+}

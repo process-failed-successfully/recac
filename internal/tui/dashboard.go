@@ -69,10 +69,62 @@ const (
 	viewBlockers
 	viewDependents
 	viewTags
+	viewAnalyzeDurations
+	viewAnalyzeReliability
 	viewDeletePendingGroupInput
 	viewDeletePendingTagInput
 	viewDeletePendingMatchInput
 )
+
+type DurationStats struct {
+	TotalJobs      int       `json:"total_jobs"`
+	TotalDuration  float64   `json:"total_duration_ms"`
+	MeanDuration   float64   `json:"mean_duration_ms"`
+	MedianDuration float64   `json:"median_duration_ms"`
+	MinDuration    float64   `json:"min_duration_ms"`
+	MaxDuration    float64   `json:"max_duration_ms"`
+	TagStats       []struct {
+		Tag          string  `json:"tag"`
+		Count        int     `json:"count"`
+		MeanDuration float64 `json:"mean_duration_ms"`
+	} `json:"tag_stats"`
+	TopSlowest []orchestrator.JobInfo `json:"top_slowest"`
+}
+
+type FlakyJobStat struct {
+	Summary      string  `json:"summary"`
+	Occurrences  int     `json:"occurrences"`
+	TotalRetries int     `json:"total_retries"`
+	AvgRetries   float64 `json:"avg_retries"`
+}
+
+type FailedJobStat struct {
+	Summary     string `json:"summary"`
+	Occurrences int    `json:"occurrences"`
+}
+
+type ReliabilityStats struct {
+	TotalJobs      int             `json:"total_jobs"`
+	SuccessfulJobs int             `json:"successful_jobs"`
+	FlakyJobs      int             `json:"flaky_jobs"`
+	FailedJobs     int             `json:"failed_jobs"`
+	SuccessRate    float64         `json:"success_rate"`
+	FlakinessRate  float64         `json:"flakiness_rate"`
+	FailureRate    float64         `json:"failure_rate"`
+	TotalRetries   int             `json:"total_retries"`
+	TopFlakyJobs   []FlakyJobStat  `json:"top_flaky_jobs"`
+	TopFailingJobs []FailedJobStat `json:"top_failing_jobs"`
+}
+
+type analyzeDurationsMsg struct {
+	Stats DurationStats
+	Err   error
+}
+
+type analyzeReliabilityMsg struct {
+	Stats ReliabilityStats
+	Err   error
+}
 
 type TagInfo struct {
 	Name  string `json:"name"`
@@ -269,6 +321,26 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case analyzeDurationsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewAnalyzeDurations
+			m.viewport.SetContent(renderAnalyzeDurations(msg.Stats))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case analyzeReliabilityMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewAnalyzeReliability
+			m.viewport.SetContent(renderAnalyzeReliability(msg.Stats))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
 	case tagsMsg:
 		if msg.Err != nil {
 			m.err = msg.Err
@@ -459,7 +531,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -688,6 +760,10 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, fetchCriticalPathCmd(m.host)
 		case "ctrl+f":
 			return m, fetchAnalyzeFailuresCmd(m.host)
+		case "ctrl+d":
+			return m, fetchAnalyzeDurationsCmd(m.host)
+		case "ctrl+r":
+			return m, fetchAnalyzeReliabilityCmd(m.host)
 		case "S":
 			m.viewState = viewSearchLogsInput
 			m.searchInput.SetValue("")
@@ -1889,8 +1965,14 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewTags:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewAnalyzeDurations:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewAnalyzeReliability:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewDetails:
@@ -4248,4 +4330,250 @@ func cleanAllCmd(host string) tea.Cmd {
 
 		return actionMsg{Message: "Clean All: OK"}
 	}
+}
+
+func fetchAnalyzeDurationsCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/durations", host))
+		if err != nil {
+			return analyzeDurationsMsg{Err: err}
+		}
+
+		q := u.Query()
+		q.Set("limit", "10") // Default limit to match CLI/WebUI
+		u.RawQuery = q.Encode()
+
+		resp, err := http.Get(u.String())
+		if err != nil {
+			return analyzeDurationsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return analyzeDurationsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var stats DurationStats
+		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+			return analyzeDurationsMsg{Err: err}
+		}
+
+		return analyzeDurationsMsg{Stats: stats}
+	}
+}
+
+func fetchAnalyzeReliabilityCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/reliability", host))
+		if err != nil {
+			return analyzeReliabilityMsg{Err: err}
+		}
+
+		q := u.Query()
+		q.Set("limit", "10") // Default limit
+		u.RawQuery = q.Encode()
+
+		resp, err := http.Get(u.String())
+		if err != nil {
+			return analyzeReliabilityMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return analyzeReliabilityMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var stats ReliabilityStats
+		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+			return analyzeReliabilityMsg{Err: err}
+		}
+
+		return analyzeReliabilityMsg{Stats: stats}
+	}
+}
+
+func renderAnalyzeDurations(stats DurationStats) string {
+	if stats.TotalJobs == 0 {
+		return "No valid completed jobs with duration found.\n\nPress 'q' or 'esc' to go back."
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		Padding(0, 1)
+
+	rowStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(15)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Duration Analysis (%d valid jobs)", stats.TotalJobs)) + "\n\n")
+
+	printField := func(label, value string) {
+		sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value)))
+	}
+
+	printField("Total", time.Duration(stats.TotalDuration*float64(time.Millisecond)).Round(time.Second).String())
+	printField("Mean", time.Duration(stats.MeanDuration*float64(time.Millisecond)).Round(time.Millisecond).String())
+	printField("Median", time.Duration(stats.MedianDuration*float64(time.Millisecond)).Round(time.Millisecond).String())
+	printField("Min", time.Duration(stats.MinDuration*float64(time.Millisecond)).Round(time.Millisecond).String())
+	printField("Max", time.Duration(stats.MaxDuration*float64(time.Millisecond)).Round(time.Millisecond).String())
+	sb.WriteString("\n")
+
+	if len(stats.TagStats) > 0 {
+		sb.WriteString(titleStyle.Render("Average Duration by Tag") + "\n\n")
+		sb.WriteString(fmt.Sprintf("%-20s %-10s %-20s\n",
+			headerStyle.Render("Tag"),
+			headerStyle.Render("Count"),
+			headerStyle.Render("Mean Duration"),
+		))
+		tagCol1 := lipgloss.NewStyle().Width(20)
+		tagCol2 := lipgloss.NewStyle().Width(10)
+		tagCol3 := lipgloss.NewStyle().Width(20)
+
+		for _, ts := range stats.TagStats {
+			sb.WriteString(fmt.Sprintf("%s %s %s\n",
+				tagCol1.Render(rowStyle.Render(limitString(ts.Tag, 18))),
+				tagCol2.Render(fmt.Sprintf("%d", ts.Count)),
+				tagCol3.Render(rowStyle.Render(time.Duration(ts.MeanDuration*float64(time.Millisecond)).Round(time.Millisecond).String())),
+			))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(stats.TopSlowest) > 0 {
+		sb.WriteString(titleStyle.Render(fmt.Sprintf("Top %d Slowest Jobs", len(stats.TopSlowest))) + "\n\n")
+
+		idCol := lipgloss.NewStyle().Width(15)
+		summaryCol := lipgloss.NewStyle().Width(40)
+		statusCol := lipgloss.NewStyle().Width(15)
+		durationCol := lipgloss.NewStyle().Width(15)
+
+		sb.WriteString(fmt.Sprintf("%s %s %s %s\n",
+			idCol.Render(headerStyle.Render("ID")),
+			summaryCol.Render(headerStyle.Render("Summary")),
+			statusCol.Render(headerStyle.Render("Status")),
+			durationCol.Render(headerStyle.Render("Duration")),
+		))
+		for _, job := range stats.TopSlowest {
+			dur := "N/A"
+			if !job.StartTime.IsZero() && !job.EndTime.IsZero() {
+				dur = job.EndTime.Sub(job.StartTime).Round(time.Millisecond).String()
+			}
+			sb.WriteString(fmt.Sprintf("%s %s %s %s\n",
+				idCol.Render(rowStyle.Render(limitString(job.ID, 13))),
+				summaryCol.Render(rowStyle.Render(limitString(job.Summary, 38))),
+				statusCol.Render(rowStyle.Render(limitString(job.Status, 13))),
+				durationCol.Render(rowStyle.Render(dur)),
+			))
+		}
+	}
+
+	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+	return sb.String()
+}
+
+func renderAnalyzeReliability(stats ReliabilityStats) string {
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86"))
+
+	labelStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("46"))
+	warnStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+
+	sb.WriteString(titleStyle.Render("Pipeline Reliability Report") + "\n\n")
+
+	sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Total Evaluated Jobs:"), valueStyle.Render(fmt.Sprintf("%d", stats.TotalJobs))))
+	if stats.TotalJobs > 0 {
+		sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Successful Jobs:"), successStyle.Render(fmt.Sprintf("%d (%.2f%%)", stats.SuccessfulJobs, (float64(stats.SuccessfulJobs)/float64(stats.TotalJobs)*100)))))
+	} else {
+		sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Successful Jobs:"), successStyle.Render(fmt.Sprintf("%d (0.00%%)", stats.SuccessfulJobs))))
+	}
+	sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Flaky Jobs:"), warnStyle.Render(fmt.Sprintf("%d (%.2f%%)", stats.FlakyJobs, stats.FlakinessRate))))
+	sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Failed Jobs:"), errStyle.Render(fmt.Sprintf("%d (%.2f%%)", stats.FailedJobs, stats.FailureRate))))
+	sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Overall Success Rate (incl. Flaky):"), successStyle.Render(fmt.Sprintf("%.2f%%", stats.SuccessRate))))
+	sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Total Retries Performed:"), valueStyle.Render(fmt.Sprintf("%d", stats.TotalRetries))))
+	sb.WriteString("\n")
+
+	if len(stats.TopFlakyJobs) > 0 {
+		sb.WriteString(headerStyle.Render(fmt.Sprintf("Top %d Flaky Jobs (Succeeded eventually, but required retries)", len(stats.TopFlakyJobs))) + "\n")
+
+		sumCol := lipgloss.NewStyle().Width(50)
+		occCol := lipgloss.NewStyle().Width(12)
+		retCol := lipgloss.NewStyle().Width(15)
+		avgCol := lipgloss.NewStyle().Width(12)
+
+		sb.WriteString(fmt.Sprintf("%s %s %s %s\n",
+			sumCol.Render(labelStyle.Render("Summary")),
+			occCol.Render(labelStyle.Render("Occurrences")),
+			retCol.Render(labelStyle.Render("Total Retries")),
+			avgCol.Render(labelStyle.Render("Avg Retries")),
+		))
+		for _, stat := range stats.TopFlakyJobs {
+			sb.WriteString(fmt.Sprintf("%s %s %s %s\n",
+				sumCol.Render(limitString(stat.Summary, 48)),
+				occCol.Render(fmt.Sprintf("%d", stat.Occurrences)),
+				retCol.Render(fmt.Sprintf("%d", stat.TotalRetries)),
+				avgCol.Render(fmt.Sprintf("%.2f", stat.AvgRetries)),
+			))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(stats.TopFailingJobs) > 0 {
+		sb.WriteString(headerStyle.Render(fmt.Sprintf("Top %d Failing Jobs (Failed completely)", len(stats.TopFailingJobs))) + "\n")
+
+		sumCol := lipgloss.NewStyle().Width(50)
+		occCol := lipgloss.NewStyle().Width(12)
+
+		sb.WriteString(fmt.Sprintf("%s %s\n",
+			sumCol.Render(labelStyle.Render("Summary")),
+			occCol.Render(labelStyle.Render("Occurrences")),
+		))
+		for _, stat := range stats.TopFailingJobs {
+			sb.WriteString(fmt.Sprintf("%s %s\n",
+				sumCol.Render(limitString(stat.Summary, 48)),
+				occCol.Render(fmt.Sprintf("%d", stat.Occurrences)),
+			))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(stats.TopFlakyJobs) == 0 && len(stats.TopFailingJobs) == 0 {
+		sb.WriteString(successStyle.Render("Excellent! No flaky or failing jobs detected.") + "\n\n")
+	}
+
+	sb.WriteString("Press 'q' or 'esc' to go back.\n")
+	return sb.String()
 }
