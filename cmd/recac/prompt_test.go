@@ -145,7 +145,7 @@ func TestPromptShowCmd(t *testing.T) {
 	assert.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "You are a senior software engineer")
+	assert.Contains(t, output, "YOUR ROLE - CODING AGENT")
 }
 
 func TestPromptShowCmd_Error(t *testing.T) {
@@ -154,7 +154,7 @@ func TestPromptShowCmd_Error(t *testing.T) {
 
 	err := promptShowCmd.RunE(promptShowCmd, []string{"non_existent_prompt"})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "prompt not found")
+	assert.Contains(t, err.Error(), "file does not exist")
 }
 
 func TestPromptResetCmd_Error(t *testing.T) {
