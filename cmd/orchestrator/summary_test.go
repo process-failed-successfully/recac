@@ -64,3 +64,93 @@ func TestSummaryJobs(t *testing.T) {
 		assert.Equal(t, float64(1), summaryMap["Running"])
 	})
 }
+
+func TestSummaryJobs_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	summaryJobs("http://localhost:0", "text")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to connect to orchestrator")
+}
+
+func TestSummaryJobs_HTTPError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal error`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	summaryJobs(server.URL, "text")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to fetch summary: internal error")
+}
+
+func TestSummaryJobs_DecodeError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	summaryJobs(server.URL, "text")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to decode response")
+}
+
+func TestSummaryJobs_Empty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	summaryJobs(server.URL, "text")
+
+	assert.False(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "No jobs found.")
+}

@@ -90,3 +90,46 @@ func TestExportMetrics_Error(t *testing.T) {
 	assert.Contains(t, output, "Failed to export metrics")
 	assert.Contains(t, output, "internal error")
 }
+
+func TestExportMetrics_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	exportMetrics("http://localhost:0", "-", "all")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to connect to orchestrator")
+}
+
+func TestExportMetrics_FileCreationError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("metrics"))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	// Try to write to a directory
+	exportMetrics(server.URL, t.TempDir(), "all")
+
+	assert.True(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Failed to create output file")
+}
