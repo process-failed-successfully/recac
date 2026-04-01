@@ -188,6 +188,7 @@ func main() {
 	pflag.String("update-priority-tag", "", "Update the priority of all pending jobs with the specified tag")
 	pflag.String("update-priority-match", "", "Update the priority of all pending jobs matching the given regex")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
+	pflag.String("promote-job", "", "Promote a specific pending job to run next by bumping its priority to max")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("update-timeout-tag", "", "Update the timeout of all pending jobs with the specified tag")
 	pflag.String("update-timeout-match", "", "Update the timeout of all pending jobs matching the given regex")
@@ -533,6 +534,7 @@ func main() {
 	viper.BindPFlag("orchestrator.update_priority_tag", pflag.Lookup("update-priority-tag"))
 	viper.BindPFlag("orchestrator.update_priority_match", pflag.Lookup("update-priority-match"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
+	viper.BindPFlag("orchestrator.promote_job", pflag.Lookup("promote-job"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.update_timeout_tag", pflag.Lookup("update-timeout-tag"))
 	viper.BindPFlag("orchestrator.update_timeout_match", pflag.Lookup("update-timeout-match"))
@@ -1462,6 +1464,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		priorityVal := viper.GetInt("orchestrator.priority_val")
 		updatePriority(host, updatePriorityJob, priorityVal)
+		return nil
+	}
+
+	if promoteJobID := viper.GetString("orchestrator.promote_job"); promoteJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		promoteJob(host, promoteJobID)
 		return nil
 	}
 

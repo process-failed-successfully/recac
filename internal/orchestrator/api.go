@@ -1444,6 +1444,27 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"priority": %d}`, req.Priority)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/promote", func(w http.ResponseWriter, r *http.Request) {
+		jobID := r.PathValue("id")
+
+		newPriority, err := orch.PromoteJob(baseCtx, jobID, logger)
+		if err != nil {
+			if err.Error() == "job "+jobID+" not found in pending queue" {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":       jobID,
+			"priority": newPriority,
+		})
+	})
+
 	mux.HandleFunc("PUT /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 
