@@ -303,8 +303,8 @@ const DashboardHTML = `
                         <option value="completed">Completed Jobs</option>
                         <option value="all">All Jobs</option>
                     </select>
-                    <input type="text" id="job-search" placeholder="Search ID or Summary (Press '/')..." aria-label="Search jobs">
-                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs" title="Shortcut: 'r'">Refresh</button>
+                    <input type="text" id="job-search" placeholder="Search ID or Summary..." aria-label="Search jobs">
+                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs">Refresh</button>
                 </div>
             </div>
             <div id="jobs-container">
@@ -1326,22 +1326,6 @@ const DashboardHTML = `
                     currentLogController.abort();
                     currentLogController = null;
                 }
-            }
-        });
-
-        window.addEventListener('keydown', function(event) {
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') return;
-
-            const modals = document.querySelectorAll('.modal');
-            for (let i = 0; i < modals.length; i++) {
-                if (modals[i].style.display === 'block') return;
-            }
-
-            if (event.key === '/') {
-                event.preventDefault();
-                document.getElementById('job-search').focus();
-            } else if (event.key === 'r') {
-                document.getElementById('refresh-jobs').click();
             }
         });
     </script>

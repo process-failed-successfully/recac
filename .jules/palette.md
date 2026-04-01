@@ -54,3 +54,7 @@
 ## 2026-03-31 - Focus Visible on Checkbox and Number Inputs
 **Learning:** In custom dashboards, form-group level CSS targeting `:focus-visible` (e.g. `.form-group input[type="text"]:focus-visible`) often inadvertently omits other standard input types like `number` or `checkbox`, leaving them completely inaccessible to keyboard users because they lack a focus ring.
 **Action:** Always ensure that `input[type="number"]` and `input[type="checkbox"]` have explicitly defined `:focus-visible` outline styles, alongside standard `text` and `textarea` inputs, to guarantee comprehensive keyboard navigation accessibility.
+
+## 2026-04-05 - Global Keyboard Shortcuts in Custom Web Dashboards
+**Learning:** Adding global keyboard shortcuts (like `/` to focus search) to embedded web UIs is a huge usability win, but it's crucial to explicitly prevent them from triggering while typing in inputs (`event.target.tagName`) or when any modal is open (`.modal` check). If ignored, users might accidentally refresh data or steal focus while simply trying to type characters or navigate an overlay.
+**Action:** Always wrap global document-level `keydown` event listeners with checks for active form elements (`INPUT`, `TEXTAREA`, `SELECT`) and open modals before executing the shortcut logic.
