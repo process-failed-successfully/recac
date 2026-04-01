@@ -19,8 +19,6 @@ func GeneratePostmortem(ctx context.Context, orch *Orchestrator, tag, match, pro
 		}
 	}
 
-	lowerTag := strings.ToLower(tag)
-
 	orch.mu.RLock()
 	var failedJobs []JobInfo
 	for _, job := range orch.completedJobs {
@@ -32,7 +30,8 @@ func GeneratePostmortem(ctx context.Context, orch *Orchestrator, tag, match, pro
 			if tag != "" {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
-					if strings.ToLower(t) == lowerTag {
+					// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive comparisons
+					if strings.EqualFold(t, tag) {
 						hasTag = true
 						break
 					}
