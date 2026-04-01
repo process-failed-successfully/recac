@@ -51,6 +51,14 @@ func TestArtifactsCLI(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
+	errorMux := http.NewServeMux()
+	errorMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, "Internal Server Error")
+	})
+	errorServer := httptest.NewServer(errorMux)
+	defer errorServer.Close()
+
 	// Redirect stdout to buffer
 	var buf bytes.Buffer
 	oldStdout := stdout
@@ -100,5 +108,89 @@ func TestArtifactsCLI(t *testing.T) {
 		buf.Reset()
 		deleteArtifact(server.URL, jobID, filename)
 		assert.Contains(t, buf.String(), "Successfully deleted artifact")
+	})
+
+	t.Run("uploadArtifact_FileOpenError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			uploadArtifact(server.URL, jobID, "nonexistent_file.txt")
+		})
+		assert.Contains(t, buf.String(), "Failed to open file")
+	})
+
+	t.Run("uploadArtifact_ConnectionError", func(t *testing.T) {
+		buf.Reset()
+		tempFile := filepath.Join(t.TempDir(), filename)
+		os.WriteFile(tempFile, fileContent, 0644)
+		assert.PanicsWithValue(t, "exit 1", func() {
+			uploadArtifact("http://localhost:0", jobID, tempFile)
+		})
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("uploadArtifact_HTTPError", func(t *testing.T) {
+		buf.Reset()
+		tempFile := filepath.Join(t.TempDir(), filename)
+		os.WriteFile(tempFile, fileContent, 0644)
+		assert.PanicsWithValue(t, "exit 1", func() {
+			uploadArtifact(errorServer.URL, jobID, tempFile)
+		})
+		assert.Contains(t, buf.String(), "Failed to upload artifact")
+	})
+
+	t.Run("downloadArtifact_ConnectionError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			downloadArtifact("http://localhost:0", jobID, filename, "")
+		})
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("downloadArtifact_HTTPError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			downloadArtifact(errorServer.URL, jobID, filename, "")
+		})
+		assert.Contains(t, buf.String(), "Failed to download artifact")
+	})
+
+	t.Run("downloadArtifact_FileError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			downloadArtifact(server.URL, jobID, filename, "/invalid/path/file.txt")
+		})
+		assert.Contains(t, buf.String(), "Failed to create output file")
+	})
+
+	t.Run("listArtifacts_ConnectionError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			listArtifacts("http://localhost:0", jobID)
+		})
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("listArtifacts_HTTPError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			listArtifacts(errorServer.URL, jobID)
+		})
+		assert.Contains(t, buf.String(), "Failed to list artifacts")
+	})
+
+	t.Run("deleteArtifact_ConnectionError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			deleteArtifact("http://localhost:0", jobID, filename)
+		})
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("deleteArtifact_HTTPError", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			deleteArtifact(errorServer.URL, jobID, filename)
+		})
+		assert.Contains(t, buf.String(), "Failed to delete artifact")
 	})
 }

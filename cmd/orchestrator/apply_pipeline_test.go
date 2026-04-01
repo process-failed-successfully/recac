@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -282,4 +284,184 @@ jobs:
 
 	assert.Contains(t, out, "[UNCHANGED] Job test-pipeline-job1")
 	assert.Equal(t, 0, exitCode)
+}
+
+func TestApplyPipelineErrors(t *testing.T) {
+	// Set up a mock server that returns errors
+	errorMux := http.NewServeMux()
+	errorMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, "Internal Server Error")
+	})
+	errorServer := httptest.NewServer(errorMux)
+	defer errorServer.Close()
+
+	// Redirect stdout to buffer
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	// Dummy exit func
+	oldExit := exitFunc
+	exitFunc = func(code int) {
+		if code != 0 {
+			panic(fmt.Sprintf("exit %d", code))
+		}
+	}
+	defer func() { exitFunc = oldExit }()
+
+	t.Run("InvalidFilePath", func(t *testing.T) {
+		buf.Reset()
+		err := applyPipelineJobInternal(errorServer.URL, "nonexistent.yaml", false, "", nil, "stable")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to read file nonexistent.yaml")
+	})
+
+	t.Run("InvalidPipelineContent", func(t *testing.T) {
+		buf.Reset()
+		tmpFile, err := os.CreateTemp("", "invalid_pipeline_*.yaml")
+		assert.NoError(t, err)
+		defer os.Remove(tmpFile.Name())
+
+		tmpFile.WriteString("invalid: yaml: content\n  - :")
+		tmpFile.Close()
+
+		err = applyPipelineJobInternal(errorServer.URL, tmpFile.Name(), false, "", nil, "stable")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Pipeline validation failed")
+	})
+
+	t.Run("FetchActiveJobsError", func(t *testing.T) {
+		buf.Reset()
+		tmpFile, err := os.CreateTemp("", "pipeline_active_err_*.yaml")
+		assert.NoError(t, err)
+		defer os.Remove(tmpFile.Name())
+
+		validPipeline := `name: test
+jobs:
+  job1:
+    image: alpine`
+		tmpFile.WriteString(validPipeline)
+		tmpFile.Close()
+
+		err = applyPipelineJobInternal("http://localhost:0", tmpFile.Name(), false, "", nil, "stable")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to fetch active jobs")
+	})
+
+	t.Run("FetchPendingJobsError", func(t *testing.T) {
+		buf.Reset()
+		tmpFile, err := os.CreateTemp("", "pipeline_pending_err_*.yaml")
+		assert.NoError(t, err)
+		defer os.Remove(tmpFile.Name())
+
+		validPipeline := `name: test
+jobs:
+  job1:
+    image: alpine`
+		tmpFile.WriteString(validPipeline)
+		tmpFile.Close()
+
+		// Mock server that succeeds on active, fails on pending
+		mux := http.NewServeMux()
+		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+			state := r.URL.Query().Get("state")
+			if state == "active" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("[]"))
+			} else {
+				// force error
+				conn, _, _ := w.(http.Hijacker).Hijack()
+				conn.Close()
+			}
+		})
+		customServer := httptest.NewServer(mux)
+		defer customServer.Close()
+
+		err = applyPipelineJobInternal(customServer.URL, tmpFile.Name(), false, "", nil, "stable")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to fetch pending jobs")
+	})
+
+	t.Run("ApplyPipelineJobWrapperPanic", func(t *testing.T) {
+		buf.Reset()
+		assert.PanicsWithValue(t, "exit 1", func() {
+			applyPipelineJob(errorServer.URL, "nonexistent.yaml", false, "", nil, "stable")
+		})
+		assert.Contains(t, buf.String(), "Failed to read file nonexistent.yaml")
+	})
+}
+
+func TestApplyPipelineErrors_UpdateCreate(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "pipeline_update_create_err_*.yaml")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	validPipeline := `name: test
+jobs:
+  job1:
+    image: alpine
+    command: "echo test"`
+	tmpFile.WriteString(validPipeline)
+	tmpFile.Close()
+
+	// Redirect stdout to buffer
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	t.Run("UpdateError", func(t *testing.T) {
+		buf.Reset()
+		mux := http.NewServeMux()
+		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+			state := r.URL.Query().Get("state")
+			if state == "active" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("[]"))
+			} else if state == "pending" {
+				w.WriteHeader(http.StatusOK)
+				// Return a pending job with different summary so it triggers update
+				j := []orchestrator.JobInfo{{ID: "test-job1", WorkItem: orchestrator.WorkItem{ID: "test-job1", Summary: "old"}}}
+				json.NewEncoder(w).Encode(j)
+			}
+		})
+		mux.HandleFunc("/jobs/test-job1", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPut {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("update failed"))
+			}
+		})
+		customServer := httptest.NewServer(mux)
+		defer customServer.Close()
+
+		err := applyPipelineJobInternal(customServer.URL, tmpFile.Name(), false, "", nil, "stable")
+		if assert.Error(t, err) {
+			assert.Contains(t, err.Error(), "Applied pipeline with 1 errors")
+		}
+		assert.Contains(t, buf.String(), "Error updating job test-job1")
+	})
+
+	t.Run("CreateError", func(t *testing.T) {
+		buf.Reset()
+		mux := http.NewServeMux()
+		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("[]")) // No active, no pending
+			} else if r.Method == http.MethodPost {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("create failed"))
+			}
+		})
+		customServer := httptest.NewServer(mux)
+		defer customServer.Close()
+
+		err := applyPipelineJobInternal(customServer.URL, tmpFile.Name(), false, "", nil, "stable")
+		if assert.Error(t, err) {
+			assert.Contains(t, err.Error(), "Applied pipeline with 1 errors")
+		}
+		assert.Contains(t, buf.String(), "Error creating job test-job1")
+	})
 }
