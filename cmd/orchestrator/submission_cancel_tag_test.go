@@ -10,6 +10,68 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestCancelJobsByGroup(t *testing.T) {
+	originalExit := exitFunc
+	defer func() { exitFunc = originalExit }()
+
+	var exitCode int
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	originalStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	t.Run("Success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/jobs", r.URL.Path)
+			assert.Equal(t, "my-group", r.URL.Query().Get("group"))
+			assert.Equal(t, http.MethodDelete, r.Method)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, `{"canceled": 3}`)
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		cancelJobsByGroup(server.URL, "my-group")
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "Successfully canceled 3 jobs by concurrency group.")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		cancelJobsByGroup("http://invalid-host", "my-group")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("APIError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, "internal error")
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		cancelJobsByGroup(server.URL, "my-group")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to cancel jobs by concurrency group: internal error")
+	})
+
+	t.Run("InvalidURL", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		cancelJobsByGroup("::invalid-url", "my-group")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to parse URL")
+	})
+}
+
 func TestCancelJobsByTag(t *testing.T) {
 	originalExit := exitFunc
 	defer func() { exitFunc = originalExit }()
