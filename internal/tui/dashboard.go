@@ -2072,9 +2072,6 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back | streaming logs...")
 	case viewConfirmation:
-		// Keep showing the main table in the background
-		contentView = baseStyle.Render(m.table.View())
-
 		// Create a modal dialog
 		var dialogMsg string
 		if m.pendingAction == "cancel all" {
@@ -2137,9 +2134,8 @@ func (m DashboardModel) View() string {
 			Padding(1, 2)
 
 		// Overlay logic would be complex here without a layer manager,
-		// so for now we just replace the content view or render it differently.
-		// A simple way is to just render the dialog.
-		contentView = dialogStyle.Render(dialogMsg)
+		// so for now we just render the dialog inside the container.
+		dialogContent := dialogStyle.Render(dialogMsg)
 
 		// If we want to center it nicely we might need more layout logic,
 		// but standard center alignment in the container usually works.
@@ -2148,7 +2144,7 @@ func (m DashboardModel) View() string {
 			Height(m.viewport.Height+5). // approximate table height
 			Align(lipgloss.Center, lipgloss.Center)
 
-		contentView = containerStyle.Render(contentView)
+		contentView = containerStyle.Render(dialogContent)
 
 		helpView = statusStyle.Render("y/enter: confirm | n/q/esc: cancel")
 	case viewSubmit:

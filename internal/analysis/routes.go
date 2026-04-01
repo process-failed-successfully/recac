@@ -80,18 +80,15 @@ func ScanRoutes(root string) ([]Route, error) {
 
 			// Analyze the function call (Method)
 			var method string
-			var funcName string
 
 			switch fun := call.Fun.(type) {
 			case *ast.SelectorExpr:
-				funcName = fun.Sel.Name
 				// Check for HTTP verbs
-				method = normalizeMethod(funcName)
+				method = normalizeMethod(fun.Sel.Name)
 			case *ast.Ident:
 				// Local function call?Unlikely for routing libraries usually attached to structs or packages.
 				// But maybe alias?
-				funcName = fun.Name
-				method = normalizeMethod(funcName)
+				method = normalizeMethod(fun.Name)
 			}
 
 			if method == "" {

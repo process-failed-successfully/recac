@@ -105,7 +105,7 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	}
 
 	// 2. Find end cut point
-	endCut := n
+	var endCut int
 	if maxEndChars >= n {
 		endCut = 0
 	} else {
