@@ -33,6 +33,7 @@ type WorkItem struct {
 	Hold             bool              `json:"hold,omitempty"`
 	MaxRetries             *int              `json:"max_retries,omitempty"`
 	RunCondition           string            `json:"run_condition,omitempty" yaml:"run_condition"`
+	IfCondition            string            `json:"if_condition,omitempty" yaml:"if,omitempty"`
 	WebhookURL             string            `json:"webhook_url,omitempty" yaml:"webhook_url,omitempty"`
 	RequireApproval        *bool             `json:"require_approval,omitempty" yaml:"require_approval,omitempty"`
 	RetryDelay             *time.Duration    `json:"retry_delay,omitempty" yaml:"retry_delay,omitempty"`

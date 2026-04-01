@@ -933,3 +933,43 @@ jobs:
 	// All matrix combinations are excluded
 	assert.Len(t, items, 0)
 }
+
+func TestParsePipelineToWorkItems_IfCondition(t *testing.T) {
+	yamlData := []byte(`
+name: Pipeline If Condition
+defaults:
+  repo_url: https://github.com/org/repo.git
+  if: "${VAR1} == 'true'"
+templates:
+  base-test:
+    if: "!${SKIP_TEST}"
+jobs:
+  job1:
+    summary: Job 1 uses default if
+  job2:
+    summary: Job 2 overrides to specific if
+    if: "'${VAR2}' != 'hello'"
+  job3:
+    summary: Job 3 extends template
+    extends: base-test
+`)
+	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
+	require.NoError(t, err)
+	assert.Len(t, items, 3)
+
+	jobMap := make(map[string]WorkItem)
+	for _, item := range items {
+		parts := strings.Split(item.ID, "-")
+		jobKey := parts[len(parts)-2]
+		jobMap[jobKey] = item
+	}
+
+	job1 := jobMap["job1"]
+	assert.Equal(t, "${VAR1} == 'true'", job1.IfCondition)
+
+	job2 := jobMap["job2"]
+	assert.Equal(t, "'${VAR2}' != 'hello'", job2.IfCondition)
+
+	job3 := jobMap["job3"]
+	assert.Equal(t, "!${SKIP_TEST}", job3.IfCondition)
+}
