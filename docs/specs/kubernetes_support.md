@@ -185,7 +185,7 @@ Example:
 
 ## 8. Migration & Roadmap
 
-1.  **Phase 1: Jira Poller**: Implement the polling logic in `cmd/recac` (new `orchestrate` command).
+1.  **Phase 1: Jira Poller**: Implement the polling logic in `cmd/orchestrator`.
 2.  **Phase 2: Job Spawner**: Implement the K8s client logic to create Jobs dynamically.
 3.  **Phase 3: HA & Election**: Implement leader election for the orchestrator.
 4.  **Phase 4: Feedback Loop**: Ensure Job logs/status make it back to Jira.

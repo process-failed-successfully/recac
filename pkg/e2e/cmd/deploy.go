@@ -168,11 +168,11 @@ func buildAndPush(deployRepo string, skipBuild bool) (string, error) {
 		}
 	}
 
-	// Also build CLI
-	fmt.Println("=== Building recac CLI ===")
-	buildCmd := exec.Command("go", "build", "-o", "recac", "./cmd/recac")
+	// Also build Orchestrator
+	fmt.Println("=== Building orchestrator ===")
+	buildCmd := exec.Command("go", "build", "-o", "orchestrator", "./cmd/orchestrator")
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("failed to build recac CLI: %v\nOutput: %s", err, out)
+		return "", fmt.Errorf("failed to build orchestrator: %v\nOutput: %s", err, out)
 	}
 
 	return imageName, nil

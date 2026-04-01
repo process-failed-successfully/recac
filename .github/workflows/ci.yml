@@ -171,7 +171,8 @@ jobs:
 
       - name: Build Binaries
         run: |
-          go build -buildvcs=false -o recac ./cmd/recac
+          go build -buildvcs=false -o orchestrator ./cmd/orchestrator
+          go build -buildvcs=false -o recac-agent ./cmd/agent
           go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
   # 6. Deploy Production Image (Run on Main)

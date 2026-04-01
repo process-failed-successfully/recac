@@ -68,16 +68,16 @@ func TestJiraWorkflow_E2E(t *testing.T) {
 	// We need to build the binary first or run using 'go run'
 	// Let's assume 'recac-app' is built in root.
 
-	// Build recac-app
-	buildCmd := exec.Command("go", "build", "-o", "recac-app", "./cmd/recac")
+	// Build orchestrator
+	buildCmd := exec.Command("go", "build", "-o", "orchestrator", "./cmd/orchestrator")
 	buildCmd.Dir = "../../" // root
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build recac: %v\n%s", err, out)
+		t.Fatalf("Failed to build orchestrator: %v\n%s", err, out)
 	}
 
-	binPath, _ := filepath.Abs("../../recac-app")
+	binPath, _ := filepath.Abs("../../orchestrator")
 
-	// Run recac start --jira <ID> --mock (mock mode skips Docker/Agent loop but runs setup?)
+	// Run orchestrator start --jira <ID> --mock (mock mode skips Docker/Agent loop but runs setup?)
 	// Wait, mock mode in start.go *skips* the Jira cloning logic because it happens *before* mock check?
 	// checking start.go...
 	// "Handle Jira Ticket Workflow" is line 91.

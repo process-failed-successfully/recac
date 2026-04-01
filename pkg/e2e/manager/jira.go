@@ -51,9 +51,9 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 	// 2. Choose Flow: Legacy (Prompt) or Architect (Validated)
 	architectMode := os.Getenv("RECAC_ARCHITECT_MODE") == "true"
 
-	recacCmd := "./recac"
-	if _, err := os.Stat("recac"); os.IsNotExist(err) {
-		recacCmd = "go run ./cmd/recac"
+	recacCmd := "./orchestrator"
+	if _, err := os.Stat("orchestrator"); os.IsNotExist(err) {
+		recacCmd = "go run ./cmd/orchestrator"
 	}
 
 	if architectMode {

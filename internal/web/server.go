@@ -160,11 +160,7 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(generateMermaid(g)))
 }
 
-// generateMermaid matches the logic in cmd/recac/graph.go but reused here
-// Ideally we should refactor this into a shared package, but for now I'll duplicate to avoid
-// touching existing logic too much as per constraints, or I'll move it to `internal/runner` if I can.
-// Actually, `internal/runner/graph.go` is where I should have checked.
-// Since I can't easily move it without potentially breaking `cmd/recac/graph.go` (if I move it there),
+// generateMermaid matches the logic from the legacy graph command but reused here.
 // I will just copy the helper here for now.
 func generateMermaid(g *runner.TaskGraph) string {
 	var sb strings.Builder

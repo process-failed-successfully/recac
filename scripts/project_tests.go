@@ -108,11 +108,11 @@ func runTest(name, provider, model string) TestResult {
 		}
 	}
 
-	// Run recac
+	// Run recac agent
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/recac", "start",
+	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/agent",
 		"--path", tmpDir,
 		"--provider", provider,
 		"--model", model,
