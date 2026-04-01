@@ -45,6 +45,7 @@ type Orchestrator struct {
 	MaxRetries        int
 	RetryDelay        time.Duration
 	LogDir            string
+	ArtifactsDir      string
 	RequireApproval   bool
 
 	CircuitBreakerMaxFailures int
