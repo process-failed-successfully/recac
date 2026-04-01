@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -209,4 +210,154 @@ func TestBlogCommand_NotGitRepo(t *testing.T) {
 	err := rootCmd.Execute()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not a git repository")
+}
+
+func TestBlogCommandWithFiles(t *testing.T) {
+	mockGit := new(MockBlogGitClient)
+	mockAgent := new(MockBlogAgent)
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, pp, pn string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	tmpDir, _ := os.MkdirTemp("", "blog_with_files_*")
+	defer os.RemoveAll(tmpDir)
+
+	originalWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalWd)
+
+	cwd, _ := os.Getwd()
+	mockGit.On("RepoExists", cwd).Return(true)
+	mockGit.On("Log", cwd, mock.Anything).Return([]string{"hash|user|feat: new component"}, nil)
+
+	err := os.WriteFile("README.md", []byte("# Title"), 0644)
+	assert.NoError(t, err)
+
+	err = os.WriteFile("doc.txt", []byte("doc content"), 0644)
+	assert.NoError(t, err)
+
+	err = os.WriteFile("missing.txt", []byte("missing"), 0644)
+	assert.NoError(t, err)
+	os.Remove("missing.txt")
+
+	mockAgent.On("Send", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, "# Title") && strings.Contains(prompt, "doc content")
+	})).Return("# Blog post", nil)
+
+	blogSince = "1 week ago"
+	blogOutput = "blog_post.md"
+	blogStyle = "tutorial"
+
+	rootCmd.SetArgs([]string{
+		"blog",
+		"--files", "doc.txt,missing.txt",
+	})
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	err = rootCmd.Execute()
+	assert.NoError(t, err)
+
+	mockGit.AssertExpectations(t)
+	mockAgent.AssertExpectations(t)
+}
+
+func TestBlogCommand_LogFails(t *testing.T) {
+	mockGit := new(MockBlogGitClient)
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient { return mockGit }
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	cwd, _ := os.Getwd()
+	mockGit.On("RepoExists", cwd).Return(true)
+	mockGit.On("Log", cwd, mock.Anything).Return([]string{}, assert.AnError)
+
+	rootCmd.SetArgs([]string{"blog"})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	err := rootCmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch git logs")
+}
+
+func TestBlogCommand_AgentFails(t *testing.T) {
+	mockGit := new(MockBlogGitClient)
+	mockAgent := new(MockBlogAgent)
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient { return mockGit }
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, pp, pn string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	cwd, _ := os.Getwd()
+	mockGit.On("RepoExists", cwd).Return(true)
+	mockGit.On("Log", cwd, mock.Anything).Return([]string{"hash|user|feat: new"}, nil)
+
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("", assert.AnError)
+
+	rootCmd.SetArgs([]string{"blog"})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	err := rootCmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "agent failed")
+}
+
+func TestBlogCommand_NoWritePerms(t *testing.T) {
+	mockGit := new(MockBlogGitClient)
+	mockAgent := new(MockBlogAgent)
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient { return mockGit }
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	originalAgentFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, p, m, pp, pn string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = originalAgentFactory }()
+
+	tmpDir, _ := os.MkdirTemp("", "blog_no_perms_*")
+	defer os.RemoveAll(tmpDir)
+
+	originalWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalWd)
+
+	cwd, _ := os.Getwd()
+	mockGit.On("RepoExists", cwd).Return(true)
+	mockGit.On("Log", cwd, mock.Anything).Return([]string{"hash|user|feat: new"}, nil)
+
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("# Content", nil)
+
+	blogOutput = "/usr/bin/some_path_that_fails_to_write"
+
+	rootCmd.SetArgs([]string{"blog"})
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	err := rootCmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to write output file")
 }

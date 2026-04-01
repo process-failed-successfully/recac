@@ -225,3 +225,95 @@ func TestRunQuiz_ContextError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to generate quiz")
 }
+
+func TestQuizModel_Update_Keys(t *testing.T) {
+	questions := []QuizQuestion{
+		{
+			Question:      "Q1",
+			Options:       []string{"A", "B", "C"},
+			CorrectAnswer: 0,
+			Explanation:   "Exp 1",
+		},
+	}
+
+	m := initialQuizModel(questions)
+
+	// Down
+	newM, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = newM.(quizModel)
+	assert.Equal(t, 1, m.selectedOption)
+
+	// j
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = newM.(quizModel)
+	assert.Equal(t, 2, m.selectedOption)
+
+	// j (should not go out of bounds)
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = newM.(quizModel)
+	assert.Equal(t, 2, m.selectedOption)
+
+	// Up
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = newM.(quizModel)
+	assert.Equal(t, 1, m.selectedOption)
+
+	// k
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = newM.(quizModel)
+	assert.Equal(t, 0, m.selectedOption)
+
+	// k (should not go out of bounds)
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = newM.(quizModel)
+	assert.Equal(t, 0, m.selectedOption)
+
+	// Submit correct answer using space
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m = newM.(quizModel)
+	assert.True(t, m.showResult)
+	assert.Equal(t, 1, m.score)
+
+	// Ignore other keys while showing result
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = newM.(quizModel)
+	assert.True(t, m.showResult)
+
+	// Next question using space
+	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m = newM.(quizModel)
+	assert.True(t, m.finished)
+
+	// Quit using q while finished
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	assert.Equal(t, tea.Quit(), cmd())
+
+	// Ignore other keys while finished
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	assert.Nil(t, cmd)
+}
+
+func TestQuizModel_Update_QuitKeys(t *testing.T) {
+	questions := []QuizQuestion{
+		{
+			Question:      "Q1",
+			Options:       []string{"A", "B"},
+			CorrectAnswer: 0,
+			Explanation:   "Exp 1",
+		},
+	}
+
+	m := initialQuizModel(questions)
+
+	// ctrl+c
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	assert.Equal(t, tea.Quit(), cmd())
+
+	// esc
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	assert.Equal(t, tea.Quit(), cmd())
+
+	// q (while not finished)
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	assert.Equal(t, tea.Quit(), cmd())
+}

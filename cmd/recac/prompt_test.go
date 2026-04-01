@@ -93,3 +93,75 @@ func TestPromptGlobalOverride(t *testing.T) {
 	// Check file removed
 	assert.NoFileExists(t, expectedPath)
 }
+
+func TestPromptHasOverrides(t *testing.T) {
+	// 1. Env override
+	tempDirEnv := t.TempDir()
+	t.Setenv("RECAC_PROMPTS_DIR", tempDirEnv)
+
+	// Should be false initially
+	assert.False(t, hasEnvOverride("test_prompt"))
+
+	// Create file
+	err := os.WriteFile(filepath.Join(tempDirEnv, "test_prompt.md"), []byte("env override"), 0644)
+	assert.NoError(t, err)
+	assert.True(t, hasEnvOverride("test_prompt"))
+
+	// 2. Local override
+	tempDirLocal := t.TempDir()
+	originalWd, _ := os.Getwd()
+	os.Chdir(tempDirLocal)
+	defer os.Chdir(originalWd)
+
+	assert.False(t, hasLocalOverride("test_prompt"))
+
+	promptsDir := filepath.Join(tempDirLocal, ".recac", "prompts")
+	err = os.MkdirAll(promptsDir, 0755)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(promptsDir, "test_prompt.md"), []byte("local override"), 0644)
+	assert.NoError(t, err)
+	assert.True(t, hasLocalOverride("test_prompt"))
+
+	// 3. Global override
+	tempDirGlobal := t.TempDir()
+	t.Setenv("HOME", tempDirGlobal) // For Unix
+	t.Setenv("USERPROFILE", tempDirGlobal) // For Windows
+
+	assert.False(t, hasGlobalOverride("test_prompt"))
+
+	promptsDirGlobal := filepath.Join(tempDirGlobal, ".recac", "prompts")
+	err = os.MkdirAll(promptsDirGlobal, 0755)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(promptsDirGlobal, "test_prompt.md"), []byte("global override"), 0644)
+	assert.NoError(t, err)
+	assert.True(t, hasGlobalOverride("test_prompt"))
+}
+
+func TestPromptShowCmd(t *testing.T) {
+	buf := new(bytes.Buffer)
+	promptShowCmd.SetOut(buf)
+
+	err := promptShowCmd.RunE(promptShowCmd, []string{"coding_agent"})
+	assert.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "You are a senior software engineer")
+}
+
+func TestPromptShowCmd_Error(t *testing.T) {
+	buf := new(bytes.Buffer)
+	promptShowCmd.SetOut(buf)
+
+	err := promptShowCmd.RunE(promptShowCmd, []string{"non_existent_prompt"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "prompt not found")
+}
+
+func TestPromptResetCmd_Error(t *testing.T) {
+	buf := new(bytes.Buffer)
+	promptResetCmd.SetOut(buf)
+
+	err := promptResetCmd.RunE(promptResetCmd, []string{"non_existent_prompt_to_reset"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "override not found at")
+}

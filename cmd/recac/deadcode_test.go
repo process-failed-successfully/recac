@@ -169,3 +169,140 @@ func UnusedFunc() {
 	assert.Contains(t, output, "[") // JSON array start
 	assert.Contains(t, output, "\"identifier\": \"UnusedFunc\"")
 }
+
+func TestDeadcodeValueSpecAndField(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test2")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mainGo := "package main\n\nimport \"fmt\"\n\ntype UsedType struct {\n\tField int `json:\"field\"`\n}\n\nvar MyVar UsedType = UsedType{Field: 1}\n\nfunc main() {\n\tfmt.Println(MyVar)\n}\n"
+
+    if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+    testGo := "package main\n\nimport \"fmt\"\n\nfunc TestA() {\nfmt.Println(\"testing\")\n}"
+
+    if err := os.WriteFile(filepath.Join(tmpDir, "main_test.go"), []byte(testGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+    // Create an ignored dir
+    ignoredDir := filepath.Join(tmpDir, "vendor")
+    if err := os.MkdirAll(ignoredDir, 0755); err != nil {
+		t.Fatalf("Failed to create vendor dir: %v", err)
+	}
+
+    vendorGo := "package main\n\nimport \"fmt\"\n\nfunc UnusedFunc() {\nfmt.Println(\"testing\")\n}"
+    if err := os.WriteFile(filepath.Join(ignoredDir, "vendor.go"), []byte(vendorGo), 0644); err != nil {
+		t.Fatalf("Failed to write vendor.go: %v", err)
+	}
+
+	findings, err := analyzeDeadcode(tmpDir)
+	assert.NoError(t, err)
+
+    // We expect nothing to be unused
+    assert.Empty(t, findings)
+}
+
+func TestRunDeadcodeFail(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-fail-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mainGo := "package main\n\nimport \"fmt\"\n\nfunc UnusedFunc() {\n\tfmt.Println(\"Unused\")\n}\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	cmd := &cobra.Command{
+		Use: "deadcode",
+		RunE: runDeadcode,
+	}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	deadcodeFail = true
+	defer func() { deadcodeFail = false }()
+
+	err = runDeadcode(cmd, []string{tmpDir})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "found 1 unused identifiers")
+}
+
+func TestDeadcodeTypeSpec(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test-typespec")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mainGo := "package main\n\nimport \"fmt\"\n\ntype MyType struct{}\n\ntype AliasType MyType\n\nfunc main() {\n\tfmt.Println(AliasType{})\n}\n"
+
+    if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	findings, err := analyzeDeadcode(tmpDir)
+	assert.NoError(t, err)
+
+    // We expect nothing to be unused
+    assert.Empty(t, findings)
+}
+
+
+func TestDeadcodeTypeSpecUnused(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test-typespec2")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mainGo := "package main\n\ntype MyType struct{}\n\nvar unusedVar MyType\n"
+
+    if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	_, err = analyzeDeadcode(tmpDir)
+	assert.NoError(t, err)
+}
+
+
+func TestDeadcodeFieldWithoutTag(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test-notag")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mainGo := "package main\n\nimport \"fmt\"\n\ntype MyType struct{\n\tField int\n}\n\nfunc main() {\n\tvar t MyType\n\tfmt.Println(t.Field)\n}\n"
+
+    if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	_, err = analyzeDeadcode(tmpDir)
+	assert.NoError(t, err)
+}
+
+func TestDeadcodeValueSpecWithoutType(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-deadcode-run-test-notype")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mainGo := "package main\n\nimport \"fmt\"\n\ntype UsedType struct {}\n\nvar MyVar = UsedType{}\n\nfunc main() {\n\tfmt.Println(MyVar)\n}\n"
+
+    if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+
+	_, err = analyzeDeadcode(tmpDir)
+	assert.NoError(t, err)
+}
