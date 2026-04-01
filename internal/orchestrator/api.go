@@ -3579,6 +3579,38 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintln(w, "Orchestrator undraining")
 	})
 
+	mux.HandleFunc("POST /interval", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Interval string `json:"interval"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Interval == "" {
+			http.Error(w, "interval cannot be empty", http.StatusBadRequest)
+			return
+		}
+
+		parsedInterval, err := time.ParseDuration(req.Interval)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid interval format: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		if parsedInterval <= 0 {
+			http.Error(w, "interval must be greater than zero", http.StatusBadRequest)
+			return
+		}
+
+		orch.UpdatePollInterval(parsedInterval)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"interval": "%s"}`, parsedInterval.String())
+	})
+
 	mux.HandleFunc("POST /scale", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			MaxConcurrentJobs int `json:"max_concurrent_jobs"`
