@@ -32,6 +32,7 @@ type Pipeline struct {
 		Tags             []string          `yaml:"tags"`
 		DependsOn        []string          `yaml:"depends_on"`
 		RunCondition     string            `yaml:"run_condition"`
+		If               string            `yaml:"if,omitempty"`
 		CancelInProgress       *bool             `yaml:"cancel_in_progress,omitempty"`
 		WebhookURL       string            `yaml:"webhook_url,omitempty"`
 	} `yaml:"defaults"`
@@ -47,6 +48,7 @@ type PipelineJob struct {
 	RepoURL          string              `yaml:"repo_url"`
 	DependsOn        []string            `yaml:"depends_on"`
 	RunCondition     string              `yaml:"run_condition"`
+	If               string              `yaml:"if,omitempty"`
 	EnvVars          map[string]string   `yaml:"env_vars"`
 	Variables        map[string]string   `yaml:"variables,omitempty"`
 	Matrix           map[string][]string `yaml:"matrix"`
@@ -183,6 +185,9 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			}
 			if jobDef.RunCondition == "" {
 				jobDef.RunCondition = template.RunCondition
+			}
+			if jobDef.If == "" {
+				jobDef.If = template.If
 			}
 			if jobDef.Priority == 0 {
 				jobDef.Priority = template.Priority
@@ -423,6 +428,10 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		runCondition := jobDef.RunCondition
 		if runCondition == "" {
 			runCondition = p.Defaults.RunCondition
+		}
+		ifCond := jobDef.If
+		if ifCond == "" {
+			ifCond = p.Defaults.If
 		}
 		requireApproval := jobDef.RequireApproval
 		if requireApproval == nil && p.Defaults.RequireApproval != nil {
@@ -677,6 +686,7 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 				AgentModel:             agentModel,
 				MaxRetries:             maxRetries,
 				RunCondition:           runCondition,
+				IfCondition:            ifCond,
 				RequireApproval:        requireApproval,
 				RetryDelay:             parsedRetryDelay,
 				RetryBackoffMultiplier: retryBackoffMultiplier,

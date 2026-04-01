@@ -2696,6 +2696,60 @@ func sanitizeEnvVarName(id string) string {
 	return sb.String()
 }
 
+// EvaluateIfCondition parses and evaluates a simple condition expression.
+// Supported formats:
+// - "VAR == 'value'"
+// - "VAR != 'value'"
+// - "VAR" (true if VAR is "true" or "1")
+// - "!VAR" (true if VAR is NOT "true" or "1")
+// Environment variables are interpolated prior to this call, so we just evaluate the resulting string.
+func EvaluateIfCondition(cond string, env map[string]string) (bool, error) {
+	cond = strings.TrimSpace(cond)
+	if cond == "" {
+		return true, nil
+	}
+
+	// Substitute env vars in condition if they weren't already resolved by YAML parser
+	// Typically, YAML var interpolation happens early, but we resolve against local env just in case.
+	cond = os.Expand(cond, func(k string) string {
+		if v, ok := env[k]; ok {
+			return v
+		}
+		// Try system env fallback, otherwise empty string
+		return os.Getenv(k)
+	})
+	cond = strings.TrimSpace(cond)
+
+	// Check for ==
+	if parts := strings.SplitN(cond, "==", 2); len(parts) == 2 {
+		lhs := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
+		rhs := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
+		return lhs == rhs, nil
+	}
+
+	// Check for !=
+	if parts := strings.SplitN(cond, "!=", 2); len(parts) == 2 {
+		lhs := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
+		rhs := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
+		return lhs != rhs, nil
+	}
+
+	// Boolean evaluation
+	isNot := false
+	if strings.HasPrefix(cond, "!") {
+		isNot = true
+		cond = strings.TrimSpace(cond[1:])
+	}
+
+	cond = strings.Trim(cond, "'\"")
+	isTrue := strings.EqualFold(cond, "true") || cond == "1"
+
+	if isNot {
+		return !isTrue, nil
+	}
+	return isTrue, nil
+}
+
 // checkDependenciesMetLocked returns:
 // - shouldRun bool: whether the job should be executed
 // - shouldFail bool: whether the job should immediately fail (e.g. required dependency failed)
@@ -2704,12 +2758,13 @@ func sanitizeEnvVarName(id string) string {
 // - outputs map[string]string: accumulated outputs from successful dependencies
 func (o *Orchestrator) checkDependenciesMetLocked(item WorkItem) (shouldRun bool, shouldFail bool, shouldSkip bool, failedDep string, outputs map[string]string) {
 	outputs = make(map[string]string)
-	if len(item.DependsOn) == 0 {
-		return true, false, false, "", outputs
-	}
 
 	failedCount := 0
 	completedCount := 0
+
+	hasDeps := len(item.DependsOn) > 0
+
+	if hasDeps {
 
 	// Collect status for all dependencies
 	for _, dep := range item.DependsOn {
@@ -2762,25 +2817,54 @@ func (o *Orchestrator) checkDependenciesMetLocked(item WorkItem) (shouldRun bool
 			outputs[prefix+strings.ToUpper(k)] = v
 		}
 	}
+	}
 
 	cond := strings.ToLower(strings.TrimSpace(item.RunCondition))
 
+	// Determine base status from dependencies
+	var depRun, depFail, depSkip bool
+	var depFailedDep string
+
 	switch cond {
 	case "always":
-		return true, false, false, "", outputs
+		depRun = true
 	case "on_failure":
-		if failedCount > 0 {
-			return true, false, false, "", outputs
+		if !hasDeps || failedCount > 0 {
+			depRun = true
 		} else {
-			return false, false, true, "", outputs // Should skip
+			depSkip = true
 		}
 	default: // "on_success" or empty
-		if failedCount > 0 {
-			return false, true, false, failedDep, outputs // Should fail
+		if hasDeps && failedCount > 0 {
+			depFail = true
+			depFailedDep = failedDep
 		} else {
-			return true, false, false, "", outputs
+			depRun = true
 		}
 	}
+
+	if depFail || depSkip || !depRun {
+		return depRun, depFail, depSkip, depFailedDep, outputs
+	}
+
+	// Dependencies are met, now evaluate IfCondition
+	if item.IfCondition != "" {
+		mergedEnv := make(map[string]string)
+		for k, v := range item.EnvVars {
+			mergedEnv[k] = v
+		}
+		for k, v := range outputs {
+			mergedEnv[k] = v
+		}
+
+		isTrue, err := EvaluateIfCondition(item.IfCondition, mergedEnv)
+		if err != nil || !isTrue {
+			// Skip the job if condition is false
+			return false, false, true, "", outputs
+		}
+	}
+
+	return true, false, false, "", outputs
 }
 
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, retryCount int, logger *slog.Logger) error {
