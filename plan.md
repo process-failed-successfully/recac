@@ -1,9 +1,4 @@
-1. **Analyze `recac/internal/db/postgres.go`**
-   - The file is relatively small. I will write some new tests and augment the existing ones to cover error paths for `NewPostgresStore`, `migrate`, `UpdateFeatureStatus`, `AcquireLock`, `ReleaseLock`, `GetActiveLocks`, `Cleanup`.
-2. **Review test files and write tests**
-   - Use `append` pattern or overwrite carefully.
-3. **Analyze `recac/internal/db/sqlite.go`**
-   - The file `sqlite.go` implements the same interface but for SQLite.
-   - Look at `recac/internal/db/sqlite.go` and implement `sqlite_test.go` from scratch.
-4. **Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.**
-5. **Check overall coverage to ensure >80% coverage and Submit**
+1. **Add error path tests to `cmd/orchestrator/artifacts_test.go`**: Use string replacement to append table-driven error tests covering file open errors, non-200 HTTP responses, decode errors, and request errors for upload, download, list, and delete functions.
+2. **Add error path tests to `cmd/orchestrator/apply_pipeline_test.go`**: Use string replacement to append a new test function `TestApplyPipelineErrorPaths` that covers invalid file paths, API errors for active/pending jobs endpoints, and creation/update failures.
+3. **Run tests & coverage**: Run `go test ./cmd/orchestrator` and `make cover` to verify the new coverage is >= 80% globally and >80% for the modified files.
+4. **Complete pre-commit steps**: Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
