@@ -32,9 +32,9 @@ func GenerateChangelog(ctx context.Context, orch *Orchestrator, tag, match, prov
 
 		if tag != "" {
 			hasTag := false
-			lowerTagFilter := strings.ToLower(tag)
 			for _, t := range job.WorkItem.Tags {
-				if strings.ToLower(t) == lowerTagFilter {
+				// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive comparisons
+				if strings.EqualFold(t, tag) {
 					hasTag = true
 					break
 				}
