@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -17,56 +16,15 @@ import (
 func TestSimulateExecution(t *testing.T) {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		status := orchestrator.Status{
-			MaxConcurrentJobs: 2, // Limit concurrency to 2
+	mux.HandleFunc("/simulate", func(w http.ResponseWriter, r *http.Request) {
+		report := orchestrator.SimulationReport{
+			EstimatedTotalTimeMs: 125000,
+			JobsProcessed:        3,
+			TotalJobs:            3,
+			FinalBottleneckJob:   "job-B",
+			Deadlocks:            0,
 		}
-		json.NewEncoder(w).Encode(status)
-	})
-
-	mux.HandleFunc("/jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
-		stats := DurationStats{
-			MeanDuration: 60000, // Global mean: 60s
-			TagStats: []TagStat{
-				{Tag: "fast", MeanDuration: 10000}, // 10s
-				{Tag: "slow", MeanDuration: 120000}, // 120s
-			},
-		}
-		json.NewEncoder(w).Encode(stats)
-	})
-
-	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("state") == "active" {
-			jobs := []orchestrator.JobInfo{
-				{
-					ID:     "job-A",
-					Status: "Running",
-					StartTime: time.Now().Add(-5 * time.Second), // Elapsed 5s
-					WorkItem: orchestrator.WorkItem{
-						ID:       "job-A",
-						Tags:     []string{"fast"}, // Total: 10s -> Remaining: 5s
-					},
-				},
-				{
-					ID:     "job-B",
-					Status: "Pending",
-					WorkItem: orchestrator.WorkItem{
-						ID:       "job-B",
-						DependsOn: []string{"job-A"},
-						Tags:     []string{"slow"}, // Total: 120s
-					},
-				},
-				{
-					ID:     "job-C",
-					Status: "Pending",
-					WorkItem: orchestrator.WorkItem{
-						ID:       "job-C",
-						Tags:     []string{"fast"}, // Total: 10s
-					},
-				},
-			}
-			json.NewEncoder(w).Encode(jobs)
-		}
+		json.NewEncoder(w).Encode(report)
 	})
 
 	server := httptest.NewServer(mux)
@@ -119,36 +77,14 @@ func TestSimulateExecution(t *testing.T) {
 func TestSimulateExecution_Deadlock(t *testing.T) {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(orchestrator.Status{MaxConcurrentJobs: 2})
-	})
-
-	mux.HandleFunc("/jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(DurationStats{MeanDuration: 60000})
-	})
-
-	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("state") == "active" {
-			jobs := []orchestrator.JobInfo{
-				{
-					ID:     "job-X",
-					Status: "Pending",
-					WorkItem: orchestrator.WorkItem{
-						ID:       "job-X",
-						DependsOn: []string{"job-Y"},
-					},
-				},
-				{
-					ID:     "job-Y",
-					Status: "Pending",
-					WorkItem: orchestrator.WorkItem{
-						ID:       "job-Y",
-						DependsOn: []string{"job-X"},
-					},
-				},
-			}
-			json.NewEncoder(w).Encode(jobs)
+	mux.HandleFunc("/simulate", func(w http.ResponseWriter, r *http.Request) {
+		report := orchestrator.SimulationReport{
+			EstimatedTotalTimeMs: 0,
+			JobsProcessed:        0,
+			TotalJobs:            2,
+			Deadlocks:            2,
 		}
+		json.NewEncoder(w).Encode(report)
 	})
 
 	server := httptest.NewServer(mux)
