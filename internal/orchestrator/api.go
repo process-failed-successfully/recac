@@ -246,6 +246,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	mux.HandleFunc("GET /simulate", handleSimulate(orch, logger))
 
 
+	mux.HandleFunc("GET /jobs/analyze/costs", handleAnalyzeCosts(orch, logger))
+
 	mux.HandleFunc("GET /jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
 		limitStr := r.URL.Query().Get("limit")
 		limit := 10 // Default limit
