@@ -1,4 +1,4 @@
-1. **Add error path tests to `cmd/orchestrator/artifacts_test.go`**: Use string replacement to append table-driven error tests covering file open errors, non-200 HTTP responses, decode errors, and request errors for upload, download, list, and delete functions.
-2. **Add error path tests to `cmd/orchestrator/apply_pipeline_test.go`**: Use string replacement to append a new test function `TestApplyPipelineErrorPaths` that covers invalid file paths, API errors for active/pending jobs endpoints, and creation/update failures.
-3. **Run tests & coverage**: Run `go test ./cmd/orchestrator` and `make cover` to verify the new coverage is >= 80% globally and >80% for the modified files.
-4. **Complete pre-commit steps**: Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+1. **Optimize `cmd/agent-bridge/main.go`**: Replace `strings.ToLower(f.Status) != "done"` with `!strings.EqualFold(f.Status, "done")`.
+2. **Optimize `pkg/e2e/scenarios/sql_parser.go`**: Replace `strings.ToLower(t) == logicalType` with `strings.EqualFold(t, logicalType)`.
+3. **Run Pre-Commit Checks**: Run tests and linting to ensure no regressions.
+4. **Create PR**: Submit the changes with a descriptive PR title and message.
