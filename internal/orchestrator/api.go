@@ -243,6 +243,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	})
 
 	mux.HandleFunc("GET /diagnose", handleDiagnose(orch, logger))
+	mux.HandleFunc("GET /simulate", handleSimulate(orch, logger))
 
 
 	mux.HandleFunc("GET /jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
