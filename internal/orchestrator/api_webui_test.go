@@ -108,6 +108,11 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "View Timeline")
 	assert.Contains(t, html, "onclick=\"openAnalyzeFailuresModal()\"")
 
+	// Verify Export Trace exists
+	assert.Contains(t, html, "Export Trace")
+	assert.Contains(t, html, "async function exportTrace()")
+	assert.Contains(t, html, "fetch('/jobs/export/trace')")
+
 	// Verify JS openAnalyzeFailuresModal function exists
 	assert.Contains(t, html, "async function openAnalyzeFailuresModal()")
 	assert.Contains(t, html, "fetch('/jobs?state=all&status=Failed')")
