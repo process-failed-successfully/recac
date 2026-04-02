@@ -187,6 +187,7 @@ func main() {
 	pflag.Bool("undrain", false, "Remove the orchestrator from drain mode")
 	pflag.Bool("force-poll", false, "Force an immediate poll cycle")
 	pflag.Int("scale", -1, "Dynamically scale the maximum concurrent jobs limit")
+	pflag.String("update-interval", "", "Update the orchestrator polling interval dynamically")
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
 	pflag.String("update-priority-tag", "", "Update the priority of all pending jobs with the specified tag")
 	pflag.String("update-priority-match", "", "Update the priority of all pending jobs matching the given regex")
@@ -544,6 +545,7 @@ func main() {
 	viper.BindPFlag("orchestrator.undrain", pflag.Lookup("undrain"))
 	viper.BindPFlag("orchestrator.force_poll", pflag.Lookup("force-poll"))
 	viper.BindPFlag("orchestrator.scale", pflag.Lookup("scale"))
+	viper.BindPFlag("orchestrator.update_interval", pflag.Lookup("update-interval"))
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
 	viper.BindPFlag("orchestrator.update_priority_tag", pflag.Lookup("update-priority-tag"))
 	viper.BindPFlag("orchestrator.update_priority_match", pflag.Lookup("update-priority-match"))
@@ -1473,6 +1475,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if scaleVal := viper.GetInt("orchestrator.scale"); scaleVal >= 0 {
 		host := viper.GetString("orchestrator.host")
 		scaleConcurrency(host, scaleVal)
+		return nil
+	}
+
+	if updateIntervalVal := viper.GetString("orchestrator.update_interval"); updateIntervalVal != "" {
+		host := viper.GetString("orchestrator.host")
+		updatePollInterval(host, updateIntervalVal)
 		return nil
 	}
 
@@ -3325,6 +3333,33 @@ func scaleConcurrency(host string, max int) {
 	}
 
 	fmt.Fprintf(stdout, "Orchestrator concurrency limit scaled to %d.\n", max)
+}
+
+func updatePollInterval(host, interval string) {
+	reqBody := fmt.Sprintf(`{"interval": "%s"}`, interval)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/interval", host), strings.NewReader(reqBody))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to update poll interval: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Orchestrator poll interval updated to %s.\n", interval)
 }
 
 func retryJob(host, jobID string, downstream bool) {

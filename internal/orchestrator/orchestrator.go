@@ -39,6 +39,7 @@ type Orchestrator struct {
 	draining          bool
 	Persistence       Persistence
 	forcePollCh       chan struct{}
+	updateIntervalCh  chan time.Duration
 	MaxConcurrentJobs int
 	JobTimeout        time.Duration
 	notifier          Notifier
@@ -160,15 +161,16 @@ func (o *Orchestrator) recordSpawnSuccess() {
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
 	return &Orchestrator{
-		Poller:       poller,
-		Spawner:      spawner,
-		PollInterval: pollInterval,
-		activeJobs:   make(map[string]JobInfo),
-		pendingJobs:  make(map[string]JobInfo),
-		delayTimers:  make(map[string]*time.Timer),
-		maxHistory:   50, // Default history size
-		forcePollCh:  make(chan struct{}, 1),
-		eventChans:   make(map[chan []byte]struct{}),
+		Poller:           poller,
+		Spawner:          spawner,
+		PollInterval:     pollInterval,
+		activeJobs:       make(map[string]JobInfo),
+		pendingJobs:      make(map[string]JobInfo),
+		delayTimers:      make(map[string]*time.Timer),
+		maxHistory:       50, // Default history size
+		forcePollCh:      make(chan struct{}, 1),
+		updateIntervalCh: make(chan time.Duration, 1),
+		eventChans:       make(map[chan []byte]struct{}),
 	}
 }
 
@@ -178,6 +180,19 @@ func (o *Orchestrator) ForcePoll() {
 	case o.forcePollCh <- struct{}{}:
 	default:
 		// Already a poll pending
+	}
+}
+
+// UpdatePollInterval updates the polling interval dynamically.
+func (o *Orchestrator) UpdatePollInterval(interval time.Duration) {
+	o.mu.Lock()
+	o.PollInterval = interval
+	o.mu.Unlock()
+
+	select {
+	case o.updateIntervalCh <- interval:
+	default:
+		// Channel is full, meaning an update is already pending
 	}
 }
 
@@ -4339,6 +4354,9 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			o.mu.Unlock()
 			o.wg.Wait()
 			return ctx.Err()
+		case newInterval := <-o.updateIntervalCh:
+			logger.Info("Updating poll interval", "new_interval", newInterval)
+			ticker.Reset(newInterval)
 		case <-ticker.C:
 			o.mu.RLock()
 			paused := o.paused
