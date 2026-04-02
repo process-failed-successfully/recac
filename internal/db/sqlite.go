@@ -303,8 +303,10 @@ func (s *SQLiteStore) Cleanup() error {
 
 	// 2. Remove old signals (older than 24h, keeping critical ones)
 	// Critical signals: PROJECT_SIGNED_OFF, QA_PASSED, COMPLETED
-	criticalSignals := "'PROJECT_SIGNED_OFF', 'QA_PASSED', 'COMPLETED'"
-	_, err = s.db.Exec(fmt.Sprintf(`DELETE FROM signals WHERE created_at < datetime('now', '-1 day') AND key NOT IN (%s)`, criticalSignals))
+	_, err = s.db.Exec(
+		`DELETE FROM signals WHERE created_at < datetime('now', '-1 day') AND key NOT IN (?, ?, ?)`,
+		"PROJECT_SIGNED_OFF", "QA_PASSED", "COMPLETED",
+	)
 	if err != nil {
 		return fmt.Errorf("failed to clean old signals: %w", err)
 	}
