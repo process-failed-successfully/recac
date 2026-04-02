@@ -247,7 +247,8 @@ func getMapKey(m map[string]interface{}, keys ...string) map[string]interface{} 
 
 func hasLogicalType(node map[string]interface{}, logicalType string) bool {
 	t, ok := node["type"].(string)
-	if ok && strings.ToLower(t) == logicalType {
+	// ⚡ Bolt: Use strings.EqualFold to avoid allocating a new string with strings.ToLower
+	if ok && strings.EqualFold(t, logicalType) {
 		return true
 	}
 	// Recursive search just in case

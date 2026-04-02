@@ -240,7 +240,8 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 					if json.Unmarshal([]byte(content), &fl) == nil {
 						allDone := true
 						for _, f := range fl.Features {
-							if strings.ToLower(f.Status) != "done" || !f.Passes {
+							// ⚡ Bolt: Use strings.EqualFold to avoid allocating a new string with strings.ToLower
+							if !strings.EqualFold(f.Status, "done") || !f.Passes {
 								allDone = false
 								break
 							}
