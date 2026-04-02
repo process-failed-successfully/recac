@@ -74,6 +74,7 @@ const (
 	viewDeletePendingGroupInput
 	viewDeletePendingTagInput
 	viewDeletePendingMatchInput
+	viewSummary
 )
 
 type DurationStats struct {
@@ -124,6 +125,11 @@ type analyzeDurationsMsg struct {
 type analyzeReliabilityMsg struct {
 	Stats ReliabilityStats
 	Err   error
+}
+
+type summaryMsg struct {
+	Summary map[string]int
+	Err     error
 }
 
 type TagInfo struct {
@@ -297,6 +303,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, tick())
 		cmds = append(cmds, fetchStatus(m.host, m.showHistory))
 		return m, tea.Batch(cmds...)
+
+	case summaryMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewSummary
+			m.viewport.SetContent(renderSummary(msg.Summary))
+			m.viewport.GotoTop()
+		}
+		return m, nil
 
 	case statusMsg:
 		if msg.Err != nil {
@@ -531,7 +547,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability:
+	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewSummary:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -727,6 +743,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 		case "A":
 			return m, fetchAnalytics(m.host)
+		case "ctrl+u":
+			return m, fetchSummaryCmd(m.host)
 		case "L":
 			return m, fetchTagsCmd(m.host)
 		case "ctrl+g":
@@ -1965,7 +1983,10 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+	case viewSummary:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
 	case viewTags:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -3713,6 +3734,89 @@ func fetchBlockersCmd(host, id string) tea.Cmd {
 
 		return blockersMsg{Jobs: jobs, JobID: id}
 	}
+}
+
+func fetchSummaryCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/summary", host))
+		if err != nil {
+			return summaryMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return summaryMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var summary map[string]int
+		if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
+			return summaryMsg{Err: err}
+		}
+
+		return summaryMsg{Summary: summary}
+	}
+}
+
+func renderSummary(summary map[string]int) string {
+	if len(summary) == 0 {
+		return "No jobs found.\n\nPress 'q' or 'esc' to go back."
+	}
+
+	total := 0
+	for _, count := range summary {
+		total += count
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Width(25).
+		Foreground(lipgloss.Color("86"))
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Job Summary (%d total)", total)) + "\n\n")
+
+	colorMap := map[string]lipgloss.Style{
+		"Completed":        lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true),  // Green
+		"Failed":           lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true), // Red
+		"Pending":          lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true), // Orange
+		"Pending Approval": lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true), // Orange
+		"Spawning":         lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true),  // Blue
+		"Running":          lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true),  // Blue
+		"Active":           lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true),  // Blue
+		"Canceled":         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true), // Gray
+		"Skipped":          lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true), // Gray
+		"Retrying":         lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true), // Yellow/Orange
+	}
+
+	// Sort statuses to ensure deterministic rendering order
+	var statuses []string
+	for status := range summary {
+		statuses = append(statuses, status)
+	}
+	sort.Strings(statuses)
+
+	for _, status := range statuses {
+		count := summary[status]
+		lStyle := labelStyle
+		if s, ok := colorMap[status]; ok {
+			lStyle = s.Width(25)
+		}
+		sb.WriteString(fmt.Sprintf("%s %s\n", lStyle.Render(status+":"), valueStyle.Render(fmt.Sprintf("%d", count))))
+	}
+	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+
+	return sb.String()
 }
 
 func fetchTagsCmd(host string) tea.Cmd {
