@@ -376,6 +376,126 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/analyze/costs", func(w http.ResponseWriter, r *http.Request) {
+		limitStr := r.URL.Query().Get("limit")
+		limit := 10
+		if limitStr != "" {
+			if l, err := strconv.Atoi(limitStr); err == nil && l >= 0 {
+				limit = l
+			}
+		}
+
+		jobs := orch.GetCompletedJobs()
+
+		var totalCost float64
+		var totalTokens float64
+		costByTagMap := make(map[string]float64)
+		countByTagMap := make(map[string]int)
+		costByModelMap := make(map[string]float64)
+		countByModelMap := make(map[string]int)
+
+		var validJobs []JobInfo
+
+		for _, job := range jobs {
+			if job.Status == "Canceled" || job.Status == "Skipped" {
+				continue
+			}
+
+			cost, hasCost := job.Metrics["cost"]
+			tokens, hasTokens := job.Metrics["tokens"]
+
+			if hasCost || hasTokens {
+				validJobs = append(validJobs, job)
+				totalCost += cost
+				totalTokens += tokens
+
+				if hasCost {
+					if job.WorkItem.AgentModel != "" {
+						costByModelMap[job.WorkItem.AgentModel] += cost
+						countByModelMap[job.WorkItem.AgentModel]++
+					}
+
+					for _, tag := range job.WorkItem.Tags {
+						costByTagMap[tag] += cost
+						countByTagMap[tag]++
+					}
+				}
+			}
+		}
+
+		type TagCostStat struct {
+			Tag   string  `json:"tag"`
+			Cost  float64 `json:"cost"`
+			Count int     `json:"count"`
+		}
+
+		type ModelCostStat struct {
+			Model string  `json:"model"`
+			Cost  float64 `json:"cost"`
+			Count int     `json:"count"`
+		}
+
+		type CostStats struct {
+			TotalJobs        int             `json:"total_jobs"`
+			TotalCost        float64         `json:"total_cost"`
+			TotalTokens      float64         `json:"total_tokens"`
+			CostByTag        []TagCostStat   `json:"cost_by_tag"`
+			CostByModel      []ModelCostStat `json:"cost_by_model"`
+			TopExpensiveJobs []JobInfo       `json:"top_expensive_jobs"`
+		}
+
+		var stats CostStats
+		stats.TotalJobs = len(validJobs)
+		stats.TotalCost = totalCost
+		stats.TotalTokens = totalTokens
+
+		for tag, cost := range costByTagMap {
+			stats.CostByTag = append(stats.CostByTag, TagCostStat{
+				Tag:   tag,
+				Cost:  cost,
+				Count: countByTagMap[tag],
+			})
+		}
+		sort.Slice(stats.CostByTag, func(i, j int) bool {
+			return stats.CostByTag[i].Cost > stats.CostByTag[j].Cost
+		})
+		if stats.CostByTag == nil {
+			stats.CostByTag = []TagCostStat{}
+		}
+
+		for model, cost := range costByModelMap {
+			stats.CostByModel = append(stats.CostByModel, ModelCostStat{
+				Model: model,
+				Cost:  cost,
+				Count: countByModelMap[model],
+			})
+		}
+		sort.Slice(stats.CostByModel, func(i, j int) bool {
+			return stats.CostByModel[i].Cost > stats.CostByModel[j].Cost
+		})
+		if stats.CostByModel == nil {
+			stats.CostByModel = []ModelCostStat{}
+		}
+
+		sort.Slice(validJobs, func(i, j int) bool {
+			return validJobs[i].Metrics["cost"] > validJobs[j].Metrics["cost"]
+		})
+
+		topExpensive := validJobs
+		if len(topExpensive) > limit {
+			topExpensive = topExpensive[:limit]
+		}
+		stats.TopExpensiveJobs = topExpensive
+		if stats.TopExpensiveJobs == nil {
+			stats.TopExpensiveJobs = []JobInfo{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(stats); err != nil {
+			logger.Error("Failed to encode cost stats", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/analyze/reliability", func(w http.ResponseWriter, r *http.Request) {
 		limitStr := r.URL.Query().Get("limit")
 		limit := 10

@@ -127,6 +127,8 @@ func main() {
 	pflag.Int("analyze-durations-limit", 10, "Limit the number of slowest jobs displayed in duration analysis")
 	pflag.Bool("analyze-reliability", false, "Analyze and display pipeline reliability stats, identifying flaky and failing jobs")
 	pflag.Int("analyze-reliability-limit", 10, "Limit the number of top flaky and failing jobs displayed in reliability analysis")
+	pflag.Bool("analyze-costs", false, "Analyze and display pipeline cost stats, showing top expensive jobs and grouped costs")
+	pflag.Int("analyze-costs-limit", 10, "Limit the number of top expensive jobs displayed in cost analysis")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
 	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
 	pflag.String("heal-tag", "", "Heal all failed jobs with the specified tag")
@@ -485,6 +487,8 @@ func main() {
 	viper.BindPFlag("orchestrator.analyze_durations_limit", pflag.Lookup("analyze-durations-limit"))
 	viper.BindPFlag("orchestrator.analyze_reliability", pflag.Lookup("analyze-reliability"))
 	viper.BindPFlag("orchestrator.analyze_reliability_limit", pflag.Lookup("analyze-reliability-limit"))
+	viper.BindPFlag("orchestrator.analyze_costs", pflag.Lookup("analyze-costs"))
+	viper.BindPFlag("orchestrator.analyze_costs_limit", pflag.Lookup("analyze-costs-limit"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
 	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
 	viper.BindPFlag("orchestrator.heal_tag", pflag.Lookup("heal-tag"))
@@ -1113,6 +1117,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		limit := viper.GetInt("orchestrator.analyze_reliability_limit")
 		format := viper.GetString("orchestrator.format")
 		analyzeReliability(host, limit, format)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analyze_costs") {
+		host := viper.GetString("orchestrator.host")
+		limit := viper.GetInt("orchestrator.analyze_costs_limit")
+		format := viper.GetString("orchestrator.format")
+		analyzeCosts(host, limit, format)
 		return nil
 	}
 
