@@ -410,7 +410,8 @@ func TestPostgresStore_Methods(t *testing.T) {
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM file_locks WHERE expires_at < NOW()`)).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM signals WHERE created_at < NOW() - INTERVAL '1 day' AND key NOT IN ('PROJECT_SIGNED_OFF', 'QA_PASSED', 'COMPLETED')`)).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM signals WHERE created_at < NOW() - INTERVAL '1 day' AND key NOT IN ($1, $2, $3)`)).
+			WithArgs("PROJECT_SIGNED_OFF", "QA_PASSED", "COMPLETED").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM observations WHERE id NOT IN (SELECT id FROM observations ORDER BY created_at DESC LIMIT 10000)`)).

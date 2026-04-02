@@ -356,8 +356,10 @@ func (s *PostgresStore) Cleanup() error {
 	}
 
 	// 2. Remove old signals (older than 24h, keeping critical ones)
-	criticalSignals := "'PROJECT_SIGNED_OFF', 'QA_PASSED', 'COMPLETED'"
-	_, err = s.db.Exec(fmt.Sprintf(`DELETE FROM signals WHERE created_at < NOW() - INTERVAL '1 day' AND key NOT IN (%s)`, criticalSignals))
+	_, err = s.db.Exec(
+		`DELETE FROM signals WHERE created_at < NOW() - INTERVAL '1 day' AND key NOT IN ($1, $2, $3)`,
+		"PROJECT_SIGNED_OFF", "QA_PASSED", "COMPLETED",
+	)
 	if err != nil {
 		return fmt.Errorf("failed to clean old signals: %w", err)
 	}

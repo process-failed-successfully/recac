@@ -243,7 +243,9 @@ func TestSQLiteStore_Cleanup(t *testing.T) {
 	store := &SQLiteStore{db: db}
 
 	mock.ExpectExec("DELETE FROM file_locks WHERE expires_at < CURRENT_TIMESTAMP").WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec("DELETE FROM signals WHERE created_at").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM signals WHERE created_at").
+		WithArgs("PROJECT_SIGNED_OFF", "QA_PASSED", "COMPLETED").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("DELETE FROM observations WHERE id").WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = store.Cleanup()
