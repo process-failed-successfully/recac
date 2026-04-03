@@ -474,6 +474,56 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/search", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
+			return
+		}
+
+		matcher, err := regexp.Compile("(?i)" + query)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid regex query: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		tagFilter := r.URL.Query().Get("tag")
+		statusFilter := r.URL.Query().Get("status")
+
+		jobs := append(orch.GetPendingJobs(), orch.GetActiveJobs()...)
+		jobs = append(jobs, orch.GetCompletedJobs()...)
+		var filtered []JobInfo
+
+		for _, job := range jobs {
+			if statusFilter != "" && !strings.EqualFold(job.Status, statusFilter) {
+				continue
+			}
+
+			if tagFilter != "" {
+				hasTag := false
+				for _, t := range job.WorkItem.Tags {
+					if strings.EqualFold(t, tagFilter) {
+						hasTag = true
+						break
+					}
+				}
+				if !hasTag {
+					continue
+				}
+			}
+
+			// Match against Summary, Description, and Error
+			if matcher.MatchString(job.Summary) || matcher.MatchString(job.WorkItem.Description) || matcher.MatchString(job.Error) {
+				filtered = append(filtered, job)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(filtered); err != nil {
+			logger.Error("Failed to encode search results", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/search/logs", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
 		if query == "" {
