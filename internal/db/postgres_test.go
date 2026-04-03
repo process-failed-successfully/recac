@@ -284,3 +284,171 @@ func TestPostgresStore_GetActiveLocks(t *testing.T) {
 	assert.Len(t, locks, 1)
 	assert.Equal(t, "file.txt", locks[0].Path)
 }
+
+func TestNewPostgresStore_Error_Ping(t *testing.T) {
+	_, err := NewPostgresStore("invalid dsn")
+	assert.Error(t, err)
+}
+
+func TestPostgresStore_UpdateFeatureStatus_Error(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(sqlmock.Sqlmock)
+	}{
+		{
+			name: "Transaction error",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
+			},
+		},
+		{
+			name: "Query error",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT content FROM project_features").WillReturnError(sql.ErrNoRows)
+				mock.ExpectRollback()
+			},
+		},
+		{
+			name: "JSON unmarshal error",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				rows := sqlmock.NewRows([]string{"content"}).AddRow("invalid json")
+				mock.ExpectQuery("SELECT content FROM project_features").WillReturnRows(rows)
+				mock.ExpectRollback()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			store := &PostgresStore{db: db}
+
+			tt.setup(mock)
+			err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestPostgresStore_Cleanup_Error(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(sqlmock.Sqlmock)
+	}{
+		{
+			name: "Error on first exec",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectExec("DELETE FROM file_locks").WillReturnError(sql.ErrConnDone)
+			},
+		},
+		{
+			name: "Error on second exec",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectExec("DELETE FROM file_locks").WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectExec("DELETE FROM signals").WillReturnError(sql.ErrConnDone)
+			},
+		},
+		{
+			name: "Error on third exec",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectExec("DELETE FROM file_locks").WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectExec("DELETE FROM signals").WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectExec("DELETE FROM observations").WillReturnError(sql.ErrConnDone)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			store := &PostgresStore{db: db}
+
+			tt.setup(mock)
+			err = store.Cleanup()
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestPostgresStore_GetActiveLocks_Error(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(sqlmock.Sqlmock)
+	}{
+		{
+			name: "Query error",
+			setup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT path, agent_id, expires_at FROM file_locks").WillReturnError(sql.ErrConnDone)
+			},
+		},
+		{
+			name: "Scan error",
+			setup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"path", "agent_id", "expires_at"}).AddRow("file.txt", "agent1", "invalid_date")
+				mock.ExpectQuery("SELECT path, agent_id, expires_at FROM file_locks").WillReturnRows(rows)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			store := &PostgresStore{db: db}
+
+			tt.setup(mock)
+			_, err = store.GetActiveLocks("proj1")
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestPostgresStore_AcquireLock_Hijack(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(sqlmock.Sqlmock)
+		agent string
+	}{
+		{
+			name: "Lock exists but expired -> Hijack",
+			setup: func(mock sqlmock.Sqlmock) {
+				expiredTime := time.Now().UTC().Add(-1 * time.Hour)
+				rows := sqlmock.NewRows([]string{"agent_id", "expires_at"}).AddRow("old_agent", expiredTime)
+				mock.ExpectQuery("SELECT agent_id, expires_at FROM file_locks").WillReturnRows(rows)
+				mock.ExpectExec("UPDATE file_locks SET agent_id = \\$1").WillReturnResult(sqlmock.NewResult(1, 1))
+			},
+			agent: "new_agent",
+		},
+		{
+			name: "Lock exists and held by us -> Renew",
+			setup: func(mock sqlmock.Sqlmock) {
+				futureTime := time.Now().UTC().Add(1 * time.Hour)
+				rows2 := sqlmock.NewRows([]string{"agent_id", "expires_at"}).AddRow("my_agent", futureTime)
+				mock.ExpectQuery("SELECT agent_id, expires_at FROM file_locks").WillReturnRows(rows2)
+				mock.ExpectExec("UPDATE file_locks SET expires_at = \\$1").WillReturnResult(sqlmock.NewResult(1, 1))
+			},
+			agent: "my_agent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+			store := &PostgresStore{db: db}
+
+			tt.setup(mock)
+			acquired, err := store.AcquireLock("proj1", "file.txt", tt.agent, time.Second)
+			assert.NoError(t, err)
+			assert.True(t, acquired)
+		})
+	}
+}
