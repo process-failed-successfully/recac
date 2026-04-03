@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
@@ -73,3 +74,32 @@ func TestK8sSpawner_Ping(t *testing.T) {
 // Cannot easily test Ping failure since fake clientset doesn't allow easy error
 // injection into ServerVersion() without modifying the fake clientset internals,
 // but the success case provides some coverage.
+
+func TestOrchestrator_Ping(t *testing.T) {
+	mockPoller := new(MockPoller)
+	mockSpawner := new(MockSpawner)
+	orch := New(mockPoller, mockSpawner, 1*time.Second)
+
+	ctx := context.Background()
+
+	// Success case
+	mockPoller.On("Ping", ctx).Return(nil).Once()
+	mockSpawner.On("Ping", ctx).Return(nil).Once()
+	assert.NoError(t, orch.Ping(ctx))
+
+	// Poller failure
+	mockPoller.On("Ping", ctx).Return(errors.New("poller ping fail")).Once()
+	err := orch.Ping(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "poller ping failed")
+
+	// Spawner failure
+	mockPoller.On("Ping", ctx).Return(nil).Once()
+	mockSpawner.On("Ping", ctx).Return(errors.New("spawner ping fail")).Once()
+	err = orch.Ping(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "spawner ping failed")
+
+	mockPoller.AssertExpectations(t)
+	mockSpawner.AssertExpectations(t)
+}
