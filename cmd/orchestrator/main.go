@@ -303,6 +303,8 @@ func main() {
 	pflag.String("export-metrics-state", "all", "State of jobs to export metrics for ('all', 'active', 'completed', 'failed')")
 	pflag.String("export-trace", "", "Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout)")
 	pflag.String("export-trace-state", "all", "State of jobs to export trace for ('all', 'active', 'completed', 'failed')")
+	pflag.String("export-costs", "", "Export cost analysis to a file (use '-' for stdout)")
+	pflag.String("export-costs-format", "json", "Format for exported costs ('json' or 'csv')")
 
 	pflag.String("upload-artifact", "", "Path to the local file to upload as an artifact (requires --job-id)")
 	pflag.String("download-artifact", "", "Filename of the artifact to download (requires --job-id)")
@@ -665,6 +667,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_metrics_state", pflag.Lookup("export-metrics-state"))
 	viper.BindPFlag("orchestrator.export_trace", pflag.Lookup("export-trace"))
 	viper.BindPFlag("orchestrator.export_trace_state", pflag.Lookup("export-trace-state"))
+	viper.BindPFlag("orchestrator.export_costs", pflag.Lookup("export-costs"))
+	viper.BindPFlag("orchestrator.export_costs_format", pflag.Lookup("export-costs-format"))
 
 	viper.BindPFlag("orchestrator.upload_artifact", pflag.Lookup("upload-artifact"))
 	viper.BindPFlag("orchestrator.download_artifact", pflag.Lookup("download-artifact"))
@@ -2198,6 +2202,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		state := viper.GetString("orchestrator.export_trace_state")
 		exportTrace(host, exportTraceFile, state)
+		return nil
+	}
+	if exportCostsFile := viper.GetString("orchestrator.export_costs"); exportCostsFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_costs_format")
+		exportCosts(host, exportCostsFile, format)
 		return nil
 	}
 
