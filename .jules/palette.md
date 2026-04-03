@@ -58,3 +58,7 @@
 ## 2026-04-05 - Global Keyboard Shortcuts in Custom Web Dashboards
 **Learning:** Adding global keyboard shortcuts (like `/` to focus search) to embedded web UIs is a huge usability win, but it's crucial to explicitly prevent them from triggering while typing in inputs (`event.target.tagName`) or when any modal is open (`.modal` check). If ignored, users might accidentally refresh data or steal focus while simply trying to type characters or navigate an overlay.
 **Action:** Always wrap global document-level `keydown` event listeners with checks for active form elements (`INPUT`, `TEXTAREA`, `SELECT`) and open modals before executing the shortcut logic.
+
+## 2026-04-06 - Live Regions for Async Modal Content
+**Learning:** When modals load content asynchronously (e.g., fetching a report, graph, or explanation after opening), screen readers won't announce the newly loaded content unless the container has an `aria-live` attribute. Users might think the modal is permanently stuck on "Loading...".
+**Action:** Always add `aria-live="polite"` to the content containers inside modals that are populated asynchronously after the modal is opened.

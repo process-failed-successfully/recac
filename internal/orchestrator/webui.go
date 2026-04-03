@@ -206,7 +206,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeExplainModal()">&times;</button>
                 <h2 id="explain-title">Job Explanation</h2>
-                <div id="explain-content" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
+                <div id="explain-content" aria-live="polite" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
                     Loading explanation...
                 </div>
             </div>
@@ -216,7 +216,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeReportModal()">&times;</button>
                 <h2 id="report-title" style="margin-bottom: 0;">Report</h2>
-                <div id="report-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-family: monospace;">
+                <div id="report-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-family: monospace;">
                     Loading report...
                 </div>
             </div>
@@ -226,7 +226,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeFailuresModal()">&times;</button>
                 <h2 style="margin-bottom: 0;">Analyze Failures</h2>
-                <div id="analyze-failures-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                <div id="analyze-failures-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -236,7 +236,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeDurationsModal()">&times;</button>
                 <h2 style="margin-bottom: 0;">Analyze Durations</h2>
-                <div id="analyze-durations-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                <div id="analyze-durations-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -246,7 +246,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeReliabilityModal()">&times;</button>
                 <h2 style="margin-bottom: 0;">Pipeline Reliability Report</h2>
-                <div id="reliability-content" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                <div id="reliability-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -289,7 +289,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeGraph()">&times;</button>
                 <h2 style="margin-bottom: 0;">Dependency Graph</h2>
-                <div id="graphDiv" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
+                <div id="graphDiv" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     Loading graph...
                 </div>
             </div>
