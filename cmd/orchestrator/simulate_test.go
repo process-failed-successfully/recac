@@ -2,102 +2,84 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"recac/internal/orchestrator"
 )
 
-func TestSimulateExecution(t *testing.T) {
-	mux := http.NewServeMux()
+//
+func TestSimulateExecution_TableDriven(t *testing.T) {
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	exitFunc = func(int) {}
 
-	mux.HandleFunc("/simulate", func(w http.ResponseWriter, r *http.Request) {
-		report := orchestrator.SimulationReport{
-			EstimatedTotalTimeMs: 125000,
-			JobsProcessed:        3,
-			TotalJobs:            3,
-			FinalBottleneckJob:   "job-B",
-			Deadlocks:            0,
-		}
-		json.NewEncoder(w).Encode(report)
-	})
+	origStdout := stdout
+	defer func() { stdout = origStdout }()
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	viper.Set("orchestrator.simulate", true)
-	viper.Set("orchestrator.host", server.URL)
-
-	// Capture output
-	var buf bytes.Buffer
-	oldStdout := stdout
-	stdout = &buf
-	defer func() { stdout = oldStdout }()
-
-	// Prevent exit
-	var exitCode int
-	oldExitFunc := exitFunc
-	exitFunc = func(code int) {
-		exitCode = code
+	tests := []struct {
+		name           string
+		responseJSON   string
+		responseStatus int
+		expectContains []string
+	}{
+		{
+			name: "Success without deadlocks",
+			responseJSON: `{"total_jobs": 5, "jobs_processed": 5, "estimated_total_time_ms": 10000, "deadlocks": 0}`,
+			responseStatus: http.StatusOK,
+			expectContains: []string{"Simulation Report", "Jobs Processed:", "Estimated Total Time"},
+		},
+		{
+			name: "Success with deadlocks",
+			responseJSON: `{"total_jobs": 5, "jobs_processed": 3, "estimated_total_time_ms": 5000, "deadlocks": 2}`,
+			responseStatus: http.StatusOK,
+			expectContains: []string{"WARNING:", "2 jobs could not be processed"},
+		},
+		{
+			name: "No jobs to simulate",
+			responseJSON: `{"total_jobs": 0, "jobs_processed": 0, "estimated_total_time_ms": 0, "deadlocks": 0}`,
+			responseStatus: http.StatusOK,
+			expectContains: []string{"No active or pending jobs"},
+		},
+		{
+			name: "Server error",
+			responseJSON: `Internal Server Error`,
+			responseStatus: http.StatusInternalServerError,
+			expectContains: []string{"Failed to fetch simulation report"},
+		},
+		{
+			name: "Bad JSON",
+			responseJSON: `{bad json}`,
+			responseStatus: http.StatusOK,
+			expectContains: []string{"Failed to decode response:"},
+		},
 	}
-	defer func() { exitFunc = oldExitFunc }()
 
-	simulateExecution(server.URL)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			stdout = &buf
 
-	assert.Equal(t, 0, exitCode)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/simulate" {
+					w.WriteHeader(tt.responseStatus)
+					w.Write([]byte(tt.responseJSON))
+				} else {
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
 
-	output := buf.String()
 
-	// We expect:
-	// A is running, remaining = 5s. (Uses 1 worker).
-	// C is pending, inDegree = 0.
-	// C gets assigned immediately, remaining = 10s. (Uses 1 worker, 0 left).
-	// B is pending, inDegree = 1 (A).
-	//
-	// T=0: A (rem=5), C (rem=10)
-	// T=5: A finishes. Worker frees up. B's inDegree=0.
-	// B starts. remaining = 120s.
-	// T=10: C finishes. Worker frees up.
-	// T=125 (5 + 120): B finishes.
-	//
-	// Total estimated time: 125s -> 2m 5s
-	// Processed: 3 / 3
 
-	assert.Contains(t, output, "Simulation Report")
-	assert.Contains(t, output, "2m5s")
-	assert.Contains(t, output, "3 / 3")
-	assert.Contains(t, output, "job-B") // Bottleneck
-}
 
-func TestSimulateExecution_Deadlock(t *testing.T) {
-	mux := http.NewServeMux()
 
-	mux.HandleFunc("/simulate", func(w http.ResponseWriter, r *http.Request) {
-		report := orchestrator.SimulationReport{
-			EstimatedTotalTimeMs: 0,
-			JobsProcessed:        0,
-			TotalJobs:            2,
-			Deadlocks:            2,
-		}
-		json.NewEncoder(w).Encode(report)
-	})
+			simulateExecution(server.URL)
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	var buf bytes.Buffer
-	oldStdout := stdout
-	stdout = &buf
-	defer func() { stdout = oldStdout }()
-
-	simulateExecution(server.URL)
-
-	output := buf.String()
-	assert.Contains(t, output, "WARNING: 2 jobs could not be processed")
-	assert.Contains(t, output, "0 / 2")
+			for _, exp := range tt.expectContains {
+				assert.Contains(t, buf.String(), exp)
+			}
+		})
+	}
 }

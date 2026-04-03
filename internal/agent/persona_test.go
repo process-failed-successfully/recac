@@ -158,3 +158,51 @@ func TestPersonaManager_ListPersonas(t *testing.T) {
 		t.Fatalf("expected at least 2 sorted personas, got %d", len(sorted))
 	}
 }
+
+func TestGetPersonasFilePath(t *testing.T) {
+	origEnv := os.Getenv("RECAC_PERSONAS_FILE")
+	defer os.Setenv("RECAC_PERSONAS_FILE", origEnv)
+
+	origHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", origHome)
+
+	tmpHome := t.TempDir()
+
+	tests := []struct {
+		name        string
+		setup       func()
+		expected    string
+		expectError bool
+	}{
+		{
+			name: "Env var set",
+			setup: func() {
+				os.Setenv("RECAC_PERSONAS_FILE", "/tmp/test_personas.yaml")
+			},
+			expected: "/tmp/test_personas.yaml",
+			expectError: false,
+		},
+		{
+			name: "Env var not set",
+			setup: func() {
+				os.Unsetenv("RECAC_PERSONAS_FILE")
+				os.Setenv("HOME", tmpHome)
+			},
+			expected: filepath.Join(tmpHome, ".recac", "personas.yaml"),
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setup()
+			path, err := getPersonasFilePath()
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, path)
+			}
+		})
+	}
+}
