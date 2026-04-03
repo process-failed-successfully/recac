@@ -95,6 +95,94 @@ func TestExportCosts(t *testing.T) {
 		assert.Contains(t, string(content), "Job Details,JOB-1,Fix bugs,2.5000,5000")
 	})
 
+	t.Run("Empty TopExpensiveJobs tokens logic", func(t *testing.T) {
+		mockResp2 := `{
+			"top_expensive_jobs": [
+				{
+					"id": "JOB-2",
+					"summary": "Fix more bugs",
+					"metrics": {"tokens_prompt": 1000, "tokens_completion": 500}
+				}
+			]
+		}`
+		server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResp2))
+		}))
+		defer server2.Close()
+
+		buf.Reset()
+		exitCode = 0
+		csvPath := filepath.Join(tempDir, "costs_tokens.csv")
+
+		assert.NotPanics(t, func() {
+			exportCosts(server2.URL, csvPath, "csv")
+		})
+
+		assert.FileExists(t, csvPath)
+		content, err := os.ReadFile(csvPath)
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "Job Details,JOB-2,Fix more bugs,0.0000,1500")
+	})
+
+	t.Run("Output to stdout (-)", func(t *testing.T) {
+		buf.Reset()
+		exitCode = 0
+		assert.NotPanics(t, func() {
+			exportCosts(server.URL, "-", "json")
+		})
+		assert.Contains(t, buf.String(), `"total_jobs": 10`)
+	})
+
+	t.Run("Bad URL Error", func(t *testing.T) {
+		buf.Reset()
+		exitCode = 0
+		assert.Panics(t, func() {
+			exportCosts("http://[::1]:namedport", "-", "json")
+		})
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to parse host URL")
+	})
+
+	t.Run("API Connection Error", func(t *testing.T) {
+		buf.Reset()
+		exitCode = 0
+		assert.Panics(t, func() {
+			exportCosts("http://localhost:12345", "-", "json")
+		})
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("Bad JSON API Response Error", func(t *testing.T) {
+		mockResp2 := `{ invalid json }`
+		server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResp2))
+		}))
+		defer server2.Close()
+
+		buf.Reset()
+		exitCode = 0
+		assert.Panics(t, func() {
+			exportCosts(server2.URL, "-", "json")
+		})
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+
+	t.Run("File Create Error", func(t *testing.T) {
+		buf.Reset()
+		exitCode = 0
+		badPath := filepath.Join(tempDir, "nonexistent", "costs.json")
+
+		assert.Panics(t, func() {
+			exportCosts(server.URL, badPath, "json")
+		})
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create output file")
+	})
+
 	t.Run("API Error", func(t *testing.T) {
 		buf.Reset()
 		exitCode = 0
