@@ -1300,3 +1300,97 @@ func TestDashboardModel_Keybinds_Analyze(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, viewMain, updatedModel.viewState) // State changes when msg is returned, not on keypress
 }
+
+func TestRenderAnalyzeDurations(t *testing.T) {
+	tests := []struct {
+		name     string
+		stats    DurationStats
+		contains []string
+	}{
+		{
+			name: "Empty stats",
+			stats: DurationStats{TotalJobs: 0},
+			contains: []string{"No valid completed jobs"},
+		},
+		{
+			name: "With data",
+			stats: DurationStats{
+				TotalJobs:      10,
+				MeanDuration:   1000,
+				MedianDuration: 900,
+				MinDuration:    500,
+				MaxDuration:    2000,
+				TagStats: []struct {
+					Tag          string  `json:"tag"`
+					Count        int     `json:"count"`
+					MeanDuration float64 `json:"mean_duration_ms"`
+				}{
+					{Tag: "build", Count: 5, MeanDuration: 1200},
+					{Tag: "test", Count: 5, MeanDuration: 800},
+				},
+				TopSlowest: []orchestrator.JobInfo{
+					{ID: "job1", Summary: "test job", Status: "completed", StartTime: time.Now().Add(-2 * time.Second), EndTime: time.Now()},
+				},
+			},
+			contains: []string{
+				"Duration Analysis (10 valid jobs)",
+				"1s", // 1000ms
+				"build",
+				"test job",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := renderAnalyzeDurations(tt.stats)
+			for _, exp := range tt.contains {
+				assert.Contains(t, res, exp)
+			}
+		})
+	}
+}
+
+func TestRenderAnalyzeReliability(t *testing.T) {
+	tests := []struct {
+		name     string
+		stats    ReliabilityStats
+		contains []string
+	}{
+		{
+			name: "Empty stats",
+			stats: ReliabilityStats{TotalJobs: 0},
+			contains: []string{"Total Evaluated Jobs: 0"},
+		},
+		{
+			name: "With data",
+			stats: ReliabilityStats{
+				TotalJobs: 20,
+				FlakyJobs:     2,
+				FailedJobs:    3,
+				SuccessRate: 75.0,
+				TopFlakyJobs: []FlakyJobStat{
+					{Summary: "test1", Occurrences: 2, TotalRetries: 3, AvgRetries: 1.5},
+				},
+				TopFailingJobs: []FailedJobStat{
+					{Summary: "test2", Occurrences: 3},
+				},
+			},
+			contains: []string{
+				"Pipeline Reliability Report",
+				"75.00%",
+				"test1",
+				"test2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := renderAnalyzeReliability(tt.stats)
+			for _, exp := range tt.contains {
+				assert.Contains(t, res, exp)
+			}
+		})
+	}
+}
