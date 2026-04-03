@@ -368,6 +368,62 @@ jobs:
 	assert.Contains(t, err.Error(), "target job 'unknown' not found in pipeline")
 }
 
+func TestParsePipelineToWorkItems_RequiredVariables(t *testing.T) {
+	yamlData := []byte(`
+name: Required Vars Pipeline
+required_variables:
+  - NEED_THIS
+  - ALSO_NEED_THIS
+jobs:
+  job1:
+    summary: Build
+`)
+
+	// Test 1: Missing all required variables
+	_, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required variable 'NEED_THIS' is missing")
+
+	// Test 2: Missing one required variable
+	vars1 := map[string]string{
+		"NEED_THIS": "present",
+	}
+	_, err = ParsePipelineToWorkItems(yamlData, "", vars1, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required variable 'ALSO_NEED_THIS' is missing")
+
+	// Test 3: Success (provided in vars)
+	vars2 := map[string]string{
+		"NEED_THIS":      "present",
+		"ALSO_NEED_THIS": "also_present",
+	}
+	items, err := ParsePipelineToWorkItems(yamlData, "", vars2, "")
+	require.NoError(t, err)
+	assert.Len(t, items, 1)
+
+	// Test 4: Success (one in vars, one in environment)
+	t.Setenv("ALSO_NEED_THIS", "from_env")
+	items, err = ParsePipelineToWorkItems(yamlData, "", vars1, "")
+	require.NoError(t, err)
+	assert.Len(t, items, 1)
+
+	// Test 5: Success (one in yaml variables, one in vars)
+	yamlDataWithVars := []byte(`
+name: Required Vars Pipeline
+required_variables:
+  - NEED_THIS
+  - ALSO_NEED_THIS
+variables:
+  ALSO_NEED_THIS: from_yaml
+jobs:
+  job1:
+    summary: Build
+`)
+	items, err = ParsePipelineToWorkItems(yamlDataWithVars, "", vars1, "")
+	require.NoError(t, err)
+	assert.Len(t, items, 1)
+}
+
 func TestParsePipelineToWorkItems_Variables(t *testing.T) {
 	yamlData := []byte(`
 name: Var Pipeline

@@ -12,12 +12,13 @@ import (
 )
 
 type Pipeline struct {
-	Name      string            `yaml:"name"`
-	Include   []string          `yaml:"include,omitempty"`
-	Variables map[string]string `yaml:"variables,omitempty"`
-	Secrets   []string          `yaml:"secrets,omitempty"`
-	Stages    []string          `yaml:"stages,omitempty"`
-	Templates map[string]PipelineJob `yaml:"templates,omitempty"`
+	Name              string            `yaml:"name"`
+	Include           []string          `yaml:"include,omitempty"`
+	RequiredVariables []string          `yaml:"required_variables,omitempty"`
+	Variables         map[string]string `yaml:"variables,omitempty"`
+	Secrets           []string          `yaml:"secrets,omitempty"`
+	Stages            []string          `yaml:"stages,omitempty"`
+	Templates         map[string]PipelineJob `yaml:"templates,omitempty"`
 	Defaults  struct {
 		RepoURL          string            `yaml:"repo_url"`
 		AgentProvider    string            `yaml:"agent_provider"`
@@ -156,6 +157,24 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 	}
 	if len(p.Jobs) == 0 {
 		return nil, fmt.Errorf("pipeline must have at least one job")
+	}
+
+	// Validate required variables
+	if len(p.RequiredVariables) > 0 {
+		for _, reqVar := range p.RequiredVariables {
+			// Check if it was provided in `vars`
+			_, inVars := vars[reqVar]
+
+			// Check if it has a default in `p.Variables`
+			_, inDefaults := p.Variables[reqVar]
+
+			// Check environment
+			inEnv := os.Getenv(reqVar) != ""
+
+			if !inVars && !inDefaults && !inEnv {
+				return nil, fmt.Errorf("required variable '%s' is missing", reqVar)
+			}
+		}
 	}
 
 	// Resolve template extensions
