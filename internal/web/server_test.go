@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"recac/internal/runner"
 	"strings"
 	"testing"
 )
@@ -152,5 +153,74 @@ func TestSanitizeMermaidID(t *testing.T) {
 		if got := sanitizeMermaidID(tt.input); got != tt.expected {
 			t.Errorf("sanitizeMermaidID(%q) = %q, want %q", tt.input, got, tt.expected)
 		}
+	}
+}
+
+func TestServer_GenerateMermaid(t *testing.T) {
+	tests := []struct {
+		name     string
+		nodes    map[string]*runner.TaskNode
+		expected []string
+	}{
+		{
+			name: "All Statuses",
+			nodes: map[string]*runner.TaskNode{
+				"1": {ID: "1", Name: "Done Task", Status: runner.TaskDone},
+				"2": {ID: "2", Name: "In Progress Task", Status: runner.TaskInProgress},
+				"3": {ID: "3", Name: "Failed Task", Status: runner.TaskFailed},
+				"4": {ID: "4", Name: "Ready Task", Status: runner.TaskReady},
+				"5": {ID: "5", Name: "Pending Task", Status: ""}, // default
+			},
+			expected: []string{
+				"1[\"Done Task\"]:::done",
+				"2[\"In Progress Task\"]:::inprogress",
+				"3[\"Failed Task\"]:::failed",
+				"4[\"Ready Task\"]:::ready",
+				"5[\"Pending Task\"]:::pending",
+			},
+		},
+		{
+			name: "Sanitize Quotes and Newlines",
+			nodes: map[string]*runner.TaskNode{
+				"1": {ID: "1", Name: "Task \"with quotes\" \n and newlines"},
+			},
+			expected: []string{
+				"1[\"Task 'with quotes'   and ne...\"]:::pending",
+			},
+		},
+		{
+			name: "Truncate Long Names",
+			nodes: map[string]*runner.TaskNode{
+				"1": {ID: "1", Name: "This is a very long task name that should be truncated"},
+			},
+			expected: []string{
+				"1[\"This is a very long task na...\"]:::pending",
+			},
+		},
+		{
+			name: "With Dependencies",
+			nodes: map[string]*runner.TaskNode{
+				"1": {ID: "1", Name: "Task 1", Dependencies: []string{"2", "3"}},
+				"2": {ID: "2", Name: "Task 2"},
+				"3": {ID: "3", Name: "Task 3"},
+			},
+			expected: []string{
+				"1[\"Task 1\"]:::pending",
+				"2 --> 1",
+				"3 --> 1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := &runner.TaskGraph{Nodes: tt.nodes}
+			mermaid := generateMermaid(g)
+			for _, exp := range tt.expected {
+				if !strings.Contains(mermaid, exp) {
+					t.Errorf("Expected mermaid to contain %q, but got:\n%s", exp, mermaid)
+				}
+			}
+		})
 	}
 }
