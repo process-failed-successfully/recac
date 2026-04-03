@@ -48,6 +48,8 @@ type Orchestrator struct {
 	LogDir            string
 	ArtifactsDir      string
 	RequireApproval   bool
+	MaxBudget         float64
+	accumulatedCost   float64
 
 	CircuitBreakerMaxFailures int
 	ConsecutiveSpawnFailures  int
@@ -90,6 +92,8 @@ type Status struct {
 	Draining          bool      `json:"draining"`
 	CircuitBroken     bool      `json:"circuit_broken"`
 	MaxConcurrentJobs int       `json:"max_concurrent_jobs"`
+	MaxBudget         float64   `json:"max_budget,omitempty"`
+	TotalCost         float64   `json:"total_cost,omitempty"`
 }
 
 type Analytics struct {
@@ -1183,6 +1187,25 @@ func (o *Orchestrator) SkipJobsByMatch(ctx context.Context, match string, logger
 	return count, nil
 }
 
+// GetTotalCost calculates the total cost incurred by jobs.
+func (o *Orchestrator) GetTotalCost() float64 {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	total := 0.0
+	for _, job := range o.completedJobs {
+		if cost, ok := job.Metrics["cost"]; ok {
+			total += cost
+		}
+	}
+	for _, job := range o.activeJobs {
+		if cost, ok := job.Metrics["cost"]; ok {
+			total += cost
+		}
+	}
+	return total
+}
+
 // GetStatus returns the current status of the orchestrator.
 func (o *Orchestrator) GetStatus() Status {
 	o.mu.RLock()
@@ -1205,6 +1228,8 @@ func (o *Orchestrator) GetStatus() Status {
 		Draining:          o.draining,
 		CircuitBroken:     o.CircuitBroken,
 		MaxConcurrentJobs: o.MaxConcurrentJobs,
+		MaxBudget:         o.MaxBudget,
+		TotalCost:         o.GetTotalCost(),
 	}
 }
 
@@ -3829,6 +3854,11 @@ func (o *Orchestrator) AddJobMetrics(jobID string, metrics map[string]float64, l
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
+	var addedCost float64
+	if cost, ok := metrics["cost"]; ok {
+		addedCost = cost
+	}
+
 	// 1. Check active jobs
 	if job, ok := o.activeJobs[jobID]; ok {
 		if job.Metrics == nil {
@@ -3838,6 +3868,7 @@ func (o *Orchestrator) AddJobMetrics(jobID string, metrics map[string]float64, l
 			job.Metrics[k] += v
 		}
 		o.activeJobs[jobID] = job
+		o.accumulatedCost += addedCost
 		if logger != nil {
 			logger.Info("Added metrics for active job", "jobID", jobID, "metrics", len(metrics))
 		}
@@ -3853,6 +3884,7 @@ func (o *Orchestrator) AddJobMetrics(jobID string, metrics map[string]float64, l
 			job.Metrics[k] += v
 		}
 		o.pendingJobs[jobID] = job
+		o.accumulatedCost += addedCost
 		if logger != nil {
 			logger.Info("Added metrics for pending job", "jobID", jobID, "metrics", len(metrics))
 		}
@@ -4298,6 +4330,20 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	defer ticker.Stop()
 
 	poll := func() {
+		if o.MaxBudget > 0 {
+			totalCost := o.GetTotalCost()
+			o.mu.Lock()
+			isPaused := o.paused
+			o.mu.Unlock()
+			if totalCost >= o.MaxBudget && !isPaused {
+				logger.Warn("Max budget exceeded, pausing orchestrator", "budget", o.MaxBudget, "cost", totalCost)
+				o.Pause()
+				if o.notifier != nil {
+					o.notifier.Notify(ctx, "on_failure", fmt.Sprintf("Orchestrator paused: Max budget of %.2f exceeded. Current total cost is %.2f.", o.MaxBudget, totalCost), "")
+				}
+			}
+		}
+
 		// Poll for work
 		logger.Debug("Polling for work...")
 		items, err := o.Poller.Poll(ctx, logger)
