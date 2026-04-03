@@ -1089,6 +1089,131 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 	})
 
+	mux.HandleFunc("GET /jobs/explain/bulk", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk explanation", http.StatusBadRequest)
+			return
+		}
+
+		provider := r.URL.Query().Get("provider")
+		model := r.URL.Query().Get("model")
+
+		apiKey := viper.GetString("api_key")
+		if apiKey == "" {
+			apiKey = viper.GetString("secrets.api_key")
+		}
+		if provider == "" {
+			provider = viper.GetString("orchestrator.agent_provider")
+		}
+		if model == "" {
+			model = viper.GetString("orchestrator.agent_model")
+		}
+
+		aiClient, err := newAgentFunc(provider, apiKey, model, "", "")
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to initialize AI agent: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		var filtered []JobInfo
+
+		if tag != "" {
+			for _, job := range jobs {
+				if strings.EqualFold(job.Status, "Failed") || strings.EqualFold(job.Status, "error") {
+					hasTag := false
+					for _, t := range job.WorkItem.Tags {
+						if strings.EqualFold(t, tag) {
+							hasTag = true
+							break
+						}
+					}
+					if hasTag {
+						filtered = append(filtered, job)
+					}
+				}
+			}
+		} else if match != "" {
+			matcher, err := regexp.Compile("(?i)" + match)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid match regex: %v", err), http.StatusBadRequest)
+				return
+			}
+			for _, job := range jobs {
+				if strings.EqualFold(job.Status, "Failed") || strings.EqualFold(job.Status, "error") {
+					if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+						filtered = append(filtered, job)
+					}
+				}
+			}
+		}
+
+		if len(filtered) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]map[string]string{"explanations": {}}); err != nil {
+				logger.Error("Failed to encode empty explanations", "error", err)
+			}
+			return
+		}
+
+		type result struct {
+			id  string
+			exp string
+		}
+
+		ch := make(chan result, len(filtered))
+		for _, job := range filtered {
+			go func(j JobInfo) {
+				logStream, err := orch.GetLogs(r.Context(), j.ID)
+				var logsText string
+				if err == nil {
+					logBytes, _ := io.ReadAll(logStream)
+					logsText = string(logBytes)
+					logStream.Close()
+				}
+
+				logLines := strings.Split(logsText, "\n")
+				if len(logLines) > 1000 {
+					logLines = logLines[len(logLines)-1000:]
+					logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
+				}
+
+				prompt := fmt.Sprintf(`You are an expert software engineer and debugger analyzing a failed or problematic job in an autonomous coding orchestrator.
+
+Job ID: %s
+Summary: %s
+Status: %s
+Error: %s
+
+Here are the last log lines from the job execution:
+%s
+
+Analyze why the job failed or had issues, explain the root cause clearly, and suggest concrete steps to fix it.`,
+					j.ID, j.Summary, j.Status, j.Error, logsText)
+
+				explanation, err := aiClient.Send(context.Background(), prompt)
+				if err != nil {
+					explanation = fmt.Sprintf("Failed to get explanation from AI: %v", err)
+				}
+				ch <- result{id: j.ID, exp: explanation}
+			}(job)
+		}
+
+		explanations := make(map[string]string)
+		for i := 0; i < len(filtered); i++ {
+			res := <-ch
+			explanations[res.id] = res.exp
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]map[string]string{"explanations": explanations}); err != nil {
+			logger.Error("Failed to encode explanations", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		job, err := orch.GetJob(id)

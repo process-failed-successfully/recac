@@ -136,3 +136,76 @@ func TestExplainJob_AIFailure(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, buf.String(), "Failed to get explanation: Failed to initialize AI agent")
 }
+
+func TestExplainBulkJobs_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/explain/bulk" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]map[string]string{
+				"explanations": {
+					"TEST-1": "Analysis for TEST-1",
+					"TEST-2": "Analysis for TEST-2",
+				},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainBulkJobs(server.URL, "match-regex", "test-tag", "mock-provider", "mock-model")
+
+	assert.False(t, exitCalled, "explainBulkJobs should not exit on success")
+
+	output := buf.String()
+	assert.Contains(t, output, "Fetching bulk explanations for failed jobs...")
+	assert.Contains(t, output, "Job ID: TEST-1")
+	assert.Contains(t, output, "Analysis for TEST-1")
+	assert.Contains(t, output, "Job ID: TEST-2")
+	assert.Contains(t, output, "Analysis for TEST-2")
+}
+
+func TestExplainBulkJobs_Empty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs/explain/bulk" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]map[string]string{
+				"explanations": {},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainBulkJobs(server.URL, "", "test-tag", "", "")
+
+	assert.False(t, exitCalled, "explainBulkJobs should not exit when empty")
+
+	output := buf.String()
+	assert.Contains(t, output, "No failed jobs found matching the criteria.")
+}

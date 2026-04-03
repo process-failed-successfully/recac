@@ -122,6 +122,8 @@ func main() {
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("inspect-dataflow", "", "Inspect how upstream job outputs are injected as environment variables into a specific job by ID")
 	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
+	pflag.String("explain-tag", "", "Use AI to analyze and explain why jobs with the specified tag failed")
+	pflag.String("explain-match", "", "Use AI to analyze and explain why jobs matching the given regex failed")
 	pflag.Bool("analyze-failures", false, "Analyze and group all failed jobs by their summary error signature")
 	pflag.Bool("analyze-durations", false, "Analyze and display a statistical breakdown of job execution times")
 	pflag.Int("analyze-durations-limit", 10, "Limit the number of slowest jobs displayed in duration analysis")
@@ -486,6 +488,8 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.inspect_dataflow", pflag.Lookup("inspect-dataflow"))
 	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
+	viper.BindPFlag("orchestrator.explain_tag", pflag.Lookup("explain-tag"))
+	viper.BindPFlag("orchestrator.explain_match", pflag.Lookup("explain-match"))
 	viper.BindPFlag("orchestrator.analyze_failures", pflag.Lookup("analyze-failures"))
 	viper.BindPFlag("orchestrator.analyze_durations", pflag.Lookup("analyze-durations"))
 	viper.BindPFlag("orchestrator.analyze_durations_limit", pflag.Lookup("analyze-durations-limit"))
@@ -1099,11 +1103,40 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if jobID := viper.GetString("orchestrator.explain_job"); jobID != "" {
+	explainJobId := viper.GetString("orchestrator.explain_job")
+	explainTag := viper.GetString("orchestrator.explain_tag")
+	explainMatch := viper.GetString("orchestrator.explain_match")
+
+	explainFlagsSet := 0
+	if explainJobId != "" {
+		explainFlagsSet++
+	}
+	if explainTag != "" {
+		explainFlagsSet++
+	}
+	if explainMatch != "" {
+		explainFlagsSet++
+	}
+
+	if explainFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --explain-job, --explain-tag, and --explain-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if explainJobId != "" {
 		host := viper.GetString("orchestrator.host")
 		provider := viper.GetString("orchestrator.agent_provider")
 		model := viper.GetString("orchestrator.agent_model")
-		explainJob(host, jobID, provider, model)
+		explainJob(host, explainJobId, provider, model)
+		return nil
+	}
+
+	if explainTag != "" || explainMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		provider := viper.GetString("orchestrator.agent_provider")
+		model := viper.GetString("orchestrator.agent_model")
+		explainBulkJobs(host, explainMatch, explainTag, provider, model)
 		return nil
 	}
 
