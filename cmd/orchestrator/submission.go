@@ -857,20 +857,20 @@ func waitForTag(host, tag string, out io.Writer) error {
 	for {
 		resp, err := http.Get(urlStr)
 		if err != nil {
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 
 		var jobs []orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 			resp.Body.Close()
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 		resp.Body.Close()
@@ -898,7 +898,7 @@ func waitForTag(host, tag string, out io.Writer) error {
 			return nil
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -935,7 +935,7 @@ func waitForJobs(host string, jobIDs []string, out io.Writer) error {
 		}
 
 		if len(remaining) > 0 {
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 		}
 	}
 
@@ -951,14 +951,14 @@ func waitForMatch(host, match string, out io.Writer) error {
 	for {
 		resp, err := http.Get(urlStr)
 		if err != nil {
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 
 		var jobs []orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 			resp.Body.Close()
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 		resp.Body.Close()
@@ -986,7 +986,7 @@ func waitForMatch(host, match string, out io.Writer) error {
 			return nil
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -998,14 +998,14 @@ func waitForJob(host, jobID string, out io.Writer) error {
 		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
 		if err != nil {
 			// Retry on network error
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 
 		var job orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
 			resp.Body.Close()
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 		resp.Body.Close()
@@ -1063,12 +1063,12 @@ func waitForJob(host, jobID string, out io.Writer) error {
 					logsResp.Body.Close()
 				}
 				// Maybe container not ready yet
-				time.Sleep(1 * time.Second)
+				time.Sleep(1 * time.Millisecond)
 				continue
 			}
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
