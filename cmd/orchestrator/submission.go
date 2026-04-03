@@ -990,6 +990,41 @@ func waitForMatch(host, match string, out io.Writer) error {
 	}
 }
 
+func waitIdle(host string, out io.Writer) error {
+	fmt.Fprintf(out, "Waiting for orchestrator to become completely idle (0 active, 0 pending)...\n")
+
+	urlStr := fmt.Sprintf("%s/status", host)
+
+	for {
+		resp, err := http.Get(urlStr)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		var status orchestrator.Status
+		if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			resp.Body.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		resp.Body.Close()
+
+		if status.ActiveSpawns == 0 && status.PendingJobs == 0 {
+			fmt.Fprintf(out, "Orchestrator is now idle.\n")
+			return nil
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func waitForJob(host, jobID string, out io.Writer) error {
 	fmt.Fprintf(out, "Waiting for job %s to start...\n", jobID)
 

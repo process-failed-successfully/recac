@@ -156,6 +156,47 @@ func TestWaitForJob_Failed(t *testing.T) {
 	assert.Contains(t, err.Error(), "job failed with error: Something went wrong")
 }
 
+func TestWaitIdle_Success(t *testing.T) {
+	// Scenario: Status starts with active spawns and pending jobs, then becomes idle
+	states := []orchestrator.Status{
+		{ActiveSpawns: 2, PendingJobs: 1},
+		{ActiveSpawns: 1, PendingJobs: 0},
+		{ActiveSpawns: 0, PendingJobs: 0},
+	}
+	currentStateIdx := 0
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		status := states[currentStateIdx]
+		json.NewEncoder(w).Encode(status)
+
+		if currentStateIdx < len(states)-1 {
+			currentStateIdx++
+		}
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+
+	// Run in a goroutine with timeout since waitIdle sleeps for 1 second per loop
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- waitIdle(server.URL, &out)
+	}()
+
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err)
+		output := out.String()
+		assert.Contains(t, output, "Waiting for orchestrator to become completely idle")
+		assert.Contains(t, output, "Orchestrator is now idle.")
+	case <-time.After(5 * time.Second):
+		t.Fatal("waitIdle timed out")
+	}
+}
+
 func TestWaitForJob_Canceled(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/JOB-CANCEL", func(w http.ResponseWriter, r *http.Request) {
