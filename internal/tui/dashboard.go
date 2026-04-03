@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"recac/internal/orchestrator"
 
 	"recac/internal/utils"
@@ -27,6 +28,8 @@ import (
 )
 
 var (
+	clipboardWriteAll = clipboard.WriteAll
+
 	baseStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("240"))
@@ -714,6 +717,33 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				id := getRawID(selected[0])
 				return m, streamJobLogs(m.host, id)
 			}
+		case "y":
+			var idsToCopy []string
+			if len(m.selectedJobs) > 0 {
+				for id, isSelected := range m.selectedJobs {
+					if isSelected {
+						idsToCopy = append(idsToCopy, id)
+					}
+				}
+				sort.Strings(idsToCopy)
+			} else {
+				selected := m.table.SelectedRow()
+				if len(selected) > 0 {
+					idsToCopy = append(idsToCopy, getRawID(selected[0]))
+				}
+			}
+
+			if len(idsToCopy) > 0 {
+				strToCopy := strings.Join(idsToCopy, ",")
+				err := clipboardWriteAll(strToCopy)
+				if err != nil {
+					return m, func() tea.Msg { return actionMsg{Err: fmt.Errorf("failed to copy: %v", err)} }
+				}
+				return m, func() tea.Msg {
+					return actionMsg{Message: fmt.Sprintf("Copied %d job ID(s) to clipboard", len(idsToCopy))}
+				}
+			}
+			return m, nil
 		case "o":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -1983,7 +2013,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | y: copy ID | a: approve | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewSummary:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")

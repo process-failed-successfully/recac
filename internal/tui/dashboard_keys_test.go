@@ -58,6 +58,73 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "https://github.com/org/test-repo", openedUrl)
 	})
 
+	t.Run("Copy to Clipboard Key (y)", func(t *testing.T) {
+		originalClipboard := clipboardWriteAll
+		defer func() { clipboardWriteAll = originalClipboard }()
+
+		var copiedText string
+		clipboardWriteAll = func(text string) error {
+			copiedText = text
+			return nil
+		}
+
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd)
+
+		msg := cmd()
+		action, isAction := msg.(actionMsg)
+		assert.True(t, isAction)
+		assert.Equal(t, "Copied 1 job ID(s) to clipboard", action.Message)
+		assert.Equal(t, "JOB-1", copiedText)
+	})
+
+	t.Run("Copy to Clipboard Key (y) - Multiple", func(t *testing.T) {
+		originalClipboard := clipboardWriteAll
+		defer func() { clipboardWriteAll = originalClipboard }()
+
+		var copiedText string
+		clipboardWriteAll = func(text string) error {
+			copiedText = text
+			return nil
+		}
+
+		m := model
+		m.selectedJobs = map[string]bool{"JOB-1": true, "JOB-2": true}
+
+		updatedModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd)
+
+		msg := cmd()
+		action, isAction := msg.(actionMsg)
+		assert.True(t, isAction)
+		assert.Equal(t, "Copied 2 job ID(s) to clipboard", action.Message)
+		assert.Equal(t, "JOB-1,JOB-2", copiedText) // Because of sort.Strings
+	})
+
+	t.Run("Copy to Clipboard Key (y) - Error", func(t *testing.T) {
+		originalClipboard := clipboardWriteAll
+		defer func() { clipboardWriteAll = originalClipboard }()
+
+		clipboardWriteAll = func(text string) error {
+			return fmt.Errorf("clipboard error")
+		}
+
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+		_, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.NotNil(t, cmd)
+
+		msg := cmd()
+		action, isAction := msg.(actionMsg)
+		assert.True(t, isAction)
+		assert.Error(t, action.Err)
+		assert.Contains(t, action.Err.Error(), "clipboard error")
+	})
+
 	t.Run("Open Repo Key (o) - No URL", func(t *testing.T) {
 		// Ensure job has no RepoURL
 		if len(model.jobs) > 0 {
