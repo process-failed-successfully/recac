@@ -194,6 +194,9 @@ type DashboardModel struct {
 	searchInput        textinput.Model
 	searchContextInput textinput.Model
 
+	logFilterInput textinput.Model
+	isLogFiltering bool
+
 	explain     string
 	compareJobs [2]orchestrator.JobInfo
 }
@@ -438,6 +441,8 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.logStream = msg.Stream
 			m.logs = "" // Clear previous logs
+			m.isLogFiltering = false
+			m.logFilterInput.SetValue("")
 			m.viewport.SetContent("")
 			m.viewState = viewLogs
 			// Start reading chunks
@@ -448,8 +453,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logChunkMsg:
 		if msg.Chunk != "" {
 			m.logs += msg.Chunk
-			m.viewport.SetContent(m.logs)
-			m.viewport.GotoBottom()
+			m.updateFilteredLogs()
 		}
 
 		if msg.Err != nil {
@@ -547,7 +551,10 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m, cmd = m.updateMain(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewLogs, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewSummary:
+	case viewLogs:
+		m, cmd = m.updateLogsView(msg)
+		cmds = append(cmds, cmd)
+	case viewDetails, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewSummary:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -1899,6 +1906,89 @@ func (m DashboardModel) updateSearchLogsInput(msg tea.Msg) (DashboardModel, tea.
 	return m, cmd
 }
 
+func (m *DashboardModel) updateFilteredLogs() {
+	if m.logFilterInput.Value() == "" {
+		m.viewport.SetContent(m.logs)
+		m.viewport.GotoBottom()
+		return
+	}
+
+	filterText := strings.ToLower(m.logFilterInput.Value())
+	var filtered []string
+
+	lines := strings.Split(m.logs, "\n")
+	for _, line := range lines {
+		if strings.Contains(strings.ToLower(line), filterText) {
+			filtered = append(filtered, line)
+		}
+	}
+
+	m.viewport.SetContent(strings.Join(filtered, "\n"))
+	m.viewport.GotoBottom()
+}
+
+func (m DashboardModel) updateLogsView(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	if m.isLogFiltering {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc":
+				m.isLogFiltering = false
+				m.logFilterInput.SetValue("")
+				m.logFilterInput.Blur()
+				m.updateFilteredLogs()
+				return m, nil
+			case "enter":
+				m.isLogFiltering = false
+				m.logFilterInput.Blur()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.logFilterInput, cmd = m.logFilterInput.Update(msg)
+			cmds = append(cmds, cmd)
+			m.updateFilteredLogs()
+			return m, tea.Batch(cmds...)
+		}
+	} else {
+		// Normal viewport keys + handling '/' to start filtering
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "q", "esc":
+				if m.logFilterInput.Value() != "" {
+					m.logFilterInput.SetValue("")
+					m.updateFilteredLogs()
+					return m, nil
+				}
+				if m.logStream != nil {
+					m.logStream.Close()
+					m.logStream = nil
+				}
+				m.viewState = viewMain
+				m.isLogFiltering = false
+				return m, nil
+			case "/":
+				m.isLogFiltering = true
+				m.logFilterInput.Focus()
+				return m, textinput.Blink
+			}
+		}
+	}
+
+	if m.isLogFiltering {
+		var cmd tea.Cmd
+		m.logFilterInput, cmd = m.logFilterInput.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	var vpCmd tea.Cmd
+	m.viewport, vpCmd = m.viewport.Update(msg)
+	cmds = append(cmds, vpCmd)
+	return m, tea.Batch(cmds...)
+}
+
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -2090,8 +2180,22 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewLogs:
-		contentView = baseStyle.Render(m.viewport.View())
-		helpView = statusStyle.Render("esc/q: back | streaming logs...")
+		if m.isLogFiltering || m.logFilterInput.Value() != "" {
+			filterView := lipgloss.NewStyle().
+				MarginBottom(1).
+				Render(m.logFilterInput.View())
+
+			// Reduce height temporarily for the filter input to prevent viewport shifting out of bounds
+			originalHeight := m.viewport.Height
+			m.viewport.Height -= 2
+
+			contentView = baseStyle.Render(lipgloss.JoinVertical(lipgloss.Left, filterView, m.viewport.View()))
+
+			m.viewport.Height = originalHeight
+		} else {
+			contentView = baseStyle.Render(m.viewport.View())
+		}
+		helpView = statusStyle.Render("/: filter logs | esc/q: back | streaming logs...")
 	case viewConfirmation:
 		// Create a modal dialog
 		var dialogMsg string
@@ -3561,6 +3665,11 @@ func NewDashboardModel(host string) DashboardModel {
 	sci.Prompt = "Context Lines: "
 	sci.Width = 40
 
+	lfi := textinput.New()
+	lfi.Placeholder = "Filter logs..."
+	lfi.Prompt = "/"
+	lfi.Width = 40
+
 	return DashboardModel{
 		host:         host,
 		table:        t,
@@ -3583,6 +3692,7 @@ func NewDashboardModel(host string) DashboardModel {
 		deletePendingMatchInput: dpmi,
 		searchInput:             si,
 		searchContextInput:      sci,
+		logFilterInput:          lfi,
 		selectedJobs:            make(map[string]bool),
 	}
 }
