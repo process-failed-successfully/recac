@@ -1279,6 +1279,17 @@ func (o *Orchestrator) DryRun(ctx context.Context, logger *slog.Logger) ([]WorkI
 	return items, nil
 }
 
+// Ping tests the connectivity of the underlying Poller and Spawner.
+func (o *Orchestrator) Ping(ctx context.Context) error {
+	if err := o.Poller.Ping(ctx); err != nil {
+		return fmt.Errorf("poller ping failed: %w", err)
+	}
+	if err := o.Spawner.Ping(ctx); err != nil {
+		return fmt.Errorf("spawner ping failed: %w", err)
+	}
+	return nil
+}
+
 // Verify checks the connectivity of the Poller and Spawner.
 func (o *Orchestrator) Verify(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Verification Check")

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -87,6 +88,9 @@ func TestRegisterAPI(t *testing.T) {
 
 	// Test /healthz
 	t.Run("Healthz Endpoint", func(t *testing.T) {
+		mockPoller.On("Ping", mock.Anything).Return(nil).Once()
+		mockSpawner.On("Ping", mock.Anything).Return(nil).Once()
+
 		resp, err := http.Get(server.URL + "/healthz")
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -94,6 +98,16 @@ func TestRegisterAPI(t *testing.T) {
 		body, err := io.ReadAll(resp.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, "OK", string(body))
+
+		// Failing Ping Test
+		mockPoller.On("Ping", mock.Anything).Return(errors.New("poller error")).Once()
+
+		respFail, errFail := http.Get(server.URL + "/healthz")
+		assert.NoError(t, errFail)
+		assert.Equal(t, http.StatusInternalServerError, respFail.StatusCode)
+
+		bodyFail, _ := io.ReadAll(respFail.Body)
+		assert.Contains(t, string(bodyFail), "Health check failed")
 	})
 
 	// 1. Test /status
