@@ -128,7 +128,6 @@ type ReliabilityStats struct {
 	TopFailingJobs []FailedJobStat `json:"top_failing_jobs"`
 }
 
-
 // recordSpawnFailure increments the consecutive failure counter and checks the circuit breaker.
 func (o *Orchestrator) recordSpawnFailure(logger *slog.Logger) {
 	o.mu.Lock()
@@ -374,12 +373,17 @@ func (o *Orchestrator) GetJobBlockers(id string) ([]JobInfo, error) {
 				Summary: "Dependency not found in active, pending, or history",
 			})
 		} else {
-			status := strings.ToLower(depJob.Status)
-			if status == "pending" || status == "pending approval" || status == "spawning" || status == "running" || status == "active" || status == "retrying" {
+			// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive status checks
+			if strings.EqualFold(depJob.Status, "pending") ||
+				strings.EqualFold(depJob.Status, "pending approval") ||
+				strings.EqualFold(depJob.Status, "spawning") ||
+				strings.EqualFold(depJob.Status, "running") ||
+				strings.EqualFold(depJob.Status, "active") ||
+				strings.EqualFold(depJob.Status, "retrying") {
 				blockers = append(blockers, depJob)
-			} else if status == "failed" || status == "canceled" {
-				cond := strings.ToLower(strings.TrimSpace(targetJob.WorkItem.RunCondition))
-				if cond != "always" && cond != "on_failure" {
+			} else if strings.EqualFold(depJob.Status, "failed") || strings.EqualFold(depJob.Status, "canceled") {
+				cond := strings.TrimSpace(targetJob.WorkItem.RunCondition)
+				if !strings.EqualFold(cond, "always") && !strings.EqualFold(cond, "on_failure") {
 					blockers = append(blockers, depJob)
 				}
 			}
@@ -2561,7 +2565,6 @@ func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *
 		}
 	}
 
-
 	o.mu.RLock()
 	var toHeal []JobInfo
 	for _, job := range o.completedJobs {
@@ -2650,7 +2653,6 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 			return 0, fmt.Errorf("invalid retry match pattern: %w", err)
 		}
 	}
-
 
 	o.mu.RLock()
 	var toRetry []WorkItem
@@ -2782,75 +2784,75 @@ func (o *Orchestrator) checkDependenciesMetLocked(item WorkItem) (shouldRun bool
 
 	if hasDeps {
 
-	// Collect status for all dependencies
-	for _, dep := range item.DependsOn {
-		var depJob JobInfo
-		found := false
+		// Collect status for all dependencies
+		for _, dep := range item.DependsOn {
+			var depJob JobInfo
+			found := false
 
-		if _, ok := o.activeJobs[dep]; ok {
-			return false, false, false, "", nil // Active, not met yet
-		}
-		if _, ok := o.pendingJobs[dep]; ok {
-			return false, false, false, "", nil // Pending, not met yet
-		}
-
-		// Check memory history (newest first)
-		for i := len(o.completedJobs) - 1; i >= 0; i-- {
-			completed := o.completedJobs[i]
-			if completed.ID == dep {
-				depJob = completed
-				found = true
-				break
+			if _, ok := o.activeJobs[dep]; ok {
+				return false, false, false, "", nil // Active, not met yet
 			}
-		}
-
-		// Check persistence if not found in memory history
-		if !found && o.Persistence != nil {
-			job, err := o.Persistence.GetJob(dep)
-			if err == nil {
-				depJob = *job
-				found = true
+			if _, ok := o.pendingJobs[dep]; ok {
+				return false, false, false, "", nil // Pending, not met yet
 			}
-		}
 
-		if !found {
-			// Dependency not found anywhere, wait for it
-			return false, false, false, "", nil
-		}
-
-		if depJob.Status == "Failed" || depJob.Status == "Canceled" {
-			failedCount++
-			if failedDep == "" {
-				failedDep = dep
+			// Check memory history (newest first)
+			for i := len(o.completedJobs) - 1; i >= 0; i-- {
+				completed := o.completedJobs[i]
+				if completed.ID == dep {
+					depJob = completed
+					found = true
+					break
+				}
 			}
-		} else if depJob.Status == "Completed" || depJob.Status == "Skipped" {
-			completedCount++
-		}
 
-		// Accumulate outputs
-		prefix := fmt.Sprintf("DEP_%s_", sanitizeEnvVarName(dep))
-		for k, v := range depJob.Outputs {
-			outputs[prefix+strings.ToUpper(k)] = v
+			// Check persistence if not found in memory history
+			if !found && o.Persistence != nil {
+				job, err := o.Persistence.GetJob(dep)
+				if err == nil {
+					depJob = *job
+					found = true
+				}
+			}
+
+			if !found {
+				// Dependency not found anywhere, wait for it
+				return false, false, false, "", nil
+			}
+
+			if depJob.Status == "Failed" || depJob.Status == "Canceled" {
+				failedCount++
+				if failedDep == "" {
+					failedDep = dep
+				}
+			} else if depJob.Status == "Completed" || depJob.Status == "Skipped" {
+				completedCount++
+			}
+
+			// Accumulate outputs
+			prefix := fmt.Sprintf("DEP_%s_", sanitizeEnvVarName(dep))
+			for k, v := range depJob.Outputs {
+				outputs[prefix+strings.ToUpper(k)] = v
+			}
 		}
 	}
-	}
 
-	cond := strings.ToLower(strings.TrimSpace(item.RunCondition))
+	// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive condition checks
+	cond := strings.TrimSpace(item.RunCondition)
 
 	// Determine base status from dependencies
 	var depRun, depFail, depSkip bool
 	var depFailedDep string
 
-	switch cond {
-	case "always":
+	if strings.EqualFold(cond, "always") {
 		depRun = true
-	case "on_failure":
+	} else if strings.EqualFold(cond, "on_failure") {
 		if !hasDeps || failedCount > 0 {
 			depRun = true
 		} else {
 			depSkip = true
 		}
-	default: // "on_success" or empty
+	} else { // "on_success" or empty
 		if hasDeps && failedCount > 0 {
 			depFail = true
 			depFailedDep = failedDep
@@ -4051,7 +4053,6 @@ func (o *Orchestrator) PurgeJobsByStatus(status string, logger *slog.Logger) (in
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
@@ -4146,7 +4147,6 @@ func (o *Orchestrator) PurgeJobsByMatch(match string, logger *slog.Logger) (int,
 func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-
 
 	purgedIDs := make(map[string]bool)
 
