@@ -16,6 +16,44 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestTailSingleJob_Success(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-TAIL-1/logs", func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			fmt.Fprintln(w, "Single Log 1")
+			return
+		}
+
+		fmt.Fprintf(w, "Single Log 1\n")
+		flusher.Flush()
+		time.Sleep(100 * time.Millisecond)
+
+		fmt.Fprintf(w, "Single Log 2\n")
+		flusher.Flush()
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	err := tailSingleJob(context.Background(), server.URL, "JOB-TAIL-1")
+	assert.NoError(t, err)
+
+	output := out.String()
+	assert.Contains(t, output, "Starting Log Stream (tailing job JOB-TAIL-1")
+	assert.Contains(t, output, "Started Tailing Logs")
+	assert.Contains(t, output, "Single Log 1")
+	assert.Contains(t, output, "Single Log 2")
+	assert.Contains(t, output, "Log Stream Finished")
+}
+
 func TestTailActiveJobs(t *testing.T) {
 	// Create a mock server that simulates an orchestrator
 	mux := http.NewServeMux()

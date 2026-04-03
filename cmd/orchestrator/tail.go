@@ -37,6 +37,45 @@ type multiplexer struct {
 	colorCounter int
 }
 
+func tailSingleJob(ctx context.Context, host, jobID string) error {
+	m := &multiplexer{
+		host:   host,
+		active: make(map[string]context.CancelFunc),
+	}
+
+	fmt.Fprintf(stdout, "Starting Log Stream (tailing job %s from %s)...\n", jobID, host)
+	fmt.Fprintf(stdout, "Press Ctrl+C to stop.\n\n")
+
+	jobCtx, cancel := context.WithCancel(ctx)
+	m.active[jobID] = cancel
+
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color(colors[0])).Bold(true)
+	prefix := style.Render(fmt.Sprintf("[%s]", jobID))
+
+	m.wg.Add(1)
+	go m.tailJob(jobCtx, jobID, prefix)
+
+	done := make(chan struct{})
+	go func() {
+		m.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		fmt.Fprintf(stdout, "\nShutting down stream, waiting for logs to finish...\n")
+		m.mu.Lock()
+		if cancelFn, ok := m.active[jobID]; ok {
+			cancelFn()
+		}
+		m.mu.Unlock()
+		m.wg.Wait()
+		return nil
+	case <-done:
+		return nil
+	}
+}
+
 func tailActiveJobs(ctx context.Context, host, tag, match string) error {
 	m := &multiplexer{
 		host:   host,
