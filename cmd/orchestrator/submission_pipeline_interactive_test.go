@@ -99,4 +99,29 @@ EOF
 	assert.Contains(t, receivedPayload, "ENV=dev")
 	assert.Contains(t, receivedPayload, "NEW_VAR=new_value")
 	assert.Contains(t, receivedPayload, "CLI_VAR=cli_value")
+
+	// Test missing file
+	t.Run("MissingFile", func(t *testing.T) {
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		submitPipelineInteractiveJob(server.URL, filepath.Join(tmpDir, "does-not-exist.yaml"), false, false, "", nil)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	// Test invalid YAML
+	t.Run("InvalidYAML", func(t *testing.T) {
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		invalidYAMLPath := filepath.Join(tmpDir, "invalid.yaml")
+		os.WriteFile(invalidYAMLPath, []byte("invalid\n  yaml:\n-content"), 0644)
+
+		submitPipelineInteractiveJob(server.URL, invalidYAMLPath, false, false, "", nil)
+		assert.Equal(t, 1, exitCode)
+	})
 }

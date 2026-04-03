@@ -269,6 +269,7 @@ func TestGetLogs(t *testing.T) {
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
 	})
+
 }
 
 func TestInspectJob(t *testing.T) {
@@ -406,6 +407,48 @@ func TestCancelJob(t *testing.T) {
 		cancelJob("http://invalid-host", "job-1", false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		cancelJob("http://invalid-host", "job-1", false)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("Success_Downstream", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodDelete, r.Method)
+			assert.Equal(t, "/jobs/job-1", r.URL.Path)
+			assert.Equal(t, "true", r.URL.Query().Get("downstream"))
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"canceled_jobs": ["job-2", "job-3"]}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		cancelJob(server.URL, "job-1", true)
+
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "cancelled successfully")
+		assert.Contains(t, buf.String(), "Canceled jobs: job-2, job-3")
+	})
+
+	t.Run("Failure_DownstreamJSON", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid json`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		cancelJob(server.URL, "job-1", true)
+
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
 	})
 }
 

@@ -64,4 +64,80 @@ func TestDiagnoseCommand(t *testing.T) {
 	assert.Contains(t, output, "Unresolvable Jobs")
 	assert.Contains(t, output, "job-dead")
 	assert.Contains(t, output, "ghost")
+
+	// Healthy system
+	t.Run("HealthySystem", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode(orchestrator.DiagnosticReport{})
+		}))
+		defer ts.Close()
+
+		exitCode = 0
+		out.Reset()
+		runDiagnose(ts.URL)
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, out.String(), "No issues found! The system is healthy.")
+	})
+
+	// Deadlocked system
+	t.Run("DeadlockedSystem", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			report := orchestrator.DiagnosticReport{
+				DeadlockedJobs: []orchestrator.DeadlockedJob{
+					{
+						JobID: "job-1",
+						Cycle: []string{"job-1", "job-2", "job-1"},
+					},
+				},
+			}
+			json.NewEncoder(w).Encode(report)
+		}))
+		defer ts.Close()
+
+		exitCode = 0
+		out.Reset()
+		runDiagnose(ts.URL)
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, out.String(), "Deadlocks / Cyclic Dependencies (1)")
+		assert.Contains(t, out.String(), "job-1")
+		assert.Contains(t, out.String(), "job-1 -> job-2 -> job-1")
+	})
+
+	// Connection failure
+	t.Run("ConnectionFailure", func(t *testing.T) {
+		exitCode = 0
+		out.Reset()
+		runDiagnose("http://127.0.0.1:0")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, out.String(), "Failed to connect to orchestrator")
+	})
+
+	// Non-200 OK
+	t.Run("Non200OK", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal error"))
+		}))
+		defer ts.Close()
+
+		exitCode = 0
+		out.Reset()
+		runDiagnose(ts.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, out.String(), "Failed to fetch diagnostics: internal error")
+	})
+
+	// Invalid JSON
+	t.Run("InvalidJSON", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("invalid json"))
+		}))
+		defer ts.Close()
+
+		exitCode = 0
+		out.Reset()
+		runDiagnose(ts.URL)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, out.String(), "Failed to decode response")
+	})
 }
