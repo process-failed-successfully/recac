@@ -236,7 +236,10 @@ func TestRunQAAgent_ConfigFallbackOpenRouter(t *testing.T) {
 		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
-	err := session.runQAAgent(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := session.runQAAgent(ctx)
 	if err == nil {
 		t.Errorf("Expected error from runQAAgent")
 	}
