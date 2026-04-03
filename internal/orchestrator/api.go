@@ -2589,6 +2589,26 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"retried": %d}`, count)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/heal", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		newID, err := orch.HealJob(r.Context(), id, logger)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if strings.Contains(err.Error(), "not in a failed state") || strings.Contains(err.Error(), "active") || strings.Contains(err.Error(), "pending") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, `{"healed_job_id": "%s"}`, newID)
+	})
+
 	mux.HandleFunc("POST /jobs/heal/bulk", func(w http.ResponseWriter, r *http.Request) {
 		match := r.URL.Query().Get("match")
 		tag := r.URL.Query().Get("tag")

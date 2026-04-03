@@ -14,6 +14,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAPI_HealJob(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 10*time.Millisecond)
+
+	// Add failed job to history
+	job1 := JobInfo{
+		ID:      "JOB-HEAL-SINGLE",
+		Status:  "Failed",
+		Error:   "some error",
+		WorkItem: WorkItem{
+			ID:   "JOB-HEAL-SINGLE",
+			Summary: "test single heal",
+		},
+	}
+	orch.addToHistory(job1, nil)
+
+	mux := http.NewServeMux()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Test 1: Successful Heal
+	req, _ := http.NewRequest("POST", server.URL+"/jobs/JOB-HEAL-SINGLE/heal", nil)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+
+	var result struct {
+		HealedJobID string `json:"healed_job_id"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+	assert.Equal(t, "JOB-HEAL-SINGLE-healed", result.HealedJobID)
+
+	// Test 2: Not found job
+	reqMissing, _ := http.NewRequest("POST", server.URL+"/jobs/UNKNOWN/heal", nil)
+	respMissing, err := http.DefaultClient.Do(reqMissing)
+	require.NoError(t, err)
+	defer respMissing.Body.Close()
+
+	assert.Equal(t, http.StatusNotFound, respMissing.StatusCode)
+}
+
 func TestAPI_HealBulk(t *testing.T) {
 	poller := newMockPoller(nil)
 	spawner := &mockSpawner{}

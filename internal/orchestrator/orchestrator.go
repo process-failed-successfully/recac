@@ -2579,6 +2579,89 @@ func (o *Orchestrator) RetryJobDownstream(ctx context.Context, jobID string, log
 	return retriedIDs, nil
 }
 
+// HealJob attempts to recover a specific failed job by appending failure context to its description and resubmitting it.
+func (o *Orchestrator) HealJob(ctx context.Context, jobID string, logger *slog.Logger) (string, error) {
+	o.mu.RLock()
+	var toHeal *JobInfo
+	for _, job := range o.completedJobs {
+		if job.ID == jobID {
+			toHeal = &job
+			break
+		}
+	}
+
+	if toHeal == nil && o.Persistence != nil {
+		if job, err := o.Persistence.GetJob(jobID); err == nil {
+			toHeal = job
+		}
+	}
+
+	if toHeal != nil {
+		// Check if already active or pending
+		if _, active := o.activeJobs[jobID]; active {
+			toHeal = nil
+		} else if _, pending := o.pendingJobs[jobID]; pending {
+			toHeal = nil
+		}
+	}
+	o.mu.RUnlock()
+
+	if toHeal == nil {
+		return "", fmt.Errorf("job %s not found or is currently active/pending", jobID)
+	}
+
+	if toHeal.Status != "Failed" && toHeal.Status != "error" {
+		return "", fmt.Errorf("job %s is not in a failed state (status: %s)", jobID, toHeal.Status)
+	}
+
+	if logger != nil {
+		logger.Info("Healing failed job", "id", toHeal.ID)
+	}
+
+	// Fetch logs
+	var logsText string
+	logStream, err := o.GetLogs(ctx, toHeal.ID)
+	if err == nil && logStream != nil {
+		logBytes, _ := io.ReadAll(logStream)
+		logsText = string(logBytes)
+		logStream.Close()
+	} else if logger != nil {
+		logger.Warn("Failed to fetch logs for healing", "id", toHeal.ID, "error", err)
+	}
+
+	logLines := strings.Split(logsText, "\n")
+	if len(logLines) > 500 {
+		logLines = logLines[len(logLines)-500:]
+		logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
+	}
+
+	newItem := toHeal.WorkItem
+	newItem.ID = fmt.Sprintf("%s-healed", toHeal.ID)
+
+	failureContext := fmt.Sprintf("\n\n---\nPrevious Job Failure Context:\nError: %s\nLogs:\n```\n%s\n```\n", toHeal.Error, logsText)
+	newItem.Description = newItem.Description + failureContext
+
+	hasAutoHealTag := false
+	for _, t := range newItem.Tags {
+		if t == "auto-heal" {
+			hasAutoHealTag = true
+			break
+		}
+	}
+	if !hasAutoHealTag {
+		newItem.Tags = append(newItem.Tags, "auto-heal")
+	}
+
+	if err := o.SubmitJob(ctx, newItem, logger); err != nil {
+		if logger != nil {
+			logger.Error("Failed to submit healed job", "id", toHeal.ID, "error", err)
+		}
+		return "", err
+	}
+
+	return newItem.ID, nil
+}
+
 // HealJobs attempts to recover failed jobs by appending failure context to their description and resubmitting them.
 func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *slog.Logger) (int, error) {
 	var matcher *regexp.Regexp

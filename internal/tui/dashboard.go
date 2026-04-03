@@ -3241,8 +3241,7 @@ func retryJobDownstream(host, id string) tea.Cmd {
 
 func healJobCmd(host, jobID string) tea.Cmd {
 	return func() tea.Msg {
-		matchParam := fmt.Sprintf("^%s$", jobID)
-		urlStr := host + "/jobs/heal/bulk?match=" + url.QueryEscape(matchParam)
+		urlStr := fmt.Sprintf("%s/jobs/%s/heal", host, jobID)
 
 		req, err := http.NewRequest(http.MethodPost, urlStr, nil)
 		if err != nil {
@@ -3255,15 +3254,16 @@ func healJobCmd(host, jobID string) tea.Cmd {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusAccepted {
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
 		}
 
 		var result struct {
-			Healed int `json:"healed"`
+			HealedJobID string `json:"healed_job_id"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-			return actionMsg{Message: fmt.Sprintf("Healed %d job", result.Healed)}
+		if err := json.Unmarshal(body, &result); err == nil {
+			return actionMsg{Message: fmt.Sprintf("Healed job %s", result.HealedJobID)}
 		}
 
 		return actionMsg{Message: "Healed"}
