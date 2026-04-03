@@ -110,6 +110,7 @@ func main() {
 	pflag.Bool("tail-active", false, "Tail logs from all currently active jobs simultaneously")
 	pflag.String("tail-tag", "", "Filter tailed active jobs by a specific tag")
 	pflag.String("tail-match", "", "Filter tailed active jobs matching a regex")
+	pflag.String("tail-job", "", "Tail logs from a specific currently active job continuously")
 	pflag.Bool("analytics", false, "Show orchestrator analytics")
 	pflag.Bool("critical-path", false, "Analyze and display the critical path of job execution")
 	pflag.Bool("tree", false, "Display the dependency tree of jobs")
@@ -483,6 +484,7 @@ func main() {
 	viper.BindPFlag("orchestrator.tail_active", pflag.Lookup("tail-active"))
 	viper.BindPFlag("orchestrator.tail_tag", pflag.Lookup("tail-tag"))
 	viper.BindPFlag("orchestrator.tail_match", pflag.Lookup("tail-match"))
+	viper.BindPFlag("orchestrator.tail_job", pflag.Lookup("tail-job"))
 	viper.BindPFlag("orchestrator.analytics", pflag.Lookup("analytics"))
 	viper.BindPFlag("orchestrator.critical_path", pflag.Lookup("critical-path"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
@@ -885,6 +887,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 		} else {
 			listJobs(host, history, statusFilter, tagFilter, matchFilter, priorityFilter, format)
+		}
+		return nil
+	}
+
+	if tailJobID := viper.GetString("orchestrator.tail_job"); tailJobID != "" {
+		host := viper.GetString("orchestrator.host")
+		if err := tailSingleJob(ctx, host, tailJobID); err != nil {
+			fmt.Fprintf(stdout, "Tail failed: %v\n", err)
+			exitFunc(1)
 		}
 		return nil
 	}
