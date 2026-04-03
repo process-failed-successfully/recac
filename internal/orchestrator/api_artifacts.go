@@ -17,7 +17,12 @@ func ensureArtifactsDir(o *Orchestrator, jobID string) (string, error) {
 		return "", fmt.Errorf("artifacts directory is not configured")
 	}
 
-	jobDir := filepath.Join(o.ArtifactsDir, jobID)
+	cleanJobID := filepath.Base(jobID)
+	if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+		return "", fmt.Errorf("invalid job ID")
+	}
+
+	jobDir := filepath.Join(o.ArtifactsDir, cleanJobID)
 	if err := os.MkdirAll(jobDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create artifact directory: %w", err)
 	}
@@ -90,8 +95,14 @@ func handleDownloadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFu
 			return
 		}
 
+		cleanJobID := filepath.Base(jobID)
+		if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+			http.Error(w, "Invalid job ID", http.StatusBadRequest)
+			return
+		}
+
 		cleanFilename := filepath.Base(filename)
-		filePath := filepath.Join(o.ArtifactsDir, jobID, cleanFilename)
+		filePath := filepath.Join(o.ArtifactsDir, cleanJobID, cleanFilename)
 
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			http.Error(w, "Artifact not found", http.StatusNotFound)
@@ -117,7 +128,13 @@ func handleListArtifacts(o *Orchestrator, logger *slog.Logger) http.HandlerFunc 
 			return
 		}
 
-		jobDir := filepath.Join(o.ArtifactsDir, jobID)
+		cleanJobID := filepath.Base(jobID)
+		if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+			http.Error(w, "Invalid job ID", http.StatusBadRequest)
+			return
+		}
+
+		jobDir := filepath.Join(o.ArtifactsDir, cleanJobID)
 
 		var artifacts []string
 
@@ -163,8 +180,14 @@ func handleDeleteArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 			return
 		}
 
+		cleanJobID := filepath.Base(jobID)
+		if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+			http.Error(w, "Invalid job ID", http.StatusBadRequest)
+			return
+		}
+
 		cleanFilename := filepath.Base(filename)
-		filePath := filepath.Join(o.ArtifactsDir, jobID, cleanFilename)
+		filePath := filepath.Join(o.ArtifactsDir, cleanJobID, cleanFilename)
 
 		if err := os.Remove(filePath); err != nil {
 			if os.IsNotExist(err) {
