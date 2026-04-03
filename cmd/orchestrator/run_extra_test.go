@@ -410,3 +410,64 @@ func TestRun_Misc_Coverage(t *testing.T) {
 		})
 	}
 }
+
+func TestRun_WaitJobs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ctx := context.Background()
+
+	t.Run("WaitJobs_Success", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"id": "job-1", "status": "Completed"}`))
+		}))
+		defer ts.Close()
+
+		viper.Reset()
+		viper.Set("orchestrator.host", ts.URL)
+		viper.Set("orchestrator.wait_jobs", "job-1")
+
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		err := run(ctx, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, exitCode)
+	})
+
+	t.Run("WaitJobs_Failure", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"id": "job-1", "status": "Failed", "error": "simulated failure"}`))
+		}))
+		defer ts.Close()
+
+		viper.Reset()
+		viper.Set("orchestrator.host", ts.URL)
+		viper.Set("orchestrator.wait_jobs", "job-1")
+
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		err := run(ctx, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	t.Run("WaitJobs_EmptyID", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("orchestrator.wait_jobs", ",,") // Results in empty IDs
+
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		err := run(ctx, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, exitCode)
+	})
+}
