@@ -129,6 +129,8 @@ func main() {
 	pflag.Int("analyze-reliability-limit", 10, "Limit the number of top flaky and failing jobs displayed in reliability analysis")
 	pflag.Bool("analyze-costs", false, "Analyze and display a statistical breakdown of job costs")
 	pflag.Int("analyze-costs-limit", 10, "Limit the number of top expensive jobs displayed in cost analysis")
+	pflag.Bool("analyze-agents", false, "Analyze and display a statistical breakdown of agent model performance")
+	pflag.Int("analyze-agents-limit", 10, "Limit the number of agents displayed in agent analysis")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
 	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
 	pflag.String("heal-tag", "", "Heal all failed jobs with the specified tag")
@@ -489,6 +491,8 @@ func main() {
 	viper.BindPFlag("orchestrator.analyze_reliability_limit", pflag.Lookup("analyze-reliability-limit"))
 	viper.BindPFlag("orchestrator.analyze_costs", pflag.Lookup("analyze-costs"))
 	viper.BindPFlag("orchestrator.analyze_costs_limit", pflag.Lookup("analyze-costs-limit"))
+	viper.BindPFlag("orchestrator.analyze_agents", pflag.Lookup("analyze-agents"))
+	viper.BindPFlag("orchestrator.analyze_agents_limit", pflag.Lookup("analyze-agents-limit"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
 	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
 	viper.BindPFlag("orchestrator.heal_tag", pflag.Lookup("heal-tag"))
@@ -1125,6 +1129,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		limit := viper.GetInt("orchestrator.analyze_costs_limit")
 		format := viper.GetString("orchestrator.format")
 		analyzeCosts(host, limit, format)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analyze_agents") {
+		host := viper.GetString("orchestrator.host")
+		limit := viper.GetInt("orchestrator.analyze_agents_limit")
+		format := viper.GetString("orchestrator.format")
+		analyzeAgents(host, limit, format)
 		return nil
 	}
 
