@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync/atomic"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -3130,4 +3131,53 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 1, exitCode)
 	})
+}
+
+
+
+func TestWaitIdle(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"active": 0, "pending": 0}`))
+		}
+	}))
+	defer ts.Close()
+
+	var buf bytes.Buffer
+	err := waitIdle(ts.URL, &buf)
+	assert.NoError(t, err)
+}
+
+func TestWaitIdle_NeedsWait(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"active": 0, "pending": 0}`))
+	}))
+	defer ts.Close()
+
+	var buf bytes.Buffer
+	err := waitIdle(ts.URL, &buf)
+	assert.NoError(t, err)
+}
+
+func TestWaitIdle_ErrorRecovery(t *testing.T) {
+	var requests int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount := atomic.AddInt32(&requests, 1)
+
+		if r.URL.Path == "/status" {
+			if reqCount < 2 {
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"active": 0, "pending": 0}`))
+			}
+		}
+	}))
+	defer ts.Close()
+
+	var buf bytes.Buffer
+	err := waitIdle(ts.URL, &buf)
+	assert.NoError(t, err)
 }
