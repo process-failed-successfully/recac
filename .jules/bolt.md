@@ -36,3 +36,7 @@
 ## 2026-03-31 - [Optimize strings.ToLower with strings.EqualFold]
 **Learning:** Using `strings.ToLower` for case-insensitive comparisons creates intermediate string allocations. Calling it repeatedly in a loop creates significant overhead.
 **Action:** Always use `strings.EqualFold` for case-insensitive string equality comparisons instead of allocating a new string with `strings.ToLower`. `strings.EqualFold` compares the strings in-place without memory allocations, running significantly faster than allocation loops.
+
+## 2025-05-20 - [Zero-allocation String Equality]
+**Learning:** Avoid using `strings.ToLower` for case-insensitive string comparisons in hot paths (like `evaluatePendingJobs`), as it allocates a new string.
+**Action:** Always use `strings.EqualFold(a, b)` to perform case-insensitive string comparisons without allocating new memory, especially inside loops or frequently called functions.
