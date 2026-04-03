@@ -100,6 +100,7 @@ func main() {
 	pflag.String("list-jobs-tag", "", "Filter jobs by a specific tag")
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
 	pflag.String("list-jobs-priority", "", "Filter jobs by a specific priority")
+	pflag.String("search-jobs", "", "Search pending, active, and completed jobs by regex query")
 	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
 	pflag.String("format", "text", "Output format for status and analytics (text, json)")
 	pflag.Bool("summary", false, "Get a summary of job counts by status")
@@ -471,6 +472,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs_tag", pflag.Lookup("list-jobs-tag"))
 	viper.BindPFlag("orchestrator.list_jobs_match", pflag.Lookup("list-jobs-match"))
 	viper.BindPFlag("orchestrator.list_jobs_priority", pflag.Lookup("list-jobs-priority"))
+	viper.BindPFlag("orchestrator.search_jobs", pflag.Lookup("search-jobs"))
 	viper.BindPFlag("orchestrator.list_jobs_format", pflag.Lookup("list-jobs-format"))
 	viper.BindPFlag("orchestrator.format", pflag.Lookup("format"))
 	viper.BindPFlag("orchestrator.summary", pflag.Lookup("summary"))
@@ -918,6 +920,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.list_tags") {
 		host := viper.GetString("orchestrator.host")
 		listTags(host)
+		return nil
+	}
+
+	if query := viper.GetString("orchestrator.search_jobs"); query != "" {
+		host := viper.GetString("orchestrator.host")
+		tag := viper.GetString("orchestrator.list_jobs_tag")
+		status := viper.GetString("orchestrator.list_jobs_status")
+		format := viper.GetString("orchestrator.list_jobs_format")
+		searchJobsGlobally(host, query, tag, status, format)
 		return nil
 	}
 
