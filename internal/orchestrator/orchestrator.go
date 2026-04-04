@@ -766,6 +766,41 @@ func (o *Orchestrator) CancelJobsByMatch(ctx context.Context, match string, logg
 	return count, lastErr
 }
 
+// CancelJobsOlderThan cancels all running and pending jobs that have been active/pending for longer than the specified duration.
+func (o *Orchestrator) CancelJobsOlderThan(ctx context.Context, d time.Duration, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	var jobIDs []string
+	cutoff := time.Now().Add(-d)
+
+	for id, job := range o.activeJobs {
+		if job.StartTime.Before(cutoff) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.pendingJobs {
+		if job.StartTime.Before(cutoff) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && len(jobIDs) > 0 {
+		logger.Info("Canceling jobs older than", "duration", d, "count", len(jobIDs))
+	}
+
+	count := 0
+	var lastErr error
+	for _, id := range jobIDs {
+		if err := o.CancelJob(ctx, id); err != nil {
+			lastErr = err
+		} else {
+			count++
+		}
+	}
+
+	return count, lastErr
+}
+
 // CancelJobsByTag cancels all running and pending jobs that have the specified tag.
 func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
