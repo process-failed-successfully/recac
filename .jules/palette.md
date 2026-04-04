@@ -58,3 +58,7 @@
 ## 2026-04-05 - Global Keyboard Shortcuts in Custom Web Dashboards
 **Learning:** Adding global keyboard shortcuts (like `/` to focus search) to embedded web UIs is a huge usability win, but it's crucial to explicitly prevent them from triggering while typing in inputs (`event.target.tagName`) or when any modal is open (`.modal` check). If ignored, users might accidentally refresh data or steal focus while simply trying to type characters or navigate an overlay.
 **Action:** Always wrap global document-level `keydown` event listeners with checks for active form elements (`INPUT`, `TEXTAREA`, `SELECT`) and open modals before executing the shortcut logic.
+
+## 2026-04-06 - Announce Dynamic Updates to Screen Readers
+**Learning:** In dynamically updated UI components (like viewing logs, analyzing failures, or explaining job details in a modal), screen readers will not naturally announce text content that is injected asynchronously after the container is already rendered.
+**Action:** Always add `aria-live="polite"` to the container element (e.g. `<div id="analyze-failures-content" aria-live="polite">`) where dynamic text updates will occur, so that screen readers correctly notify visually impaired users without interrupting their current tasks.
