@@ -102,6 +102,11 @@ func handleDownloadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFu
 		}
 
 		cleanFilename := filepath.Base(filename)
+		if cleanFilename == "." || cleanFilename == "/" || cleanFilename != filename {
+			http.Error(w, "Invalid filename", http.StatusBadRequest)
+			return
+		}
+
 		filePath := filepath.Join(o.ArtifactsDir, cleanJobID, cleanFilename)
 
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -187,6 +192,11 @@ func handleDeleteArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 		}
 
 		cleanFilename := filepath.Base(filename)
+		if cleanFilename == "." || cleanFilename == "/" || cleanFilename != filename {
+			http.Error(w, "Invalid filename", http.StatusBadRequest)
+			return
+		}
+
 		filePath := filepath.Join(o.ArtifactsDir, cleanJobID, cleanFilename)
 
 		if err := os.Remove(filePath); err != nil {
