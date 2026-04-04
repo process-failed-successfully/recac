@@ -58,6 +58,24 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "https://github.com/org/test-repo", openedUrl)
 	})
 
+	t.Run("Analyze Costs Key (ctrl+o)", func(t *testing.T) {
+		model := NewDashboardModel("http://localhost")
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+o")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewMain, m.viewState)
+	})
+
+	t.Run("Analyze Agents Key (ctrl+a)", func(t *testing.T) {
+		model := NewDashboardModel("http://localhost")
+		model.viewState = viewMain
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+a")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Equal(t, viewMain, m.viewState)
+	})
+
 	t.Run("Copy to Clipboard Key (y)", func(t *testing.T) {
 		originalClipboard := clipboardWriteAll
 		defer func() { clipboardWriteAll = originalClipboard }()
@@ -663,6 +681,8 @@ func TestDashboardModel_View_AllStates(t *testing.T) {
         viewSearchLogsInput,
         viewSearchLogsResult,
         viewTags,
+        viewAnalyzeCosts,
+        viewAnalyzeAgents,
     }
 
     for _, v := range views {
