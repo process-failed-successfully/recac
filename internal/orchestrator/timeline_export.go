@@ -96,11 +96,10 @@ func ExportTimelineToMermaid(jobs []JobInfo) string {
 			}
 
 			// Escape colons in job ID/Summary as they break mermaid syntax
-			safeName := strings.ReplaceAll(job.ID, ":", "-")
-			safeID := strings.ReplaceAll(job.ID, ":", "-")
+			safeID := sanitizeMermaidID(job.ID)
 
 			line := fmt.Sprintf("    %s :%s%s, %s, %s\n",
-				safeName,
+				safeID,
 				modifier,
 				safeID,
 				start.Format(time.RFC3339),
@@ -110,5 +109,24 @@ func ExportTimelineToMermaid(jobs []JobInfo) string {
 		sb.WriteString("\n")
 	}
 
+	return sb.String()
+}
+
+// sanitizeMermaidID provides a fast-path zero-allocation check before
+// allocating a new string to replace colons with hyphens.
+func sanitizeMermaidID(s string) string {
+	if strings.IndexByte(s, ':') == -1 {
+		return s
+	}
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ':' {
+			sb.WriteByte('-')
+		} else {
+			sb.WriteByte(c)
+		}
+	}
 	return sb.String()
 }
