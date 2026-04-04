@@ -74,6 +74,8 @@ const (
 	viewTags
 	viewAnalyzeDurations
 	viewAnalyzeReliability
+	viewAnalyzeCosts
+	viewAnalyzeAgents
 	viewDeletePendingGroupInput
 	viewDeletePendingTagInput
 	viewDeletePendingMatchInput
@@ -120,6 +122,53 @@ type ReliabilityStats struct {
 	TopFailingJobs []FailedJobStat `json:"top_failing_jobs"`
 }
 
+type CostStats struct {
+	TotalCost             float64 `json:"total_cost"`
+	TotalTokensPrompt     float64 `json:"total_tokens_prompt"`
+	TotalTokensCompletion float64 `json:"total_tokens_completion"`
+	TotalJobs             int     `json:"total_jobs"`
+}
+
+type CostByTag struct {
+	Tag              string  `json:"tag"`
+	Cost             float64 `json:"cost"`
+	TokensPrompt     float64 `json:"tokens_prompt"`
+	TokensCompletion float64 `json:"tokens_completion"`
+	JobsCount        int     `json:"jobs_count"`
+}
+
+type CostByModel struct {
+	Model            string  `json:"model"`
+	Cost             float64 `json:"cost"`
+	TokensPrompt     float64 `json:"tokens_prompt"`
+	TokensCompletion float64 `json:"tokens_completion"`
+	JobsCount        int     `json:"jobs_count"`
+}
+
+type CostStatsResponse struct {
+	TotalStats       CostStats              `json:"total_stats"`
+	TagStats         []CostByTag            `json:"tag_stats"`
+	ModelStats       []CostByModel          `json:"model_stats"`
+	TopExpensiveJobs []orchestrator.JobInfo `json:"top_expensive_jobs"`
+}
+
+type AgentPerformance struct {
+	AgentProvider    string        `json:"agent_provider"`
+	AgentModel       string        `json:"agent_model"`
+	TotalJobs        int           `json:"total_jobs"`
+	SuccessfulJobs   int           `json:"successful_jobs"`
+	FailedJobs       int           `json:"failed_jobs"`
+	SuccessRate      float64       `json:"success_rate"`
+	AverageDuration  time.Duration `json:"average_duration"`
+	AverageCost      float64       `json:"average_cost"`
+	TotalCost        float64       `json:"total_cost"`
+	TotalTokens      float64       `json:"total_tokens"`
+}
+
+type AgentStatsResponse struct {
+	Agents []AgentPerformance `json:"agents"`
+}
+
 type analyzeDurationsMsg struct {
 	Stats DurationStats
 	Err   error
@@ -127,6 +176,16 @@ type analyzeDurationsMsg struct {
 
 type analyzeReliabilityMsg struct {
 	Stats ReliabilityStats
+	Err   error
+}
+
+type analyzeCostsMsg struct {
+	Stats CostStatsResponse
+	Err   error
+}
+
+type analyzeAgentsMsg struct {
+	Stats AgentStatsResponse
 	Err   error
 }
 
@@ -413,6 +472,26 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case analyzeCostsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewAnalyzeCosts
+			m.viewport.SetContent(renderAnalyzeCosts(msg.Stats))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case analyzeAgentsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewAnalyzeAgents
+			m.viewport.SetContent(renderAnalyzeAgents(msg.Stats))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
 	case compareMsg:
 		if msg.Err != nil {
 			m.err = msg.Err
@@ -557,7 +636,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewLogs:
 		m, cmd = m.updateLogsView(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewSummary:
+	case viewDetails, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewAnalyzeCosts, viewAnalyzeAgents, viewSummary:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -782,6 +861,10 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, fetchAnalytics(m.host)
 		case "ctrl+u":
 			return m, fetchSummaryCmd(m.host)
+		case "ctrl+o":
+			return m, fetchAnalyzeCostsCmd(m.host)
+		case "ctrl+a":
+			return m, fetchAnalyzeAgentsCmd(m.host)
 		case "L":
 			return m, fetchTagsCmd(m.host)
 		case "ctrl+g":
@@ -2114,6 +2197,12 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalyzeReliability:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewAnalyzeCosts:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewAnalyzeAgents:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewDetails:
@@ -4634,6 +4723,68 @@ func fetchAnalyzeReliabilityCmd(host string) tea.Cmd {
 	}
 }
 
+func fetchAnalyzeCostsCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/costs", host))
+		if err != nil {
+			return analyzeCostsMsg{Err: err}
+		}
+
+		q := u.Query()
+		q.Set("limit", "10")
+		u.RawQuery = q.Encode()
+
+		resp, err := http.Get(u.String())
+		if err != nil {
+			return analyzeCostsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return analyzeCostsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var stats CostStatsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+			return analyzeCostsMsg{Err: err}
+		}
+
+		return analyzeCostsMsg{Stats: stats}
+	}
+}
+
+func fetchAnalyzeAgentsCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/agents", host))
+		if err != nil {
+			return analyzeAgentsMsg{Err: err}
+		}
+
+		q := u.Query()
+		q.Set("limit", "10")
+		u.RawQuery = q.Encode()
+
+		resp, err := http.Get(u.String())
+		if err != nil {
+			return analyzeAgentsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return analyzeAgentsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var stats AgentStatsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+			return analyzeAgentsMsg{Err: err}
+		}
+
+		return analyzeAgentsMsg{Stats: stats}
+	}
+}
+
 func renderAnalyzeDurations(stats DurationStats) string {
 	if stats.TotalJobs == 0 {
 		return "No valid completed jobs with duration found.\n\nPress 'q' or 'esc' to go back."
@@ -4726,6 +4877,179 @@ func renderAnalyzeDurations(stats DurationStats) string {
 	}
 
 	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+	return sb.String()
+}
+
+func renderAnalyzeCosts(stats CostStatsResponse) string {
+	if stats.TotalStats.TotalJobs == 0 {
+		return "\n  No valid completed jobs with cost data found.\n"
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(25)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	sectionTitleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("212")).
+		MarginTop(1).
+		MarginBottom(1)
+
+	tableHeaderStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		PaddingRight(2)
+
+	rowStyle := lipgloss.NewStyle().PaddingRight(2)
+
+	sb.WriteString("\n")
+	sb.WriteString(titleStyle.Render("AI Cost Analysis") + "\n\n")
+
+	printField := func(label, value string) {
+		sb.WriteString(fmt.Sprintf("%s %s\n", headerStyle.Render(label+":"), valueStyle.Render(value)))
+	}
+
+	printField("Total Evaluated Jobs", fmt.Sprintf("%d", stats.TotalStats.TotalJobs))
+	printField("Total Cost", fmt.Sprintf("$%.4f", stats.TotalStats.TotalCost))
+	printField("Total Prompt Tokens", fmt.Sprintf("%.0f", stats.TotalStats.TotalTokensPrompt))
+	printField("Total Completion Tokens", fmt.Sprintf("%.0f", stats.TotalStats.TotalTokensCompletion))
+
+	if len(stats.TagStats) > 0 {
+		sb.WriteString(sectionTitleStyle.Render("Cost by Tag") + "\n")
+		sb.WriteString(fmt.Sprintf("%-30s %-15s %-15s\n",
+			tableHeaderStyle.Render("Tag"),
+			tableHeaderStyle.Render("Jobs"),
+			tableHeaderStyle.Render("Total Cost"),
+		))
+		for _, stat := range stats.TagStats {
+			sb.WriteString(fmt.Sprintf("%-30s %-15s %-15s\n",
+				rowStyle.Render(stat.Tag),
+				rowStyle.Render(fmt.Sprintf("%d", stat.JobsCount)),
+				rowStyle.Render(fmt.Sprintf("$%.4f", stat.Cost)),
+			))
+		}
+	}
+
+	if len(stats.ModelStats) > 0 {
+		sb.WriteString(sectionTitleStyle.Render("Cost by Model") + "\n")
+		sb.WriteString(fmt.Sprintf("%-30s %-15s %-15s\n",
+			tableHeaderStyle.Render("Model"),
+			tableHeaderStyle.Render("Jobs"),
+			tableHeaderStyle.Render("Total Cost"),
+		))
+		for _, stat := range stats.ModelStats {
+			sb.WriteString(fmt.Sprintf("%-30s %-15s %-15s\n",
+				rowStyle.Render(stat.Model),
+				rowStyle.Render(fmt.Sprintf("%d", stat.JobsCount)),
+				rowStyle.Render(fmt.Sprintf("$%.4f", stat.Cost)),
+			))
+		}
+	}
+
+	if len(stats.TopExpensiveJobs) > 0 {
+		sb.WriteString(sectionTitleStyle.Render(fmt.Sprintf("Top %d Most Expensive Jobs", len(stats.TopExpensiveJobs))) + "\n")
+		sb.WriteString(fmt.Sprintf("%-25s %-40s %-15s\n",
+			tableHeaderStyle.Render("ID"),
+			tableHeaderStyle.Render("Summary"),
+			tableHeaderStyle.Render("Cost"),
+		))
+		for _, job := range stats.TopExpensiveJobs {
+			summary := job.Summary
+			if len(summary) > 38 {
+				summary = summary[:35] + "..."
+			}
+
+			cost := 0.0
+			if c, ok := job.Metrics["cost_usd"]; ok {
+				cost = c
+			}
+
+			sb.WriteString(fmt.Sprintf("%-25s %-40s %-15s\n",
+				rowStyle.Render(job.ID),
+				rowStyle.Render(summary),
+				rowStyle.Render(fmt.Sprintf("$%.4f", cost)),
+			))
+		}
+	}
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
+func renderAnalyzeAgents(stats AgentStatsResponse) string {
+	if len(stats.Agents) == 0 {
+		return "\n  No valid completed jobs with agent data found.\n"
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#10B981")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	sectionTitleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("212")).
+		MarginTop(1).
+		MarginBottom(1)
+
+	tableHeaderStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		PaddingRight(2)
+
+	rowStyle := lipgloss.NewStyle().PaddingRight(2)
+
+	sb.WriteString("\n")
+	sb.WriteString(titleStyle.Render("AI Agent Performance Analysis") + "\n")
+	sb.WriteString(sectionTitleStyle.Render("Agent Model Metrics") + "\n\n")
+
+	sb.WriteString(fmt.Sprintf("%-15s %-20s %-10s %-12s %-15s %-15s %-12s\n",
+		tableHeaderStyle.Render("Provider"),
+		tableHeaderStyle.Render("Model"),
+		tableHeaderStyle.Render("Jobs"),
+		tableHeaderStyle.Render("Success Rate"),
+		tableHeaderStyle.Render("Avg Duration"),
+		tableHeaderStyle.Render("Avg Cost/Job"),
+		tableHeaderStyle.Render("Total Cost"),
+	))
+
+	for _, stat := range stats.Agents {
+		durationStr := "N/A"
+		if stat.AverageDuration > 0 {
+			durationStr = stat.AverageDuration.Round(time.Second).String()
+		}
+
+		successRateStr := fmt.Sprintf("%.1f%%", stat.SuccessRate*100)
+
+		sb.WriteString(fmt.Sprintf("%-15s %-20s %-10s %-12s %-15s %-15s %-12s\n",
+			rowStyle.Render(stat.AgentProvider),
+			rowStyle.Render(stat.AgentModel),
+			rowStyle.Render(fmt.Sprintf("%d", stat.TotalJobs)),
+			rowStyle.Render(successRateStr),
+			rowStyle.Render(durationStr),
+			rowStyle.Render(fmt.Sprintf("$%.4f", stat.AverageCost)),
+			rowStyle.Render(fmt.Sprintf("$%.4f", stat.TotalCost)),
+		))
+	}
+	sb.WriteString("\n")
+
 	return sb.String()
 }
 
