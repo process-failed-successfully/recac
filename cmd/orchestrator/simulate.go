@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -12,9 +14,28 @@ import (
 	"recac/internal/orchestrator"
 )
 
-func simulateExecution(host string) {
-	url := fmt.Sprintf("%s/simulate", host)
-	resp, err := http.Get(url)
+func simulatePipelineFileCmd(host string, pipelineFile string, targetJob string) {
+	content, err := os.ReadFile(pipelineFile)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read pipeline file: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	url := fmt.Sprintf("%s/simulate/pipeline", host)
+	if targetJob != "" {
+		url = fmt.Sprintf("%s?target=%s", url, targetJob)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(content))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	req.Header.Set("Content-Type", "application/yaml")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -24,7 +45,7 @@ func simulateExecution(host string) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(stdout, "Failed to fetch simulation report: %s\n", strings.TrimSpace(string(body)))
+		fmt.Fprintf(stdout, "Failed to fetch pipeline simulation report: %s\n", strings.TrimSpace(string(body)))
 		exitFunc(1)
 		return
 	}
@@ -36,8 +57,12 @@ func simulateExecution(host string) {
 		return
 	}
 
+	printSimulationReport(report)
+}
+
+func printSimulationReport(report orchestrator.SimulationReport) {
 	if report.TotalJobs == 0 {
-		fmt.Fprintln(stdout, lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Render("No active or pending jobs. Simulation complete: 0s."))
+		fmt.Fprintln(stdout, lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Render("No jobs to simulate. Simulation complete: 0s."))
 		return
 	}
 
@@ -75,4 +100,31 @@ func simulateExecution(host string) {
 		fmt.Fprintf(stdout, "%s\n", warnStyle.Render(fmt.Sprintf("WARNING: %d jobs could not be processed due to unresolved/circular dependencies!", report.Deadlocks)))
 	}
 	fmt.Fprintln(stdout, "")
+}
+
+func simulateExecution(host string) {
+	url := fmt.Sprintf("%s/simulate", host)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to fetch simulation report: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var report orchestrator.SimulationReport
+	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	printSimulationReport(report)
 }

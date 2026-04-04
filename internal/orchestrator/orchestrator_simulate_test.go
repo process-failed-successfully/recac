@@ -93,3 +93,57 @@ func TestOrchestrator_Simulate(t *testing.T) {
 		o.completedJobs = []JobInfo{} // Cleanup
 	})
 }
+func TestSimulatePipeline(t *testing.T) {
+	o := New(nil, nil, 1*time.Second)
+
+	// Add some history
+	t1 := time.Now()
+	o.completedJobs = []JobInfo{
+		{
+			ID: "hist-1",
+			WorkItem: WorkItem{
+				Summary: "Build specific app",
+				Tags:    []string{"build"},
+			},
+			StartTime: t1,
+			EndTime:   t1.Add(120 * time.Second), // avg for 'Build specific app' = 120s
+		},
+		{
+			ID: "hist-2",
+			WorkItem: WorkItem{
+				Summary: "Other build",
+				Tags:    []string{"build"},
+			},
+			StartTime: t1,
+			EndTime:   t1.Add(80 * time.Second), // avg for tag 'build' = (120+80)/2 = 100s
+		},
+	}
+
+	pipelineItems := []WorkItem{
+		{
+			ID:      "job-1",
+			Summary: "Build specific app", // Should use exact summary avg: 120s
+			Tags:    []string{"build"},
+		},
+		{
+			ID:        "job-2",
+			Summary:   "New build app", // Should fallback to tag 'build' avg: 100s
+			Tags:      []string{"build"},
+			DependsOn: []string{"job-1"},
+		},
+		{
+			ID:        "job-3",
+			Summary:   "Test app", // No tag, no summary. Should use globalMean = (120+80)/2 = 100s
+			DependsOn: []string{"job-2"},
+		},
+	}
+
+	report := o.SimulatePipeline(pipelineItems, nil)
+
+	// Since maxWorkers=0 defaults to MaxInt32, they run sequentially due to DependsOn.
+	// 120 + 100 + 100 = 320s = 320000ms
+	assert.Equal(t, float64(320000), report.EstimatedTotalTimeMs)
+	assert.Equal(t, 3, report.JobsProcessed)
+	assert.Equal(t, 0, report.Deadlocks)
+	assert.Equal(t, "job-3", report.FinalBottleneckJob)
+}

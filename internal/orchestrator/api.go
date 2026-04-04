@@ -248,7 +248,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 	mux.HandleFunc("GET /diagnose", handleDiagnose(orch, logger))
 	mux.HandleFunc("GET /simulate", handleSimulate(orch, logger))
-
+	mux.HandleFunc("POST /simulate/pipeline", handleSimulatePipeline(orch, logger))
 
 	mux.HandleFunc("GET /jobs/analyze/costs", handleAnalyzeCosts(orch, logger))
 	mux.HandleFunc("GET /jobs/analyze/agents", handleAnalyzeAgents(orch, logger))
