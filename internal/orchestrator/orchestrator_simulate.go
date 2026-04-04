@@ -15,6 +15,77 @@ type SimulationReport struct {
 	Deadlocks            int     `json:"deadlocks"`
 }
 
+func (o *Orchestrator) SimulatePipeline(items []WorkItem, logger *slog.Logger) SimulationReport {
+	o.mu.RLock()
+	maxWorkers := o.MaxConcurrentJobs
+
+	// Fetch all jobs for tag averages calculation
+	completedJobs := make([]JobInfo, len(o.completedJobs))
+	copy(completedJobs, o.completedJobs)
+	o.mu.RUnlock()
+
+	if maxWorkers <= 0 {
+		maxWorkers = math.MaxInt32
+	}
+
+	// Calculate tag averages and historical duration averages from completed jobs
+	tagAverages := make(map[string]float64)
+	tagCounts := make(map[string]int)
+	summaryAverages := make(map[string]float64)
+	summaryCounts := make(map[string]int)
+	var globalSum float64
+	var globalCount int
+
+	for _, job := range completedJobs {
+		if !job.StartTime.IsZero() && !job.EndTime.IsZero() {
+			dur := float64(job.EndTime.Sub(job.StartTime).Milliseconds())
+			if dur > 0 {
+				globalSum += dur
+				globalCount++
+				for _, tag := range job.WorkItem.Tags {
+					tagAverages[tag] += dur
+					tagCounts[tag]++
+				}
+				// Also group by Summary for exact job match prediction
+				summaryAverages[job.WorkItem.Summary] += dur
+				summaryCounts[job.WorkItem.Summary]++
+			}
+		}
+	}
+
+	for tag, total := range tagAverages {
+		tagAverages[tag] = total / float64(tagCounts[tag])
+	}
+
+	for summary, total := range summaryAverages {
+		summaryAverages[summary] = total / float64(summaryCounts[summary])
+	}
+
+	globalMean := 60000.0 // Default 60s
+	if globalCount > 0 {
+		globalMean = globalSum / float64(globalCount)
+	}
+
+	var jobs []JobInfo
+	for _, item := range items {
+		job := JobInfo{
+			ID:       item.ID,
+			WorkItem: item,
+			Status:   "Pending",
+			Metrics:  make(map[string]float64),
+		}
+
+		// If we have an exact summary match in history, prioritize that over tag averages
+		if avgDur, ok := summaryAverages[item.Summary]; ok {
+			job.Metrics["estimated_duration_ns"] = avgDur * 1e6
+		}
+
+		jobs = append(jobs, job)
+	}
+
+	return runSimulation(jobs, maxWorkers, tagAverages, globalMean)
+}
+
 func (o *Orchestrator) Simulate(logger *slog.Logger) SimulationReport {
 	o.mu.RLock()
 	maxWorkers := o.MaxConcurrentJobs
@@ -72,6 +143,10 @@ func (o *Orchestrator) Simulate(logger *slog.Logger) SimulationReport {
 	jobs = append(jobs, activeJobs...)
 	jobs = append(jobs, pendingJobs...)
 
+	return runSimulation(jobs, maxWorkers, tagAverages, globalMean)
+}
+
+func runSimulation(jobs []JobInfo, maxWorkers int, tagAverages map[string]float64, globalMean float64) SimulationReport {
 	if len(jobs) == 0 {
 		return SimulationReport{}
 	}
@@ -90,7 +165,25 @@ func (o *Orchestrator) Simulate(logger *slog.Logger) SimulationReport {
 
 	for _, job := range jobs {
 		estDur := globalMean
-		if len(job.WorkItem.Tags) > 0 {
+
+		// Check if we have an explicitly injected historical average
+		if job.Metrics != nil {
+			if d, ok := job.Metrics["estimated_duration_ns"]; ok {
+				estDur = d / 1e6 // Convert ns to ms
+			} else if len(job.WorkItem.Tags) > 0 {
+				var sumDur float64
+				var count int
+				for _, tag := range job.WorkItem.Tags {
+					if d, ok := tagAverages[tag]; ok {
+						sumDur += d
+						count++
+					}
+				}
+				if count > 0 {
+					estDur = sumDur / float64(count)
+				}
+			}
+		} else if len(job.WorkItem.Tags) > 0 {
 			var sumDur float64
 			var count int
 			for _, tag := range job.WorkItem.Tags {

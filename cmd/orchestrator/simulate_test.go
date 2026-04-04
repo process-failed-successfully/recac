@@ -2,11 +2,17 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"recac/internal/orchestrator"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 //
@@ -40,7 +46,7 @@ func TestSimulateExecution_TableDriven(t *testing.T) {
 			name: "No jobs to simulate",
 			responseJSON: `{"total_jobs": 0, "jobs_processed": 0, "estimated_total_time_ms": 0, "deadlocks": 0}`,
 			responseStatus: http.StatusOK,
-			expectContains: []string{"No active or pending jobs"},
+			expectContains: []string{"No jobs to simulate"},
 		},
 		{
 			name: "Server error",
@@ -82,4 +88,58 @@ func TestSimulateExecution_TableDriven(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSimulatePipelineFileCmd(t *testing.T) {
+	// Create a dummy pipeline file
+	tmpDir := t.TempDir()
+	pipelineFile := filepath.Join(tmpDir, "pipeline.yaml")
+	yamlData := []byte(`
+name: CLI Test Pipeline
+jobs:
+  build:
+    summary: Build app
+`)
+	err := os.WriteFile(pipelineFile, yamlData, 0644)
+	require.NoError(t, err)
+
+	// Mock server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/simulate/pipeline?target=build", r.URL.String())
+		assert.Equal(t, "application/yaml", r.Header.Get("Content-Type"))
+
+		report := orchestrator.SimulationReport{
+			EstimatedTotalTimeMs: 150000, // 150s
+			JobsProcessed:        1,
+			TotalJobs:            1,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(report)
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	// Capture stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	// Mock exitFunc
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = os.Exit }()
+
+	simulatePipelineFileCmd(server.URL, pipelineFile, "build")
+
+	assert.False(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Simulation Report")
+	assert.Contains(t, output, "Estimated Total Time:")
+	assert.Contains(t, output, "2m30s")
+	assert.Contains(t, output, "Jobs Processed:")
+	assert.Contains(t, output, "1 / 1")
 }
