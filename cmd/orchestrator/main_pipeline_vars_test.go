@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,4 +97,137 @@ func TestLoadPipelineVars_EmptyFileWithArgs(t *testing.T) {
 	vars, err := loadPipelineVars(varList, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "flag_val1", vars["FLAG_KEY1"])
+}
+
+func TestListPipelineVarsJob_Success(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\nrequired_variables:\n  - REQ_VAR\nvariables:\n  DEC_VAR: val\njobs:\n  build:\n    summary: build\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	listPipelineVarsJob(f.Name(), "")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	outStr := string(out)
+	assert.Contains(t, outStr, "Pipeline Variables (2):")
+	assert.Contains(t, outStr, "- DEC_VAR")
+	assert.Contains(t, outStr, "- REQ_VAR")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestListPipelineVarsJob_Empty(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\njobs:\n  build:\n    summary: build\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	listPipelineVarsJob(f.Name(), "")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "No variables found in the pipeline.")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestListPipelineVarsJob_JSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\nrequired_variables:\n  - VAR1\njobs:\n  build:\n    summary: build\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	listPipelineVarsJob(f.Name(), "json")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "[\n  \"VAR1\"\n]")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestListPipelineVarsJob_InvalidFile(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	listPipelineVarsJob("non_existent_pipeline_file.yaml", "")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to read pipeline file")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestListPipelineVarsJob_InvalidYaml(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	f, _ := os.CreateTemp("", "pipeline_*.yaml")
+	f.Write([]byte("name: pipeline\njobs:\n  build:\n    summary: build\n    depends_on: [\n"))
+	f.Close()
+	defer os.Remove(f.Name())
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	listPipelineVarsJob(f.Name(), "")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to parse pipeline variables")
+	assert.Equal(t, 1, exitCode)
 }

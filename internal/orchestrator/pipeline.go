@@ -93,6 +93,35 @@ func sanitizeName(name string) string {
 	return sb.String()
 }
 
+// ExtractPipelineVariables parses the YAML pipeline and returns a unique, sorted list
+// of all required_variables and declared variables.
+func ExtractPipelineVariables(yamlData []byte) ([]string, error) {
+	var p Pipeline
+	if err := yaml.Unmarshal(yamlData, &p); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pipeline YAML: %w", err)
+	}
+
+	varSet := make(map[string]bool)
+
+	// Add required variables
+	for _, v := range p.RequiredVariables {
+		varSet[v] = true
+	}
+
+	// Add declared variables
+	for k := range p.Variables {
+		varSet[k] = true
+	}
+
+	var vars []string
+	for k := range varSet {
+		vars = append(vars, k)
+	}
+	sort.Strings(vars)
+
+	return vars, nil
+}
+
 // ParsePipelineToWorkItems converts a YAML pipeline definition into a list of WorkItems
 // using a generated timestamp to ensure IDs are unique per run.
 func ParsePipelineToWorkItems(yamlData []byte, targetJob string, vars map[string]string, baseDir string) ([]WorkItem, error) {

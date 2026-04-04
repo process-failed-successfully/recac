@@ -264,6 +264,7 @@ func main() {
 	pflag.String("import-pipeline", "", "Import a pipeline YAML file and hold all generated jobs")
 	pflag.String("explain-pipeline", "", "Explain a pipeline YAML file (visualize execution structure) without submitting")
 	pflag.String("list-templates", "", "List all templates defined in a pipeline YAML file")
+	pflag.String("list-pipeline-vars", "", "List all required and declared variables in a pipeline YAML file")
 	pflag.String("inspect-pipeline", "", "Inspect a pipeline YAML file and display its resolved jobs visually")
 	pflag.String("compare-pipelines", "", "Compare two pipeline YAML files (comma-separated, e.g., p1.yaml,p2.yaml)")
 	pflag.String("apply-pipeline", "", "Apply a pipeline YAML file declaratively (creates missing, updates pending, skips active jobs)")
@@ -636,6 +637,7 @@ func main() {
 	viper.BindPFlag("orchestrator.import_pipeline", pflag.Lookup("import-pipeline"))
 	viper.BindPFlag("orchestrator.explain_pipeline", pflag.Lookup("explain-pipeline"))
 	viper.BindPFlag("orchestrator.list_templates", pflag.Lookup("list-templates"))
+	viper.BindPFlag("orchestrator.list_pipeline_vars", pflag.Lookup("list-pipeline-vars"))
 	viper.BindPFlag("orchestrator.inspect_pipeline", pflag.Lookup("inspect-pipeline"))
 	viper.BindPFlag("orchestrator.compare_pipelines", pflag.Lookup("compare-pipelines"))
 	viper.BindPFlag("orchestrator.apply_pipeline", pflag.Lookup("apply-pipeline"))
@@ -2091,6 +2093,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		listTemplatesJob(listTemplatesFile, vars)
+		return nil
+	}
+
+	if listPipelineVarsFile := viper.GetString("orchestrator.list_pipeline_vars"); listPipelineVarsFile != "" {
+		format := viper.GetString("orchestrator.format")
+		listPipelineVarsJob(listPipelineVarsFile, format)
 		return nil
 	}
 

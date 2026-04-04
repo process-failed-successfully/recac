@@ -12,6 +12,56 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestExtractPipelineVariables_Success(t *testing.T) {
+	yamlData := []byte(`
+name: Var Extract Pipeline
+required_variables:
+  - NEED_THIS
+  - ALSO_NEED_THIS
+variables:
+  ALSO_NEED_THIS: "default"
+  DECLARED_VAR: "value"
+  Z_VAR: "z"
+  A_VAR: "a"
+jobs:
+  build:
+    summary: Build
+`)
+
+	vars, err := ExtractPipelineVariables(yamlData)
+	require.NoError(t, err)
+
+	// Should be sorted alphabetically and unique
+	expected := []string{"ALSO_NEED_THIS", "A_VAR", "DECLARED_VAR", "NEED_THIS", "Z_VAR"}
+	assert.Equal(t, expected, vars)
+}
+
+func TestExtractPipelineVariables_Empty(t *testing.T) {
+	yamlData := []byte(`
+name: Empty Pipeline
+jobs:
+  build:
+    summary: Build
+`)
+
+	vars, err := ExtractPipelineVariables(yamlData)
+	require.NoError(t, err)
+	assert.Empty(t, vars)
+}
+
+func TestExtractPipelineVariables_InvalidYaml(t *testing.T) {
+	yamlData := []byte(`
+name: Invalid Yaml
+jobs:
+  build:
+    summary: Build
+    depends_on: [
+`)
+	_, err := ExtractPipelineVariables(yamlData)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to unmarshal pipeline YAML")
+}
+
 func TestParsePipelineToWorkItems_Success(t *testing.T) {
 	yamlData := []byte(`
 name: Deploy Web App
