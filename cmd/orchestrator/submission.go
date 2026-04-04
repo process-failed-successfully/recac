@@ -1393,6 +1393,46 @@ func cancelJobsByMatch(host, match string) {
 	fmt.Fprintf(stdout, "Successfully canceled %d jobs matching '%s'.\n", int(canceled), match)
 }
 
+func cancelJobsOlderThan(host, olderThan string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs?older_than=%s", host, url.QueryEscape(olderThan)), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to cancel jobs older than %s: %s\n", olderThan, strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	canceled, ok := result["canceled"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully canceled %d jobs older than '%s'.\n", int(canceled), olderThan)
+}
+
 func purgeJobsByTag(host, tag string) {
 	urlStr := fmt.Sprintf("%s/history?tag=%s", host, url.QueryEscape(tag))
 	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
