@@ -96,20 +96,44 @@ jobs:
     tags: [test]
 `)
 
-	req := httptest.NewRequest(http.MethodPost, "/simulate/pipeline", bytes.NewBuffer(yamlPayload))
-	w := httptest.NewRecorder()
+	t.Run("POST Success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/simulate/pipeline", bytes.NewBuffer(yamlPayload))
+		w := httptest.NewRecorder()
 
-	handler := handleSimulatePipeline(orch, slog.Default())
-	handler.ServeHTTP(w, req)
+		handler := handleSimulatePipeline(orch, slog.Default())
+		handler.ServeHTTP(w, req)
 
-	res := w.Result()
-	assert.Equal(t, http.StatusOK, res.StatusCode)
+		res := w.Result()
+		assert.Equal(t, http.StatusOK, res.StatusCode)
 
-	var report SimulationReport
-	err := json.NewDecoder(res.Body).Decode(&report)
-	assert.NoError(t, err)
+		var report SimulationReport
+		err := json.NewDecoder(res.Body).Decode(&report)
+		assert.NoError(t, err)
 
-	// 60s + 30s = 90s = 90000ms
-	assert.Equal(t, float64(90000), report.EstimatedTotalTimeMs)
-	assert.Equal(t, 2, report.JobsProcessed)
+		// 60s + 30s = 90s = 90000ms
+		assert.Equal(t, float64(90000), report.EstimatedTotalTimeMs)
+		assert.Equal(t, 2, report.JobsProcessed)
+	})
+
+	t.Run("GET Method Not Allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/simulate/pipeline", nil)
+		w := httptest.NewRecorder()
+
+		handler := handleSimulatePipeline(orch, slog.Default())
+		handler.ServeHTTP(w, req)
+
+		res := w.Result()
+		assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	})
+
+	t.Run("Invalid Payload", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/simulate/pipeline", bytes.NewBuffer([]byte("invalid yaml")))
+		w := httptest.NewRecorder()
+
+		handler := handleSimulatePipeline(orch, slog.Default())
+		handler.ServeHTTP(w, req)
+
+		res := w.Result()
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	})
 }
