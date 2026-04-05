@@ -694,7 +694,7 @@ func cloneJob(host, originalID, newID string, priority *int, wait bool, envVars 
 	}
 }
 
-func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool, matrix map[string][]string) {
+func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, timeout time.Duration, dependencyTimeout *time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool, matrix map[string][]string) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -710,6 +710,7 @@ func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, tim
 		Tags:                   tags,
 		Delay:                  delay,
 		Timeout:                timeout,
+		DependencyTimeout: dependencyTimeout,
 		ConcurrencyGroup:       concurrencyGroup,
 		CancelInProgress:       cancelInProgress,
 		AgentProvider:          agentProvider,
@@ -788,7 +789,7 @@ func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, tim
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool) {
+func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout time.Duration, dependencyTimeout *time.Duration, maxRetries *int, requireApproval *bool, retryDelay *time.Duration, retryBackoff *float64, wait bool, envVars map[string]string, dependsOn []string, tags []string, concurrencyGroup string, cancelInProgress bool, agentProvider string, agentModel string, runCondition string, webhookURL string, autoHeal bool) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -804,6 +805,7 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 		Tags:                   tags,
 		Delay:                  delay,
 		Timeout:                timeout,
+		DependencyTimeout: dependencyTimeout,
 		ConcurrencyGroup:       concurrencyGroup,
 		CancelInProgress:       cancelInProgress,
 		AgentProvider:          agentProvider,

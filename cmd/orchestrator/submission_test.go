@@ -51,7 +51,7 @@ func TestSubmitMatrixInlineJob(t *testing.T) {
 		"GO": {"1.20", "1.21"},
 	}
 
-	submitMatrixInlineJob(server.URL, "http://repo.com", "My Matrix Task", "MATRIX-ID", 0, 0, 0, nil, nil, nil, nil, false, envVars, nil, nil, "group-matrix", false, "", "", "", "", false, matrix)
+	submitMatrixInlineJob(server.URL, "http://repo.com", "My Matrix Task", "MATRIX-ID", 0, 0, 0, nil, nil, nil, nil, nil, false, envVars, nil, nil, "group-matrix", false, "", "", "", "", false, matrix)
 
 	pw.Close()
 	out, _ := io.ReadAll(pr)
@@ -95,7 +95,7 @@ func TestSubmitAdHocJob(t *testing.T) {
 		"KEY2": "VALUE2",
 	}
 	submitDeps := []string{"JOB-1", "JOB-2"}
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", 0, 0, 0, nil, nil, nil, nil, false, envVars, submitDeps, nil, "group-1", true, "custom-provider", "custom-model", "", "", false)
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", 0, 0, 0, nil, nil, nil, nil, nil, false, envVars, submitDeps, nil, "group-1", true, "custom-provider", "custom-model", "", "", false)
 
 	// 3. Verify payload
 	var item orchestrator.WorkItem
@@ -124,7 +124,7 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 	}))
 	defer server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false)
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", 0, 0, 0, nil, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false)
 
 	var item orchestrator.WorkItem
 	err := json.Unmarshal(receivedBody, &item)
@@ -3064,7 +3064,7 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 
 	t.Run("Server Unreachable", func(t *testing.T) {
 		exitCode = 0
-		submitMatrixInlineJob("http://127.0.0.1:0", "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		submitMatrixInlineJob("http://127.0.0.1:0", "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 1, exitCode)
 	})
 
@@ -3074,7 +3074,7 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer ts.Close()
-		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 1, exitCode)
 	})
 
@@ -3085,7 +3085,7 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 			w.Write([]byte(`{invalid json}`))
 		}))
 		defer ts.Close()
-		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 1, exitCode)
 	})
 
@@ -3096,7 +3096,7 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 			w.Write([]byte(`{"submitted": [], "errors": ["some error"]}`))
 		}))
 		defer ts.Close()
-		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, nil, false, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 1, exitCode)
 	})
 
@@ -3112,7 +3112,7 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 			}
 		}))
 		defer ts.Close()
-		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 0, exitCode)
 	})
 
@@ -3128,7 +3128,7 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 			}
 		}))
 		defer ts.Close()
-		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
+		submitMatrixInlineJob(ts.URL, "http://repo.com", "task", "", 0, 0, 0, nil, nil, nil, nil, nil, true, nil, nil, nil, "", false, "", "", "", "", false, matrix)
 		assert.Equal(t, 1, exitCode)
 	})
 }
