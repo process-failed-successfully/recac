@@ -85,3 +85,46 @@ func TestExportTimelineToMermaid_Empty(t *testing.T) {
 		t.Errorf("Unexpected output for empty jobs: %s", mermaid)
 	}
 }
+
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "No colons",
+			input:    "JOB-1",
+			expected: "JOB-1",
+		},
+		{
+			name:     "One colon",
+			input:    "JOB:1",
+			expected: "JOB-1",
+		},
+		{
+			name:     "Multiple colons",
+			input:    "JOB:1:2:3",
+			expected: "JOB-1-2-3",
+		},
+		{
+			name:     "Only colons",
+			input:    ":::",
+			expected: "---",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeMermaidID(tt.input)
+			if result != tt.expected {
+				t.Errorf("sanitizeMermaidID(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
