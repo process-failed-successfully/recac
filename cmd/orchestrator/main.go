@@ -313,6 +313,8 @@ func main() {
 	pflag.String("export-metrics-state", "all", "State of jobs to export metrics for ('all', 'active', 'completed', 'failed')")
 	pflag.String("export-trace", "", "Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout)")
 	pflag.String("export-trace-state", "all", "State of jobs to export trace for ('all', 'active', 'completed', 'failed')")
+	pflag.String("export-timeline", "", "Export jobs as a Mermaid Gantt chart to a text file (use '-' for stdout)")
+	pflag.String("export-timeline-state", "all", "State of jobs to export timeline for ('all', 'active', 'completed', 'failed')")
 	pflag.String("export-costs", "", "Export cost analysis to a file (use '-' for stdout)")
 	pflag.String("export-costs-format", "json", "Format for exported costs ('json' or 'csv')")
 
@@ -688,6 +690,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_metrics_state", pflag.Lookup("export-metrics-state"))
 	viper.BindPFlag("orchestrator.export_trace", pflag.Lookup("export-trace"))
 	viper.BindPFlag("orchestrator.export_trace_state", pflag.Lookup("export-trace-state"))
+	viper.BindPFlag("orchestrator.export_timeline", pflag.Lookup("export-timeline"))
+	viper.BindPFlag("orchestrator.export_timeline_state", pflag.Lookup("export-timeline-state"))
 	viper.BindPFlag("orchestrator.export_costs", pflag.Lookup("export-costs"))
 	viper.BindPFlag("orchestrator.export_costs_format", pflag.Lookup("export-costs-format"))
 
@@ -2323,6 +2327,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		state := viper.GetString("orchestrator.export_trace_state")
 		exportTrace(host, exportTraceFile, state)
+		return nil
+	}
+	if exportTimelineFile := viper.GetString("orchestrator.export_timeline"); exportTimelineFile != "" {
+		host := viper.GetString("orchestrator.host")
+		state := viper.GetString("orchestrator.export_timeline_state")
+		exportTimeline(host, exportTimelineFile, state)
 		return nil
 	}
 	if exportCostsFile := viper.GetString("orchestrator.export_costs"); exportCostsFile != "" {
