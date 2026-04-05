@@ -27,6 +27,34 @@ func TestDashboardModel_Keys(t *testing.T) {
 		},
 	}
 
+	t.Run("Simulate Key (ctrl+s)", func(t *testing.T) {
+		mModel := NewDashboardModel("http://localhost:8080")
+		mModel.viewState = viewMain
+
+		msg := tea.KeyMsg{Type: tea.KeyCtrlS}
+		_, cmd := mModel.Update(msg)
+		assert.NotNil(t, cmd, "Expected a command for simulate")
+
+		// Verify that simulating the actual response transitions state and renders correctly
+		reportMsg := simulateMsg{
+			Report: orchestrator.SimulationReport{
+				EstimatedTotalTimeMs: 120000,
+				JobsProcessed:        5,
+				TotalJobs:            10,
+				FinalBottleneckJob:   "JOB-5",
+				Deadlocks:            0,
+			},
+		}
+		newModel, _ := mModel.Update(reportMsg)
+		updatedModel := newModel.(DashboardModel)
+		assert.Equal(t, viewSimulate, updatedModel.viewState)
+
+		viewOutput := updatedModel.View()
+		assert.Contains(t, viewOutput, "Estimated Total Time")
+		assert.Contains(t, viewOutput, "2m0s")
+		assert.Contains(t, viewOutput, "JOB-5")
+	})
+
 	t.Run("Open Repo Key (o)", func(t *testing.T) {
 		// Store original util function and restore it later to mock browser opening
 		originalOpenBrowser := utilsOpenBrowser
@@ -683,6 +711,7 @@ func TestDashboardModel_View_AllStates(t *testing.T) {
         viewTags,
         viewAnalyzeCosts,
         viewAnalyzeAgents,
+        viewSimulate,
     }
 
     for _, v := range views {
