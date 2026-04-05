@@ -143,3 +143,96 @@ jobs:
 	assert.Contains(t, output, "Jobs Processed:")
 	assert.Contains(t, output, "1 / 1")
 }
+
+func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+
+	origStdout := stdout
+	defer func() { stdout = origStdout }()
+
+	t.Run("FileReadError", func(t *testing.T) {
+		var buf bytes.Buffer
+		stdout = &buf
+		exitCode = 0
+
+		simulatePipelineFileCmd("http://localhost:8080", "nonexistent.yaml", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to read pipeline file")
+	})
+
+	tmpDir := t.TempDir()
+	pipelineFile := filepath.Join(tmpDir, "pipeline.yaml")
+	os.WriteFile(pipelineFile, []byte(`name: Test`), 0644)
+
+	t.Run("InvalidURL", func(t *testing.T) {
+		var buf bytes.Buffer
+		stdout = &buf
+		exitCode = 0
+
+		simulatePipelineFileCmd("http://\x00invalid", pipelineFile, "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create request")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		var buf bytes.Buffer
+		stdout = &buf
+		exitCode = 0
+
+		simulatePipelineFileCmd("http://localhost:12345", pipelineFile, "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("ServerError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Server Error`))
+		}))
+		defer server.Close()
+
+		var buf bytes.Buffer
+		stdout = &buf
+		exitCode = 0
+
+		simulatePipelineFileCmd(server.URL, pipelineFile, "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to fetch pipeline simulation report: Server Error")
+	})
+
+	t.Run("BadJSONResponse", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{bad json}`))
+		}))
+		defer server.Close()
+
+		var buf bytes.Buffer
+		stdout = &buf
+		exitCode = 0
+
+		simulatePipelineFileCmd(server.URL, pipelineFile, "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+}
+
+func TestSimulateExecution_ConnectionError(t *testing.T) {
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+
+	origStdout := stdout
+	defer func() { stdout = origStdout }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	simulateExecution("http://localhost:12345")
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+}

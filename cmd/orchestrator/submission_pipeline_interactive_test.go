@@ -124,4 +124,50 @@ EOF
 		submitPipelineInteractiveJob(server.URL, invalidYAMLPath, false, false, "", nil)
 		assert.Equal(t, 1, exitCode)
 	})
+
+	// Test No Variables in YAML and Nil CLI Vars
+	t.Run("NoVariables", func(t *testing.T) {
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		noVarsYAMLPath := filepath.Join(tmpDir, "no_vars.yaml")
+		os.WriteFile(noVarsYAMLPath, []byte("name: No Vars\njobs:\n  test: {}\n"), 0644)
+
+		submitPipelineInteractiveJob(server.URL, noVarsYAMLPath, false, false, "", nil)
+		// It should successfully bypass interactive editing and submit directly
+		// Since our mock server returns 202 Accepted, exitCode should remain 0
+		assert.Equal(t, 0, exitCode)
+	})
+
+	// Test Editor Failure
+	t.Run("EditorFailure", func(t *testing.T) {
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		failScript := filepath.Join(tmpDir, "fail_editor.sh")
+		os.WriteFile(failScript, []byte("#!/bin/sh\nexit 1\n"), 0755)
+		t.Setenv("EDITOR", failScript)
+
+		submitPipelineInteractiveJob(server.URL, pipelinePath, false, false, "", nil)
+		assert.Equal(t, 1, exitCode)
+	})
+
+	// Test Editor Outputs Invalid JSON
+	t.Run("EditorInvalidJSON", func(t *testing.T) {
+		exitCode := 0
+		oldExit := exitFunc
+		exitFunc = func(code int) { exitCode = code }
+		defer func() { exitFunc = oldExit }()
+
+		invalidJsonScript := filepath.Join(tmpDir, "invalid_json_editor.sh")
+		os.WriteFile(invalidJsonScript, []byte("#!/bin/sh\necho \"invalid json\" > \"$1\"\n"), 0755)
+		t.Setenv("EDITOR", invalidJsonScript)
+
+		submitPipelineInteractiveJob(server.URL, pipelinePath, false, false, "", nil)
+		assert.Equal(t, 1, exitCode)
+	})
 }

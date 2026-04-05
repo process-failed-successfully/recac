@@ -74,4 +74,74 @@ func TestGenerateChangelog(t *testing.T) {
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to generate changelog")
 	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		generateChangelog("http://localhost:12345", "-", "", "", "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("BadJSONResponse", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{bad json}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		generateChangelog(server.URL, "-", "", "", "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+
+	t.Run("MissingChangelogField", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"other_field": "something"}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		generateChangelog(server.URL, "-", "", "", "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Invalid response from server (missing 'changelog' field)")
+	})
+
+	t.Run("WriteFileError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"changelog": "# Changelog"}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		// Root directory should fail to write
+		generateChangelog(server.URL, "/root/restricted_file.md", "", "", "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to write changelog to file")
+	})
+
+	t.Run("QueryParams", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "test-tag", r.URL.Query().Get("tag"))
+			assert.Equal(t, "test-match", r.URL.Query().Get("match"))
+			assert.Equal(t, "test-provider", r.URL.Query().Get("provider"))
+			assert.Equal(t, "test-model", r.URL.Query().Get("model"))
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"changelog": "# Query Test"}`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		generateChangelog(server.URL, "-", "test-tag", "test-match", "test-provider", "test-model")
+		assert.Equal(t, 0, exitCode)
+		assert.Contains(t, buf.String(), "# Query Test")
+	})
 }

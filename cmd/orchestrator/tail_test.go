@@ -54,6 +54,43 @@ func TestTailSingleJob_Success(t *testing.T) {
 	assert.Contains(t, output, "Log Stream Finished")
 }
 
+func TestTailSingleJob_ContextCancelled(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-TAIL-2/logs", func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if ok {
+			fmt.Fprintf(w, "Single Log 1\n")
+			flusher.Flush()
+		}
+		// Block to simulate long running log stream
+		time.Sleep(2 * time.Second)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() {
+		stdout = oldStdout
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel the context after a short delay
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+
+	err := tailSingleJob(ctx, server.URL, "JOB-TAIL-2")
+	assert.NoError(t, err)
+
+	output := out.String()
+	assert.Contains(t, output, "Shutting down stream")
+}
+
 func TestTailActiveJobs(t *testing.T) {
 	// Create a mock server that simulates an orchestrator
 	mux := http.NewServeMux()
@@ -249,4 +286,129 @@ func TestMultiplexer_Poll_NetworkError(t *testing.T) {
 
 	m.poll(context.Background())
 	assert.Contains(t, out.String(), "Error decoding jobs")
+}
+
+func TestPoll_InvalidHostURL(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	m := &multiplexer{
+		host:   "http://\x00invalid",
+		active: make(map[string]context.CancelFunc),
+	}
+
+	m.poll(context.Background())
+	assert.Contains(t, out.String(), "Failed to parse host URL")
+}
+
+func TestPoll_ConnectionError(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	m := &multiplexer{
+		host:   "http://localhost:12345",
+		active: make(map[string]context.CancelFunc),
+	}
+
+	m.poll(context.Background())
+	assert.Contains(t, out.String(), "[Multiplexer] Error fetching jobs")
+}
+
+func TestPoll_BadStatusCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	m := &multiplexer{
+		host:   server.URL,
+		active: make(map[string]context.CancelFunc),
+	}
+
+	m.poll(context.Background())
+	assert.Contains(t, out.String(), "[Multiplexer] Error fetching jobs: status 500")
+}
+
+func TestTailJob_MaxRetriesExceeded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	m := &multiplexer{
+		host:   server.URL,
+		active: make(map[string]context.CancelFunc),
+	}
+	m.active["JOB-FAIL"] = func() {}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Shorten the retry sleep locally to make the test fast
+	// The maxRetries loop is inside the function so it will run 10 times then abort
+	m.wg.Add(1)
+	go m.tailJob(ctx, "JOB-FAIL", "[JOB-FAIL]")
+
+	// we wait for it to finish or fail
+	m.wg.Wait()
+	assert.Contains(t, out.String(), "Failed to fetch logs (status 500) after 10 retries")
+}
+
+func TestTailJob_ConnectionErrorRetries(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	m := &multiplexer{
+		host:   "http://localhost:12345", // Assuming this will refuse connection
+		active: make(map[string]context.CancelFunc),
+	}
+	m.active["JOB-CONN-FAIL"] = func() {}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m.wg.Add(1)
+	go m.tailJob(ctx, "JOB-CONN-FAIL", "[JOB-CONN-FAIL]")
+
+	m.wg.Wait()
+	assert.Contains(t, out.String(), "Failed to connect to log stream after 10 retries")
+}
+
+func TestTailJob_ContextCancelledDuringRequest(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	m := &multiplexer{
+		host:   "http://localhost:12345",
+		active: make(map[string]context.CancelFunc),
+	}
+	m.active["JOB-CANCEL"] = func() {}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// cancel immediately
+	cancel()
+
+	m.wg.Add(1)
+	m.tailJob(ctx, "JOB-CANCEL", "[JOB-CANCEL]")
+
+	// The context check should make it return immediately
+	assert.NotContains(t, out.String(), "Failed to connect to log stream after 10 retries")
 }
