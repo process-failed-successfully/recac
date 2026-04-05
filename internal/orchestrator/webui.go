@@ -58,7 +58,7 @@ const DashboardHTML = `
 <body>
     <header>
         <h1>Orchestrator Dashboard</h1>
-        <div id="connection-status">Connecting...</div>
+        <div id="connection-status" aria-live="polite">Connecting...</div>
     </header>
     <div class="container">
         <div class="controls" style="margin-top: 20px;">
@@ -94,7 +94,7 @@ const DashboardHTML = `
                         <button type="submit" aria-label="Submit Pipeline YAML" id="btn-submit-pipeline" style="background-color: #17a2b8; flex: 1;">Submit Pipeline</button>
                     </div>
                 </form>
-                <div id="dry-run-results" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                <div id="dry-run-results" aria-live="polite" style="display: none; margin-top: 15px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     <h3 style="margin-top: 0; font-size: 1.1em;">Dry Run Results</h3>
                     <pre id="dry-run-output" style="margin: 0; font-size: 0.9em; white-space: pre-wrap;"></pre>
                 </div>
@@ -105,7 +105,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeTimeline()">&times;</button>
                 <h2 style="margin-bottom: 0;">Execution Timeline</h2>
-                <div id="timelineDiv" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
+                <div id="timelineDiv" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     Loading timeline...
                 </div>
             </div>
@@ -289,7 +289,7 @@ const DashboardHTML = `
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
                 <button type="button" class="close" aria-label="Close modal" onclick="closeGraph()">&times;</button>
                 <h2 style="margin-bottom: 0;">Dependency Graph</h2>
-                <div id="graphDiv" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
+                <div id="graphDiv" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     Loading graph...
                 </div>
             </div>
@@ -298,11 +298,11 @@ const DashboardHTML = `
         <div class="grid">
             <div class="card" id="status-card">
                 <h2>Status</h2>
-                <div id="status-content">Loading...</div>
+                <div id="status-content" aria-live="polite">Loading...</div>
             </div>
             <div class="card" id="analytics-card">
                 <h2>Analytics</h2>
-                <div id="analytics-content">Loading...</div>
+                <div id="analytics-content" aria-live="polite">Loading...</div>
             </div>
         </div>
 
