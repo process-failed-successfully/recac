@@ -32,6 +32,8 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--delete-pending-match` | - | - | Delete all pending jobs matching the given regex |
 | `--export-trace` | - | - | Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout) |
 | `--export-trace-state` | - | `all` | State of jobs to export trace for (`all`, `active`, `completed`, `failed`) |
+| `--export-timeline` | - | - | Export jobs as a Mermaid Gantt chart to a text file (use '-' for stdout) |
+| `--export-timeline-state` | - | `all` | State of jobs to export timeline for (`all`, `active`, `completed`, `failed`) |
 | `--generate-changelog` | - | - | Generates a Markdown changelog based on completed jobs using the configured AI agent. Use `-` for stdout or provide a file path. |
 | `--changelog-tag` | - | - | Filter jobs by tag when generating a changelog. |
 | `--changelog-match` | - | - | Filter jobs by regex when generating a changelog. |
