@@ -56,6 +56,7 @@ const (
 	viewAnalytics
 	viewTree
 	viewTimeoutInput
+	viewSimulate
 	viewDepsInput
 	viewEnvInput
 	viewTagsInput
@@ -189,6 +190,11 @@ type analyzeCostsMsg struct {
 type analyzeAgentsMsg struct {
 	Stats AgentStatsResponse
 	Err   error
+}
+
+type simulateMsg struct {
+	Report orchestrator.SimulationReport
+	Err    error
 }
 
 type summaryMsg struct {
@@ -520,6 +526,15 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case simulateMsg:
+		m.err = msg.Err
+		if m.err == nil {
+			m.viewState = viewSimulate
+			m.viewport.SetContent(renderSimulate(msg.Report))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
 	case detailsMsg:
 		if msg.Err != nil {
 			m.err = msg.Err
@@ -653,7 +668,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewLogs:
 		m, cmd = m.updateLogsView(msg)
 		cmds = append(cmds, cmd)
-	case viewDetails, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewAnalyzeCosts, viewAnalyzeAgents, viewSummary:
+	case viewDetails, viewAnalytics, viewTree, viewExplain, viewCompare, viewAnalyzeFailures, viewCriticalPath, viewBlockers, viewDependents, viewTags, viewAnalyzeDurations, viewAnalyzeReliability, viewAnalyzeCosts, viewAnalyzeAgents, viewSummary, viewSimulate:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
 	case viewConfirmation:
@@ -925,6 +940,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, fetchAnalyzeDurationsCmd(m.host)
 		case "ctrl+r":
 			return m, fetchAnalyzeReliabilityCmd(m.host)
+		case "ctrl+s":
+			return m, fetchSimulateCmd(m.host)
 		case "S":
 			m.viewState = viewSearchLogsInput
 			m.searchInput.SetValue("")
@@ -2251,6 +2268,9 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalyzeCosts:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewSimulate:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewAnalyzeAgents:
@@ -4870,6 +4890,27 @@ func fetchAnalyzeAgentsCmd(host string) tea.Cmd {
 	}
 }
 
+func fetchSimulateCmd(host string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/simulate", host))
+		if err != nil {
+			return simulateMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return simulateMsg{Err: fmt.Errorf("HTTP %d", resp.StatusCode)}
+		}
+
+		var report orchestrator.SimulationReport
+		if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+			return simulateMsg{Err: err}
+		}
+
+		return simulateMsg{Report: report}
+	}
+}
+
 func renderAnalyzeDurations(stats DurationStats) string {
 	if stats.TotalJobs == 0 {
 		return "No valid completed jobs with duration found.\n\nPress 'q' or 'esc' to go back."
@@ -4962,6 +5003,41 @@ func renderAnalyzeDurations(stats DurationStats) string {
 	}
 
 	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+	return sb.String()
+}
+
+func renderSimulate(report orchestrator.SimulationReport) string {
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(25)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	sb.WriteString(titleStyle.Render("Pipeline Simulation Report") + "\n\n")
+
+	printField := func(label, value string) {
+		sb.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value)))
+	}
+
+	estDuration := time.Duration(report.EstimatedTotalTimeMs) * time.Millisecond
+	printField("Estimated Total Time", estDuration.String())
+	printField("Jobs Processed", fmt.Sprintf("%d", report.JobsProcessed))
+	printField("Total Jobs", fmt.Sprintf("%d", report.TotalJobs))
+	printField("Final Bottleneck Job", report.FinalBottleneckJob)
+	printField("Deadlocks Detected", fmt.Sprintf("%d", report.Deadlocks))
+
+	sb.WriteString("\nPress 'q' or 'esc' to go back.")
+
 	return sb.String()
 }
 
