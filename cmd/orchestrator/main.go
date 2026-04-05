@@ -319,6 +319,10 @@ func main() {
 	pflag.String("export-costs-format", "json", "Format for exported costs ('json' or 'csv')")
 	pflag.String("export-agents", "", "Export agent analysis to a file (use '-' for stdout)")
 	pflag.String("export-agents-format", "json", "Format for exported agents ('json' or 'csv')")
+	pflag.String("export-durations", "", "Export job durations analysis to a file (use '-' for stdout)")
+	pflag.String("export-durations-format", "json", "Format for exported durations ('json' or 'csv')")
+	pflag.String("export-reliability", "", "Export job reliability analysis to a file (use '-' for stdout)")
+	pflag.String("export-reliability-format", "json", "Format for exported reliability ('json' or 'csv')")
 
 	pflag.String("upload-artifact", "", "Path to the local file to upload as an artifact (requires --job-id)")
 	pflag.String("download-artifact", "", "Filename of the artifact to download (requires --job-id)")
@@ -698,6 +702,10 @@ func main() {
 	viper.BindPFlag("orchestrator.export_costs_format", pflag.Lookup("export-costs-format"))
 	viper.BindPFlag("orchestrator.export_agents", pflag.Lookup("export-agents"))
 	viper.BindPFlag("orchestrator.export_agents_format", pflag.Lookup("export-agents-format"))
+	viper.BindPFlag("orchestrator.export_durations", pflag.Lookup("export-durations"))
+	viper.BindPFlag("orchestrator.export_durations_format", pflag.Lookup("export-durations-format"))
+	viper.BindPFlag("orchestrator.export_reliability", pflag.Lookup("export-reliability"))
+	viper.BindPFlag("orchestrator.export_reliability_format", pflag.Lookup("export-reliability-format"))
 
 	viper.BindPFlag("orchestrator.upload_artifact", pflag.Lookup("upload-artifact"))
 	viper.BindPFlag("orchestrator.download_artifact", pflag.Lookup("download-artifact"))
@@ -1286,6 +1294,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if cancelGroup := viper.GetString("orchestrator.cancel_group"); cancelGroup != "" {
 		host := viper.GetString("orchestrator.host")
 		cancelJobsByGroup(host, cancelGroup)
+		return nil
+	}
+	if exportDurationsFile := viper.GetString("orchestrator.export_durations"); exportDurationsFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_durations_format")
+		exportDurations(host, exportDurationsFile, format)
+		return nil
+	}
+	if exportReliabilityFile := viper.GetString("orchestrator.export_reliability"); exportReliabilityFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_reliability_format")
+		exportReliability(host, exportReliabilityFile, format)
 		return nil
 	}
 
