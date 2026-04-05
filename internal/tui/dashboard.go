@@ -67,6 +67,8 @@ const (
 	viewSearchLogsInput
 	viewSearchLogsContextInput
 	viewSearchLogsResult
+	viewSearchJobsInput
+	viewSearchJobsResult
 	viewAnalyzeFailures
 	viewCriticalPath
 	viewBlockers
@@ -268,6 +270,11 @@ type searchLogsResultMsg struct {
 	Err    error
 }
 
+type searchJobsResultMsg struct {
+	Jobs []orchestrator.JobInfo
+	Err  error
+}
+
 type tickMsg time.Time
 
 type explainMsg struct {
@@ -375,6 +382,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.viewState = viewSummary
 			m.viewport.SetContent(renderSummary(msg.Summary))
+			m.viewport.GotoTop()
+		}
+		return m, nil
+
+	case searchJobsResultMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.viewState = viewSearchJobsResult
+			m.viewport.SetContent(renderJobTable(msg.Jobs, "Search Jobs Results"))
 			m.viewport.GotoTop()
 		}
 		return m, nil
@@ -684,6 +701,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewSearchLogsResult:
 		m, cmd = m.updateViewport(msg)
 		cmds = append(cmds, cmd)
+	case viewSearchJobsInput:
+		m, cmd = m.updateSearchJobsInput(msg)
+		cmds = append(cmds, cmd)
+	case viewSearchJobsResult:
+		m, cmd = m.updateViewport(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -904,6 +927,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, fetchAnalyzeReliabilityCmd(m.host)
 		case "S":
 			m.viewState = viewSearchLogsInput
+			m.searchInput.SetValue("")
+			m.searchInput.Focus()
+			return m, textinput.Blink
+		case "J":
+			m.viewState = viewSearchJobsInput
 			m.searchInput.SetValue("")
 			m.searchInput.Focus()
 			return m, textinput.Blink
@@ -1971,6 +1999,29 @@ func (m DashboardModel) updateDeletePendingMatchInput(msg tea.Msg) (DashboardMod
 	return m, cmd
 }
 
+func (m DashboardModel) updateSearchJobsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.viewState = viewMain
+			m.searchInput.SetValue("")
+			m.searchInput.Blur()
+			return m, nil
+		case "enter":
+			val := m.searchInput.Value()
+			if val == "" {
+				return m, nil
+			}
+			m.searchInput.Blur()
+			return m, searchJobsCmd(m.host, val)
+		}
+	}
+	m.searchInput, cmd = m.searchInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateSearchLogsContextInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -2293,6 +2344,17 @@ func (m DashboardModel) View() string {
 		contentView = baseStyle.Render(inputView)
 		helpView = statusStyle.Render("enter: search | esc: cancel")
 	case viewSearchLogsResult:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewSearchJobsInput:
+		inputView := lipgloss.NewStyle().Margin(1, 2).Render(
+			titleStyle.Render("Search Jobs (Regex):") + "\n" +
+				m.searchInput.View() + "\n\n" +
+				statusStyle.Render("enter: search | esc: cancel"),
+		)
+		contentView = baseStyle.Render(inputView)
+		helpView = statusStyle.Render("enter: search | esc: cancel")
+	case viewSearchJobsResult:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
 	case viewExplain:
@@ -2705,6 +2767,29 @@ func waitForLogChunk(r io.Reader) tea.Cmd {
 		buf := make([]byte, 4096) // 4KB chunks
 		n, err := r.Read(buf)
 		return logChunkMsg{Chunk: string(buf[:n]), Err: err}
+	}
+}
+
+func searchJobsCmd(host, query string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := host + "/jobs/search?q=" + url.QueryEscape(query)
+		resp, err := http.Get(urlStr)
+		if err != nil {
+			return searchJobsResultMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return searchJobsResultMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			return searchJobsResultMsg{Err: err}
+		}
+
+		return searchJobsResultMsg{Jobs: jobs}
 	}
 }
 
