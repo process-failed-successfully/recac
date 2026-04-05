@@ -199,6 +199,11 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 		envMap[e.Name] = e.Value
 	}
 
+	// Verify env vars are sorted
+	for i := 0; i < len(envVars)-1; i++ {
+		assert.LessOrEqual(t, envVars[i].Name, envVars[i+1].Name, "Environment variables should be sorted deterministically")
+	}
+
 	// Assertions for consistency with DockerSpawner
 	assert.Equal(t, "test-github-key", envMap["GITHUB_API_KEY"], "GITHUB_API_KEY should be propagated")
 	assert.Equal(t, "test-github-key", envMap["RECAC_GITHUB_API_KEY"], "RECAC_GITHUB_API_KEY should be aliased to GITHUB_API_KEY")

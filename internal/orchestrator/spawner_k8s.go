@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"recac/internal/git"
 	"recac/internal/runner"
+	"sort"
 	"strings"
 	"time"
 
@@ -138,6 +139,11 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	for k, v := range envMap {
 		envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
 	}
+
+	// Sort environment variables for deterministic order (Consistency with DockerSpawner)
+	sort.Slice(envVars, func(i, j int) bool {
+		return envVars[i].Name < envVars[j].Name
+	})
 
 	// Auth Handling:
 	// Use Secret for sensitive data if available.
