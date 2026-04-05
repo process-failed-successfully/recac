@@ -1394,3 +1394,70 @@ func TestRenderAnalyzeReliability(t *testing.T) {
 		})
 	}
 }
+
+func TestDashboardModel_UpdateSearchJobsInput(t *testing.T) {
+	m := NewDashboardModel("http://localhost:8080")
+	m.viewState = viewSearchJobsInput
+
+	// Test Esc
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	m, cmd := m.updateSearchJobsInput(msg)
+	assert.Equal(t, viewMain, m.viewState)
+	assert.Empty(t, m.searchInput.Value())
+	assert.Nil(t, cmd)
+
+	// Test Enter with empty search
+	m.viewState = viewSearchJobsInput
+	m.searchInput.SetValue("")
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	m, cmd = m.updateSearchJobsInput(msg)
+	assert.Equal(t, viewSearchJobsInput, m.viewState) // No state change on empty
+	assert.Nil(t, cmd)
+
+	// Test Enter with value
+	m.searchInput.SetValue("test-job")
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	m, cmd = m.updateSearchJobsInput(msg)
+	assert.NotNil(t, cmd)
+}
+
+func TestSearchJobsCmd(t *testing.T) {
+	// Success case
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/search", r.URL.Path)
+		assert.Equal(t, "test", r.URL.Query().Get("q"))
+		w.Header().Set("Content-Type", "application/json")
+		jobs := []orchestrator.JobInfo{{ID: "job1"}}
+		json.NewEncoder(w).Encode(jobs)
+	}))
+	defer ts.Close()
+
+	cmd := searchJobsCmd(ts.URL, "test")
+	msg := cmd()
+	resMsg, ok := msg.(searchJobsResultMsg)
+	assert.True(t, ok)
+	assert.NoError(t, resMsg.Err)
+	assert.Len(t, resMsg.Jobs, 1)
+	assert.Equal(t, "job1", resMsg.Jobs[0].ID)
+
+	// Error case (non-200)
+	tsErr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal error"))
+	}))
+	defer tsErr.Close()
+
+	cmd = searchJobsCmd(tsErr.URL, "test")
+	msg = cmd()
+	resMsg, ok = msg.(searchJobsResultMsg)
+	assert.True(t, ok)
+	assert.Error(t, resMsg.Err)
+	assert.Contains(t, resMsg.Err.Error(), "status 500")
+
+	// Error case (bad URL)
+	cmd = searchJobsCmd("http://invalid-url-that-does-not-exist", "test")
+	msg = cmd()
+	resMsg, ok = msg.(searchJobsResultMsg)
+	assert.True(t, ok)
+	assert.Error(t, resMsg.Err)
+}
