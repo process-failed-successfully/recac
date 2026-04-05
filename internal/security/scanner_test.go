@@ -112,6 +112,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "masscan 10.0.0.0/8 -p80",
 			wantFinding: "Network Recon",
 		},
+		{
+			name:        "Docker Socket Volume Mount",
+			content:     "docker run --volume /var/run/docker.sock:/var/run/docker.sock alpine",
+			wantFinding: "Docker Socket Mount",
+		},
+		{
+			name:        "Docker Socket Mount Option",
+			content:     "docker run --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock alpine",
+			wantFinding: "Docker Socket Mount",
+		},
 	}
 
 	for _, tt := range tests {
