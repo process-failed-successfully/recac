@@ -34,7 +34,7 @@ var (
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
-	reDockerSocket    = regexp.MustCompile(`(?i)-v\s+.*docker\.sock`)
+	reDockerSocket    = regexp.MustCompile(`(?i)(-v|--volume|--mount)\s+.*docker\.sock`)
 	rePrivileged      = regexp.MustCompile(`(?i)--privileged`)
 	reNetRecon        = regexp.MustCompile(`(?i)\b(nmap|masscan)\b`)
 )
