@@ -317,6 +317,8 @@ func main() {
 	pflag.String("export-timeline-state", "all", "State of jobs to export timeline for ('all', 'active', 'completed', 'failed')")
 	pflag.String("export-costs", "", "Export cost analysis to a file (use '-' for stdout)")
 	pflag.String("export-costs-format", "json", "Format for exported costs ('json' or 'csv')")
+	pflag.String("export-agents", "", "Export agent analysis to a file (use '-' for stdout)")
+	pflag.String("export-agents-format", "json", "Format for exported agents ('json' or 'csv')")
 
 	pflag.String("upload-artifact", "", "Path to the local file to upload as an artifact (requires --job-id)")
 	pflag.String("download-artifact", "", "Filename of the artifact to download (requires --job-id)")
@@ -694,6 +696,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_timeline_state", pflag.Lookup("export-timeline-state"))
 	viper.BindPFlag("orchestrator.export_costs", pflag.Lookup("export-costs"))
 	viper.BindPFlag("orchestrator.export_costs_format", pflag.Lookup("export-costs-format"))
+	viper.BindPFlag("orchestrator.export_agents", pflag.Lookup("export-agents"))
+	viper.BindPFlag("orchestrator.export_agents_format", pflag.Lookup("export-agents-format"))
 
 	viper.BindPFlag("orchestrator.upload_artifact", pflag.Lookup("upload-artifact"))
 	viper.BindPFlag("orchestrator.download_artifact", pflag.Lookup("download-artifact"))
@@ -2339,6 +2343,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.export_costs_format")
 		exportCosts(host, exportCostsFile, format)
+		return nil
+	}
+	if exportAgentsFile := viper.GetString("orchestrator.export_agents"); exportAgentsFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_agents_format")
+		exportAgents(host, exportAgentsFile, format)
 		return nil
 	}
 
