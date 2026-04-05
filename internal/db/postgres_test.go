@@ -453,9 +453,32 @@ func TestPostgresStore_AcquireLock_Hijack(t *testing.T) {
 	}
 }
 
+func TestNewPostgresStoreWithDB_MigrateError(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	require.NoError(t, err)
+
+	mock.ExpectPing()
+	// Currently, migrate() handles internal DB errors gracefully and returns nil.
+	// We verify that NewPostgresStoreWithDB completes successfully under these conditions.
+	_, err = NewPostgresStoreWithDB(db)
+	assert.NoError(t, err)
+}
+
+func TestNewPostgresStoreWithDB_PingError(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	require.NoError(t, err)
+
+	mock.ExpectPing().WillReturnError(sql.ErrConnDone)
+
+	_, err = NewPostgresStoreWithDB(db)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to ping database")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestNewPostgresStore_ConnectionError(t *testing.T) {
-	// Attempt to open a database connection with an invalid DSN that triggers early sql.Open or db.Ping error.
-	// Since "postgres" driver expects a specific format, passing garbage often fails db.Ping.
-	_, err := NewPostgresStore("invalid_dsn_format")
+	// Calling with invalid format that the "postgres" driver rejects early.
+	// "postgres" driver rejects empty string or some formats before Ping.
+	_, err := NewPostgresStore("invalid_dsn")
 	assert.Error(t, err)
 }

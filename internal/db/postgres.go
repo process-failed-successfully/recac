@@ -22,6 +22,11 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	return NewPostgresStoreWithDB(db)
+}
+
+// NewPostgresStoreWithDB creates a new Postgres store using an existing db connection
+func NewPostgresStoreWithDB(db *sql.DB) (*PostgresStore, error) {
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
