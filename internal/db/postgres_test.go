@@ -452,3 +452,10 @@ func TestPostgresStore_AcquireLock_Hijack(t *testing.T) {
 		})
 	}
 }
+
+func TestNewPostgresStore_ConnectionError(t *testing.T) {
+	// Attempt to open a database connection with an invalid DSN that triggers early sql.Open or db.Ping error.
+	// Since "postgres" driver expects a specific format, passing garbage often fails db.Ping.
+	_, err := NewPostgresStore("invalid_dsn_format")
+	assert.Error(t, err)
+}

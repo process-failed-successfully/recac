@@ -214,3 +214,76 @@ func (m *SmartMockAgent) SendStream(ctx context.Context, prompt string, onChunk 
 
 // Needed for Orchestrator to accept it as agent.Agent
 func (m *SmartMockAgent) WithStateManager(sm *agent.StateManager) agent.Agent { return m }
+
+func TestOrchestrator_ExecuteTask_Failures(t *testing.T) {
+	// Setup workspace
+	tmpDir, err := os.MkdirTemp("", "orch_exec_task_fail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mockDB := &FaultToleranceMockDB{
+		FeatureList: db.FeatureList{},
+		Signals:     make(map[string]string),
+	}
+	mockDocker := &MockDockerClient{}
+
+	// Agent that constantly fails
+	failAgent := &SmartMockAgent{
+		FailTasks: map[string]bool{"fail_task": true},
+	}
+
+	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", failAgent, "proj", "gemini", "gemini-pro", 3, "")
+	o.TaskMaxRetries = 0
+
+	node := &TaskNode{
+		ID:     "t1",
+		Name:   "fail_task",
+		Status: TaskInProgress,
+	}
+
+	// Ensure the node is in the Graph because ExecuteTask expects it
+	o.Graph.Nodes["t1"] = node
+
+	// Because agent returns simulated failure, Session initialization/execution should fail.
+	ctx := context.Background()
+	err = o.ExecuteTask(ctx, "t1", node)
+
+	// ExecuteTask handles failure internally and doesn't necessarily bubble it up as a panic or Run-stopping error
+	// But let's check node status. ExecuteTask updates it to Failed if max retries hit.
+	if node.Status != TaskFailed {
+		t.Errorf("expected node to be marked TaskFailed, got %v", node.Status)
+	}
+}
+
+func TestOrchestrator_Run_Failures(t *testing.T) {
+	// Setup workspace
+	tmpDir, err := os.MkdirTemp("", "orch_run_fail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mockDB := &FaultToleranceMockDB{
+		FeatureList: db.FeatureList{},
+		Signals:     make(map[string]string),
+	}
+	mockDocker := &MockDockerClient{}
+
+	// Agent that constantly fails
+	failAgent := &SmartMockAgent{
+		FailTasks: map[string]bool{"fail_task": true},
+	}
+
+	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", failAgent, "proj", "gemini", "gemini-pro", 3, "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel the context immediately so Run() aborts via ctx.Done()
+	cancel()
+
+	err = o.Run(ctx)
+	if err == nil {
+		t.Errorf("expected context cancellation error, got nil")
+	}
+}
