@@ -254,6 +254,7 @@ func main() {
 	pflag.String("submit-batch", "", "Submit multiple jobs from a JSON file path")
 	pflag.String("submit-matrix", "", "Submit a matrix job from a JSON file path")
 	pflag.String("submit-pipeline", "", "Submit a pipeline job from a YAML file path")
+	pflag.String("validate-pipeline", "", "Validate a pipeline job from a YAML file path")
 	pflag.String("submit-pipeline-target", "", "Submit only the specified target job and its dependencies from a pipeline YAML file")
 	pflag.StringSlice("pipeline-var", []string{}, "Variables to substitute in the pipeline YAML (e.g. --pipeline-var KEY=VALUE)")
 	pflag.StringArray("submit-matrix-inline", []string{}, "Submit a matrix job inline (e.g. --submit-matrix-inline OS=linux,windows --submit-matrix-inline GO=1.20,1.21)")
@@ -629,6 +630,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_matrix", pflag.Lookup("submit-matrix"))
 	viper.BindPFlag("orchestrator.submit_matrix_inline", pflag.Lookup("submit-matrix-inline"))
 	viper.BindPFlag("orchestrator.submit_pipeline", pflag.Lookup("submit-pipeline"))
+	viper.BindPFlag("orchestrator.validate_pipeline", pflag.Lookup("validate-pipeline"))
 	viper.BindPFlag("orchestrator.submit_pipeline_target", pflag.Lookup("submit-pipeline-target"))
 	viper.BindPFlag("orchestrator.pipeline_var", pflag.Lookup("pipeline-var"))
 	viper.BindPFlag("orchestrator.pipeline_var_file", pflag.Lookup("pipeline-var-file"))
@@ -2008,6 +2010,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		wait := viper.GetBool("orchestrator.wait")
 		submitMatrixJob(host, submitMatrixFile, wait)
+		return nil
+	}
+
+	if validatePipelineFile := viper.GetString("orchestrator.validate_pipeline"); validatePipelineFile != "" {
+		target := viper.GetString("orchestrator.submit_pipeline_target")
+		varsList := viper.GetStringSlice("orchestrator.pipeline_var")
+		varFile := viper.GetString("orchestrator.pipeline_var_file")
+		vars, err := loadPipelineVars(varsList, varFile)
+		if err != nil {
+			fmt.Fprintf(stdout, "Failed to load variables: %v\n", err)
+			exitFunc(1)
+			return nil
+		}
+		validatePipeline(validatePipelineFile, target, vars)
 		return nil
 	}
 
