@@ -34,6 +34,7 @@ vendor/
 *.test
 *.out
 coverage.out
+coverage.txt
 coverage.html
 
 # IDE
