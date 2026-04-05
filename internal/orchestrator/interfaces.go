@@ -26,6 +26,7 @@ type WorkItem struct {
 	RunAfter         time.Time         `json:"run_after,omitempty"`
 	Delay            time.Duration     `json:"delay,omitempty"`
 	Timeout          time.Duration     `json:"timeout,omitempty"`
+	DependencyTimeout *time.Duration   `json:"dependency_timeout,omitempty" yaml:"dependency_timeout,omitempty"`
 	ConcurrencyGroup string            `json:"concurrency_group,omitempty"`
 	CancelInProgress bool              `json:"cancel_in_progress,omitempty"`
 	AgentProvider    string            `json:"agent_provider,omitempty"`

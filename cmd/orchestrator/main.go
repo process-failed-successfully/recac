@@ -285,6 +285,7 @@ func main() {
 	pflag.StringSlice("submit-deps", []string{}, "Comma-separated list of job IDs this job depends on")
 	pflag.StringSlice("submit-tags", []string{}, "Comma-separated list of tags for the ad-hoc job")
 	pflag.Duration("submit-timeout", 0, "Optional custom timeout for the ad-hoc job (e.g. 30m)")
+	pflag.Duration("submit-dependency-timeout", 0, "Optional dependency wait timeout for the ad-hoc job (e.g. 1h)")
 	pflag.Int("submit-max-retries", -1, "Maximum retries for the ad-hoc job (-1 to use global default)")
 	pflag.Bool("submit-require-approval", false, "Require approval before executing the ad-hoc job")
 	pflag.Duration("submit-retry-delay", 0, "Optional custom retry delay for the ad-hoc job (e.g. 5s)")
@@ -658,6 +659,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_deps", pflag.Lookup("submit-deps"))
 	viper.BindPFlag("orchestrator.submit_tags", pflag.Lookup("submit-tags"))
 	viper.BindPFlag("orchestrator.submit_timeout", pflag.Lookup("submit-timeout"))
+	viper.BindPFlag("orchestrator.submit_dependency_timeout", pflag.Lookup("submit-dependency-timeout"))
 	viper.BindPFlag("orchestrator.submit_max_retries", pflag.Lookup("submit-max-retries"))
 	viper.BindPFlag("orchestrator.submit_require_approval", pflag.Lookup("submit-require-approval"))
 	viper.BindPFlag("orchestrator.submit_retry_delay", pflag.Lookup("submit-retry-delay"))
@@ -2197,6 +2199,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		timeout := viper.GetDuration("orchestrator.submit_timeout")
 		submitTags := viper.GetStringSlice("orchestrator.submit_tags")
 
+		var dependencyTimeoutPtr *time.Duration
+		if viper.IsSet("orchestrator.submit_dependency_timeout") {
+			dt := viper.GetDuration("orchestrator.submit_dependency_timeout")
+			if dt > 0 {
+				dependencyTimeoutPtr = &dt
+			}
+		}
+
 		var maxRetriesPtr *int
 		if viper.IsSet("orchestrator.submit_max_retries") {
 			mr := viper.GetInt("orchestrator.submit_max_retries")
@@ -2250,11 +2260,11 @@ func run(ctx context.Context, logger *slog.Logger) error {
 					logger.Warn("Invalid inline matrix format", "input", item)
 				}
 			}
-			submitMatrixInlineJob(host, submitURL, task, id, priority, delay, timeout, maxRetriesPtr, requireApprovalPtr, retryDelayPtr, retryBackoffPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, runCondition, webhookURL, autoHeal, matrixMap)
+			submitMatrixInlineJob(host, submitURL, task, id, priority, delay, timeout, dependencyTimeoutPtr, maxRetriesPtr, requireApprovalPtr, retryDelayPtr, retryBackoffPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, runCondition, webhookURL, autoHeal, matrixMap)
 			return nil
 		}
 
-		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, maxRetriesPtr, requireApprovalPtr, retryDelayPtr, retryBackoffPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, runCondition, webhookURL, autoHeal)
+		submitAdHocJob(host, submitURL, task, id, priority, delay, timeout, dependencyTimeoutPtr, maxRetriesPtr, requireApprovalPtr, retryDelayPtr, retryBackoffPtr, wait, envMap, submitDeps, submitTags, concurrencyGroup, cancelInProgress, agentProvider, agentModel, runCondition, webhookURL, autoHeal)
 		return nil
 	}
 

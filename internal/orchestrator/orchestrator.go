@@ -3717,6 +3717,33 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 		}
 
 		item := jobInfo.WorkItem
+
+		// Check for dependency wait timeout
+		if item.DependencyTimeout != nil && *item.DependencyTimeout > 0 {
+			if time.Since(jobInfo.StartTime) > *item.DependencyTimeout {
+				if t, ok := o.delayTimers[id]; ok {
+					t.Stop()
+					delete(o.delayTimers, id)
+				}
+				delete(o.pendingJobs, id)
+				job := JobInfo{
+					ID:        item.ID,
+					Summary:   item.Summary,
+					StartTime: jobInfo.StartTime,
+					EndTime:   time.Now(),
+					Status:    "Failed",
+					Error:     "Dependency wait timeout exceeded",
+					WorkItem:  item,
+				}
+				o.addToHistory(job, logger)
+				defer o.BroadcastEvent("job_failed", job)
+				if logger != nil {
+					logger.Error("Job failed due to dependency wait timeout", "id", item.ID, "timeout", *item.DependencyTimeout)
+				}
+				continue
+			}
+		}
+
 		shouldRun, shouldFail, shouldSkip, failedDep, _ := o.checkDependenciesMetLocked(item)
 
 		if shouldRun {
