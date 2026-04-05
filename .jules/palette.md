@@ -62,3 +62,6 @@
 ## 2026-04-06 - Announce Dynamic Updates to Screen Readers
 **Learning:** In dynamically updated UI components (like viewing logs, analyzing failures, or explaining job details in a modal), screen readers will not naturally announce text content that is injected asynchronously after the container is already rendered.
 **Action:** Always add `aria-live="polite"` to the container element (e.g. `<div id="analyze-failures-content" aria-live="polite">`) where dynamic text updates will occur, so that screen readers correctly notify visually impaired users without interrupting their current tasks.
+## 2024-04-05 - Missing aria-live in Async Modals
+**Learning:** Asynchronous content updates in modals (like graphs, timelines, and dry-run results) and main dashboard dynamic content (like status and analytics) were not being announced to screen readers.
+**Action:** Applied `aria-live="polite"` to the dynamic container elements so updates are smoothly read out after network fetches or SSE updates complete.
