@@ -82,12 +82,18 @@ func TestOrchestrator_Simulate(t *testing.T) {
 			ID:        "comp1",
 			StartTime: time.Now(),
 			EndTime:   time.Now().Add(10 * time.Second), // 10s
+			Metrics: map[string]float64{
+				"total_cost":   0.50,
+				"total_tokens": 1000,
+			},
 		})
 
 		o.pendingJobs["job1"] = JobInfo{ID: "job1"}
 
 		report := o.Simulate(logger)
 		assert.Equal(t, 10000.0, report.EstimatedTotalTimeMs) // Mean should now be 10s
+		assert.Equal(t, 0.50, report.EstimatedTotalCost)
+		assert.Equal(t, 1000.0, report.EstimatedTotalTokens)
 
 		delete(o.pendingJobs, "job1")
 		o.completedJobs = []JobInfo{} // Cleanup
@@ -107,6 +113,10 @@ func TestSimulatePipeline(t *testing.T) {
 			},
 			StartTime: t1,
 			EndTime:   t1.Add(120 * time.Second), // avg for 'Build specific app' = 120s
+			Metrics: map[string]float64{
+				"total_cost":   1.5,
+				"total_tokens": 500,
+			},
 		},
 		{
 			ID: "hist-2",
@@ -116,24 +126,28 @@ func TestSimulatePipeline(t *testing.T) {
 			},
 			StartTime: t1,
 			EndTime:   t1.Add(80 * time.Second), // avg for tag 'build' = (120+80)/2 = 100s
+			Metrics: map[string]float64{
+				"total_cost":   0.5,
+				"total_tokens": 1500,
+			},
 		},
 	}
 
 	pipelineItems := []WorkItem{
 		{
 			ID:      "job-1",
-			Summary: "Build specific app", // Should use exact summary avg: 120s
+			Summary: "Build specific app", // Should use exact summary avg: 120s, 1.5 cost, 500 tokens
 			Tags:    []string{"build"},
 		},
 		{
 			ID:        "job-2",
-			Summary:   "New build app", // Should fallback to tag 'build' avg: 100s
+			Summary:   "New build app", // Should fallback to tag 'build' avg: 100s, 1.0 cost, 1000 tokens
 			Tags:      []string{"build"},
 			DependsOn: []string{"job-1"},
 		},
 		{
 			ID:        "job-3",
-			Summary:   "Test app", // No tag, no summary. Should use globalMean = (120+80)/2 = 100s
+			Summary:   "Test app", // No tag, no summary. Should use globalMean = (120+80)/2 = 100s, 1.0 cost, 1000 tokens
 			DependsOn: []string{"job-2"},
 		},
 	}
@@ -143,6 +157,8 @@ func TestSimulatePipeline(t *testing.T) {
 	// Since maxWorkers=0 defaults to MaxInt32, they run sequentially due to DependsOn.
 	// 120 + 100 + 100 = 320s = 320000ms
 	assert.Equal(t, float64(320000), report.EstimatedTotalTimeMs)
+	assert.Equal(t, 3.5, report.EstimatedTotalCost) // 1.5 + 1.0 + 1.0
+	assert.Equal(t, 2500.0, report.EstimatedTotalTokens) // 500 + 1000 + 1000
 	assert.Equal(t, 3, report.JobsProcessed)
 	assert.Equal(t, 0, report.Deadlocks)
 	assert.Equal(t, "job-3", report.FinalBottleneckJob)
