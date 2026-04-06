@@ -140,4 +140,49 @@ func TestAPI_Artifacts(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
+
+	// 7. Path Traversal in jobID
+	t.Run("Path Traversal in JobID", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "/jobs/../artifacts/"+filename, nil)
+		assert.NoError(t, err)
+		req.SetPathValue("id", "..")
+		req.SetPathValue("filename", filename)
+
+		rr := httptest.NewRecorder()
+		handleDownloadArtifact(orch, logger).ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	// 8. Path Traversal in filename
+	t.Run("Path Traversal in Filename", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "/jobs/"+jobID+"/artifacts/..", nil)
+		assert.NoError(t, err)
+		req.SetPathValue("id", jobID)
+		req.SetPathValue("filename", "..")
+
+		rr := httptest.NewRecorder()
+		handleDownloadArtifact(orch, logger).ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	// 9. Path Traversal in filename with slashes
+	t.Run("Path Traversal in Filename with Slashes", func(t *testing.T) {
+		// NewRequest with URL parsing treats %2F as /, so filepath.Base will act on it.
+		// net/http client may unescape and normalize. We will just use the handler directly if needed,
+		// or pass it in such a way it stays URL encoded, but http.ServeMux handles standard paths.
+		// For coverage, we simulate by directly invoking the handler.
+		req, err := http.NewRequest(http.MethodGet, "/jobs/"+jobID+"/artifacts/..%2F..%2Fetc%2Fpasswd", nil)
+		assert.NoError(t, err)
+
+		// Setup req path values as if parsed by mux
+		req.SetPathValue("id", jobID)
+		req.SetPathValue("filename", "../../etc/passwd")
+
+		rr := httptest.NewRecorder()
+		handleDownloadArtifact(orch, logger).ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
 }
