@@ -1295,6 +1295,18 @@ func TestDashboardModel_Keybinds_Analyze(t *testing.T) {
 	msg = tea.KeyMsg{Type: tea.KeyCtrlR}
 	newM, cmd = m.Update(msg)
 	updatedModel = newM.(DashboardModel)
+	assert.NotNil(t, cmd)
+
+	// Test ctrl+a keybind
+	msg = tea.KeyMsg{Type: tea.KeyCtrlA}
+	newM, cmd = m.Update(msg)
+	updatedModel = newM.(DashboardModel)
+	assert.NotNil(t, cmd)
+
+	// Test ctrl+o keybind
+	msg = tea.KeyMsg{Type: tea.KeyCtrlO}
+	newM, cmd = m.Update(msg)
+	updatedModel = newM.(DashboardModel)
 
 	// Expected to return a fetch command
 	assert.NotNil(t, cmd)
