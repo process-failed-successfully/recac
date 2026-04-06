@@ -57,6 +57,8 @@ type Orchestrator struct {
 
 	eventChans map[chan []byte]struct{}
 	eventMu    sync.RWMutex
+
+	pausedGroups map[string]bool
 }
 
 var ErrAtCapacity = fmt.Errorf("orchestrator is at max capacity")
@@ -174,6 +176,7 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		forcePollCh:      make(chan struct{}, 1),
 		updateIntervalCh: make(chan time.Duration, 1),
 		eventChans:       make(map[chan []byte]struct{}),
+		pausedGroups:     make(map[string]bool),
 	}
 }
 
@@ -3720,6 +3723,10 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 			continue
 		}
 
+		if o.pausedGroups != nil && o.pausedGroups[jobInfo.WorkItem.ConcurrencyGroup] {
+			continue
+		}
+
 		item := jobInfo.WorkItem
 
 		// Check for dependency wait timeout
@@ -4755,4 +4762,35 @@ func (o *Orchestrator) CancelJobDownstream(ctx context.Context, jobID string, lo
 	}
 
 	return canceledIDs, lastErr
+}
+
+// PauseGroup pauses a specific concurrency group, preventing any pending jobs in this group from starting.
+func (o *Orchestrator) PauseGroup(group string, logger *slog.Logger) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.pausedGroups == nil {
+		o.pausedGroups = make(map[string]bool)
+	}
+	o.pausedGroups[group] = true
+	if logger != nil {
+		logger.Info("Concurrency group paused", "group", group)
+	}
+	o.BroadcastEvent("GroupPaused", map[string]interface{}{
+		"group": group,
+	})
+}
+
+// ResumeGroup resumes a specific concurrency group.
+func (o *Orchestrator) ResumeGroup(group string, logger *slog.Logger) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.pausedGroups != nil {
+		delete(o.pausedGroups, group)
+	}
+	if logger != nil {
+		logger.Info("Concurrency group resumed", "group", group)
+	}
+	o.BroadcastEvent("GroupResumed", map[string]interface{}{
+		"group": group,
+	})
 }

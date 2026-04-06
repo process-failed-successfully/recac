@@ -146,6 +146,8 @@ func main() {
 	pflag.String("cancel-match", "", "Cancel all active and pending jobs matching the given regex")
 	pflag.String("cancel-group", "", "Cancel all active and pending jobs with the specified concurrency group")
 	pflag.String("cancel-older-than", "", "Cancel all active and pending jobs older than the specified duration (e.g., 24h, 168h)")
+	pflag.String("pause-group", "", "Pause a specific concurrency group")
+	pflag.String("resume-group", "", "Resume a specific concurrency group")
 	pflag.String("purge-job", "", "Purge a specific job from history")
 	pflag.String("purge-tag", "", "Purge all completed/failed jobs with the specified tag from history")
 	pflag.String("purge-status", "", "Purge all history jobs with the specified status")
@@ -529,6 +531,8 @@ func main() {
 	viper.BindPFlag("orchestrator.cancel_match", pflag.Lookup("cancel-match"))
 	viper.BindPFlag("orchestrator.cancel_group", pflag.Lookup("cancel-group"))
 	viper.BindPFlag("orchestrator.cancel_older_than", pflag.Lookup("cancel-older-than"))
+	viper.BindPFlag("orchestrator.pause_group", pflag.Lookup("pause-group"))
+	viper.BindPFlag("orchestrator.resume_group", pflag.Lookup("resume-group"))
 	viper.BindPFlag("orchestrator.purge_job", pflag.Lookup("purge-job"))
 	viper.BindPFlag("orchestrator.purge_tag", pflag.Lookup("purge-tag"))
 	viper.BindPFlag("orchestrator.purge_status", pflag.Lookup("purge-status"))
@@ -1612,6 +1616,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.undrain") {
 		host := viper.GetString("orchestrator.host")
 		undrainOrchestrator(host)
+		return nil
+	}
+
+	if pauseGroup := viper.GetString("orchestrator.pause_group"); pauseGroup != "" {
+		host := viper.GetString("orchestrator.host")
+		pauseOrchestratorGroup(host, pauseGroup)
+		return nil
+	}
+
+	if resumeGroup := viper.GetString("orchestrator.resume_group"); resumeGroup != "" {
+		host := viper.GetString("orchestrator.host")
+		resumeOrchestratorGroup(host, resumeGroup)
 		return nil
 	}
 

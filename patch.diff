@@ -1,0 +1,10 @@
+<<<<<<< SEARCH
+func (m *MockSpawnerForPause) Cleanup() {}
+=======
+func (m *MockSpawnerForPause) Cleanup() {}
+
+func (m *MockSpawnerForPause) Cancel(ctx context.Context, jobID string, logger *slog.Logger) error {
+	args := m.Called(ctx, jobID, logger)
+	return args.Error(0)
+}
+>>>>>>> REPLACE

@@ -1,0 +1,28 @@
+<<<<<<< SEARCH
+	o.evaluatePendingJobs(ctx, logger)
+
+	o.mu.RLock()
+	_, ok1 = o.pendingJobs["job1"]
+	_, ok2 = o.pendingJobs["job2"]
+	o.mu.RUnlock()
+
+	assert.False(t, ok1, "job1 should have been picked up")
+	assert.False(t, ok2, "job2 should have been picked up")
+
+	mockSpawner.AssertExpectations(t)
+=======
+	o.evaluatePendingJobs(ctx, logger)
+
+	// Give a bit of time for async spawns to start (if spawned asynchronously, evaluatePendingJobs uses goroutines)
+	time.Sleep(100 * time.Millisecond)
+
+	o.mu.RLock()
+	_, ok1 = o.pendingJobs["job1"]
+	_, ok2 = o.pendingJobs["job2"]
+	o.mu.RUnlock()
+
+	assert.False(t, ok1, "job1 should have been picked up")
+	assert.False(t, ok2, "job2 should have been picked up")
+
+	mockSpawner.AssertExpectations(t)
+>>>>>>> REPLACE
