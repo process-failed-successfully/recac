@@ -129,3 +129,51 @@ func TestUpdateJobsDependenciesBulkWithPersistence(t *testing.T) {
 	require.Contains(t, mp.savedJobs, "JOB-1")
 	require.Contains(t, mp.savedJobs, "JOB-2")
 }
+
+func TestDependenciesMet_ContinueOnError(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+
+	orch.mu.Lock()
+	orch.completedJobs = append(orch.completedJobs, JobInfo{
+		ID:     "DEP-FAILED",
+		Status: "Failed",
+		WorkItem: WorkItem{
+			ID:              "DEP-FAILED",
+			ContinueOnError: true,
+		},
+	})
+	orch.completedJobs = append(orch.completedJobs, JobInfo{
+		ID:     "DEP-FAILED-BLOCK",
+		Status: "Failed",
+		WorkItem: WorkItem{
+			ID:              "DEP-FAILED-BLOCK",
+			ContinueOnError: false,
+		},
+	})
+	orch.mu.Unlock()
+
+	itemAllowed := WorkItem{
+		ID:        "TEST-JOB-ALLOWED",
+		DependsOn: []string{"DEP-FAILED"},
+	}
+
+	itemBlocked := WorkItem{
+		ID:        "TEST-JOB-BLOCKED",
+		DependsOn: []string{"DEP-FAILED-BLOCK"},
+	}
+
+	orch.mu.Lock()
+	shouldRunAllowed, shouldFailAllowed, _, failedDepAllowed, _ := orch.checkDependenciesMetLocked(itemAllowed)
+	shouldRunBlocked, shouldFailBlocked, _, failedDepBlocked, _ := orch.checkDependenciesMetLocked(itemBlocked)
+	orch.mu.Unlock()
+
+	assert.True(t, shouldRunAllowed, "Job with a failed continue-on-error dependency should run")
+	assert.False(t, shouldFailAllowed, "Job with a failed continue-on-error dependency should not fail")
+	assert.Equal(t, "", failedDepAllowed)
+
+	assert.False(t, shouldRunBlocked, "Job with a normal failed dependency should not run")
+	assert.True(t, shouldFailBlocked, "Job with a normal failed dependency should fail immediately")
+	assert.Equal(t, "DEP-FAILED-BLOCK", failedDepBlocked)
+}

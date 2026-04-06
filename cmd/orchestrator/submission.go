@@ -160,6 +160,9 @@ func inspectPipelineJob(filePath string, target string, vars map[string]string) 
 		if item.Timeout > 0 {
 			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Timeout:"), valueStyle.Render(item.Timeout.String()))
 		}
+		if item.ContinueOnError {
+			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Continue On Error:"), valueStyle.Render(fmt.Sprintf("%v", item.ContinueOnError)))
+		}
 		if item.Delay > 0 {
 			fmt.Fprintf(stdout, "%s %s\n", headerStyle.Render("Delay:"), valueStyle.Render(item.Delay.String()))
 		}
@@ -722,6 +725,7 @@ func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, tim
 		RunCondition:           runCondition,
 		WebhookURL:             webhookURL,
 		AutoHeal:               autoHeal,
+		ContinueOnError:        false,
 	}
 
 	reqBody := struct {
@@ -817,6 +821,7 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 		RunCondition:           runCondition,
 		WebhookURL:             webhookURL,
 		AutoHeal:               autoHeal,
+		ContinueOnError:        false,
 	}
 	payload, err := json.Marshal(item)
 	if err != nil {

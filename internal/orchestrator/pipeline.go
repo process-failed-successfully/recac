@@ -36,6 +36,7 @@ type Pipeline struct {
 		If               string            `yaml:"if,omitempty"`
 		CancelInProgress       *bool             `yaml:"cancel_in_progress,omitempty"`
 		WebhookURL       string            `yaml:"webhook_url,omitempty"`
+		ContinueOnError  *bool             `yaml:"continue_on_error,omitempty"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -67,6 +68,7 @@ type PipelineJob struct {
 	RetryDelay             string              `yaml:"retry_delay,omitempty"`
 	RetryBackoffMultiplier *float64            `yaml:"retry_backoff_multiplier,omitempty"`
 	WebhookURL             string              `yaml:"webhook_url,omitempty"`
+	ContinueOnError        *bool               `yaml:"continue_on_error,omitempty"`
 }
 
 // sanitizeName creates a safe string for IDs.
@@ -278,6 +280,10 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			if jobDef.RetryBackoffMultiplier == nil && template.RetryBackoffMultiplier != nil {
 				val := *template.RetryBackoffMultiplier
 				jobDef.RetryBackoffMultiplier = &val
+			}
+			if jobDef.ContinueOnError == nil && template.ContinueOnError != nil {
+				val := *template.ContinueOnError
+				jobDef.ContinueOnError = &val
 			}
 
 			// Maps
@@ -502,6 +508,13 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			cancelInProgress = *jobDef.CancelInProgress
 		} else if p.Defaults.CancelInProgress != nil {
 			cancelInProgress = *p.Defaults.CancelInProgress
+		}
+
+		continueOnError := false
+		if jobDef.ContinueOnError != nil {
+			continueOnError = *jobDef.ContinueOnError
+		} else if p.Defaults.ContinueOnError != nil {
+			continueOnError = *p.Defaults.ContinueOnError
 		}
 
 		// Use Task as Description if Description is empty
@@ -739,6 +752,7 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 				RetryDelay:             parsedRetryDelay,
 				RetryBackoffMultiplier: retryBackoffMultiplier,
 				WebhookURL:             webhookURL,
+				ContinueOnError:        continueOnError,
 			})
 		}
 	}
