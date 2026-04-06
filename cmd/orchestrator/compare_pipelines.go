@@ -158,6 +158,16 @@ func renderPipelineComparison(p1, p2 *orchestrator.Pipeline, file1, file2 string
 		compareField("Timeout", job1.Timeout, job2.Timeout)
 		compareField("ConcurrencyGroup", job1.ConcurrencyGroup, job2.ConcurrencyGroup)
 		compareField("RunCondition", job1.RunCondition, job2.RunCondition)
+
+		continueOnError1 := "false"
+		if job1.ContinueOnError != nil && *job1.ContinueOnError {
+			continueOnError1 = "true"
+		}
+		continueOnError2 := "false"
+		if job2.ContinueOnError != nil && *job2.ContinueOnError {
+			continueOnError2 = "true"
+		}
+		compareField("ContinueOnError", continueOnError1, continueOnError2)
 		cancel1 := "false"
 		if job1.CancelInProgress != nil && *job1.CancelInProgress {
 			cancel1 = "true"

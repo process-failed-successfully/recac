@@ -40,6 +40,7 @@ type WorkItem struct {
 	RetryDelay             *time.Duration    `json:"retry_delay,omitempty" yaml:"retry_delay,omitempty"`
 	RetryBackoffMultiplier *float64          `json:"retry_backoff_multiplier,omitempty" yaml:"retry_backoff_multiplier,omitempty"`
 	AutoHeal               bool              `json:"auto_heal,omitempty" yaml:"auto_heal,omitempty"`
+	ContinueOnError        bool              `json:"continue_on_error,omitempty" yaml:"continue_on_error,omitempty"`
 }
 
 // Poller defines the interface for polling for work items.

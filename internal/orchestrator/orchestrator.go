@@ -2974,10 +2974,14 @@ func (o *Orchestrator) checkDependenciesMetLocked(item WorkItem) (shouldRun bool
 				return false, false, false, "", nil
 			}
 
-			if depJob.Status == "Failed" || depJob.Status == "Canceled" {
-				failedCount++
-				if failedDep == "" {
-					failedDep = dep
+			if depJob.Status == "Failed" || depJob.Status == "error" || depJob.Status == "Canceled" {
+				if depJob.WorkItem.ContinueOnError && (depJob.Status == "Failed" || depJob.Status == "error") {
+					completedCount++
+				} else {
+					failedCount++
+					if failedDep == "" {
+						failedDep = dep
+					}
 				}
 			} else if depJob.Status == "Completed" || depJob.Status == "Skipped" {
 				completedCount++
