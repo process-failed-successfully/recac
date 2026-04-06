@@ -53,6 +53,8 @@ const DashboardHTML = `
         select:focus-visible, input:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         #logs-output { background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-y: auto; height: 400px; margin: 0; }
         .modal-large { width: 90%; max-width: 1000px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin-right: 5px; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -429,7 +431,7 @@ const DashboardHTML = `
         async function doJobAction(btn, action, id) {
             const originalText = btn.innerText;
             btn.disabled = true;
-            btn.innerText = 'Wait...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             let method = 'POST';
             let url = '';
 
@@ -516,7 +518,7 @@ const DashboardHTML = `
         async function submitEditDeps() {
             const btn = document.getElementById('btn-submit-deps');
             btn.disabled = true;
-            btn.innerText = 'Saving...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Saving...';
 
             const id = document.getElementById('edit-deps-job-id').value;
             const depsStr = document.getElementById('edit-deps-input').value.trim();
@@ -552,7 +554,7 @@ const DashboardHTML = `
 
             const btn = document.getElementById('btn-dry-run');
             btn.disabled = true;
-            btn.innerText = 'Running...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Running...';
 
             try {
                 const res = await fetch('/jobs/pipeline/dry-run', {
@@ -595,7 +597,7 @@ const DashboardHTML = `
             const yaml = document.getElementById('pipeline-yaml').value.trim();
             const btn = document.getElementById('btn-submit-pipeline');
             btn.disabled = true;
-            btn.innerText = 'Submitting...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Submitting...';
 
             try {
                 const res = await fetch('/jobs/pipeline', {
@@ -626,7 +628,7 @@ const DashboardHTML = `
 
             const btn = document.getElementById('btn-submit-adhoc');
             btn.disabled = true;
-            btn.innerText = 'Submitting...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Submitting...';
 
             const id = document.getElementById('job-id').value.trim();
             const depsStr = document.getElementById('job-deps').value.trim();
@@ -793,7 +795,7 @@ const DashboardHTML = `
         async function postAction(btn, endpoint) {
             const originalText = btn.innerText;
             btn.disabled = true;
-            btn.innerText = 'Wait...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             try {
                 const res = await fetch(endpoint, { method: 'POST' });
                 if(res.ok) {
@@ -813,7 +815,7 @@ const DashboardHTML = `
             const originalText = btn.innerText;
             if(!confirm('Are you sure you want to perform this delete action?')) return;
             btn.disabled = true;
-            btn.innerText = 'Wait...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             try {
                 const res = await fetch(endpoint, { method: 'DELETE' });
                 if(res.ok) {
@@ -834,7 +836,7 @@ const DashboardHTML = `
             const btn = this;
             const originalText = btn.innerText;
             btn.disabled = true;
-            btn.innerText = 'Wait...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             try {
                 await fetchJobs();
             } finally {
@@ -1087,7 +1089,7 @@ const DashboardHTML = `
         async function generateChangelog(btn) {
             const originalText = btn.innerText;
             btn.disabled = true;
-            btn.innerText = 'Generating...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Generating...';
 
             const modal = document.getElementById('reportModal');
             const titleElement = document.getElementById('report-title');
@@ -1117,7 +1119,7 @@ const DashboardHTML = `
         async function generatePostmortem(btn) {
             const originalText = btn.innerText;
             btn.disabled = true;
-            btn.innerText = 'Generating...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Generating...';
 
             const modal = document.getElementById('reportModal');
             const titleElement = document.getElementById('report-title');
@@ -1300,7 +1302,7 @@ const DashboardHTML = `
             resultsDiv.innerHTML = 'Searching...';
 
             btn.disabled = true;
-            btn.innerText = 'Searching...';
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Searching...';
 
             try {
                 let url = '/jobs/search/logs?q=' + encodeURIComponent(query);
