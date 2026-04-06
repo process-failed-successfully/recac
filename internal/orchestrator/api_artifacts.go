@@ -50,7 +50,7 @@ func handleUploadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 
 		// Prevent path traversal
 		cleanFilename := filepath.Base(filename)
-		if cleanFilename == "." || cleanFilename == "/" || cleanFilename != filename {
+		if cleanFilename == "." || cleanFilename == ".." || cleanFilename == "/" || cleanFilename != filename {
 			http.Error(w, "Invalid filename", http.StatusBadRequest)
 			return
 		}
@@ -102,7 +102,7 @@ func handleDownloadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFu
 		}
 
 		cleanFilename := filepath.Base(filename)
-		if cleanFilename == "." || cleanFilename == "/" || cleanFilename != filename {
+		if cleanFilename == "." || cleanFilename == ".." || cleanFilename == "/" || cleanFilename != filename {
 			http.Error(w, "Invalid filename", http.StatusBadRequest)
 			return
 		}
@@ -192,7 +192,7 @@ func handleDeleteArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 		}
 
 		cleanFilename := filepath.Base(filename)
-		if cleanFilename == "." || cleanFilename == "/" || cleanFilename != filename {
+		if cleanFilename == "." || cleanFilename == ".." || cleanFilename == "/" || cleanFilename != filename {
 			http.Error(w, "Invalid filename", http.StatusBadRequest)
 			return
 		}
