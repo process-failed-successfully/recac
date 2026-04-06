@@ -82,6 +82,8 @@ const (
 	viewDeletePendingGroupInput
 	viewDeletePendingTagInput
 	viewDeletePendingMatchInput
+	viewPauseGroupInput
+	viewResumeGroupInput
 	viewSummary
 )
 
@@ -260,6 +262,9 @@ type DashboardModel struct {
 	deletePendingGroupInput textinput.Model
 	deletePendingTagInput   textinput.Model
 	deletePendingMatchInput textinput.Model
+
+	pauseGroupInput  textinput.Model
+	resumeGroupInput textinput.Model
 
 	searchInput        textinput.Model
 	searchContextInput textinput.Model
@@ -707,6 +712,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewDeletePendingMatchInput:
 		m, cmd = m.updateDeletePendingMatchInput(msg)
 		cmds = append(cmds, cmd)
+	case viewPauseGroupInput:
+		m, cmd = m.updatePauseGroupInput(msg)
+		cmds = append(cmds, cmd)
+	case viewResumeGroupInput:
+		m, cmd = m.updateResumeGroupInput(msg)
+		cmds = append(cmds, cmd)
 	case viewSearchLogsInput:
 		m, cmd = m.updateSearchLogsInput(msg)
 		cmds = append(cmds, cmd)
@@ -934,6 +945,16 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			}
 		case "ctrl+p":
 			return m, fetchCriticalPathCmd(m.host)
+		case "ctrl+j":
+			m.viewState = viewPauseGroupInput
+			m.pauseGroupInput.SetValue("")
+			m.pauseGroupInput.Focus()
+			return m, textinput.Blink
+		case "ctrl+k":
+			m.viewState = viewResumeGroupInput
+			m.resumeGroupInput.SetValue("")
+			m.resumeGroupInput.Focus()
+			return m, textinput.Blink
 		case "ctrl+f":
 			return m, fetchAnalyzeFailuresCmd(m.host)
 		case "ctrl+d":
@@ -1458,6 +1479,10 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 						}
 					case "delete pending multiple":
 						cmds = append(cmds, deletePendingCmd(m.host, id))
+					case "pause group multiple":
+						cmds = append(cmds, pauseGroupCmd(m.host, id))
+					case "resume group multiple":
+						cmds = append(cmds, resumeGroupCmd(m.host, id))
 					}
 				}
 				m.selectedJobs = make(map[string]bool)
@@ -2339,6 +2364,36 @@ func (m DashboardModel) View() string {
 			Align(lipgloss.Center, lipgloss.Center).
 			Padding(1, 2)
 		dialogContent := fmt.Sprintf("Delete Pending by Match Regex\n\n%s", m.deletePendingMatchInput.View())
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewPauseGroupInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+		dialogContent := fmt.Sprintf("Pause Concurrency Group\n\n%s", m.pauseGroupInput.View())
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewResumeGroupInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+		dialogContent := fmt.Sprintf("Resume Concurrency Group\n\n%s", m.resumeGroupInput.View())
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
 			Height(m.viewport.Height).
@@ -3540,6 +3595,94 @@ func deletePendingCmd(host, id string) tea.Cmd {
 	}
 }
 
+func (m DashboardModel) updatePauseGroupInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.pauseGroupInput.Blur()
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.pauseGroupInput.Value())
+			m.viewState = viewMain
+			m.pauseGroupInput.Blur()
+			if val == "" {
+				m.err = fmt.Errorf("Concurrency group cannot be empty")
+				return m, nil
+			}
+			return m, pauseGroupCmd(m.host, val)
+		}
+	}
+	m.pauseGroupInput, cmd = m.pauseGroupInput.Update(msg)
+	return m, cmd
+}
+
+func (m DashboardModel) updateResumeGroupInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.resumeGroupInput.Blur()
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.resumeGroupInput.Value())
+			m.viewState = viewMain
+			m.resumeGroupInput.Blur()
+			if val == "" {
+				m.err = fmt.Errorf("Concurrency group cannot be empty")
+				return m, nil
+			}
+			return m, resumeGroupCmd(m.host, val)
+		}
+	}
+	m.resumeGroupInput, cmd = m.resumeGroupInput.Update(msg)
+	return m, cmd
+}
+
+func pauseGroupCmd(host, group string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, host+"/groups/"+group+"/pause", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Concurrency group paused"}
+	}
+}
+
+func resumeGroupCmd(host, group string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, host+"/groups/"+group+"/resume", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Concurrency group resumed"}
+	}
+}
+
 func deletePendingBulkCmd(host, filterType, filterValue string) tea.Cmd {
 	return func() tea.Msg {
 		u, err := url.Parse(host + "/jobs/pending")
@@ -3884,6 +4027,10 @@ func NewDashboardModel(host string) DashboardModel {
 	si.Prompt = "Query: "
 	si.Width = 40
 
+	pgi := textinput.New()
+	pgi.Placeholder = "Enter concurrency group to pause..."
+	rgi := textinput.New()
+	rgi.Placeholder = "Enter concurrency group to resume..."
 	sci := textinput.New()
 	sci.Placeholder = "e.g., 5"
 	sci.Prompt = "Context Lines: "
@@ -3914,6 +4061,8 @@ func NewDashboardModel(host string) DashboardModel {
 		deletePendingGroupInput: dpgi,
 		deletePendingTagInput:   dpti,
 		deletePendingMatchInput: dpmi,
+		pauseGroupInput:         pgi,
+		resumeGroupInput:        rgi,
 		searchInput:             si,
 		searchContextInput:      sci,
 		logFilterInput:          lfi,
