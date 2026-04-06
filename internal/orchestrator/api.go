@@ -2580,6 +2580,42 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"force_completed": %d}`, count)
 	})
 
+	mux.HandleFunc("POST /jobs/{id}/fail", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := orch.FailJob(r.Context(), id, logger); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Job %s manually failed", id)
+	})
+
+	mux.HandleFunc("POST /jobs/fail", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.FailJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.FailJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk fail", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"failed": %d}`, count)
+	})
+
 	mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
 		match := r.URL.Query().Get("match")
 		tag := r.URL.Query().Get("tag")
