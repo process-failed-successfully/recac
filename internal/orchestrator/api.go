@@ -3822,6 +3822,28 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		fmt.Fprintf(w, `{"interval": "%s"}`, parsedInterval.String())
 	})
 
+	mux.HandleFunc("POST /groups/{group}/pause", func(w http.ResponseWriter, r *http.Request) {
+		group := r.PathValue("group")
+		if group == "" {
+			http.Error(w, "Group is required", http.StatusBadRequest)
+			return
+		}
+		orch.PauseGroup(group, logger)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Concurrency group %s paused", group)
+	})
+
+	mux.HandleFunc("POST /groups/{group}/resume", func(w http.ResponseWriter, r *http.Request) {
+		group := r.PathValue("group")
+		if group == "" {
+			http.Error(w, "Group is required", http.StatusBadRequest)
+			return
+		}
+		orch.ResumeGroup(group, logger)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Concurrency group %s resumed", group)
+	})
+
 	mux.HandleFunc("POST /scale", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			MaxConcurrentJobs int `json:"max_concurrent_jobs"`
