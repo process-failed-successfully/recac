@@ -40,3 +40,7 @@
 ## 2025-05-20 - [Zero-allocation String Equality]
 **Learning:** Avoid using `strings.ToLower` for case-insensitive string comparisons in hot paths (like `evaluatePendingJobs`), as it allocates a new string.
 **Action:** Always use `strings.EqualFold(a, b)` to perform case-insensitive string comparisons without allocating new memory, especially inside loops or frequently called functions.
+
+## 2025-05-20 - [Zero-allocation Substring Matching]
+**Learning:** Avoid using `strings.Contains(strings.ToLower(a), b)` in hot loops (like filtering TUI logs or iterating over job lists), as `strings.ToLower` allocates a new string for every check on every loop iteration, creating massive GC pressure.
+**Action:** Always implement a custom zero-allocation byte-level check (like `containsFold`) to perform case-insensitive substring matches, which significantly boosts performance by eliminating intermediate string allocations.
