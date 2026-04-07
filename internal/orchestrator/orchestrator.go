@@ -1362,7 +1362,10 @@ func (o *Orchestrator) SkipJobsByMatch(ctx context.Context, match string, logger
 func (o *Orchestrator) GetTotalCost() float64 {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
+	return o.getTotalCostLocked()
+}
 
+func (o *Orchestrator) getTotalCostLocked() float64 {
 	total := 0.0
 	for _, job := range o.completedJobs {
 		if cost, ok := job.Metrics["cost"]; ok {
@@ -1400,7 +1403,7 @@ func (o *Orchestrator) GetStatus() Status {
 		CircuitBroken:     o.CircuitBroken,
 		MaxConcurrentJobs: o.MaxConcurrentJobs,
 		MaxBudget:         o.MaxBudget,
-		TotalCost:         o.GetTotalCost(),
+		TotalCost:         o.getTotalCostLocked(),
 	}
 }
 
