@@ -18,7 +18,8 @@ func validateSessionName(name string) error {
 	if name == "" {
 		return fmt.Errorf("session name cannot be empty")
 	}
-	if filepath.Base(name) != name {
+	cleanName := filepath.Base(name)
+	if cleanName == "." || cleanName == ".." || cleanName == "/" || cleanName != name {
 		return fmt.Errorf("invalid session name '%s': path traversal characters detected", name)
 	}
 	return nil
