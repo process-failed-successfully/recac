@@ -420,6 +420,8 @@ func main() {
 	pflag.String("notion-database-id", "", "Notion Database ID (for 'notion' poller)")
 	pflag.String("notion-label", "", "Notion Label/Tag to poll for (defaults to jira-label if not set)")
 
+	pflag.StringSlice("allowed-pollers", []string{}, "Comma-separated list of allowed poller types")
+
 	pflag.Bool("webhook-enabled", false, "Enable generic webhook notifications")
 	pflag.String("webhook-url", "", "URL for generic webhook notifications")
 	pflag.String("webhook-secret", "", "Secret for generic webhook HMAC signature")
@@ -784,6 +786,7 @@ func main() {
 	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
 	viper.BindPFlag("orchestrator.generic_webhook_secret", pflag.Lookup("generic-webhook-secret"))
+	viper.BindPFlag("orchestrator.allowed_pollers", pflag.Lookup("allowed-pollers"))
 
 	viper.BindPFlag("notifications.webhook.enabled", pflag.Lookup("webhook-enabled"))
 	viper.BindPFlag("notifications.webhook.url", pflag.Lookup("webhook-url"))
@@ -823,6 +826,7 @@ func main() {
 	viper.BindEnv("orchestrator.notion_database_id", "RECAC_NOTION_DATABASE_ID", "NOTION_DATABASE_ID")
 	viper.BindEnv("orchestrator.notion_label", "RECAC_NOTION_LABEL", "NOTION_LABEL")
 	viper.BindEnv("orchestrator.generic_webhook_secret", "RECAC_GENERIC_WEBHOOK_SECRET")
+	viper.BindEnv("orchestrator.allowed_pollers", "RECAC_ALLOWED_POLLERS")
 	viper.BindEnv("notifications.webhook.enabled", "RECAC_WEBHOOK_ENABLED")
 	viper.BindEnv("notifications.webhook.url", "RECAC_WEBHOOK_URL")
 	viper.BindEnv("notifications.webhook.secret", "RECAC_WEBHOOK_SECRET")
@@ -2535,6 +2539,24 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// 1. Poller
 	var poller orchestrator.Poller
 	pollerType := viper.GetString("orchestrator.poller")
+
+	allowedPollers := viper.GetStringSlice("orchestrator.allowed_pollers")
+	if len(allowedPollers) > 0 {
+		isAllowed := false
+		requestedPoller := pollerType
+		if requestedPoller == "" {
+			requestedPoller = "jira"
+		}
+		for _, ap := range allowedPollers {
+			if ap == requestedPoller {
+				isAllowed = true
+				break
+			}
+		}
+		if !isAllowed {
+			return fmt.Errorf("poller '%s' is not in the allowed pollers list: %v", requestedPoller, allowedPollers)
+		}
+	}
 
 	switch pollerType {
 	case "cron":
