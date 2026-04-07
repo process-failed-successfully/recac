@@ -198,6 +198,7 @@ func main() {
 	pflag.Bool("diagnose", false, "Diagnose pending jobs for unresolvable dependencies and deadlocks")
 	pflag.Bool("simulate", false, "Simulate orchestrator execution to estimate time to completion")
 	pflag.String("simulate-pipeline", "", "Simulate execution of a pipeline YAML file to estimate time to completion")
+	pflag.String("simulate-pipeline-out", "", "Output file for the pipeline simulation JSON report (use '-' or leave empty for stdout)")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.Bool("drain", false, "Set the orchestrator to drain mode")
@@ -592,6 +593,7 @@ func main() {
 	viper.BindPFlag("orchestrator.diagnose", pflag.Lookup("diagnose"))
 	viper.BindPFlag("orchestrator.simulate", pflag.Lookup("simulate"))
 	viper.BindPFlag("orchestrator.simulate_pipeline", pflag.Lookup("simulate-pipeline"))
+	viper.BindPFlag("orchestrator.simulate_pipeline_out", pflag.Lookup("simulate-pipeline-out"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.drain", pflag.Lookup("drain"))
@@ -1636,8 +1638,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if simulatePipelineFile := viper.GetString("orchestrator.simulate_pipeline"); simulatePipelineFile != "" {
 		host := viper.GetString("orchestrator.host")
 		target := viper.GetString("orchestrator.submit_pipeline_target")
+		outFile := viper.GetString("orchestrator.simulate_pipeline_out")
 
-		simulatePipelineFileCmd(host, simulatePipelineFile, target)
+		simulatePipelineFileCmd(host, simulatePipelineFile, target, outFile)
 		return nil
 	}
 

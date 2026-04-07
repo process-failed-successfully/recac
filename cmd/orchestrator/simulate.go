@@ -14,7 +14,7 @@ import (
 	"recac/internal/orchestrator"
 )
 
-func simulatePipelineFileCmd(host string, pipelineFile string, targetJob string) {
+func simulatePipelineFileCmd(host string, pipelineFile string, targetJob string, outFile string) {
 	content, err := os.ReadFile(pipelineFile)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to read pipeline file: %v\n", err)
@@ -50,8 +50,29 @@ func simulatePipelineFileCmd(host string, pipelineFile string, targetJob string)
 		return
 	}
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to read response body: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if outFile != "" {
+		if outFile == "-" {
+			fmt.Fprintf(stdout, "%s\n", string(bodyBytes))
+		} else {
+			if err := os.WriteFile(outFile, bodyBytes, 0644); err != nil {
+				fmt.Fprintf(stdout, "Failed to write simulation report to file: %v\n", err)
+				exitFunc(1)
+				return
+			}
+			fmt.Fprintf(stdout, "Simulation report successfully written to %s\n", outFile)
+		}
+		return
+	}
+
 	var report orchestrator.SimulationReport
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+	if err := json.Unmarshal(bodyBytes, &report); err != nil {
 		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
 		exitFunc(1)
 		return
