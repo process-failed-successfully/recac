@@ -128,7 +128,7 @@ jobs:
 	}
 	defer func() { exitFunc = os.Exit }()
 
-	simulatePipelineFileCmd(server.URL, pipelineFile, "build")
+	simulatePipelineFileCmd(server.URL, pipelineFile, "build", "")
 
 	assert.False(t, exitCalled)
 	output := buf.String()
@@ -137,6 +137,56 @@ jobs:
 	assert.Contains(t, output, "2m30s")
 	assert.Contains(t, output, "Jobs Processed:")
 	assert.Contains(t, output, "1 / 1")
+}
+
+func TestSimulatePipelineFileCmd_WithOutFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	pipelineFile := filepath.Join(tmpDir, "pipeline.yaml")
+	yamlData := []byte(`
+name: CLI Test Pipeline
+jobs:
+  build:
+    summary: Build app
+`)
+	err := os.WriteFile(pipelineFile, yamlData, 0644)
+	require.NoError(t, err)
+
+	outFile := filepath.Join(tmpDir, "report.json")
+
+	// Mock server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		report := orchestrator.SimulationReport{
+			EstimatedTotalTimeMs: 150000,
+			JobsProcessed:        1,
+			TotalJobs:            1,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(report)
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	exitCalled := false
+	exitFunc = func(code int) {
+		exitCalled = true
+	}
+	defer func() { exitFunc = os.Exit }()
+
+	simulatePipelineFileCmd(server.URL, pipelineFile, "build", outFile)
+
+	assert.False(t, exitCalled)
+	output := buf.String()
+	assert.Contains(t, output, "Simulation report successfully written to")
+
+	// Verify file content
+	content, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), `"estimated_total_time_ms":150000`)
 }
 
 func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
@@ -153,7 +203,7 @@ func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		simulatePipelineFileCmd("http://localhost:8080", "nonexistent.yaml", "")
+		simulatePipelineFileCmd("http://localhost:8080", "nonexistent.yaml", "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to read pipeline file")
 	})
@@ -167,7 +217,7 @@ func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		simulatePipelineFileCmd("http://\x00invalid", pipelineFile, "")
+		simulatePipelineFileCmd("http://\x00invalid", pipelineFile, "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to create request")
 	})
@@ -177,7 +227,7 @@ func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		simulatePipelineFileCmd("http://localhost:12345", pipelineFile, "")
+		simulatePipelineFileCmd("http://localhost:12345", pipelineFile, "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
 	})
@@ -193,7 +243,7 @@ func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		simulatePipelineFileCmd(server.URL, pipelineFile, "")
+		simulatePipelineFileCmd(server.URL, pipelineFile, "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to fetch pipeline simulation report: Server Error")
 	})
@@ -209,7 +259,7 @@ func TestSimulatePipelineFileCmd_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		simulatePipelineFileCmd(server.URL, pipelineFile, "")
+		simulatePipelineFileCmd(server.URL, pipelineFile, "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})
