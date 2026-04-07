@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -3011,6 +3012,10 @@ func sanitizeEnvVarName(id string) string {
 // Supported formats:
 // - "VAR == 'value'"
 // - "VAR != 'value'"
+// - "VAR > 'value'"
+// - "VAR >= 'value'"
+// - "VAR < 'value'"
+// - "VAR <= 'value'"
 // - "VAR" (true if VAR is "true" or "1")
 // - "!VAR" (true if VAR is NOT "true" or "1")
 // Environment variables are interpolated prior to this call, so we just evaluate the resulting string.
@@ -3043,6 +3048,32 @@ func EvaluateIfCondition(cond string, env map[string]string) (bool, error) {
 		lhs := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
 		rhs := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
 		return lhs != rhs, nil
+	}
+
+	// Numeric comparisons
+	for _, op := range []string{">=", "<=", ">", "<"} {
+		if parts := strings.SplitN(cond, op, 2); len(parts) == 2 {
+			lhsStr := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
+			rhsStr := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
+
+			lhs, err1 := strconv.ParseFloat(lhsStr, 64)
+			rhs, err2 := strconv.ParseFloat(rhsStr, 64)
+
+			if err1 != nil || err2 != nil {
+				return false, fmt.Errorf("invalid numeric comparison: %s %s %s", lhsStr, op, rhsStr)
+			}
+
+			switch op {
+			case ">=":
+				return lhs >= rhs, nil
+			case "<=":
+				return lhs <= rhs, nil
+			case ">":
+				return lhs > rhs, nil
+			case "<":
+				return lhs < rhs, nil
+			}
+		}
 	}
 
 	// Boolean evaluation
@@ -3606,6 +3637,33 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		// Move to history
 		if job, ok := o.activeJobs[item.ID]; ok {
 			job.ThreadState = threadState
+
+			// Evaluate assertions if the job didn't already fail
+			if spawnErr == nil && len(job.WorkItem.Assertions) > 0 {
+				env := make(map[string]string)
+				for k, v := range job.WorkItem.EnvVars {
+					env[k] = v
+				}
+				for k, v := range job.Outputs {
+					env["outputs."+k] = v
+				}
+				for k, v := range job.Metrics {
+					env["metrics."+k] = fmt.Sprintf("%g", v)
+				}
+
+				for _, assertion := range job.WorkItem.Assertions {
+					isTrue, err := EvaluateIfCondition(assertion, env)
+					if err != nil {
+						spawnErr = fmt.Errorf("assertion error: %s: %w", assertion, err)
+						break
+					}
+					if !isTrue {
+						spawnErr = fmt.Errorf("assertion failed: %s", assertion)
+						break
+					}
+				}
+			}
+
 			if spawnErr != nil {
 				maxRetries := o.MaxRetries
 				if job.WorkItem.MaxRetries != nil {

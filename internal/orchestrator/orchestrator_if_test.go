@@ -53,6 +53,19 @@ func TestEvaluateIfCondition(t *testing.T) {
 		{"String inequality false", "'hello' != 'hello'", false},
 		{"Variable inequality true", "'${STRING_VAR}' != 'world'", true},
 		{"Variable inequality false", "'${STRING_VAR}' != 'hello'", false},
+
+		// Numeric comparisons
+		{"Numeric greater than true", "10 > 5", true},
+		{"Numeric greater than false", "5 > 10", false},
+		{"Numeric greater than equal true", "10 >= 10", true},
+		{"Numeric greater than equal false", "5 >= 10", false},
+		{"Numeric less than true", "5 < 10", true},
+		{"Numeric less than false", "10 < 5", false},
+		{"Numeric less than equal true", "10 <= 10", true},
+		{"Numeric less than equal false", "10 <= 5", false},
+		{"Numeric with float true", "10.5 > 10.4", true},
+		{"Numeric with variable true", "${NUMBER_VAR} < 5", true},
+		{"Numeric with variable false", "${NUMBER_VAR} >= 5", false},
 	}
 
 	for _, tt := range tests {
