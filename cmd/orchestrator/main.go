@@ -249,6 +249,8 @@ func main() {
 	pflag.String("set-output-val", "", "Output value (requires --set-output-job)")
 	pflag.String("get-output-job", "", "Get specific output value for a job by ID")
 	pflag.String("get-output-key", "", "Output key to retrieve (requires --get-output-job)")
+	pflag.String("get-metrics-job", "", "Get specific metrics value for a job by ID")
+	pflag.String("get-metrics-key", "", "Metrics key to retrieve (requires --get-metrics-job)")
 	pflag.String("add-metrics-job", "", "Add metrics to a specific job")
 	pflag.String("metrics-key", "", "The metrics key to add (requires --add-metrics-job)")
 	pflag.Float64("metrics-val", 0, "The metrics value to add (requires --add-metrics-job)")
@@ -644,6 +646,8 @@ func main() {
 	viper.BindPFlag("orchestrator.set_output_val", pflag.Lookup("set-output-val"))
 	viper.BindPFlag("orchestrator.get_output_job", pflag.Lookup("get-output-job"))
 	viper.BindPFlag("orchestrator.get_output_key", pflag.Lookup("get-output-key"))
+	viper.BindPFlag("orchestrator.get_metrics_job", pflag.Lookup("get-metrics-job"))
+	viper.BindPFlag("orchestrator.get_metrics_key", pflag.Lookup("get-metrics-key"))
 	viper.BindPFlag("orchestrator.add_metrics_job", pflag.Lookup("add-metrics-job"))
 	viper.BindPFlag("orchestrator.metrics_key", pflag.Lookup("metrics-key"))
 	viper.BindPFlag("orchestrator.metrics_val", pflag.Lookup("metrics-val"))
@@ -1082,6 +1086,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return nil
 		}
 		getJobOutput(host, getOutputJob, key)
+		return nil
+	}
+
+	if getMetricsJob := viper.GetString("orchestrator.get_metrics_job"); getMetricsJob != "" {
+		host := viper.GetString("orchestrator.host")
+		key := viper.GetString("orchestrator.get_metrics_key")
+		if key == "" {
+			fmt.Fprintf(stdout, "Error: --get-metrics-key is required when using --get-metrics-job\n")
+			exitFunc(1)
+			return nil
+		}
+		getJobMetrics(host, getMetricsJob, key)
 		return nil
 	}
 
