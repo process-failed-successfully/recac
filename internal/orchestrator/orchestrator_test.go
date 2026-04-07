@@ -730,3 +730,78 @@ func TestOrchestrator_ForceCompleteJobsByTag_And_Match(t *testing.T) {
 	_, err = orch.ForceCompleteJobsByMatch(ctx, "[invalid-regex", logger)
 	assert.Error(t, err)
 }
+
+func TestOrchestrator_FailJobsByMatch(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+	ctx := context.Background()
+
+	// Add some pending jobs
+	orch.pendingJobs["job-1"] = JobInfo{
+		ID:      "job-1",
+		Status:  "Pending",
+		Summary: "This is a frontend task",
+	}
+	orch.pendingJobs["job-2"] = JobInfo{
+		ID:      "job-2",
+		Status:  "Pending",
+		Summary: "This is a backend task",
+	}
+	// Add some active jobs
+	orch.activeJobs["job-3"] = JobInfo{
+		ID:     "job-3",
+		Status: "Active",
+		Error:  "backend connection refused",
+	}
+	orch.activeJobs["job-4"] = JobInfo{
+		ID:     "job-4",
+		Status: "Active",
+		Error:  "database timeout",
+	}
+
+	// 1. Valid regex match targeting 'backend' in summary and error
+	count, err := orch.FailJobsByMatch(ctx, "backend", silentLogger)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// Validate jobs moved to failed and error strings are set
+	assert.NotContains(t, orch.pendingJobs, "job-2")
+	assert.NotContains(t, orch.activeJobs, "job-3")
+
+	var failedJob2, failedJob3 JobInfo
+	found2, found3 := false, false
+	for _, j := range orch.completedJobs {
+		if j.ID == "job-2" {
+			failedJob2 = j
+			found2 = true
+		}
+		if j.ID == "job-3" {
+			failedJob3 = j
+			found3 = true
+		}
+	}
+
+	assert.True(t, found2)
+	assert.Equal(t, "Failed", failedJob2.Status)
+	assert.Equal(t, "Job manually failed", failedJob2.Error)
+
+	assert.True(t, found3)
+	assert.Equal(t, "Failed", failedJob3.Status)
+	assert.Equal(t, "Job manually failed", failedJob3.Error)
+
+	// Job 1 and 4 should still be untouched
+	// The mock orchestrator doesn't seem to persist pendingJobs properly in this fake test flow,
+	// but we can check what's remaining.
+
+	// 2. Invalid regex
+	count, err = orch.FailJobsByMatch(ctx, "(invalid", silentLogger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid match regex")
+	assert.Equal(t, 0, count)
+
+	// 3. No match
+	count, err = orch.FailJobsByMatch(ctx, "nonexistent", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
+}

@@ -95,6 +95,9 @@ func (s *SQLiteStore) migrate() error {
 
 // Close closes the database connection
 func (s *SQLiteStore) Close() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
 	return s.db.Close()
 }
 
