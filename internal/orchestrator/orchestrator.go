@@ -844,6 +844,139 @@ func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *
 	return count, lastErr
 }
 
+// FailJob forcefully marks an active or pending job as Failed.
+func (o *Orchestrator) FailJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.Lock()
+
+	var jobToFail JobInfo
+	var found bool
+	var isActive bool
+
+	// 1. Check pending jobs
+	if job, exists := o.pendingJobs[jobID]; exists {
+		jobToFail = job
+		found = true
+		delete(o.pendingJobs, jobID)
+		if t, ok := o.delayTimers[jobID]; ok {
+			t.Stop()
+			delete(o.delayTimers, jobID)
+		}
+	}
+
+	// 2. Check active jobs
+	if !found {
+		if job, exists := o.activeJobs[jobID]; exists {
+			jobToFail = job
+			found = true
+			isActive = true
+			delete(o.activeJobs, jobID)
+			o.activeSpawns--
+		}
+	}
+
+	if !found {
+		o.mu.Unlock()
+		return fmt.Errorf("job %s not found or not in a pending/active state", jobID)
+	}
+
+	jobToFail.Status = "Failed"
+	jobToFail.EndTime = time.Now()
+	jobToFail.Error = "Job manually failed"
+	o.addToHistory(jobToFail, logger)
+	o.mu.Unlock()
+
+	// 3. Cancel active spawner if it was active
+	if isActive {
+		// Attempt to cancel underlying resource, ignore error as we force fail
+		_ = o.Spawner.Cancel(ctx, jobID)
+	}
+
+	o.BroadcastEvent("job_failed", jobToFail)
+
+	if logger != nil {
+		logger.Info("Job manually failed", "jobID", jobID)
+	}
+
+	// 4. Trigger downstream jobs evaluation (which will fail/skip depending on continue_on_error)
+	o.evaluatePendingJobs(ctx, logger)
+
+	return nil
+}
+
+// FailJobsByTag forcefully fails jobs matching the given tag.
+func (o *Orchestrator) FailJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.RLock()
+	var jobIDs []string
+
+	// We gather IDs to avoid locking while calling FailJob
+	for id, job := range o.pendingJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.EqualFold(t, tag) {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	for id, job := range o.activeJobs {
+		for _, t := range job.WorkItem.Tags {
+			if strings.EqualFold(t, tag) {
+				jobIDs = append(jobIDs, id)
+				break
+			}
+		}
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.FailJob(ctx, id, logger); err == nil {
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Manually failed jobs by tag", "tag", tag, "count", count)
+	}
+
+	return count, nil
+}
+
+// FailJobsByMatch forcefully fails jobs matching the given regex.
+func (o *Orchestrator) FailJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	matcher, err := regexp.Compile("(?i)" + match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.RLock()
+	var jobIDs []string
+
+	for id, job := range o.pendingJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.activeJobs {
+		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.FailJob(ctx, id, logger); err == nil {
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Manually failed jobs by match", "match", match, "count", count)
+	}
+
+	return count, nil
+}
+
 // ForceCompleteJob forcefully marks an active, pending, or failed job as Completed, bypassing execution.
 func (o *Orchestrator) ForceCompleteJob(ctx context.Context, jobID string, logger *slog.Logger) error {
 	o.mu.Lock()
