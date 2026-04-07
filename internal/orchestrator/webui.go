@@ -84,7 +84,7 @@ const DashboardHTML = `
 
         <div id="submitPipelineModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
-                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitPipelineModal').style.display='none'">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitPipelineModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Submit Pipeline (YAML)</h2>
                 <form onsubmit="submitPipeline(); return false;">
                     <div class="form-group">
@@ -105,7 +105,7 @@ const DashboardHTML = `
 
         <div id="timelineModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeTimeline()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeTimeline()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Execution Timeline</h2>
                 <div id="timelineDiv" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     Loading timeline...
@@ -115,7 +115,7 @@ const DashboardHTML = `
 
         <div id="submitModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
-                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitModal').style.display='none'">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('submitModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Submit Ad-hoc Job</h2>
                 <form onsubmit="submitAdHocJob(); return false;">
                     <div class="form-group">
@@ -171,7 +171,7 @@ const DashboardHTML = `
 
         <div id="editDepsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
-                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('editDepsModal').style.display='none'">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('editDepsModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <form onsubmit="submitEditDeps(); return false;">
                     <input type="hidden" id="edit-deps-job-id">
@@ -183,7 +183,7 @@ const DashboardHTML = `
 
         <div id="envModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('envModal').style.display='none'">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="document.getElementById('envModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Environment Variables for <span id="env-job-id-display"></span></h2>
                 <form id="env-form" onsubmit="submitEnvVars(); return false;">
                     <input type="hidden" id="env-job-id">
@@ -198,7 +198,7 @@ const DashboardHTML = `
 
         <div id="logsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeLogs()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="logs-title">Job Logs</h2>
                 <pre id="logs-output" aria-live="polite"></pre>
             </div>
@@ -206,7 +206,7 @@ const DashboardHTML = `
 
         <div id="explainModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeExplainModal()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeExplainModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="explain-title">Job Explanation</h2>
                 <div id="explain-content" aria-live="polite" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
                     Loading explanation...
@@ -216,7 +216,7 @@ const DashboardHTML = `
 
         <div id="reportModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeReportModal()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeReportModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="report-title" style="margin-bottom: 0;">Report</h2>
                 <div id="report-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-family: monospace;">
                     Loading report...
@@ -226,7 +226,7 @@ const DashboardHTML = `
 
         <div id="analyzeFailuresModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeFailuresModal()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeFailuresModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Failures</h2>
                 <div id="analyze-failures-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
@@ -236,7 +236,7 @@ const DashboardHTML = `
 
         <div id="analyzeDurationsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeDurationsModal()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeDurationsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Durations</h2>
                 <div id="analyze-durations-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
@@ -246,7 +246,7 @@ const DashboardHTML = `
 
         <div id="reliabilityModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeReliabilityModal()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeReliabilityModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Pipeline Reliability Report</h2>
                 <div id="reliability-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
@@ -256,7 +256,7 @@ const DashboardHTML = `
 
         <div id="searchLogsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeSearchLogsModal()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeSearchLogsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2>Search Logs</h2>
                 <form onsubmit="performSearchLogs(); return false;">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -289,7 +289,7 @@ const DashboardHTML = `
 
         <div id="graphModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
-                <button type="button" class="close" aria-label="Close modal" onclick="closeGraph()">&times;</button>
+                <button type="button" class="close" aria-label="Close modal" onclick="closeGraph()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Dependency Graph</h2>
                 <div id="graphDiv" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     Loading graph...
