@@ -2007,6 +2007,40 @@ func setJobProgress(host, jobID string, progress *int, msg *string) {
 	fmt.Fprintf(stdout, "Successfully updated progress for job %s\n", jobID)
 }
 
+func getJobMetrics(host, jobID, key string) {
+	urlStr := fmt.Sprintf("%s/jobs/%s", host, url.PathEscape(jobID))
+	resp, err := http.Get(urlStr)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to get job info: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse job info: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	val, ok := job.Metrics[key]
+	if !ok {
+		fmt.Fprintf(stdout, "Metrics key '%s' not found for job %s\n", key, jobID)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "%g\n", val)
+}
+
 func addJobMetrics(host, jobID, key string, val float64) {
 	reqBody := struct {
 		Metrics map[string]float64 `json:"metrics"`
