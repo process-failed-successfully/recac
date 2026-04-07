@@ -81,7 +81,7 @@ EOF
 	// Initial vars passed from CLI
 	initialVars := map[string]string{
 		"CLI_VAR": "cli_value",
-		"ENV": "should_be_overridden_by_interactive", // Testing priority
+		"ENV":     "should_be_overridden_by_interactive", // Testing priority
 	}
 
 	// Override exitFunc so we don't exit the test runner

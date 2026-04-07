@@ -68,3 +68,23 @@ func TestUpdatePollIntervalCmd_Error(t *testing.T) {
 
 	assert.Contains(t, buf.String(), "Failed to update poll interval")
 }
+
+func TestUpdatePollIntervalCmd_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	defer func() { exitFunc = oldExit }()
+
+	exitFunc = func(code int) {
+		panic(fmt.Sprintf("exit %d", code))
+	}
+
+	assert.PanicsWithValue(t, "exit 1", func() {
+		updatePollInterval("http://invalid-host:12345", "2m")
+	})
+
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+}

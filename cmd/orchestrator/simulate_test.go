@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//
 func TestSimulateExecution_TableDriven(t *testing.T) {
 	origExit := exitFunc
 	defer func() { exitFunc = origExit }()
@@ -31,32 +30,32 @@ func TestSimulateExecution_TableDriven(t *testing.T) {
 		expectContains []string
 	}{
 		{
-			name: "Success without deadlocks",
-			responseJSON: `{"total_jobs": 5, "jobs_processed": 5, "estimated_total_time_ms": 10000, "deadlocks": 0}`,
+			name:           "Success without deadlocks",
+			responseJSON:   `{"total_jobs": 5, "jobs_processed": 5, "estimated_total_time_ms": 10000, "deadlocks": 0}`,
 			responseStatus: http.StatusOK,
 			expectContains: []string{"Simulation Report", "Jobs Processed:", "Estimated Total Time"},
 		},
 		{
-			name: "Success with deadlocks",
-			responseJSON: `{"total_jobs": 5, "jobs_processed": 3, "estimated_total_time_ms": 5000, "deadlocks": 2}`,
+			name:           "Success with deadlocks",
+			responseJSON:   `{"total_jobs": 5, "jobs_processed": 3, "estimated_total_time_ms": 5000, "deadlocks": 2}`,
 			responseStatus: http.StatusOK,
 			expectContains: []string{"WARNING:", "2 jobs could not be processed"},
 		},
 		{
-			name: "No jobs to simulate",
-			responseJSON: `{"total_jobs": 0, "jobs_processed": 0, "estimated_total_time_ms": 0, "deadlocks": 0}`,
+			name:           "No jobs to simulate",
+			responseJSON:   `{"total_jobs": 0, "jobs_processed": 0, "estimated_total_time_ms": 0, "deadlocks": 0}`,
 			responseStatus: http.StatusOK,
 			expectContains: []string{"No jobs to simulate"},
 		},
 		{
-			name: "Server error",
-			responseJSON: `Internal Server Error`,
+			name:           "Server error",
+			responseJSON:   `Internal Server Error`,
 			responseStatus: http.StatusInternalServerError,
 			expectContains: []string{"Failed to fetch simulation report"},
 		},
 		{
-			name: "Bad JSON",
-			responseJSON: `{bad json}`,
+			name:           "Bad JSON",
+			responseJSON:   `{bad json}`,
 			responseStatus: http.StatusOK,
 			expectContains: []string{"Failed to decode response:"},
 		},
@@ -76,10 +75,6 @@ func TestSimulateExecution_TableDriven(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-
-
-
-
 
 			simulateExecution(server.URL)
 

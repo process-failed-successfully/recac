@@ -221,13 +221,13 @@ func TestMainUnholdJob_ErrorResponse(t *testing.T) {
 
 func TestApproveBulkJobs(t *testing.T) {
 	tests := []struct {
-		name         string
-		match        string
-		tag          string
-		serverURL    string
-		handler      http.HandlerFunc
-		expectedOut  string
-		expectExit   bool
+		name        string
+		match       string
+		tag         string
+		serverURL   string
+		handler     http.HandlerFunc
+		expectedOut string
+		expectExit  bool
 	}{
 		{
 			name:  "Success",

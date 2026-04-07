@@ -713,7 +713,7 @@ func submitMatrixInlineJob(host, repo, task, id string, priority int, delay, tim
 		Tags:                   tags,
 		Delay:                  delay,
 		Timeout:                timeout,
-		DependencyTimeout: dependencyTimeout,
+		DependencyTimeout:      dependencyTimeout,
 		ConcurrencyGroup:       concurrencyGroup,
 		CancelInProgress:       cancelInProgress,
 		AgentProvider:          agentProvider,
@@ -809,7 +809,7 @@ func submitAdHocJob(host, repo, task, id string, priority int, delay, timeout ti
 		Tags:                   tags,
 		Delay:                  delay,
 		Timeout:                timeout,
-		DependencyTimeout: dependencyTimeout,
+		DependencyTimeout:      dependencyTimeout,
 		ConcurrencyGroup:       concurrencyGroup,
 		CancelInProgress:       cancelInProgress,
 		AgentProvider:          agentProvider,
@@ -1563,7 +1563,6 @@ func purgeJobsByMatch(host, match string) {
 	fmt.Fprintf(stdout, "Successfully purged %d jobs matching '%s'.\n", int(cleared), match)
 }
 
-
 func purgeJobsOlderThan(host, olderThan string) {
 	urlStr := fmt.Sprintf("%s/history?older_than=%s", host, url.QueryEscape(olderThan))
 	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
@@ -1754,8 +1753,6 @@ func updateEnvVars(host, jobID string, envVars map[string]string) {
 	fmt.Fprintf(stdout, "Job %s environment variables updated to: %s\n", jobID, strings.Join(pairs, ", "))
 }
 
-
-
 func updateAgent(host, jobID, providerStr, modelStr string) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/agent", host, jobID)
 
@@ -1863,8 +1860,6 @@ func updateBulkTimeout(host, match, tag, timeoutStr string) {
 
 	fmt.Fprintf(stdout, "Successfully updated timeouts for %d pending jobs.\n", result.Updated)
 }
-
-
 
 func updateTimeout(host, jobID, timeoutStr string) {
 	urlStr := fmt.Sprintf("%s/jobs/%s/timeout", host, jobID)
@@ -2577,7 +2572,6 @@ func importJobs(host, path string) {
 	body, _ := io.ReadAll(resp.Body)
 	fmt.Fprintf(stdout, "Successfully imported jobs:\n%s\n", strings.TrimSpace(string(body)))
 }
-
 
 func updateBulkAgent(host, match, tag, providerStr, modelStr string) {
 	reqBody := struct {

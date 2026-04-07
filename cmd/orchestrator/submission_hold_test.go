@@ -45,8 +45,8 @@ func TestHoldJobs(t *testing.T) {
 			expectedExit:   1,
 		},
 		{
-			name: "invalid url",
-			handler: nil,
+			name:           "invalid url",
+			handler:        nil,
 			expectedOutput: "Failed to parse URL",
 			expectedExit:   1,
 		},

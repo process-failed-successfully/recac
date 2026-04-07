@@ -708,14 +708,14 @@ func TestSubmissionUpdateDependencies_ErrorResponse(t *testing.T) {
 
 func TestUpdateBulkPriority(t *testing.T) {
 	tests := []struct {
-		name         string
-		match        string
-		tag          string
-		priority     int
-		serverURL    string
-		handler      http.HandlerFunc
-		expectedOut  string
-		expectExit   bool
+		name        string
+		match       string
+		tag         string
+		priority    int
+		serverURL   string
+		handler     http.HandlerFunc
+		expectedOut string
+		expectExit  bool
 	}{
 		{
 			name:     "Success",

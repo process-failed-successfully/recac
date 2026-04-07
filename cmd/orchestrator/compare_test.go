@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"recac/internal/orchestrator"
 	"github.com/stretchr/testify/assert"
+	"recac/internal/orchestrator"
 )
 
 func TestCompareJobs(t *testing.T) {
@@ -28,9 +28,9 @@ func TestCompareJobs(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/job1", func(w http.ResponseWriter, r *http.Request) {
 		job := orchestrator.JobInfo{
-			ID:      "job1",
-			Summary: "Fix bug",
-			Status:  "Completed",
+			ID:        "job1",
+			Summary:   "Fix bug",
+			Status:    "Completed",
 			StartTime: now.Add(-10 * time.Minute),
 			EndTime:   now.Add(-5 * time.Minute),
 			WorkItem: orchestrator.WorkItem{
@@ -49,16 +49,16 @@ func TestCompareJobs(t *testing.T) {
 
 	mux.HandleFunc("/jobs/job2", func(w http.ResponseWriter, r *http.Request) {
 		job := orchestrator.JobInfo{
-			ID:      "job2",
-			Summary: "Fix bug and add tests",
-			Status:  "Running",
+			ID:        "job2",
+			Summary:   "Fix bug and add tests",
+			Status:    "Running",
 			StartTime: now.Add(-2 * time.Minute),
 			WorkItem: orchestrator.WorkItem{
 				AgentProvider: "openrouter",
 				AgentModel:    "openai/gpt-4o",
 			},
 			Outputs: map[string]string{
-				"file": "main.go",
+				"file":  "main.go",
 				"tests": "main_test.go",
 			},
 			Metrics: map[string]float64{

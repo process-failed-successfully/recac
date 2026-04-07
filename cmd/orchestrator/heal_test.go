@@ -150,11 +150,11 @@ func TestHealJob(t *testing.T) {
 		wait          bool
 	}{
 		{
-			name:  "Success",
-			jobID: "TEST-123",
-			jobResponse: map[string]string{"healed_job_id": "TEST-123-healed"},
+			name:          "Success",
+			jobID:         "TEST-123",
+			jobResponse:   map[string]string{"healed_job_id": "TEST-123-healed"},
 			jobStatusCode: http.StatusAccepted,
-			expectedExit: -1, // No exit called
+			expectedExit:  -1, // No exit called
 			expectOutput: []string{
 				"Healing job TEST-123...",
 				"Healed job TEST-123-healed submitted successfully.",
@@ -172,9 +172,9 @@ func TestHealJob(t *testing.T) {
 			},
 		},
 		{
-			name:  "Error connection failed",
-			jobID: "TEST-CONN-FAIL",
-			jobResponse: "",
+			name:          "Error connection failed",
+			jobID:         "TEST-CONN-FAIL",
+			jobResponse:   "",
 			jobStatusCode: -1,
 			expectedExit:  1,
 			expectOutput: []string{
@@ -182,9 +182,9 @@ func TestHealJob(t *testing.T) {
 			},
 		},
 		{
-			name:  "Error get invalid url",
-			jobID: "TEST-URL-FAIL",
-			jobResponse: "",
+			name:          "Error get invalid url",
+			jobID:         "TEST-URL-FAIL",
+			jobResponse:   "",
 			jobStatusCode: -2,
 			expectedExit:  1,
 			expectOutput: []string{
@@ -192,11 +192,11 @@ func TestHealJob(t *testing.T) {
 			},
 		},
 		{
-			name:  "Wait for job fails",
-			jobID: "TEST-WAIT",
-			jobResponse: map[string]string{"healed_job_id": "TEST-WAIT-healed"},
+			name:          "Wait for job fails",
+			jobID:         "TEST-WAIT",
+			jobResponse:   map[string]string{"healed_job_id": "TEST-WAIT-healed"},
 			jobStatusCode: http.StatusAccepted,
-			expectedExit: 1,
+			expectedExit:  1,
 			expectOutput: []string{
 				"Healed job TEST-WAIT-healed submitted successfully.",
 				"Healed job failed",
@@ -204,20 +204,20 @@ func TestHealJob(t *testing.T) {
 			wait: true,
 		},
 		{
-			name:  "Wait for job success",
-			jobID: "TEST-WAIT-SUCCESS",
-			jobResponse: map[string]string{"healed_job_id": "TEST-WAIT-SUCCESS-healed"},
+			name:          "Wait for job success",
+			jobID:         "TEST-WAIT-SUCCESS",
+			jobResponse:   map[string]string{"healed_job_id": "TEST-WAIT-SUCCESS-healed"},
 			jobStatusCode: http.StatusAccepted,
-			expectedExit: -1,
+			expectedExit:  -1,
 			expectOutput: []string{
 				"Healed job TEST-WAIT-SUCCESS-healed submitted successfully.",
 			},
 			wait: true,
 		},
 		{
-			name:  "Invalid JSON in job details",
-			jobID: "TEST-BAD-JSON",
-			jobResponse: "invalid json string",
+			name:          "Invalid JSON in job details",
+			jobID:         "TEST-BAD-JSON",
+			jobResponse:   "invalid json string",
 			jobStatusCode: http.StatusAccepted,
 			expectedExit:  1,
 			expectOutput: []string{
@@ -225,11 +225,11 @@ func TestHealJob(t *testing.T) {
 			},
 		},
 		{
-			name:  "Submit API Error",
-			jobID: "TEST-FAIL",
-			jobResponse: "Invalid payload",
+			name:          "Submit API Error",
+			jobID:         "TEST-FAIL",
+			jobResponse:   "Invalid payload",
 			jobStatusCode: http.StatusBadRequest,
-			expectedExit: 1,
+			expectedExit:  1,
 			expectOutput: []string{
 				"Failed to submit healed job: Invalid payload",
 			},

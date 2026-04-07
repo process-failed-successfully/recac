@@ -1,7 +1,6 @@
 package main
 
 import (
-	"sync/atomic"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"sync/atomic"
 	"testing"
 
 	"recac/internal/orchestrator"
@@ -2876,10 +2876,10 @@ func TestImportPipelineJob(t *testing.T) {
 					w.Write([]byte(`{"submitted": ["JOB-1", "JOB-2"], "errors": []}`))
 				}))
 			},
-			target: "my-target",
-			vars: map[string]string{"var1": "val1"},
+			target:         "my-target",
+			vars:           map[string]string{"var1": "val1"},
 			expectedOutput: "Successfully imported 2 jobs:\n - JOB-1\n - JOB-2",
-			expectedExit: 0,
+			expectedExit:   0,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2896,7 +2896,7 @@ func TestImportPipelineJob(t *testing.T) {
 				}))
 			},
 			expectedOutput: "Successfully imported 1 jobs:\n - JOB-1",
-			expectedExit: 0,
+			expectedExit:   0,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2913,7 +2913,7 @@ func TestImportPipelineJob(t *testing.T) {
 				}))
 			},
 			expectedOutput: "Successfully imported 1 jobs:\n - JOB-1\n\nFailed to import 1 jobs:\n - error message",
-			expectedExit: 1,
+			expectedExit:   1,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2930,7 +2930,7 @@ func TestImportPipelineJob(t *testing.T) {
 				}))
 			},
 			expectedOutput: "\nFailed to import 1 jobs:\n - fatal error",
-			expectedExit: 1,
+			expectedExit:   1,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2947,7 +2947,7 @@ func TestImportPipelineJob(t *testing.T) {
 				}))
 			},
 			expectedOutput: "Pipeline successfully imported, but failed to parse response.",
-			expectedExit: 0,
+			expectedExit:   0,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2964,7 +2964,7 @@ func TestImportPipelineJob(t *testing.T) {
 				}))
 			},
 			expectedOutput: "Failed to import pipeline: internal server error",
-			expectedExit: 1,
+			expectedExit:   1,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2980,7 +2980,7 @@ func TestImportPipelineJob(t *testing.T) {
 				return s
 			},
 			expectedOutput: "Failed to connect to orchestrator",
-			expectedExit: 1,
+			expectedExit:   1,
 			setupFile: func() string {
 				f, _ := os.CreateTemp("", "pipeline_*.yaml")
 				f.Write([]byte(`name: my-pipeline`))
@@ -2994,8 +2994,8 @@ func TestImportPipelineJob(t *testing.T) {
 				return nil
 			},
 			expectedOutput: "Failed to read file nonexistent.yaml",
-			expectedExit: 1,
-			filePath: "nonexistent.yaml",
+			expectedExit:   1,
+			filePath:       "nonexistent.yaml",
 		},
 	}
 
@@ -3132,8 +3132,6 @@ func TestSubmitMatrixInlineJob_Errors(t *testing.T) {
 		assert.Equal(t, 1, exitCode)
 	})
 }
-
-
 
 func TestWaitIdle(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

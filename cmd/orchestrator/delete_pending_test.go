@@ -22,13 +22,13 @@ func TestDeletePendingJob(t *testing.T) {
 		expectedOut  string
 	}{
 		{
-			name:         "Success",
-			jobID:        "test-job",
-			method:       http.MethodDelete,
-			path:         "/jobs/test-job/pending",
-			statusCode:   http.StatusOK,
-			expectExit:   false,
-			expectedOut:  "Pending job test-job deleted successfully.\n",
+			name:        "Success",
+			jobID:       "test-job",
+			method:      http.MethodDelete,
+			path:        "/jobs/test-job/pending",
+			statusCode:  http.StatusOK,
+			expectExit:  false,
+			expectedOut: "Pending job test-job deleted successfully.\n",
 		},
 		{
 			name:         "HTTP Error",
@@ -71,7 +71,7 @@ func TestDeletePendingJob(t *testing.T) {
 			defer ts.Close()
 
 			var out bytes.Buffer
-		oldStdout := stdout
+			oldStdout := stdout
 			stdout = &out
 			defer func() { stdout = oldStdout }()
 
@@ -283,7 +283,7 @@ func TestDeletePendingJobsByTag(t *testing.T) {
 			defer ts.Close()
 
 			var out bytes.Buffer
-		oldStdout := stdout
+			oldStdout := stdout
 			stdout = &out
 			defer func() { stdout = oldStdout }()
 
@@ -389,7 +389,7 @@ func TestDeletePendingJobsByMatch(t *testing.T) {
 			defer ts.Close()
 
 			var out bytes.Buffer
-		oldStdout := stdout
+			oldStdout := stdout
 			stdout = &out
 			defer func() { stdout = oldStdout }()
 

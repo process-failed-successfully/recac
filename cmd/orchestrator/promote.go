@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
-	"io"
 )
 
 func promoteJob(host, jobID string) {
