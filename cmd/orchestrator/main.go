@@ -1329,7 +1329,6 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-
 	if cancelOlderThanStr := viper.GetString("orchestrator.cancel_older_than"); cancelOlderThanStr != "" {
 		host := viper.GetString("orchestrator.host")
 		cancelJobsOlderThan(host, cancelOlderThanStr)

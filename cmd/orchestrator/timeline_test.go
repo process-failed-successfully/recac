@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"recac/internal/orchestrator"
 	"github.com/stretchr/testify/assert"
+	"recac/internal/orchestrator"
 )
 
 func TestPrintTimeline(t *testing.T) {

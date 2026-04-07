@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-
-
 )
 
 // Define local structures matching API response.
@@ -113,27 +111,27 @@ func exportReliability(host string, outPath string, format string) {
 			fmt.Sprintf("%.2f", stats.FlakinessRate),
 		})
 
-        writer.Write([]string{})
-        writer.Write([]string{"Top Flaky Jobs"})
-        writer.Write([]string{"Summary", "Occurrences", "Total Retries", "Avg Retries"})
-        for _, flaky := range stats.TopFlakyJobs {
-            writer.Write([]string{
-                flaky.Summary,
-                fmt.Sprintf("%d", flaky.Occurrences),
-                fmt.Sprintf("%d", flaky.TotalRetries),
-                fmt.Sprintf("%.2f", flaky.AvgRetries),
-            })
-        }
+		writer.Write([]string{})
+		writer.Write([]string{"Top Flaky Jobs"})
+		writer.Write([]string{"Summary", "Occurrences", "Total Retries", "Avg Retries"})
+		for _, flaky := range stats.TopFlakyJobs {
+			writer.Write([]string{
+				flaky.Summary,
+				fmt.Sprintf("%d", flaky.Occurrences),
+				fmt.Sprintf("%d", flaky.TotalRetries),
+				fmt.Sprintf("%.2f", flaky.AvgRetries),
+			})
+		}
 
-        writer.Write([]string{})
-        writer.Write([]string{"Top Failing Jobs"})
-        writer.Write([]string{"Summary", "Occurrences"})
-        for _, failing := range stats.TopFailingJobs {
-             writer.Write([]string{
-                failing.Summary,
-                fmt.Sprintf("%d", failing.Occurrences),
-            })
-        }
+		writer.Write([]string{})
+		writer.Write([]string{"Top Failing Jobs"})
+		writer.Write([]string{"Summary", "Occurrences"})
+		for _, failing := range stats.TopFailingJobs {
+			writer.Write([]string{
+				failing.Summary,
+				fmt.Sprintf("%d", failing.Occurrences),
+			})
+		}
 
 		writer.Flush()
 

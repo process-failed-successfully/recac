@@ -209,3 +209,100 @@ func TestExplainBulkJobs_Empty(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "No failed jobs found matching the criteria.")
 }
+
+func TestExplainJob_InvalidURL(t *testing.T) {
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainJob("http://::1", "TEST-123", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+}
+
+func TestExplainBulkJobs_InvalidURL(t *testing.T) {
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainBulkJobs("http://::1", "", "", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+}
+
+func TestExplainBulkJobs_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainBulkJobs("http://invalid-url:12345", "", "", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+}
+
+func TestExplainBulkJobs_ErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainBulkJobs(server.URL, "", "", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to get bulk explanations")
+}
+
+func TestExplainBulkJobs_InvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	originalStdout := stdout
+	stdout = &buf
+	defer func() { stdout = originalStdout }()
+
+	originalExitFunc := exitFunc
+	exitCode := -1
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = originalExitFunc }()
+
+	explainBulkJobs(server.URL, "", "", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, buf.String(), "Failed to decode response")
+}

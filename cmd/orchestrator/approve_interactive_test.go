@@ -15,11 +15,11 @@ import (
 
 func TestApproveInteractive(t *testing.T) {
 	tests := []struct {
-		name           string
-		jobs           []orchestrator.JobInfo
-		inputStr       string
-		expectedOutput []string
-		expectedExit   int
+		name            string
+		jobs            []orchestrator.JobInfo
+		inputStr        string
+		expectedOutput  []string
+		expectedExit    int
 		expectedMethods map[string]string // URL Path -> HTTP Method expected
 	}{
 		{

@@ -99,24 +99,24 @@ func exportDurations(host string, outPath string, format string) {
 			fmt.Sprintf("%.2f", stats.MaxDuration),
 		})
 
-        writer.Write([]string{})
-        writer.Write([]string{"Tag", "Count", "Mean Duration (ms)"})
-        for _, tagStat := range stats.TagStats {
-            writer.Write([]string{
-                tagStat.Tag,
-                fmt.Sprintf("%d", tagStat.Count),
-                fmt.Sprintf("%.2f", tagStat.MeanDuration),
-            })
-        }
+		writer.Write([]string{})
+		writer.Write([]string{"Tag", "Count", "Mean Duration (ms)"})
+		for _, tagStat := range stats.TagStats {
+			writer.Write([]string{
+				tagStat.Tag,
+				fmt.Sprintf("%d", tagStat.Count),
+				fmt.Sprintf("%.2f", tagStat.MeanDuration),
+			})
+		}
 
-        writer.Write([]string{})
-        writer.Write([]string{"Top Slowest Job ID", "Duration (ms)"})
-        for _, job := range stats.TopSlowest {
-             writer.Write([]string{
-                job.ID,
-                fmt.Sprintf("%.2f", float64(job.EndTime.Sub(job.StartTime).Milliseconds())),
-            })
-        }
+		writer.Write([]string{})
+		writer.Write([]string{"Top Slowest Job ID", "Duration (ms)"})
+		for _, job := range stats.TopSlowest {
+			writer.Write([]string{
+				job.ID,
+				fmt.Sprintf("%.2f", float64(job.EndTime.Sub(job.StartTime).Milliseconds())),
+			})
+		}
 
 		writer.Flush()
 

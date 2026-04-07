@@ -13,40 +13,77 @@ import (
 func TestListTemplatesJob(t *testing.T) {
 	// Table-driven tests
 	tests := []struct {
-		name          string
-		yamlContent   string
-		vars          map[string]string
-		expectOutput  string
-		expectExit1   bool
+		name         string
+		yamlContent  string
+		vars         map[string]string
+		expectOutput []string
+		expectExit1  bool
 	}{
 		{
-			name: "Valid Templates",
+			name: "Valid Templates Full",
 			yamlContent: `
 name: Test Pipeline
 templates:
   base-build:
     summary: Base Build
+    description: Base Description
     task: make build
+    extends: parent-tmpl
+    stage: build
+    repo_url: https://github.com/test/test
+    run_condition: ALWAYS
+    depends_on: [dep1]
     agent_provider: openrouter
     agent_model: openai/gpt-4o-mini
     tags: [build]
+    priority: 10
+    timeout: 10m
+    delay: 5s
+    concurrency_group: build-group
+    cancel_in_progress: true
+    max_retries: 3
+    require_approval: true
+    retry_delay: 10s
+    retry_backoff_multiplier: 2.0
     env_vars:
       GOOS: linux
       GOARCH: amd64
-    max_retries: 3
-    timeout: 10m
-  base-test:
-    summary: Base Test
-    extends: base-build
-    task: make test
-    tags: [test]
+    variables:
+      VAR1: value1
+    matrix:
+      OS: [linux, windows]
 jobs:
   job1:
     summary: App
 `,
-			vars: nil,
+			vars:        nil,
 			expectExit1: false,
-			expectOutput: "Template: base-build",
+			expectOutput: []string{
+				"Template: base-build",
+				"Summary:", "Base Build",
+				"Description:", "Base Description",
+				"Task:", "make build",
+				"Extends:", "parent-tmpl",
+				"Stage:", "build",
+				"Repo URL:", "https://github.com/test/test",
+				"Run Condition:", "ALWAYS",
+				"Depends On:", "dep1",
+				"Tags:", "build",
+				"Priority:", "10",
+				"Timeout:", "10m",
+				"Delay:", "5s",
+				"Concurrency Group:", "build-group",
+				"Cancel In Progress:", "true",
+				"Agent Provider:", "openrouter",
+				"Agent Model:", "openai/gpt-4o-mini",
+				"Max Retries:", "3",
+				"Require Approval:", "true",
+				"Retry Delay:", "10s",
+				"Retry Backoff:", "2.00",
+				"Env Vars:", "GOOS=linux", "GOARCH=amd64",
+				"Variables:", "VAR1=value1",
+				"Matrix:", "OS: [linux, windows]",
+			},
 		},
 		{
 			name: "No Templates Defined",
@@ -56,9 +93,9 @@ jobs:
   job1:
     summary: App
 `,
-			vars: nil,
-			expectExit1: false,
-			expectOutput: "No templates defined in pipeline",
+			vars:         nil,
+			expectExit1:  false,
+			expectOutput: []string{"No templates defined in pipeline"},
 		},
 		{
 			name: "Invalid YAML",
@@ -67,16 +104,16 @@ name: Invalid Yaml
 templates:
   invalid: [
 `,
-			vars: nil,
-			expectExit1: true,
-			expectOutput: "Failed to unmarshal pipeline YAML",
+			vars:         nil,
+			expectExit1:  true,
+			expectOutput: []string{"Failed to unmarshal pipeline YAML"},
 		},
 		{
-			name: "Missing File",
-			yamlContent: "", // We won't write this to file
-			vars: nil,
-			expectExit1: true,
-			expectOutput: "Failed to read file",
+			name:         "Missing File",
+			yamlContent:  "", // We won't write this to file
+			vars:         nil,
+			expectExit1:  true,
+			expectOutput: []string{"Failed to read file"},
 		},
 		{
 			name: "Variables Substitution",
@@ -85,13 +122,17 @@ name: Test Pipeline
 templates:
   dynamic-tmpl:
     summary: ${TEMPLATE_SUMMARY}
+    task: ${UNKNOWN_VAR}
 jobs:
   job1:
     summary: App
 `,
-			vars: map[string]string{"TEMPLATE_SUMMARY": "Dynamically Generated Summary"},
+			vars:        map[string]string{"TEMPLATE_SUMMARY": "Dynamically Generated Summary"},
 			expectExit1: false,
-			expectOutput: "Dynamically Generated Summary",
+			expectOutput: []string{
+				"Dynamically Generated Summary",
+				"${UNKNOWN_VAR}", // Unsubstituted variable
+			},
 		},
 	}
 
@@ -124,7 +165,9 @@ jobs:
 
 			// Assertions
 			assert.Equal(t, tt.expectExit1, exitCalled, "exitFunc behavior did not match expectations")
-			assert.Contains(t, buf.String(), tt.expectOutput, "Output did not contain expected text")
+			for _, expected := range tt.expectOutput {
+				assert.Contains(t, buf.String(), expected, "Output did not contain expected text")
+			}
 		})
 	}
 }

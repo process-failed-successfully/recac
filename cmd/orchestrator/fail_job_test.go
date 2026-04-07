@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPauseOrchestratorGroupCmd(t *testing.T) {
+func TestFailJobCmd(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/groups/test-group/pause", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/jobs/JOB-1/fail", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		w.WriteHeader(http.StatusOK)
 	})
@@ -29,17 +29,20 @@ func TestPauseOrchestratorGroupCmd(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	pauseOrchestratorGroup(server.URL, "test-group")
+	failJob(server.URL, "JOB-1")
 
 	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, out.String(), "Concurrency group test-group paused")
+	assert.Contains(t, out.String(), "Job JOB-1 manually failed successfully")
 }
 
-func TestResumeOrchestratorGroupCmd(t *testing.T) {
+func TestFailBulkJobsCmd(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/groups/test-group/resume", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/jobs/fail", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "test-match", r.URL.Query().Get("match"))
+		assert.Equal(t, "test-tag", r.URL.Query().Get("tag"))
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"failed": 2}`))
 	})
 
 	server := httptest.NewServer(mux)
@@ -55,13 +58,13 @@ func TestResumeOrchestratorGroupCmd(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	resumeOrchestratorGroup(server.URL, "test-group")
+	failBulkJobs(server.URL, "test-match", "test-tag")
 
 	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, out.String(), "Concurrency group test-group resumed")
+	assert.Contains(t, out.String(), "Successfully manually failed 2 jobs")
 }
 
-func TestPauseOrchestratorGroupCmd_ConnectionError(t *testing.T) {
+func TestFailJobCmd_ConnectionError(t *testing.T) {
 	var out bytes.Buffer
 	oldStdout := stdout
 	stdout = &out
@@ -72,15 +75,15 @@ func TestPauseOrchestratorGroupCmd_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	pauseOrchestratorGroup("http://invalid-host:12345", "test-group")
+	failJob("http://invalid-host:12345", "JOB-1")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
 }
 
-func TestPauseOrchestratorGroupCmd_ErrorResponse(t *testing.T) {
+func TestFailJobCmd_ErrorResponse(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/groups/test-group/pause", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/jobs/JOB-1/fail", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`invalid request`))
 	})
@@ -98,13 +101,13 @@ func TestPauseOrchestratorGroupCmd_ErrorResponse(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	pauseOrchestratorGroup(server.URL, "test-group")
+	failJob(server.URL, "JOB-1")
 
 	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, out.String(), "Failed to pause concurrency group")
+	assert.Contains(t, out.String(), "Failed to manually fail job")
 }
 
-func TestResumeOrchestratorGroupCmd_ConnectionError(t *testing.T) {
+func TestFailBulkJobsCmd_ConnectionError(t *testing.T) {
 	var out bytes.Buffer
 	oldStdout := stdout
 	stdout = &out
@@ -115,15 +118,15 @@ func TestResumeOrchestratorGroupCmd_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	resumeOrchestratorGroup("http://invalid-host:12345", "test-group")
+	failBulkJobs("http://invalid-host:12345", "test", "test")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
 }
 
-func TestResumeOrchestratorGroupCmd_ErrorResponse(t *testing.T) {
+func TestFailBulkJobsCmd_ErrorResponse(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/groups/test-group/resume", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/jobs/fail", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`invalid request`))
 	})
@@ -141,8 +144,8 @@ func TestResumeOrchestratorGroupCmd_ErrorResponse(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	resumeOrchestratorGroup(server.URL, "test-group")
+	failBulkJobs(server.URL, "test", "test")
 
 	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, out.String(), "Failed to resume concurrency group")
+	assert.Contains(t, out.String(), "Failed to manually fail jobs")
 }

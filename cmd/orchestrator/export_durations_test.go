@@ -51,13 +51,15 @@ func TestExportDurations(t *testing.T) {
 
 	// Capture stdout
 	var buf bytes.Buffer
+	oldStdout := stdout
 	stdout = &buf
-	defer func() { stdout = os.Stdout }()
+	defer func() { stdout = oldStdout }()
 
 	// Mock exitFunc
 	var exitCode int
+	oldExit := exitFunc
 	exitFunc = func(code int) { exitCode = code }
-	defer func() { exitFunc = os.Exit }()
+	defer func() { exitFunc = oldExit }()
 
 	t.Run("JSON to Stdout", func(t *testing.T) {
 		buf.Reset()
@@ -88,5 +90,49 @@ func TestExportDurations(t *testing.T) {
 		content, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
 		assert.Contains(t, string(content), `"total_jobs": 2`)
+	})
+
+	t.Run("Connection Error", func(t *testing.T) {
+		buf.Reset()
+		exportDurations("http://invalid-host:12345", "-", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("Error Response", func(t *testing.T) {
+		buf.Reset()
+		errServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer errServer.Close()
+		exportDurations(errServer.URL, "-", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to fetch durations analysis")
+	})
+
+	t.Run("Invalid URL", func(t *testing.T) {
+		buf.Reset()
+		exportDurations("http://::1", "-", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator") // Go's net/http parses it but fails to dial
+	})
+
+	t.Run("Decode Error", func(t *testing.T) {
+		buf.Reset()
+		errServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid json`))
+		}))
+		defer errServer.Close()
+		exportDurations(errServer.URL, "-", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to decode response")
+	})
+
+	t.Run("File Create Error", func(t *testing.T) {
+		buf.Reset()
+		exportDurations(server.URL, "/root/invalid/path/file.json", "json")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create output file")
 	})
 }
