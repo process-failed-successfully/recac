@@ -738,6 +738,46 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// containsFold checks if substr is in s, ignoring case.
+// It assumes substr is already lowercased. This avoids allocating a new string with strings.ToLower
+// during hot loops (e.g. over jobs or log lines).
+func containsFold(s, substr string) bool {
+	if len(substr) == 0 {
+		return true
+	}
+	if len(substr) > len(s) {
+		return false
+	}
+
+	first := substr[0]
+	firstUpper := first
+	if first >= 'a' && first <= 'z' {
+		firstUpper = first - ('a' - 'A')
+	}
+
+	for i := 0; i <= len(s)-len(substr); i++ {
+		c := s[i]
+		if c != first && c != firstUpper {
+			continue
+		}
+		match := true
+		for j := 1; j < len(substr); j++ {
+			c2 := s[i+j]
+			if c2 >= 'A' && c2 <= 'Z' {
+				c2 += 'a' - 'A'
+			}
+			if c2 != substr[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *DashboardModel) updateTableContent() {
 	rows := []table.Row{}
 
@@ -750,8 +790,8 @@ func (m *DashboardModel) updateTableContent() {
 
 	for _, job := range m.jobs {
 		if filterText != "" {
-			idMatch := strings.Contains(strings.ToLower(job.ID), filterText)
-			summaryMatch := strings.Contains(strings.ToLower(job.Summary), filterText)
+			idMatch := containsFold(job.ID, filterText)
+			summaryMatch := containsFold(job.Summary, filterText)
 			if !idMatch && !summaryMatch {
 				continue
 			}
@@ -2124,7 +2164,7 @@ func (m *DashboardModel) updateFilteredLogs() {
 
 	lines := strings.Split(m.logs, "\n")
 	for _, line := range lines {
-		if strings.Contains(strings.ToLower(line), filterText) {
+		if containsFold(line, filterText) {
 			filtered = append(filtered, line)
 		}
 	}
