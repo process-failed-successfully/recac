@@ -400,7 +400,9 @@ func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, 
 	// Usually there is only one pod per job unless retrying
 	podName := pods.Items[0].Name
 
-	req := s.Client.CoreV1().Pods(s.Namespace).GetLogs(podName, &corev1.PodLogOptions{})
+	req := s.Client.CoreV1().Pods(s.Namespace).GetLogs(podName, &corev1.PodLogOptions{
+		Follow: true,
+	})
 	podLogs, err := req.Stream(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log stream: %w", err)
