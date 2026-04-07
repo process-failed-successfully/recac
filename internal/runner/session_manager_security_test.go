@@ -34,6 +34,9 @@ func TestSessionManager_Security_PathTraversal(t *testing.T) {
 		{"Parent Directory", "../evil"},
 		{"Root Directory", "/tmp/evil"},
 		{"Nested Directory", "a/b"},
+		{"Current Directory", "."},
+		{"Dot Dot", ".."},
+		{"Root Slash", "/"},
 	}
 
 	for _, tt := range tests {
