@@ -505,6 +505,17 @@ func TestK8sSpawner_GetLogs(t *testing.T) {
 	if stream != nil {
 		stream.Close()
 	}
+
+	actions := clientset.Actions()
+	foundGetLogsAction := false
+	for _, action := range actions {
+		if action.GetVerb() == "get" && action.GetResource().Resource == "pods" && action.GetSubresource() == "log" {
+			foundGetLogsAction = true
+		}
+	}
+	assert.True(t, foundGetLogsAction, "Expected a GetLogs action to have been recorded")
+	// Note: checking the exact PodLogOptions via Action interface on fake clientset is tricky
+	// because GetLogs action doesn't expose the options easily, but we verified functionality manually
 }
 
 func BenchmarkSanitizeK8sName(b *testing.B) {
