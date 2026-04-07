@@ -133,6 +133,8 @@ func main() {
 	pflag.Int("analyze-reliability-limit", 10, "Limit the number of top flaky and failing jobs displayed in reliability analysis")
 	pflag.Bool("analyze-costs", false, "Analyze and display a statistical breakdown of job costs")
 	pflag.Int("analyze-costs-limit", 10, "Limit the number of top expensive jobs displayed in cost analysis")
+	pflag.Bool("analyze-anomalies", false, "Analyze and display jobs whose duration or cost exceeds 2 standard deviations from the model's mean")
+	pflag.Int("analyze-anomalies-limit", 10, "Limit the number of anomalies displayed in anomaly analysis")
 	pflag.Bool("analyze-agents", false, "Analyze and display a statistical breakdown of agent model performance")
 	pflag.Int("analyze-agents-limit", 10, "Limit the number of agents displayed in agent analysis")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
@@ -525,6 +527,8 @@ func main() {
 	viper.BindPFlag("orchestrator.analyze_reliability_limit", pflag.Lookup("analyze-reliability-limit"))
 	viper.BindPFlag("orchestrator.analyze_costs", pflag.Lookup("analyze-costs"))
 	viper.BindPFlag("orchestrator.analyze_costs_limit", pflag.Lookup("analyze-costs-limit"))
+	viper.BindPFlag("orchestrator.analyze_anomalies", pflag.Lookup("analyze-anomalies"))
+	viper.BindPFlag("orchestrator.analyze_anomalies_limit", pflag.Lookup("analyze-anomalies-limit"))
 	viper.BindPFlag("orchestrator.analyze_agents", pflag.Lookup("analyze-agents"))
 	viper.BindPFlag("orchestrator.analyze_agents_limit", pflag.Lookup("analyze-agents-limit"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
@@ -1246,6 +1250,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		limit := viper.GetInt("orchestrator.analyze_costs_limit")
 		format := viper.GetString("orchestrator.format")
 		analyzeCosts(host, limit, format)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analyze_anomalies") {
+		host := viper.GetString("orchestrator.host")
+		limit := viper.GetInt("orchestrator.analyze_anomalies_limit")
+		format := viper.GetString("orchestrator.format")
+		analyzeAnomalies(host, limit, format)
 		return nil
 	}
 
