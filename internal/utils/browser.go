@@ -6,14 +6,13 @@ import (
 	"runtime"
 )
 
-// execCommand is a variable to allow mocking in tests.
 var execCommand = exec.Command
+var runtimeGOOS = runtime.GOOS
 
-// OpenBrowser opens the specified URL in the default browser of the user.
 func OpenBrowser(url string) error {
 	var err error
 
-	switch runtime.GOOS {
+	switch runtimeGOOS {
 	case "linux":
 		err = execCommand("xdg-open", url).Start()
 	case "windows":
