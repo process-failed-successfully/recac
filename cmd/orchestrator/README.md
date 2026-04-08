@@ -98,6 +98,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 
 | Flag | Env Var | Default | Description |
 |---|---|---|---|
+| `--generic-webhook-enabled` | `RECAC_GENERIC_WEBHOOK_ENABLED` | `false` | Enable the Generic Webhook for submitting jobs |
 | `--generic-webhook-secret` | `RECAC_GENERIC_WEBHOOK_SECRET` | - | Secret for validating incoming POST events to `/webhook/generic` via the `X-Webhook-Signature` header (HMAC-SHA256) |
 
 ### File Poller Flags
