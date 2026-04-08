@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1452,7 +1453,21 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.retry_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		downstream := viper.GetBool("orchestrator.downstream")
-		retryJob(host, jobID, downstream)
+		envPairs := viper.GetStringSlice("orchestrator.env")
+		provider := viper.GetString("orchestrator.submit_agent_provider")
+		model := viper.GetString("orchestrator.submit_agent_model")
+
+		envMap := make(map[string]string)
+		for _, pair := range envPairs {
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			} else {
+				logger.Warn("Invalid environment variable format", "input", pair)
+			}
+		}
+
+		retryJob(host, jobID, downstream, envMap, provider, model)
 		return nil
 	}
 
@@ -3657,18 +3672,36 @@ func updatePollInterval(host, interval string) {
 	fmt.Fprintf(stdout, "Orchestrator poll interval updated to %s.\n", interval)
 }
 
-func retryJob(host, jobID string, downstream bool) {
+func retryJob(host, jobID string, downstream bool, envVars map[string]string, provider, model string) {
 	url := fmt.Sprintf("%s/jobs/%s/retry", host, jobID)
 	if downstream {
 		url += "?downstream=true"
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	reqBody := struct {
+		EnvVars       map[string]string `json:"env_vars,omitempty"`
+		AgentProvider string            `json:"agent_provider,omitempty"`
+		AgentModel    string            `json:"agent_model,omitempty"`
+	}{
+		EnvVars:       envVars,
+		AgentProvider: provider,
+		AgentModel:    model,
+	}
+
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal overrides: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
 		exitFunc(1)
 		return
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
