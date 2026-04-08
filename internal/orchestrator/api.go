@@ -2126,9 +2126,22 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		id := r.PathValue("id")
 		downstream := r.URL.Query().Get("downstream") == "true"
 
+		var overrides *RetryOverrides
+		if r.Body != nil {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err == nil && len(bodyBytes) > 0 {
+				var ov RetryOverrides
+				if err := json.Unmarshal(bodyBytes, &ov); err != nil {
+					http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+					return
+				}
+				overrides = &ov
+			}
+		}
+
 		// Use r.Context() but ensure logger is available
 		if downstream {
-			retriedJobs, err := orch.RetryJobDownstream(r.Context(), id, logger)
+			retriedJobs, err := orch.RetryJobDownstream(r.Context(), id, overrides, logger)
 			if err != nil {
 				if strings.Contains(err.Error(), "active") || strings.Contains(err.Error(), "pending") {
 					http.Error(w, err.Error(), http.StatusConflict)
@@ -2145,7 +2158,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 				logger.Error("Failed to encode retried jobs response", "error", err)
 			}
 		} else {
-			if err := orch.RetryJob(r.Context(), id, logger); err != nil {
+			if err := orch.RetryJob(r.Context(), id, overrides, logger); err != nil {
 				if strings.Contains(err.Error(), "already active") {
 					http.Error(w, err.Error(), http.StatusConflict)
 				} else if strings.Contains(err.Error(), "not found") {

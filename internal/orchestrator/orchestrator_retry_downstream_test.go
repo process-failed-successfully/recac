@@ -45,7 +45,10 @@ func TestRetryJobDownstream(t *testing.T) {
 	ctx := context.Background()
 
 	// Test retrying A and downstream
-	retriedIDs, err := orch.RetryJobDownstream(ctx, "A", nil)
+	overrides := &RetryOverrides{
+		AgentModel: "super-model",
+	}
+	retriedIDs, err := orch.RetryJobDownstream(ctx, "A", overrides, nil)
 	assert.NoError(t, err)
 
 	// A, B, C should be retried (order not strictly guaranteed by BFS if there were branches, but it should contain all)
@@ -53,6 +56,25 @@ func TestRetryJobDownstream(t *testing.T) {
 
 	// Wait a tiny bit for the goroutine to put A into activeJobs
 	time.Sleep(50 * time.Millisecond)
+
+	orch.mu.RLock()
+	jobAActive, ok := orch.activeJobs["A"]
+	orch.mu.RUnlock()
+	if ok {
+		assert.Equal(t, "super-model", jobAActive.WorkItem.AgentModel)
+	} else {
+		// It might have completed already since spawner.Spawn returns nil immediately
+		orch.mu.RLock()
+		var found bool
+		for _, j := range orch.completedJobs {
+			if j.ID == "A" && j.WorkItem.AgentModel == "super-model" {
+				found = true
+				break
+			}
+		}
+		orch.mu.RUnlock()
+		assert.True(t, found, "Expected to find completed job A with super-model")
+	}
 }
 
 func TestRetryJobDownstream_ActiveJob(t *testing.T) {
@@ -65,7 +87,7 @@ func TestRetryJobDownstream_ActiveJob(t *testing.T) {
 
 	ctx := context.Background()
 
-	retriedIDs, err := orch.RetryJobDownstream(ctx, "A", nil)
+	retriedIDs, err := orch.RetryJobDownstream(ctx, "A", nil, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "is active")
 	assert.Nil(t, retriedIDs)
@@ -78,7 +100,7 @@ func TestRetryJobDownstream_NotFound(t *testing.T) {
 
 	ctx := context.Background()
 
-	retriedIDs, err := orch.RetryJobDownstream(ctx, "NONEXISTENT", nil)
+	retriedIDs, err := orch.RetryJobDownstream(ctx, "NONEXISTENT", nil, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found in history")
 	assert.Nil(t, retriedIDs)

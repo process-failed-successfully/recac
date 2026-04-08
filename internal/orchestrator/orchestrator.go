@@ -2638,8 +2638,40 @@ func (o *Orchestrator) UpdateJobsPriorityByMatch(ctx context.Context, match stri
 	return updatedCount, nil
 }
 
+// RetryOverrides specifies fields to override when retrying a job.
+type RetryOverrides struct {
+	EnvVars       map[string]string `json:"env_vars,omitempty"`
+	AgentProvider string            `json:"agent_provider,omitempty"`
+	AgentModel    string            `json:"agent_model,omitempty"`
+}
+
+// applyOverrides modifies the work item with the provided overrides.
+func applyOverrides(item *WorkItem, overrides *RetryOverrides) {
+	if overrides == nil {
+		return
+	}
+	if overrides.AgentProvider != "" {
+		item.AgentProvider = overrides.AgentProvider
+	}
+	if overrides.AgentModel != "" {
+		item.AgentModel = overrides.AgentModel
+	}
+	if overrides.EnvVars != nil {
+		newEnv := make(map[string]string)
+		if item.EnvVars != nil {
+			for k, v := range item.EnvVars {
+				newEnv[k] = v
+			}
+		}
+		for k, v := range overrides.EnvVars {
+			newEnv[k] = v
+		}
+		item.EnvVars = newEnv
+	}
+}
+
 // RetryJob resubmits a completed job from history.
-func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, overrides *RetryOverrides, logger *slog.Logger) error {
 	o.mu.RLock()
 	// 1. Check if active
 	if _, exists := o.activeJobs[jobID]; exists {
@@ -2663,13 +2695,17 @@ func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.
 		return fmt.Errorf("job %s not found in history", jobID)
 	}
 
+	applyOverrides(&workItem, overrides)
+
 	// 3. Resubmit
-	logger.Info("Retrying job", "id", jobID)
+	if logger != nil {
+		logger.Info("Retrying job", "id", jobID)
+	}
 	return o.processWorkItem(ctx, workItem, 0, logger)
 }
 
 // RetryJobDownstream resubmits a completed job and all its transitive downstream dependencies.
-func (o *Orchestrator) RetryJobDownstream(ctx context.Context, jobID string, logger *slog.Logger) ([]string, error) {
+func (o *Orchestrator) RetryJobDownstream(ctx context.Context, jobID string, overrides *RetryOverrides, logger *slog.Logger) ([]string, error) {
 	o.mu.RLock()
 
 	// 1. Verify the root job is not currently active or pending
@@ -2750,6 +2786,9 @@ func (o *Orchestrator) RetryJobDownstream(ctx context.Context, jobID string, log
 	// 5. Resubmit all found jobs
 	var retriedIDs []string
 	for _, item := range jobsToRetry {
+		if item.ID == jobID && overrides != nil {
+			applyOverrides(&item, overrides)
+		}
 		if logger != nil {
 			logger.Info("Retrying job downstream", "id", item.ID, "root", jobID)
 		}

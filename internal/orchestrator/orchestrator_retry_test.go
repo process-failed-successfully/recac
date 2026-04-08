@@ -41,12 +41,18 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	active := orch.GetActiveJobs()
 	assert.Empty(t, active)
 
-	// 2. Retry the job
+	// 2. Retry the job with overrides
 	// Block the spawner to ensure we can catch the job in "active" state
 	blockCh := make(chan struct{})
 	spawner.blockCh = blockCh
 
-	err = orch.RetryJob(ctx, "RETRY-1", silentLogger)
+	overrides := &RetryOverrides{
+		EnvVars:       map[string]string{"NEW_VAR": "new_val"},
+		AgentProvider: "new-provider",
+		AgentModel:    "new-model",
+	}
+
+	err = orch.RetryJob(ctx, "RETRY-1", overrides, silentLogger)
 	require.NoError(t, err)
 
 	// Verify it is active again
@@ -59,6 +65,9 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	assert.Equal(t, "RETRY-1", active[0].ID)
 	// Status could be "Pending" or "Spawning" depending on how fast it hits the spawner
 	assert.Contains(t, []string{"Pending", "Spawning"}, active[0].Status)
+	assert.Equal(t, "new-provider", active[0].WorkItem.AgentProvider)
+	assert.Equal(t, "new-model", active[0].WorkItem.AgentModel)
+	assert.Equal(t, "new_val", active[0].WorkItem.EnvVars["NEW_VAR"])
 
 	// Unblock
 	close(blockCh)
@@ -89,7 +98,7 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	require.Len(t, orch2.GetActiveJobs(), 1)
 
 	// Retry should fail
-	err = orch2.RetryJob(ctx, "RETRY-2", silentLogger)
+	err = orch2.RetryJob(ctx, "RETRY-2", nil, silentLogger)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already active")
 
@@ -97,7 +106,7 @@ func TestOrchestrator_RetryJob(t *testing.T) {
 	close(blockCh2)
 
 	// 4. Test invalid retry (not found)
-	err = orch.RetryJob(ctx, "NON-EXISTENT", silentLogger)
+	err = orch.RetryJob(ctx, "NON-EXISTENT", nil, silentLogger)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
