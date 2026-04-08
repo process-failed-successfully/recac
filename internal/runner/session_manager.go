@@ -18,6 +18,9 @@ func validateSessionName(name string) error {
 	if name == "" {
 		return fmt.Errorf("session name cannot be empty")
 	}
+	if !filepath.IsLocal(name) {
+		return fmt.Errorf("invalid session name '%s': path traversal characters detected", name)
+	}
 	cleanName := filepath.Base(name)
 	if cleanName == "." || cleanName == ".." || cleanName == "/" || cleanName != name {
 		return fmt.Errorf("invalid session name '%s': path traversal characters detected", name)
@@ -353,6 +356,10 @@ func (sm *SessionManager) ArchiveSession(name string) error {
 
 // UnarchiveSession moves a session's state and log files from the archived directory back to the active sessions directory.
 func (sm *SessionManager) UnarchiveSession(name string) error {
+	if err := validateSessionName(name); err != nil {
+		return err
+	}
+
 	// Note: We don't use LoadSession here because it looks in the active sessions directory.
 	archivedSessionPath := filepath.Join(sm.archivedSessionsDir, name+".json")
 	if _, err := os.Stat(archivedSessionPath); os.IsNotExist(err) {
