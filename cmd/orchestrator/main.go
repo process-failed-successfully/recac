@@ -122,6 +122,7 @@ func main() {
 	pflag.Bool("stream-events", false, "Stream real-time orchestrator events (SSE) to the console")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("edit-job", "", "Edit a pending job interactively using $EDITOR")
+	pflag.Bool("build-job", false, "Interactively build and submit a new ad-hoc job")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("inspect-dataflow", "", "Inspect how upstream job outputs are injected as environment variables into a specific job by ID")
 	pflag.String("explain-job", "", "Use AI to analyze and explain why a job failed by ID")
@@ -520,6 +521,7 @@ func main() {
 	viper.BindPFlag("orchestrator.stream_events", pflag.Lookup("stream-events"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.edit_job", pflag.Lookup("edit-job"))
+	viper.BindPFlag("orchestrator.build_job", pflag.Lookup("build-job"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.inspect_dataflow", pflag.Lookup("inspect-dataflow"))
 	viper.BindPFlag("orchestrator.explain_job", pflag.Lookup("explain-job"))
@@ -1194,6 +1196,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if jobID := viper.GetString("orchestrator.edit_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		editJob(host, jobID)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.build_job") {
+		host := viper.GetString("orchestrator.host")
+		wait := viper.GetBool("orchestrator.wait")
+		buildJobInteractive(host, wait)
 		return nil
 	}
 
