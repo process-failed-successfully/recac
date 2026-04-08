@@ -2,7 +2,13 @@
 **Vulnerability:** Path traversal vulnerability in `internal/orchestrator/api_artifacts.go` allowed directory escape if `jobID` or `filename` was `..`. Also, `runCleanerAgent` lacked secondary validation if `filepath.Rel` returned bypassable paths with mixed slashes.
 **Learning:** `filepath.Base()` evaluates exactly `"../"` and `".."` to `".."`. Checking against exactly `.` and `/` is insufficient because an attacker could simply supply `..`. Always add `".."` to the exclusion list when sanitizing inputs with `filepath.Base()`.
 **Prevention:** Use `cleanJobID == ".." ` alongside other checks when using `filepath.Base()`, or use Go 1.20's `filepath.IsLocal()` when available. Validate all user-supplied components used in path construction.
+
 ## 2025-04-06 - Path Traversal in Filepath.Base
 **Vulnerability:** Path Traversal via `filepath.Base` evaluation in `session_manager.go`.
 **Learning:** `filepath.Base(name) != name` is insufficient to prevent path traversal because `filepath.Base(".")`, `filepath.Base("..")`, and `filepath.Base("/")` evaluate to themselves, allowing directory manipulation and arbitrary file creation/access when concatenated.
 **Prevention:** Explicitly validate dynamic path components against `.`, `..`, and `/` in addition to verifying `filepath.Base(name) == name`.
+
+## 2025-04-07 - Path Traversal in Cleaner Agent and Session Manager Unarchive
+**Vulnerability:** Path traversal vulnerability in `runCleanerAgent` due to custom logic handling mixed slashes, and `UnarchiveSession` failing to call `validateSessionName`.
+**Learning:** Checking for prefix `..` on the result of `filepath.Clean` is not enough to prevent directory escape, because mixed absolute paths or drive letters on Windows can trick `filepath.Rel` and custom string manipulation. Also, functions that build filenames directly must ensure inputs are validated.
+**Prevention:** Use Go 1.20's `filepath.IsLocal()` consistently to reject any path traversal strings before passing them to file system functions, while ensuring you accommodate legitimate local paths like `.` if necessary.
