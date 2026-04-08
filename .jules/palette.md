@@ -65,3 +65,4 @@
 ## 2024-04-05 - Missing aria-live in Async Modals
 **Learning:** Asynchronous content updates in modals (like graphs, timelines, and dry-run results) and main dashboard dynamic content (like status and analytics) were not being announced to screen readers.
 **Action:** Applied `aria-live="polite"` to the dynamic container elements so updates are smoothly read out after network fetches or SSE updates complete.
+## 2026-04-08 - TUI Keybinding Hint Accuracy\n**Learning:** When adding keyboard instructions to Bubble Tea TUI components, failing to verify the actual key handling logic in the `Update` loop can result in incomplete hints (e.g., showing only 'tab' when 'up' and 'down' are also supported), confusing users.\n**Action:** Always cross-reference the UI hint in the `View` logic with the actual handled inputs in the component's `Update` loop to ensure accuracy.

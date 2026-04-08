@@ -2694,7 +2694,7 @@ func (m DashboardModel) View() string {
 			Align(lipgloss.Center, lipgloss.Center)
 
 		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
-		helpView = statusStyle.Render("tab: switch | enter: confirm | esc: cancel")
+		helpView = statusStyle.Render("tab/up/down: switch | enter: confirm | esc: cancel")
 	case viewDepsInput:
 		dialogStyle := lipgloss.NewStyle().
 			Width(60).
