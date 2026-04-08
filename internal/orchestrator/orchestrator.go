@@ -83,6 +83,13 @@ type JobInfo struct {
 	StatusMessage *string            `json:"status_message,omitempty"`
 }
 
+type GroupInfo struct {
+	Name        string `json:"name"`
+	ActiveJobs  int    `json:"active_jobs"`
+	PendingJobs int    `json:"pending_jobs"`
+	Paused      bool   `json:"paused"`
+}
+
 type Status struct {
 	PollInterval      string    `json:"poll_interval"`
 	Uptime            string    `json:"uptime"`
@@ -1379,6 +1386,59 @@ func (o *Orchestrator) getTotalCostLocked() float64 {
 		}
 	}
 	return total
+}
+
+// GetGroups returns the list of concurrency groups and their status.
+func (o *Orchestrator) GetGroups() []GroupInfo {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	groups := make(map[string]*GroupInfo)
+
+	for _, job := range o.activeJobs {
+		if job.WorkItem.ConcurrencyGroup != "" {
+			g, ok := groups[job.WorkItem.ConcurrencyGroup]
+			if !ok {
+				g = &GroupInfo{Name: job.WorkItem.ConcurrencyGroup}
+				groups[job.WorkItem.ConcurrencyGroup] = g
+			}
+			g.ActiveJobs++
+		}
+	}
+
+	for _, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup != "" {
+			g, ok := groups[job.WorkItem.ConcurrencyGroup]
+			if !ok {
+				g = &GroupInfo{Name: job.WorkItem.ConcurrencyGroup}
+				groups[job.WorkItem.ConcurrencyGroup] = g
+			}
+			g.PendingJobs++
+		}
+	}
+
+	for name, paused := range o.pausedGroups {
+		if paused {
+			g, ok := groups[name]
+			if !ok {
+				g = &GroupInfo{Name: name}
+				groups[name] = g
+			}
+			g.Paused = true
+		}
+	}
+
+	var result []GroupInfo
+	for _, g := range groups {
+		result = append(result, *g)
+	}
+
+	// Sort alphabetically
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+
+	return result
 }
 
 // GetStatus returns the current status of the orchestrator.
