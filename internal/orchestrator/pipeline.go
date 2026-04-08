@@ -441,7 +441,12 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 	pipelineIDPrefix := sanitizeName(p.Name)
 
 	var items []WorkItem
-	jobGeneratedIDs := make(map[string][]string)
+
+	type generatedJob struct {
+		ID    string
+		Combo map[string]string
+	}
+	jobGeneratedIDs := make(map[string][]generatedJob)
 
 	// Sort jobs to make evaluation deterministic
 	var jobKeys []string
@@ -728,7 +733,10 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			}
 
 			// Store ID for dependency resolution later
-			jobGeneratedIDs[jobKey] = append(jobGeneratedIDs[jobKey], jobID)
+			jobGeneratedIDs[jobKey] = append(jobGeneratedIDs[jobKey], generatedJob{
+				ID:    jobID,
+				Combo: combo,
+			})
 
 			items = append(items, WorkItem{
 				ID:                     jobID,
@@ -757,19 +765,44 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		}
 	}
 
+	// Reconstruct the combo map for current items from items itself since we didn't save it directly on WorkItem
+	// Actually, the easiest way is to rebuild a parallel list of Combos, but since we already populated jobGeneratedIDs
+	// we can look up the item's combo by its ID.
+	itemCombos := make(map[string]map[string]string)
+	for _, generatedDeps := range jobGeneratedIDs {
+		for _, gDep := range generatedDeps {
+			itemCombos[gDep.ID] = gDep.Combo
+		}
+	}
+
 	// Pass 2: Resolve Dependencies
 	for i := range items {
+		currentCombo := itemCombos[items[i].ID]
 		var resolvedDeps []string
 		for _, dep := range items[i].DependsOn {
-			if deps, exists := jobGeneratedIDs[dep]; exists {
-				resolvedDeps = append(resolvedDeps, deps...)
+			if generatedDeps, exists := jobGeneratedIDs[dep]; exists {
+				for _, gDep := range generatedDeps {
+					// Check compatibility: for any shared keys, the values must match.
+					compatible := true
+					for k, currVal := range currentCombo {
+						if depVal, ok := gDep.Combo[k]; ok {
+							if currVal != depVal {
+								compatible = false
+								break
+							}
+						}
+					}
+					if compatible {
+						resolvedDeps = append(resolvedDeps, gDep.ID)
+					}
+				}
 			} else {
 				// We can trace back to original jobKey by parsing ID if we really needed,
 				// but easier to just iterate over jobKeys and see if ID matches.
 				originalJobKey := ""
-				for key, ids := range jobGeneratedIDs {
-					for _, id := range ids {
-						if id == items[i].ID {
+				for key, generatedDeps := range jobGeneratedIDs {
+					for _, gDep := range generatedDeps {
+						if gDep.ID == items[i].ID {
 							originalJobKey = key
 							break
 						}
