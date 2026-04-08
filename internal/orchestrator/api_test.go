@@ -1250,3 +1250,59 @@ func TestRegisterAPI_JSONEncodeErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestAPI_GetGroups(t *testing.T) {
+	poller := new(MockPoller)
+	spawner := new(MockSpawner)
+	orch := New(poller, spawner, 1*time.Minute)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	orch.activeJobs["job-1"] = JobInfo{
+		ID:       "job-1",
+		Status:   "Running",
+		WorkItem: WorkItem{ID: "job-1", ConcurrencyGroup: "group1"},
+	}
+	orch.pendingJobs["job-2"] = JobInfo{
+		ID:       "job-2",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "job-2", ConcurrencyGroup: "group1"},
+	}
+	orch.pendingJobs["job-3"] = JobInfo{
+		ID:       "job-3",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "job-3", ConcurrencyGroup: "group2"},
+	}
+	orch.pausedGroups = map[string]bool{"group3": true}
+
+	req := httptest.NewRequest(http.MethodGet, "/groups", nil)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var groups []GroupInfo
+	err := json.Unmarshal(w.Body.Bytes(), &groups)
+	assert.NoError(t, err)
+
+	assert.Len(t, groups, 3)
+
+	// Since we sort alphabetically
+	assert.Equal(t, "group1", groups[0].Name)
+	assert.Equal(t, 1, groups[0].ActiveJobs)
+	assert.Equal(t, 1, groups[0].PendingJobs)
+	assert.False(t, groups[0].Paused)
+
+	assert.Equal(t, "group2", groups[1].Name)
+	assert.Equal(t, 0, groups[1].ActiveJobs)
+	assert.Equal(t, 1, groups[1].PendingJobs)
+	assert.False(t, groups[1].Paused)
+
+	assert.Equal(t, "group3", groups[2].Name)
+	assert.Equal(t, 0, groups[2].ActiveJobs)
+	assert.Equal(t, 0, groups[2].PendingJobs)
+	assert.True(t, groups[2].Paused)
+}

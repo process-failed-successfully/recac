@@ -94,6 +94,19 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /groups", func(w http.ResponseWriter, r *http.Request) {
+		groups := orch.GetGroups()
+
+		if groups == nil {
+			groups = []GroupInfo{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(groups); err != nil {
+			logger.Error("Failed to encode groups", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /tags", func(w http.ResponseWriter, r *http.Request) {
 		tagCounts := make(map[string]int)
 
