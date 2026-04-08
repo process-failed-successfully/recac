@@ -1040,6 +1040,120 @@ jobs:
 	assert.Len(t, items, 0)
 }
 
+func TestParsePipelineToWorkItems_MatrixDependencyMatching(t *testing.T) {
+	yamlData := []byte(`
+name: Matrix Dep Pipeline
+jobs:
+  setup:
+    summary: Global setup (no matrix)
+
+  build:
+    summary: Build
+    depends_on: [setup]
+    matrix:
+      OS: [linux, windows]
+      ARCH: [amd64, arm64]
+
+  test:
+    summary: Test
+    depends_on: [build]
+    matrix:
+      OS: [linux, windows]
+      ARCH: [amd64, arm64]
+      SUITE: [unit, e2e]
+
+  package:
+    summary: Package
+    depends_on: [test]
+    matrix:
+      OS: [linux, windows]
+      # Omits ARCH intentionally, to test partial cross-product
+
+  deploy:
+    summary: Deploy
+    depends_on: [package]
+`)
+
+	items, err := ParsePipelineToWorkItemsWithRunID(yamlData, "", nil, "stable", "")
+	require.NoError(t, err)
+
+	// Build a map for easy lookup by original job key
+	itemMap := make(map[string][]WorkItem)
+	for _, item := range items {
+		// ID format: matrix-dep-pipeline-<job_key>-stable-<index> or without index if no matrix
+		parts := strings.Split(item.ID, "-")
+
+		// The job key is the 4th part: matrix (0) dep (1) pipeline (2) <job_key> (3) stable (4)
+		jobKey := parts[3]
+		if jobKey == "setup" || jobKey == "deploy" {
+			// these might not have index suffix
+			// actually, just check the 4th element
+			itemMap[jobKey] = append(itemMap[jobKey], item)
+		} else {
+			itemMap[jobKey] = append(itemMap[jobKey], item)
+		}
+	}
+
+	// setup: 1
+	// build: 2 * 2 = 4
+	// test: 2 * 2 * 2 = 8
+	// package: 2
+	// deploy: 1
+	assert.Len(t, itemMap["setup"], 1)
+	assert.Len(t, itemMap["build"], 4)
+	assert.Len(t, itemMap["test"], 8)
+	assert.Len(t, itemMap["package"], 2)
+	assert.Len(t, itemMap["deploy"], 1)
+
+	setupJob := itemMap["setup"][0]
+	deployJob := itemMap["deploy"][0]
+
+	// 1. Fan-out (parent no matrix): Build depends on Setup
+	for _, b := range itemMap["build"] {
+		assert.Len(t, b.DependsOn, 1)
+		assert.Equal(t, setupJob.ID, b.DependsOn[0])
+	}
+
+	// 2. 1-to-1 matching (test -> build): test has OS, ARCH, SUITE. build has OS, ARCH.
+	// For a specific test job (linux, amd64, unit), it should depend ONLY on build (linux, amd64)
+	for _, tJob := range itemMap["test"] {
+		assert.Len(t, tJob.DependsOn, 1) // Only 1 build job should match the OS/ARCH
+		depID := tJob.DependsOn[0]
+
+		// Find the build job
+		var matchingBuild WorkItem
+		for _, b := range itemMap["build"] {
+			if b.ID == depID {
+				matchingBuild = b
+				break
+			}
+		}
+
+		assert.Equal(t, tJob.EnvVars["OS"], matchingBuild.EnvVars["OS"])
+		assert.Equal(t, tJob.EnvVars["ARCH"], matchingBuild.EnvVars["ARCH"])
+	}
+
+	// 3. Partial cross-product (package -> test): package has OS. test has OS, ARCH, SUITE.
+	// For package (linux), it should depend on ALL tests that have OS=linux (which is 4 tests: amd64/arm64 * unit/e2e)
+	for _, pJob := range itemMap["package"] {
+		assert.Len(t, pJob.DependsOn, 4) // 4 matching test jobs
+		for _, depID := range pJob.DependsOn {
+			var matchingTest WorkItem
+			for _, tst := range itemMap["test"] {
+				if tst.ID == depID {
+					matchingTest = tst
+					break
+				}
+			}
+			assert.Equal(t, pJob.EnvVars["OS"], matchingTest.EnvVars["OS"])
+		}
+	}
+
+	// 4. Fan-in (current no matrix): deploy depends on package
+	// Deploy has no matrix, package has 2 jobs. Deploy should depend on ALL package jobs.
+	assert.Len(t, deployJob.DependsOn, 2)
+}
+
 func TestParsePipelineToWorkItems_IfCondition(t *testing.T) {
 	yamlData := []byte(`
 name: Pipeline If Condition
