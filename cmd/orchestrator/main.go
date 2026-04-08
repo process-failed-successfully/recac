@@ -276,6 +276,9 @@ func main() {
 	pflag.String("lint-pipeline", "", "Validate a pipeline YAML file without submitting")
 	pflag.String("import-pipeline", "", "Import a pipeline YAML file and hold all generated jobs")
 	pflag.String("explain-pipeline", "", "Explain a pipeline YAML file (visualize execution structure) without submitting")
+	pflag.String("export-pipeline-graph", "", "Export a pipeline YAML file to a visual graph format (use '-' for stdout) without submitting")
+	pflag.String("export-pipeline-graph-format", "mermaid", "Format for exported pipeline graph ('mermaid', 'dot', or 'plantuml')")
+	pflag.String("export-pipeline-graph-out", "", "Output file for the pipeline graph (use '-' or leave empty for stdout)")
 	pflag.String("list-templates", "", "List all templates defined in a pipeline YAML file")
 	pflag.String("list-pipeline-vars", "", "List all required and declared variables in a pipeline YAML file")
 	pflag.String("inspect-pipeline", "", "Inspect a pipeline YAML file and display its resolved jobs visually")
@@ -675,6 +678,9 @@ func main() {
 	viper.BindPFlag("orchestrator.lint_pipeline", pflag.Lookup("lint-pipeline"))
 	viper.BindPFlag("orchestrator.import_pipeline", pflag.Lookup("import-pipeline"))
 	viper.BindPFlag("orchestrator.explain_pipeline", pflag.Lookup("explain-pipeline"))
+	viper.BindPFlag("orchestrator.export_pipeline_graph", pflag.Lookup("export-pipeline-graph"))
+	viper.BindPFlag("orchestrator.export_pipeline_graph_format", pflag.Lookup("export-pipeline-graph-format"))
+	viper.BindPFlag("orchestrator.export_pipeline_graph_out", pflag.Lookup("export-pipeline-graph-out"))
 	viper.BindPFlag("orchestrator.list_templates", pflag.Lookup("list-templates"))
 	viper.BindPFlag("orchestrator.list_pipeline_vars", pflag.Lookup("list-pipeline-vars"))
 	viper.BindPFlag("orchestrator.inspect_pipeline", pflag.Lookup("inspect-pipeline"))
@@ -2233,6 +2239,24 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 
 		explainPipelineJob(explainPipelineFile, target, vars)
+		return nil
+	}
+
+	if exportPipelineGraphFile := viper.GetString("orchestrator.export_pipeline_graph"); exportPipelineGraphFile != "" {
+		target := viper.GetString("orchestrator.submit_pipeline_target")
+		format := viper.GetString("orchestrator.export_pipeline_graph_format")
+		outFile := viper.GetString("orchestrator.export_pipeline_graph_out")
+
+		varsList := viper.GetStringSlice("orchestrator.pipeline_var")
+		varFile := viper.GetString("orchestrator.pipeline_var_file")
+		vars, err := loadPipelineVars(varsList, varFile)
+		if err != nil {
+			fmt.Fprintf(stdout, "Failed to load variables: %v\n", err)
+			exitFunc(1)
+			return nil
+		}
+
+		exportPipelineGraphJob(exportPipelineGraphFile, target, vars, format, outFile)
 		return nil
 	}
 
