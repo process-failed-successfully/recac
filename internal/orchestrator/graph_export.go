@@ -31,17 +31,17 @@ func ExportGraphToMermaid(jobs []JobInfo) string {
 		nodeName := sanitizeMermaidNodeName(job.ID)
 
 		// Map status to Mermaid classes
+		// ⚡ Bolt: Replaced switch strings.ToLower with allocation-free strings.EqualFold
 		statusClass := "default"
-		switch strings.ToLower(job.Status) {
-		case "completed":
+		if strings.EqualFold(job.Status, "completed") {
 			statusClass = "completed"
-		case "failed", "error":
+		} else if strings.EqualFold(job.Status, "failed") || strings.EqualFold(job.Status, "error") {
 			statusClass = "failed"
-		case "running", "active", "spawning":
+		} else if strings.EqualFold(job.Status, "running") || strings.EqualFold(job.Status, "active") || strings.EqualFold(job.Status, "spawning") {
 			statusClass = "running"
-		case "pending", "pending approval":
+		} else if strings.EqualFold(job.Status, "pending") || strings.EqualFold(job.Status, "pending approval") {
 			statusClass = "pending"
-		case "canceled":
+		} else if strings.EqualFold(job.Status, "canceled") {
 			statusClass = "canceled"
 		}
 
@@ -105,16 +105,16 @@ func ExportGraphToPlantUML(jobs []JobInfo) string {
 		nodeName := sanitizePlantUMLNodeName(job.ID)
 
 		color := "#LightGray"
-		switch strings.ToLower(job.Status) {
-		case "completed":
+		// ⚡ Bolt: Replaced switch strings.ToLower with allocation-free strings.EqualFold
+		if strings.EqualFold(job.Status, "completed") {
 			color = "#LightGreen"
-		case "failed", "error":
+		} else if strings.EqualFold(job.Status, "failed") || strings.EqualFold(job.Status, "error") {
 			color = "#LightCoral"
-		case "running", "active", "spawning":
+		} else if strings.EqualFold(job.Status, "running") || strings.EqualFold(job.Status, "active") || strings.EqualFold(job.Status, "spawning") {
 			color = "#LightBlue"
-		case "pending", "pending approval":
+		} else if strings.EqualFold(job.Status, "pending") || strings.EqualFold(job.Status, "pending approval") {
 			color = "#LightYellow"
-		case "canceled":
+		} else if strings.EqualFold(job.Status, "canceled") {
 			color = "#Gainsboro"
 		}
 
@@ -176,16 +176,16 @@ func ExportGraphToDOT(jobs []JobInfo) string {
 		nodeName := sanitizeDotNodeName(job.ID)
 
 		color := "lightgray"
-		switch strings.ToLower(job.Status) {
-		case "completed":
+		// ⚡ Bolt: Replaced switch strings.ToLower with allocation-free strings.EqualFold
+		if strings.EqualFold(job.Status, "completed") {
 			color = "lightgreen"
-		case "failed", "error":
+		} else if strings.EqualFold(job.Status, "failed") || strings.EqualFold(job.Status, "error") {
 			color = "lightcoral"
-		case "running", "active", "spawning":
+		} else if strings.EqualFold(job.Status, "running") || strings.EqualFold(job.Status, "active") || strings.EqualFold(job.Status, "spawning") {
 			color = "lightblue"
-		case "pending", "pending approval":
+		} else if strings.EqualFold(job.Status, "pending") || strings.EqualFold(job.Status, "pending approval") {
 			color = "lightyellow"
-		case "canceled":
+		} else if strings.EqualFold(job.Status, "canceled") {
 			color = "gainsboro"
 		}
 
