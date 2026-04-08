@@ -18,8 +18,42 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestAPI_GenericWebhook_Disabled(t *testing.T) {
+	// Setup
+	viper.Set("orchestrator.generic_webhook_enabled", false)
+	defer viper.Reset()
+
+	mockSpawner := &MockSpawner{}
+	orch := New(&MockPoller{}, mockSpawner, 0)
+	logger := slog.Default()
+	baseCtx := context.Background()
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, baseCtx)
+
+	item := WorkItem{
+		ID:          "generic-123",
+		Summary:     "Test Generic Webhook",
+		Description: "A generic webhook test task",
+		RepoURL:     "https://github.com/org/repo",
+	}
+	payload, _ := json.Marshal(item)
+
+	req := httptest.NewRequest("POST", "/webhook/generic", bytes.NewReader(payload))
+	rr := httptest.NewRecorder()
+
+	// Execute
+	mux.ServeHTTP(rr, req)
+
+	// Verify
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Generic webhook is disabled")
+	mockSpawner.AssertNotCalled(t, "Spawn")
+}
+
 func TestAPI_GenericWebhook_Success(t *testing.T) {
 	// Setup
+	viper.Set("orchestrator.generic_webhook_enabled", true)
 	viper.Set("orchestrator.generic_webhook_secret", "") // No secret for this test
 	defer viper.Reset()
 
@@ -67,6 +101,7 @@ func TestAPI_GenericWebhook_Success(t *testing.T) {
 func TestAPI_GenericWebhook_Success_WithSecret(t *testing.T) {
 	// Setup
 	secret := "super-secret"
+	viper.Set("orchestrator.generic_webhook_enabled", true)
 	viper.Set("orchestrator.generic_webhook_secret", secret)
 	defer viper.Reset()
 
@@ -109,6 +144,7 @@ func TestAPI_GenericWebhook_Success_WithSecret(t *testing.T) {
 func TestAPI_GenericWebhook_InvalidSecret(t *testing.T) {
 	// Setup
 	secret := "super-secret"
+	viper.Set("orchestrator.generic_webhook_enabled", true)
 	viper.Set("orchestrator.generic_webhook_secret", secret)
 	defer viper.Reset()
 
@@ -142,6 +178,7 @@ func TestAPI_GenericWebhook_InvalidSecret(t *testing.T) {
 func TestAPI_GenericWebhook_MissingSecretHeader(t *testing.T) {
 	// Setup
 	secret := "super-secret"
+	viper.Set("orchestrator.generic_webhook_enabled", true)
 	viper.Set("orchestrator.generic_webhook_secret", secret)
 	defer viper.Reset()
 
@@ -174,6 +211,7 @@ func TestAPI_GenericWebhook_MissingSecretHeader(t *testing.T) {
 
 func TestAPI_GenericWebhook_MissingIDGeneratesOne(t *testing.T) {
 	// Setup
+	viper.Set("orchestrator.generic_webhook_enabled", true)
 	viper.Set("orchestrator.generic_webhook_secret", "")
 	defer viper.Reset()
 
@@ -222,6 +260,7 @@ func TestAPI_GenericWebhook_MissingIDGeneratesOne(t *testing.T) {
 
 func TestAPI_GenericWebhook_InvalidPayload(t *testing.T) {
 	// Setup
+	viper.Set("orchestrator.generic_webhook_enabled", true)
 	viper.Set("orchestrator.generic_webhook_secret", "")
 	defer viper.Reset()
 

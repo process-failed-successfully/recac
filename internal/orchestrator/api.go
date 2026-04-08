@@ -3628,6 +3628,11 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	})
 
 	mux.HandleFunc("POST /webhook/generic", func(w http.ResponseWriter, r *http.Request) {
+		if !viper.GetBool("orchestrator.generic_webhook_enabled") {
+			http.Error(w, "Generic webhook is disabled", http.StatusForbidden)
+			return
+		}
+
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Error reading request body", http.StatusInternalServerError)
