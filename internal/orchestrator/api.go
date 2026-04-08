@@ -139,6 +139,55 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 	})
 
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		status := orch.GetStatus()
+
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+
+		fmt.Fprintf(w, "# HELP recac_active_jobs Number of active jobs\n")
+		fmt.Fprintf(w, "# TYPE recac_active_jobs gauge\n")
+
+		activeCount := 0
+		for _, job := range orch.GetActiveJobs() {
+			if job.Status == "Running" || job.Status == "Started" {
+				activeCount++
+			}
+		}
+		if activeCount == 0 && (len(orch.GetActiveJobs()) - status.PendingJobs) > 0 {
+			activeCount = len(orch.GetActiveJobs()) - status.PendingJobs
+		}
+
+		fmt.Fprintf(w, "recac_active_jobs %d\n", activeCount)
+
+		fmt.Fprintf(w, "# HELP recac_pending_jobs Number of pending jobs\n")
+		fmt.Fprintf(w, "# TYPE recac_pending_jobs gauge\n")
+		fmt.Fprintf(w, "recac_pending_jobs %d\n", status.PendingJobs)
+
+		fmt.Fprintf(w, "# HELP recac_total_spawns Total number of job spawns\n")
+		fmt.Fprintf(w, "# TYPE recac_total_spawns counter\n")
+		fmt.Fprintf(w, "recac_total_spawns %d\n", status.TotalSpawns)
+
+		fmt.Fprintf(w, "# HELP recac_active_spawns Number of active spawns\n")
+		fmt.Fprintf(w, "# TYPE recac_active_spawns gauge\n")
+		fmt.Fprintf(w, "recac_active_spawns %d\n", status.ActiveSpawns)
+
+		paused := 0
+		if status.Paused {
+			paused = 1
+		}
+		fmt.Fprintf(w, "# HELP recac_paused Whether the orchestrator is paused (1) or not (0)\n")
+		fmt.Fprintf(w, "# TYPE recac_paused gauge\n")
+		fmt.Fprintf(w, "recac_paused %d\n", paused)
+
+		draining := 0
+		if status.Draining {
+			draining = 1
+		}
+		fmt.Fprintf(w, "# HELP recac_draining Whether the orchestrator is draining (1) or not (0)\n")
+		fmt.Fprintf(w, "# TYPE recac_draining gauge\n")
+		fmt.Fprintf(w, "recac_draining %d\n", draining)
+	})
+
 	mux.HandleFunc("GET /analytics", func(w http.ResponseWriter, r *http.Request) {
 		analytics := orch.GetAnalytics()
 		w.Header().Set("Content-Type", "application/json")
