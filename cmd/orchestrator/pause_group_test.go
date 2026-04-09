@@ -146,3 +146,37 @@ func TestResumeOrchestratorGroupCmd_ErrorResponse(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to resume concurrency group")
 }
+
+func TestPauseOrchestratorGroupCmd_InvalidURL(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	pauseOrchestratorGroup("::invalid-url", "test-group")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to create request")
+}
+
+func TestResumeOrchestratorGroupCmd_InvalidURL(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	resumeOrchestratorGroup("::invalid-url", "test-group")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to create request")
+}

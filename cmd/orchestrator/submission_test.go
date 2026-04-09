@@ -3179,3 +3179,164 @@ func TestWaitIdle_ErrorRecovery(t *testing.T) {
 	err := waitIdle(ts.URL, &buf)
 	assert.NoError(t, err)
 }
+
+
+func TestGetJobMetrics(t *testing.T) {
+	tests := []struct {
+		name           string
+		url            string
+		handler        http.HandlerFunc
+		key            string
+		expectedOutput string
+		expectedExit   int
+	}{
+		{
+			name: "Success",
+			key:  "cost",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/test-job", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id": "test-job", "metrics": {"cost": 42.5}}`))
+			},
+			expectedOutput: "42.5",
+			expectedExit:   0,
+		},
+		{
+			name: "MissingKey",
+			key:  "missing",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/test-job", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id": "test-job", "metrics": {"cost": 42.5}}`))
+			},
+			expectedOutput: "Metrics key 'missing' not found for job test-job",
+			expectedExit:   1,
+		},
+		{
+			name: "ErrorResponse",
+			key:  "cost",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/test-job", r.URL.Path)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`Job not found`))
+			},
+			expectedOutput: "Failed to get job info",
+			expectedExit:   1,
+		},
+		{
+			name: "ConnectionError",
+			url:  "http://invalid-url",
+			key:  "cost",
+			expectedOutput: "Failed to connect to orchestrator",
+			expectedExit:   1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var serverURL string
+			if tt.handler != nil {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				serverURL = server.URL
+			} else {
+				serverURL = tt.url
+			}
+
+			oldStdout := stdout
+			var buf bytes.Buffer
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			oldExit := exitFunc
+			var exitCode int
+			exitFunc = func(code int) { exitCode = code }
+			defer func() { exitFunc = oldExit }()
+
+			getJobMetrics(serverURL, "test-job", tt.key)
+
+			assert.Contains(t, buf.String(), tt.expectedOutput)
+			assert.Equal(t, tt.expectedExit, exitCode)
+		})
+	}
+}
+
+func TestGetJobOutput(t *testing.T) {
+	tests := []struct {
+		name           string
+		url            string
+		handler        http.HandlerFunc
+		key            string
+		expectedOutput string
+		expectedExit   int
+	}{
+		{
+			name: "Success",
+			key:  "mykey",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/test-job", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id": "test-job", "outputs": {"mykey": "myval"}}`))
+			},
+			expectedOutput: "myval",
+			expectedExit:   0,
+		},
+		{
+			name: "MissingKey",
+			key:  "missing",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/test-job", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id": "test-job", "outputs": {"mykey": "myval"}}`))
+			},
+			expectedOutput: "Output key 'missing' not found for job test-job",
+			expectedExit:   1,
+		},
+		{
+			name: "ErrorResponse",
+			key:  "mykey",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/test-job", r.URL.Path)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`Job not found`))
+			},
+			expectedOutput: "Failed to get job info",
+			expectedExit:   1,
+		},
+		{
+			name: "ConnectionError",
+			url:  "http://invalid-url",
+			key:  "mykey",
+			expectedOutput: "Failed to connect to orchestrator",
+			expectedExit:   1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var serverURL string
+			if tt.handler != nil {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				serverURL = server.URL
+			} else {
+				serverURL = tt.url
+			}
+
+			oldStdout := stdout
+			var buf bytes.Buffer
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			oldExit := exitFunc
+			var exitCode int
+			exitFunc = func(code int) { exitCode = code }
+			defer func() { exitFunc = oldExit }()
+
+			getJobOutput(serverURL, "test-job", tt.key)
+
+			assert.Contains(t, buf.String(), tt.expectedOutput)
+			assert.Equal(t, tt.expectedExit, exitCode)
+		})
+	}
+}
