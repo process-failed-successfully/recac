@@ -502,6 +502,112 @@ const DashboardHTML = `
             }
         }
 
+        function editEnvVars(encodedJobJson) {
+            try {
+                const j = JSON.parse(decodeURIComponent(encodedJobJson));
+                document.getElementById("env-job-id").value = j.id;
+                document.getElementById("env-job-id-display").innerText = j.id;
+                const container = document.getElementById("env-vars-container");
+                container.innerHTML = "";
+
+                if (j.work_item && j.work_item.env_vars && Object.keys(j.work_item.env_vars).length > 0) {
+                    for (const [key, val] of Object.entries(j.work_item.env_vars)) {
+                        addEnvField(key, val);
+                    }
+                } else {
+                    addEnvField("", "");
+                }
+
+                document.getElementById("envModal").style.display = "block";
+            } catch (e) {
+                console.error("Error editing env vars:", e);
+                alert("Failed to load job details.");
+            }
+        }
+
+        function addEnvField(key, val) {
+            const container = document.getElementById("env-vars-container");
+            const div = document.createElement("div");
+            div.style.display = "flex";
+            div.style.gap = "10px";
+            div.style.marginBottom = "10px";
+
+            const keyInput = document.createElement("input");
+            keyInput.type = "text";
+            keyInput.className = "env-key";
+            keyInput.placeholder = "KEY";
+            keyInput.value = key;
+            keyInput.style.flex = "1";
+            keyInput.setAttribute("aria-label", "Environment variable key");
+
+            const valInput = document.createElement("input");
+            valInput.type = "text";
+            valInput.className = "env-val";
+            valInput.placeholder = "VALUE";
+            valInput.value = val;
+            valInput.style.flex = "2";
+            valInput.setAttribute("aria-label", "Environment variable value");
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.innerHTML = "<span aria-hidden=\"true\">&times;</span>";
+            removeBtn.setAttribute("aria-label", "Remove environment variable");
+            removeBtn.className = "danger";
+            removeBtn.onclick = function() {
+                container.removeChild(div);
+            };
+
+            div.appendChild(keyInput);
+            div.appendChild(valInput);
+            div.appendChild(removeBtn);
+            container.appendChild(div);
+        }
+
+        async function submitEnvVars() {
+            const btn = document.getElementById("btn-submit-env");
+            btn.disabled = true;
+            btn.innerHTML = "<span class=\"spinner\" aria-hidden=\"true\"></span> Saving...";
+
+            const id = document.getElementById("env-job-id").value;
+            const container = document.getElementById("env-vars-container");
+            const envVars = {};
+
+            const rows = container.children;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const keyInput = row.querySelector(".env-key");
+                const valInput = row.querySelector(".env-val");
+
+                if (keyInput && valInput) {
+                    const key = keyInput.value.trim();
+                    const val = valInput.value.trim();
+                    if (key) {
+                        envVars[key] = val;
+                    }
+                }
+            }
+
+            try {
+                const res = await fetch("/jobs/" + encodeURIComponent(id) + "/env", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ env_vars: envVars })
+                });
+                if (res.ok) {
+                    document.getElementById("envModal").style.display = "none";
+                    fetchStatus();
+                    fetchJobs();
+                } else {
+                    alert("Failed to update environment variables: " + await res.text());
+                }
+            } catch(e) {
+                alert("Request failed: " + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Save Environment Variables";
+            }
+        }
+
         function editDependencies(encodedJobJson) {
             try {
                 const j = JSON.parse(decodeURIComponent(encodedJobJson));
