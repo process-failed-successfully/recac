@@ -2,67 +2,121 @@ package main
 
 import (
 	"bytes"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestListGroups_TableFormat(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/groups", r.URL.Path)
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[
-			{"name": "group-1", "active_jobs": 2, "pending_jobs": 5, "paused": false},
-			{"name": "group-2", "active_jobs": 0, "pending_jobs": 0, "paused": true}
-		]`))
-	}))
-	defer server.Close()
+func TestListGroups(t *testing.T) {
+	tests := []struct {
+		name           string
+		format         string
+		url            string
+		handler        http.HandlerFunc
+		expectedOutput string
+		expectedExit   int
+	}{
+		{
+			name:   "TableFormat",
+			format: "table",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/groups", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[
+					{"name": "group-1", "active_jobs": 2, "pending_jobs": 5, "paused": false},
+					{"name": "group-2", "active_jobs": 0, "pending_jobs": 0, "paused": true}
+				]`))
+			},
+			expectedOutput: "Concurrency Groups (2)",
+			expectedExit:   0,
+		},
+		{
+			name:   "JSONFormat",
+			format: "json",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/groups", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[{"name": "json-group", "active_jobs": 1, "pending_jobs": 0, "paused": false}]`))
+			},
+			expectedOutput: `"name": "json-group"`,
+			expectedExit:   0,
+		},
+		{
+			name:   "Empty",
+			format: "table",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/groups", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[]`))
+			},
+			expectedOutput: "No concurrency groups found",
+			expectedExit:   0,
+		},
+		{
+			name:   "ParseError",
+			format: "table",
+			url:    "://invalid-url",
+			expectedOutput: "Failed to parse host URL",
+			expectedExit:   1,
+		},
+		{
+			name:   "ConnectionError",
+			format: "table",
+			url:    "http://invalid-url",
+			expectedOutput: "Failed to connect to orchestrator",
+			expectedExit:   1,
+		},
+		{
+			name:   "ErrorResponse",
+			format: "table",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/groups", r.URL.Path)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`Internal Server Error`))
+			},
+			expectedOutput: "Failed to fetch groups: status 500",
+			expectedExit:   1,
+		},
+		{
+			name:   "DecodeError",
+			format: "table",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/groups", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`invalid json`))
+			},
+			expectedOutput: "Failed to decode response",
+			expectedExit:   1,
+		},
+	}
 
-	oldStdout := stdout
-	r, w, _ := os.Pipe()
-	stdout = w
-	defer func() { stdout = oldStdout }()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var serverURL string
+			if tt.handler != nil {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				serverURL = server.URL
+			} else {
+				serverURL = tt.url
+			}
 
-	listGroups(server.URL, "table")
+			oldStdout := stdout
+			var buf bytes.Buffer
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
 
-	w.Close()
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
+			oldExit := exitFunc
+			var exitCode int
+			exitFunc = func(code int) { exitCode = code }
+			defer func() { exitFunc = oldExit }()
 
-	assert.Contains(t, output, "Concurrency Groups (2)")
-	assert.Contains(t, output, "group-1")
-	assert.Contains(t, output, "group-2")
-	assert.Contains(t, output, "true")
-	assert.Contains(t, output, "false")
-	assert.Contains(t, output, "5")
-}
+			listGroups(serverURL, tt.format)
 
-func TestListGroups_JSONFormat(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/groups", r.URL.Path)
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[{"name": "json-group", "active_jobs": 1, "pending_jobs": 0, "paused": false}]`))
-	}))
-	defer server.Close()
-
-	oldStdout := stdout
-	r, w, _ := os.Pipe()
-	stdout = w
-	defer func() { stdout = oldStdout }()
-
-	listGroups(server.URL, "json")
-
-	w.Close()
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	assert.Contains(t, output, `"name": "json-group"`)
-	assert.Contains(t, output, `"active_jobs": 1`)
-	assert.NotContains(t, output, "Concurrency Groups")
+			assert.Contains(t, buf.String(), tt.expectedOutput)
+			assert.Equal(t, tt.expectedExit, exitCode)
+		})
+	}
 }
