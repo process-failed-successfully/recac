@@ -9,8 +9,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
-	encoding_csv "encoding/csv"
 	"encoding/base64"
+	encoding_csv "encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -166,7 +166,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 				activeCount++
 			}
 		}
-		if activeCount == 0 && (len(orch.GetActiveJobs()) - status.PendingJobs) > 0 {
+		if activeCount == 0 && (len(orch.GetActiveJobs())-status.PendingJobs) > 0 {
 			activeCount = len(orch.GetActiveJobs()) - status.PendingJobs
 		}
 
@@ -343,14 +343,14 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		type DurationStats struct {
-			TotalJobs      int            `json:"total_jobs"`
-			TotalDuration  float64        `json:"total_duration_ms"`
-			MeanDuration   float64        `json:"mean_duration_ms"`
-			MedianDuration float64        `json:"median_duration_ms"`
-			MinDuration    float64        `json:"min_duration_ms"`
-			MaxDuration    float64        `json:"max_duration_ms"`
-			TagStats       []TagStat      `json:"tag_stats"`
-			TopSlowest     []JobInfo      `json:"top_slowest"`
+			TotalJobs      int       `json:"total_jobs"`
+			TotalDuration  float64   `json:"total_duration_ms"`
+			MeanDuration   float64   `json:"mean_duration_ms"`
+			MedianDuration float64   `json:"median_duration_ms"`
+			MinDuration    float64   `json:"min_duration_ms"`
+			MaxDuration    float64   `json:"max_duration_ms"`
+			TagStats       []TagStat `json:"tag_stats"`
+			TopSlowest     []JobInfo `json:"top_slowest"`
 		}
 
 		if len(validJobs) == 0 {
@@ -813,17 +813,17 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		var graphStr string
-		switch strings.ToLower(format) {
-		case "dot":
+		// ⚡ Bolt: Replace switch strings.ToLower with allocation-free strings.EqualFold
+		if strings.EqualFold(format, "dot") {
 			w.Header().Set("Content-Type", "text/vnd.graphviz")
 			graphStr = ExportGraphToDOT(jobs)
-		case "mermaid":
+		} else if strings.EqualFold(format, "mermaid") {
 			w.Header().Set("Content-Type", "text/plain")
 			graphStr = ExportGraphToMermaid(jobs)
-		case "plantuml":
+		} else if strings.EqualFold(format, "plantuml") {
 			w.Header().Set("Content-Type", "text/plain")
 			graphStr = ExportGraphToPlantUML(jobs)
-		default:
+		} else {
 			http.Error(w, "Invalid format. Supported formats: mermaid, dot, plantuml", http.StatusBadRequest)
 			return
 		}
@@ -3325,7 +3325,6 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 				}
 			}
 		}
-
 
 		repoURL := extractRepoURL(description, jira.RepoRegex)
 		if repoURL == "" {
