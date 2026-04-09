@@ -13,25 +13,25 @@ type StoreConfig struct {
 
 // NewStore creates a new Store instance based on the provided configuration
 func NewStore(config StoreConfig) (Store, error) {
-	switch strings.ToLower(config.Type) {
-	case "postgres", "postgresql":
+	// ⚡ Bolt: Replace switch strings.ToLower with allocation-free strings.EqualFold
+	if strings.EqualFold(config.Type, "postgres") || strings.EqualFold(config.Type, "postgresql") {
 		if config.ConnectionString == "" {
 			return nil, fmt.Errorf("postgres connection string is required")
 		}
 		return NewPostgresStore(config.ConnectionString)
-	case "sqlite", "sqlite3":
+	} else if strings.EqualFold(config.Type, "sqlite") || strings.EqualFold(config.Type, "sqlite3") {
 		if config.ConnectionString == "" {
 			// Default to .recac.db if not provided
 			config.ConnectionString = ".recac.db"
 		}
 		return NewSQLiteStore(config.ConnectionString)
-	case "":
+	} else if config.Type == "" {
 		// Default to SQLite if empty
 		if config.ConnectionString == "" {
 			config.ConnectionString = ".recac.db"
 		}
 		return NewSQLiteStore(config.ConnectionString)
-	default:
+	} else {
 		return nil, fmt.Errorf("unsupported store type: %s", config.Type)
 	}
 }

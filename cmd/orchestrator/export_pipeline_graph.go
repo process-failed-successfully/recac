@@ -39,14 +39,14 @@ func exportPipelineGraphJob(filePath string, target string, vars map[string]stri
 	}
 
 	var graphOutput string
-	switch strings.ToLower(format) {
-	case "mermaid":
+	// ⚡ Bolt: Replace switch strings.ToLower with allocation-free strings.EqualFold
+	if strings.EqualFold(format, "mermaid") {
 		graphOutput = orchestrator.ExportGraphToMermaid(jobs)
-	case "plantuml":
+	} else if strings.EqualFold(format, "plantuml") {
 		graphOutput = orchestrator.ExportGraphToPlantUML(jobs)
-	case "dot":
+	} else if strings.EqualFold(format, "dot") {
 		graphOutput = orchestrator.ExportGraphToDOT(jobs)
-	default:
+	} else {
 		fmt.Fprintf(stdout, "Unsupported graph format: %s. Use 'mermaid', 'plantuml', or 'dot'.\n", format)
 		exitFunc(1)
 		return

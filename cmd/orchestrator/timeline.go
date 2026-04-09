@@ -142,16 +142,16 @@ func printTimeline(host string, limit int) {
 
 		// Choose color based on status
 		var barColor lipgloss.Color
-		switch strings.ToLower(j.Status) {
-		case "completed", "success":
+		// ⚡ Bolt: Replace switch strings.ToLower with allocation-free strings.EqualFold
+		if strings.EqualFold(j.Status, "completed") || strings.EqualFold(j.Status, "success") {
 			barColor = colorCompleted
-		case "failed", "error":
+		} else if strings.EqualFold(j.Status, "failed") || strings.EqualFold(j.Status, "error") {
 			barColor = colorFailed
-		case "canceled", "cancelled":
+		} else if strings.EqualFold(j.Status, "canceled") || strings.EqualFold(j.Status, "cancelled") {
 			barColor = colorCanceled
-		case "pending":
+		} else if strings.EqualFold(j.Status, "pending") {
 			barColor = colorPending
-		default:
+		} else {
 			barColor = colorRunning
 		}
 
