@@ -864,20 +864,20 @@ func waitForTag(host, tag string, out io.Writer) error {
 	for {
 		resp, err := http.Get(urlStr)
 		if err != nil {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		var jobs []orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 			resp.Body.Close()
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		resp.Body.Close()
@@ -905,7 +905,7 @@ func waitForTag(host, tag string, out io.Writer) error {
 			return nil
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -942,7 +942,7 @@ func waitForJobs(host string, jobIDs []string, out io.Writer) error {
 		}
 
 		if len(remaining) > 0 {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 		}
 	}
 
@@ -958,14 +958,14 @@ func waitForMatch(host, match string, out io.Writer) error {
 	for {
 		resp, err := http.Get(urlStr)
 		if err != nil {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		var jobs []orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
 			resp.Body.Close()
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		resp.Body.Close()
@@ -993,7 +993,7 @@ func waitForMatch(host, match string, out io.Writer) error {
 			return nil
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -1040,14 +1040,14 @@ func waitForJob(host, jobID string, out io.Writer) error {
 		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
 		if err != nil {
 			// Retry on network error
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		var job orchestrator.JobInfo
 		if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
 			resp.Body.Close()
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		resp.Body.Close()
@@ -1105,12 +1105,12 @@ func waitForJob(host, jobID string, out io.Writer) error {
 					logsResp.Body.Close()
 				}
 				// Maybe container not ready yet
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(1 * time.Second)
 				continue
 			}
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -2672,4 +2672,51 @@ func updateBulkAgent(host, match, tag, providerStr, modelStr string) {
 	}
 
 	fmt.Fprintf(stdout, "Successfully updated agents for %d pending jobs.\n", result.Updated)
+}
+
+func waitForGroup(host, group string, out io.Writer) error {
+	fmt.Fprintf(out, "Waiting for jobs in concurrency group '%s' to complete...\n", group)
+
+	urlStr := fmt.Sprintf("%s/jobs?state=all&group=%s", host, url.QueryEscape(group))
+
+	for {
+		resp, err := http.Get(urlStr)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		var jobs []orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+			resp.Body.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		resp.Body.Close()
+
+		if len(jobs) == 0 {
+			fmt.Fprintf(out, "No jobs found in concurrency group '%s'.\n", group)
+			return nil
+		}
+
+		allCompleted := true
+		for _, job := range jobs {
+			if job.Status == "Failed" {
+				return fmt.Errorf("job %s failed with error: %s", job.ID, job.Error)
+			}
+			if job.Status == "Canceled" {
+				return fmt.Errorf("job %s canceled with error: %s", job.ID, job.Error)
+			}
+			if job.Status != "Completed" && job.Status != "Skipped" {
+				allCompleted = false
+			}
+		}
+
+		if allCompleted {
+			fmt.Fprintf(out, "All jobs in concurrency group '%s' completed successfully.\n", group)
+			return nil
+		}
+
+		time.Sleep(1 * time.Second)
+	}
 }
