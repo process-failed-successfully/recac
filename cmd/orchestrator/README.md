@@ -36,6 +36,8 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | `--export-timeline-state` | - | `all` | State of jobs to export timeline for (`all`, `active`, `completed`, `failed`) |
 | `--export-failures` | - | - | Export failures analysis to a file (use '-' for stdout) |
 | `--export-failures-format` | - | `json` | Format for exported failures (`json` or `csv`) |
+| `--export-anomalies` | - | - | Export anomalies analysis to a file (use '-' for stdout) |
+| `--export-anomalies-format` | - | `json` | Format for exported anomalies (`json` or `csv`) |
 | `--analyze-anomalies` | - | - | Analyze and display jobs whose duration or cost exceeds 2 standard deviations from the model's mean |
 | `--analyze-anomalies-limit` | - | 10 | Limit the number of anomalies displayed in anomaly analysis |
 | `--generate-changelog` | - | - | Generates a Markdown changelog based on completed jobs using the configured AI agent. Use `-` for stdout or provide a file path. |

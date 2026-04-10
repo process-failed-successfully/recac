@@ -343,6 +343,8 @@ func main() {
 	pflag.String("export-reliability-format", "json", "Format for exported reliability ('json' or 'csv')")
 	pflag.String("export-failures", "", "Export failures analysis to a file (use '-' for stdout)")
 	pflag.String("export-failures-format", "json", "Format for exported failures ('json' or 'csv')")
+	pflag.String("export-anomalies", "", "Export anomalies analysis to a file (use '-' for stdout)")
+	pflag.String("export-anomalies-format", "json", "Format for exported anomalies ('json' or 'csv')")
 
 	pflag.String("upload-artifact", "", "Path to the local file to upload as an artifact (requires --job-id)")
 	pflag.String("download-artifact", "", "Filename of the artifact to download (requires --job-id)")
@@ -748,6 +750,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_reliability_format", pflag.Lookup("export-reliability-format"))
 	viper.BindPFlag("orchestrator.export_failures", pflag.Lookup("export-failures"))
 	viper.BindPFlag("orchestrator.export_failures_format", pflag.Lookup("export-failures-format"))
+	viper.BindPFlag("orchestrator.export_anomalies", pflag.Lookup("export-anomalies"))
+	viper.BindPFlag("orchestrator.export_anomalies_format", pflag.Lookup("export-anomalies-format"))
 
 	viper.BindPFlag("orchestrator.upload_artifact", pflag.Lookup("upload-artifact"))
 	viper.BindPFlag("orchestrator.download_artifact", pflag.Lookup("download-artifact"))
@@ -2524,6 +2528,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.export_agents_format")
 		exportAgents(host, exportAgentsFile, format)
+		return nil
+	}
+	if exportAnomaliesFile := viper.GetString("orchestrator.export_anomalies"); exportAnomaliesFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_anomalies_format")
+		exportAnomalies(host, exportAnomaliesFile, format)
 		return nil
 	}
 
