@@ -61,6 +61,30 @@ func TestAPI_FailJob(t *testing.T) {
 		}
 	})
 
+	// Re-add for bulk group
+	orch.pendingJobs["job789"] = JobInfo{
+		ID:     "job789",
+		Status: "Pending",
+		WorkItem: WorkItem{
+			ID: "job789",
+			ConcurrencyGroup: "group1",
+		},
+	}
+
+	t.Run("Fail bulk jobs by group", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs/fail?group=group1", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+		}
+
+		if _, exists := orch.pendingJobs["job789"]; exists {
+			t.Errorf("job should have been removed from pending jobs")
+		}
+	})
+
 	t.Run("Fail bulk without query", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/jobs/fail", nil)
 		w := httptest.NewRecorder()

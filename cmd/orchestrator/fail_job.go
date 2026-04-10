@@ -35,7 +35,7 @@ func failJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s manually failed successfully.\n", jobID)
 }
 
-func failBulkJobs(host, match, tag string) {
+func failBulkJobs(host, match, tag, group string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/fail", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -49,6 +49,9 @@ func failBulkJobs(host, match, tag string) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 
