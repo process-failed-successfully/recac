@@ -986,11 +986,23 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		case "ctrl+p":
 			return m, fetchCriticalPathCmd(m.host)
 		case "ctrl+j":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_ctrl_j"
+				m.pendingAction = "pause group multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 			m.viewState = viewPauseGroupInput
 			m.pauseGroupInput.SetValue("")
 			m.pauseGroupInput.Focus()
 			return m, textinput.Blink
 		case "ctrl+k":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_ctrl_k"
+				m.pendingAction = "resume group multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 			m.viewState = viewResumeGroupInput
 			m.resumeGroupInput.SetValue("")
 			m.resumeGroupInput.Focus()
@@ -1483,6 +1495,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 		case "y", "enter":
 			if len(m.selectedJobs) > 0 && strings.HasSuffix(m.pendingAction, "multiple") {
 				var cmds []tea.Cmd
+
+				processedGroups := make(map[string]bool)
 				for id := range m.selectedJobs {
 					switch m.pendingAction {
 					case "cancel multiple":
@@ -1520,9 +1534,25 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 					case "delete pending multiple":
 						cmds = append(cmds, deletePendingCmd(m.host, id))
 					case "pause group multiple":
-						cmds = append(cmds, pauseGroupCmd(m.host, id))
+						for _, job := range m.jobs {
+							if job.ID == id && job.WorkItem.ConcurrencyGroup != "" {
+								if !processedGroups[job.WorkItem.ConcurrencyGroup] {
+									processedGroups[job.WorkItem.ConcurrencyGroup] = true
+									cmds = append(cmds, pauseGroupCmd(m.host, job.WorkItem.ConcurrencyGroup))
+								}
+								break
+							}
+						}
 					case "resume group multiple":
-						cmds = append(cmds, resumeGroupCmd(m.host, id))
+						for _, job := range m.jobs {
+							if job.ID == id && job.WorkItem.ConcurrencyGroup != "" {
+								if !processedGroups[job.WorkItem.ConcurrencyGroup] {
+									processedGroups[job.WorkItem.ConcurrencyGroup] = true
+									cmds = append(cmds, resumeGroupCmd(m.host, job.WorkItem.ConcurrencyGroup))
+								}
+								break
+							}
+						}
 					}
 				}
 				m.selectedJobs = make(map[string]bool)
@@ -2513,6 +2543,10 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs and their downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "force complete multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to FORCE COMPLETE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "pause group multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to PAUSE the concurrency groups for %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "resume group multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to RESUME the concurrency groups for %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "purge multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to PURGE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "retry multiple" {
