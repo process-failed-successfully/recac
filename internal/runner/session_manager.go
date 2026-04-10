@@ -18,11 +18,7 @@ func validateSessionName(name string) error {
 	if name == "" {
 		return fmt.Errorf("session name cannot be empty")
 	}
-	if !filepath.IsLocal(name) {
-		return fmt.Errorf("invalid session name '%s': path traversal characters detected", name)
-	}
-	cleanName := filepath.Base(name)
-	if cleanName == "." || cleanName == ".." || cleanName == "/" || cleanName != name {
+	if !filepath.IsLocal(name) || filepath.Base(name) != name || name == "." || name == ".." {
 		return fmt.Errorf("invalid session name '%s': path traversal characters detected", name)
 	}
 	return nil
@@ -337,14 +333,14 @@ func (sm *SessionManager) ArchiveSession(name string) error {
 
 	// Move session state file (.json)
 	oldSessionPath := sm.GetSessionPath(name)
-	newSessionPath := filepath.Join(sm.archivedSessionsDir, filepath.Base(oldSessionPath))
+	newSessionPath := filepath.Join(sm.archivedSessionsDir, name+".json")
 	if err := os.Rename(oldSessionPath, newSessionPath); err != nil {
 		return fmt.Errorf("failed to move session state file to archive: %w", err)
 	}
 
 	// Move log file (.log)
 	oldLogPath := session.LogFile
-	newLogPath := filepath.Join(sm.archivedSessionsDir, filepath.Base(oldLogPath))
+	newLogPath := filepath.Join(sm.archivedSessionsDir, name+".log")
 	if err := os.Rename(oldLogPath, newLogPath); err != nil {
 		// Rollback session file move
 		os.Rename(newSessionPath, oldSessionPath)

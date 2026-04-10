@@ -12,3 +12,8 @@
 **Vulnerability:** Path traversal vulnerability in `runCleanerAgent` due to custom logic handling mixed slashes, and `UnarchiveSession` failing to call `validateSessionName`.
 **Learning:** Checking for prefix `..` on the result of `filepath.Clean` is not enough to prevent directory escape, because mixed absolute paths or drive letters on Windows can trick `filepath.Rel` and custom string manipulation. Also, functions that build filenames directly must ensure inputs are validated.
 **Prevention:** Use Go 1.20's `filepath.IsLocal()` consistently to reject any path traversal strings before passing them to file system functions, while ensuring you accommodate legitimate local paths like `.` if necessary.
+
+## 2024-04-10 - Fixed Path Traversal with `filepath.Base`
+**Vulnerability:** Path traversal vulnerability in artifact handling and session manager due to insufficient validation using `filepath.Base` alongside `net/http` `r.PathValue`.
+**Learning:** `filepath.Base` extraction on its own is not robust enough against path traversal edge cases. A path like `"a/b"` gets extracted to `"b"`, meaning the ID equality check fails, but the API may process paths maliciously depending on how `r.PathValue` parses slashes.
+**Prevention:** Use Go 1.20's `filepath.IsLocal` to handle OS-specific path traversal edge cases (like Windows reserved filenames), and use `filepath.Base(id) == id` to ensure inputs contain no directories.

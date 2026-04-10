@@ -1189,8 +1189,8 @@ func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
 // GetLogs returns the logs for a specific job ID.
 func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	if o.LogDir != "" {
-		safeID := filepath.Base(jobID)
-		if safeID != "." && safeID != ".." && safeID != "/" && safeID != "\\" && !strings.Contains(safeID, "/") && !strings.Contains(safeID, "\\") {
+		if filepath.IsLocal(jobID) && filepath.Base(jobID) == jobID && jobID != "." && jobID != ".." {
+			safeID := jobID
 			logPath := filepath.Join(o.LogDir, fmt.Sprintf("%s.log.gz", safeID))
 			f, err := os.Open(logPath)
 			if err == nil {
@@ -3886,8 +3886,8 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		}
 
 		if o.LogDir != "" {
-			safeID := filepath.Base(item.ID)
-			if safeID != "." && safeID != ".." && safeID != "/" && safeID != "\\" && !strings.Contains(safeID, "/") && !strings.Contains(safeID, "\\") {
+			if filepath.IsLocal(item.ID) && filepath.Base(item.ID) == item.ID && item.ID != "." && item.ID != ".." {
+				safeID := item.ID
 				// Don't impose an arbitrary timeout, let it stream until EOF
 				logsReader, err := o.Spawner.GetLogs(context.Background(), item.ID)
 				if err == nil && logsReader != nil {
