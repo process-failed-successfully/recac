@@ -89,7 +89,7 @@ const DashboardHTML = `
                 <form onsubmit="submitPipeline(); return false;">
                     <div class="form-group">
                         <label for="pipeline-yaml">Pipeline Definition</label>
-                        <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;" required></textarea>
+                        <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;" required aria-required="true"></textarea>
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button type="button" aria-label="Dry Run Pipeline" id="btn-dry-run" onclick="dryRunPipeline()" style="background-color: #6c757d; flex: 1;">Dry Run</button>
@@ -123,12 +123,12 @@ const DashboardHTML = `
                         <input type="text" id="job-id" placeholder="e.g., MY-JOB-123">
                     </div>
                     <div class="form-group">
-                        <label for="job-summary">Summary *</label>
-                        <input type="text" id="job-summary" placeholder="e.g., Fix login bug" required>
+                        <label for="job-summary">Summary <span aria-hidden="true" style="color: red;">*</span></label>
+                        <input type="text" id="job-summary" placeholder="e.g., Fix login bug" required aria-required="true">
                     </div>
                     <div class="form-group">
-                        <label for="job-repo">Repository URL *</label>
-                        <input type="text" id="job-repo" placeholder="e.g., https://github.com/org/repo" required>
+                        <label for="job-repo">Repository URL <span aria-hidden="true" style="color: red;">*</span></label>
+                        <input type="text" id="job-repo" placeholder="e.g., https://github.com/org/repo" required aria-required="true">
                     </div>
                     <div class="form-group">
                         <label for="job-deps">Depends On (Optional, comma-separated IDs)</label>
@@ -261,7 +261,7 @@ const DashboardHTML = `
                 <form onsubmit="performSearchLogs(); return false;">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <div class="form-group" style="flex: 2; margin-bottom: 0;">
-                            <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)..." aria-label="Regex query" required>
+                            <input type="text" id="search-logs-query" placeholder="Regex query (e.g., panic, error)..." aria-label="Regex query" required aria-required="true">
                         </div>
                         <div class="form-group" style="flex: 1; margin-bottom: 0;">
                             <input type="text" id="search-logs-tag" placeholder="Filter by tag (optional)" aria-label="Filter by tag">
