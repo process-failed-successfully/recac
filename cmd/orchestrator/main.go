@@ -246,6 +246,7 @@ func main() {
 	pflag.String("wait-jobs", "", "Wait for multiple comma-separated job IDs to complete")
 	pflag.String("wait-tag", "", "Wait for all jobs with a specific tag to complete")
 	pflag.String("wait-match", "", "Wait for all jobs matching a regex to complete")
+	pflag.String("wait-group", "", "Wait for all jobs with a specific concurrency group to complete")
 	pflag.Bool("wait-idle", false, "Wait for the orchestrator to become completely idle (0 active and 0 pending jobs)")
 	pflag.String("set-output-job", "", "Set output key-value pair for a job")
 	pflag.String("set-output-key", "", "Output key (requires --set-output-job)")
@@ -649,6 +650,7 @@ func main() {
 	viper.BindPFlag("orchestrator.wait_jobs", pflag.Lookup("wait-jobs"))
 	viper.BindPFlag("orchestrator.wait_tag", pflag.Lookup("wait-tag"))
 	viper.BindPFlag("orchestrator.wait_match", pflag.Lookup("wait-match"))
+	viper.BindPFlag("orchestrator.wait_group", pflag.Lookup("wait-group"))
 	viper.BindPFlag("orchestrator.wait_idle", pflag.Lookup("wait-idle"))
 	viper.BindPFlag("orchestrator.set_output_job", pflag.Lookup("set-output-job"))
 	viper.BindPFlag("orchestrator.set_output_key", pflag.Lookup("set-output-key"))
@@ -2138,6 +2140,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		if err := waitForMatch(host, waitMatch, stdout); err != nil {
 			fmt.Fprintf(stdout, "Match %s wait failed: %v\n", waitMatch, err)
+			exitFunc(1)
+		}
+		return nil
+	}
+
+	if waitGroup := viper.GetString("orchestrator.wait_group"); waitGroup != "" {
+		host := viper.GetString("orchestrator.host")
+		if err := waitForGroup(host, waitGroup, stdout); err != nil {
+			fmt.Fprintf(stdout, "Group %s wait failed: %v\n", waitGroup, err)
 			exitFunc(1)
 		}
 		return nil
