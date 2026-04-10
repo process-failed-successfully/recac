@@ -117,6 +117,8 @@ func TestDashboardModel_UpdateConfirmationCoverage(t *testing.T) {
 		"cancel multiple",
 		"force complete multiple",
 		"purge multiple",
+		"pause group multiple",
+		"resume group multiple",
 		"retry multiple",
 		"approve multiple",
 		"hold multiple",
@@ -125,7 +127,7 @@ func TestDashboardModel_UpdateConfirmationCoverage(t *testing.T) {
 	}
 
 	m.jobs = []orchestrator.JobInfo{
-		{ID: "JOB-1", WorkItem: orchestrator.WorkItem{Priority: 5}},
+		{ID: "JOB-1", WorkItem: orchestrator.WorkItem{Priority: 5, ConcurrencyGroup: "test-group"}},
 	}
 	for _, action := range actions {
 		m.pendingAction = action
