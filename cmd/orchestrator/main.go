@@ -198,6 +198,7 @@ func main() {
 	pflag.String("fail-job", "", "Force mark an active or pending job as failed by ID")
 	pflag.String("fail-tag", "", "Force mark jobs with the specified tag as failed")
 	pflag.String("fail-match", "", "Force mark jobs matching the given regex as failed")
+	pflag.String("fail-group", "", "Force mark jobs within the specified concurrency group as failed")
 	pflag.Bool("diagnose", false, "Diagnose pending jobs for unresolvable dependencies and deadlocks")
 	pflag.Bool("simulate", false, "Simulate orchestrator execution to estimate time to completion")
 	pflag.String("simulate-pipeline", "", "Simulate execution of a pipeline YAML file to estimate time to completion")
@@ -602,6 +603,7 @@ func main() {
 	viper.BindPFlag("orchestrator.fail_job", pflag.Lookup("fail-job"))
 	viper.BindPFlag("orchestrator.fail_tag", pflag.Lookup("fail-tag"))
 	viper.BindPFlag("orchestrator.fail_match", pflag.Lookup("fail-match"))
+	viper.BindPFlag("orchestrator.fail_group", pflag.Lookup("fail-group"))
 	viper.BindPFlag("orchestrator.diagnose", pflag.Lookup("diagnose"))
 	viper.BindPFlag("orchestrator.simulate", pflag.Lookup("simulate"))
 	viper.BindPFlag("orchestrator.simulate_pipeline", pflag.Lookup("simulate-pipeline"))
@@ -1677,9 +1679,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	failTag := viper.GetString("orchestrator.fail_tag")
 	failMatch := viper.GetString("orchestrator.fail_match")
-	if failTag != "" || failMatch != "" {
+	failGroup := viper.GetString("orchestrator.fail_group")
+	if failTag != "" || failMatch != "" || failGroup != "" {
 		host := viper.GetString("orchestrator.host")
-		failBulkJobs(host, failMatch, failTag)
+		failBulkJobs(host, failMatch, failTag, failGroup)
 		return nil
 	}
 

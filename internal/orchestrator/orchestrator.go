@@ -950,6 +950,38 @@ func (o *Orchestrator) FailJobsByTag(ctx context.Context, tag string, logger *sl
 }
 
 // FailJobsByMatch forcefully fails jobs matching the given regex.
+func (o *Orchestrator) FailJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.RLock()
+	var jobIDs []string
+
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	for id, job := range o.activeJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	o.mu.RUnlock()
+
+	if len(jobIDs) == 0 {
+		return 0, nil
+	}
+
+	count := 0
+	for _, id := range jobIDs {
+		if err := o.FailJob(ctx, id, logger); err != nil {
+			logger.Error("Failed to manually fail job by group", "job_id", id, "group", group, "error", err)
+			continue
+		}
+		count++
+	}
+
+	return count, nil
+}
+
 func (o *Orchestrator) FailJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
 	matcher, err := regexp.Compile("(?i)" + match)
 	if err != nil {
