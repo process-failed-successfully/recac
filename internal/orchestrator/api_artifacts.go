@@ -17,12 +17,11 @@ func ensureArtifactsDir(o *Orchestrator, jobID string) (string, error) {
 		return "", fmt.Errorf("artifacts directory is not configured")
 	}
 
-	cleanJobID := filepath.Base(jobID)
-	if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+	if !filepath.IsLocal(jobID) || filepath.Base(jobID) != jobID || jobID == "." || jobID == ".." {
 		return "", fmt.Errorf("invalid job ID")
 	}
 
-	jobDir := filepath.Join(o.ArtifactsDir, cleanJobID)
+	jobDir := filepath.Join(o.ArtifactsDir, jobID)
 	if err := os.MkdirAll(jobDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create artifact directory: %w", err)
 	}
@@ -49,13 +48,12 @@ func handleUploadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 		}
 
 		// Prevent path traversal
-		cleanFilename := filepath.Base(filename)
-		if cleanFilename == "." || cleanFilename == ".." || cleanFilename == "/" || cleanFilename != filename {
+		if !filepath.IsLocal(filename) || filepath.Base(filename) != filename || filename == "." || filename == ".." {
 			http.Error(w, "Invalid filename", http.StatusBadRequest)
 			return
 		}
 
-		filePath := filepath.Join(jobDir, cleanFilename)
+		filePath := filepath.Join(jobDir, filename)
 
 		// Create or truncate the file
 		file, err := os.Create(filePath)
@@ -73,9 +71,9 @@ func handleUploadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 			return
 		}
 
-		logger.Info("Artifact uploaded successfully", "job_id", jobID, "filename", cleanFilename)
+		logger.Info("Artifact uploaded successfully", "job_id", jobID, "filename", filename)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Artifact %s uploaded successfully.\n", cleanFilename)
+		fmt.Fprintf(w, "Artifact %s uploaded successfully.\n", filename)
 	}
 }
 
@@ -95,19 +93,17 @@ func handleDownloadArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFu
 			return
 		}
 
-		cleanJobID := filepath.Base(jobID)
-		if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+		if !filepath.IsLocal(jobID) || filepath.Base(jobID) != jobID || jobID == "." || jobID == ".." {
 			http.Error(w, "Invalid job ID", http.StatusBadRequest)
 			return
 		}
 
-		cleanFilename := filepath.Base(filename)
-		if cleanFilename == "." || cleanFilename == ".." || cleanFilename == "/" || cleanFilename != filename {
+		if !filepath.IsLocal(filename) || filepath.Base(filename) != filename || filename == "." || filename == ".." {
 			http.Error(w, "Invalid filename", http.StatusBadRequest)
 			return
 		}
 
-		filePath := filepath.Join(o.ArtifactsDir, cleanJobID, cleanFilename)
+		filePath := filepath.Join(o.ArtifactsDir, jobID, filename)
 
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			http.Error(w, "Artifact not found", http.StatusNotFound)
@@ -133,13 +129,12 @@ func handleListArtifacts(o *Orchestrator, logger *slog.Logger) http.HandlerFunc 
 			return
 		}
 
-		cleanJobID := filepath.Base(jobID)
-		if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+		if !filepath.IsLocal(jobID) || filepath.Base(jobID) != jobID || jobID == "." || jobID == ".." {
 			http.Error(w, "Invalid job ID", http.StatusBadRequest)
 			return
 		}
 
-		jobDir := filepath.Join(o.ArtifactsDir, cleanJobID)
+		jobDir := filepath.Join(o.ArtifactsDir, jobID)
 
 		var artifacts []string
 
@@ -185,19 +180,17 @@ func handleDeleteArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 			return
 		}
 
-		cleanJobID := filepath.Base(jobID)
-		if cleanJobID == "." || cleanJobID == ".." || cleanJobID == "/" || cleanJobID != jobID {
+		if !filepath.IsLocal(jobID) || filepath.Base(jobID) != jobID || jobID == "." || jobID == ".." {
 			http.Error(w, "Invalid job ID", http.StatusBadRequest)
 			return
 		}
 
-		cleanFilename := filepath.Base(filename)
-		if cleanFilename == "." || cleanFilename == ".." || cleanFilename == "/" || cleanFilename != filename {
+		if !filepath.IsLocal(filename) || filepath.Base(filename) != filename || filename == "." || filename == ".." {
 			http.Error(w, "Invalid filename", http.StatusBadRequest)
 			return
 		}
 
-		filePath := filepath.Join(o.ArtifactsDir, cleanJobID, cleanFilename)
+		filePath := filepath.Join(o.ArtifactsDir, jobID, filename)
 
 		if err := os.Remove(filePath); err != nil {
 			if os.IsNotExist(err) {
@@ -209,8 +202,8 @@ func handleDeleteArtifact(o *Orchestrator, logger *slog.Logger) http.HandlerFunc
 			return
 		}
 
-		logger.Info("Artifact deleted successfully", "job_id", jobID, "filename", cleanFilename)
+		logger.Info("Artifact deleted successfully", "job_id", jobID, "filename", filename)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Artifact %s deleted successfully.\n", cleanFilename)
+		fmt.Fprintf(w, "Artifact %s deleted successfully.\n", filename)
 	}
 }
