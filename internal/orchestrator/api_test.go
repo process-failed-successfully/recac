@@ -954,6 +954,31 @@ func TestEventsEndpoint(t *testing.T) {
 	}
 }
 
+func TestAPI_PurgeJobsByGroup(t *testing.T) {
+	orch := New(&mockPoller{}, &mockSpawner{}, 0)
+	orch.completedJobs = []JobInfo{
+		{ID: "JOB-1", WorkItem: WorkItem{ConcurrencyGroup: "test-group"}},
+		{ID: "JOB-2", WorkItem: WorkItem{ConcurrencyGroup: "other-group"}},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, logger, context.Background())
+
+	t.Run("DELETE /history?group=test-group", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, "/history?group=test-group", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `{"cleared":1}`)
+
+		// Verify it was purged
+		assert.Len(t, orch.completedJobs, 1)
+		assert.Equal(t, "JOB-2", orch.completedJobs[0].ID)
+	})
+}
+
 func TestAPI_PurgeJob(t *testing.T) {
 	orch := New(&mockPoller{}, &mockSpawner{}, 0)
 	orch.completedJobs = []JobInfo{{ID: "JOB-1"}}

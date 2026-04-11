@@ -157,6 +157,7 @@ func main() {
 	pflag.String("purge-tag", "", "Purge all completed/failed jobs with the specified tag from history")
 	pflag.String("purge-status", "", "Purge all history jobs with the specified status")
 	pflag.String("purge-match", "", "Purge all history jobs matching the given regex")
+	pflag.String("purge-group", "", "Purge all completed/failed jobs matching the given concurrency group from history")
 	pflag.String("purge-older-than", "", "Purge all history jobs older than the specified duration (e.g., 24h, 168h)")
 	pflag.Bool("purge-failed", false, "Purge all failed jobs from history")
 	pflag.Bool("clear-history", false, "Clear all completed and failed jobs from history")
@@ -564,6 +565,7 @@ func main() {
 	viper.BindPFlag("orchestrator.purge_tag", pflag.Lookup("purge-tag"))
 	viper.BindPFlag("orchestrator.purge_status", pflag.Lookup("purge-status"))
 	viper.BindPFlag("orchestrator.purge_match", pflag.Lookup("purge-match"))
+	viper.BindPFlag("orchestrator.purge_group", pflag.Lookup("purge-group"))
 	viper.BindPFlag("orchestrator.purge_older_than", pflag.Lookup("purge-older-than"))
 	viper.BindPFlag("orchestrator.purge_failed", pflag.Lookup("purge-failed"))
 	viper.BindPFlag("orchestrator.clear_history", pflag.Lookup("clear-history"))
@@ -1426,6 +1428,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if purgeMatch := viper.GetString("orchestrator.purge_match"); purgeMatch != "" {
 		host := viper.GetString("orchestrator.host")
 		purgeJobsByMatch(host, purgeMatch)
+		return nil
+	}
+
+	if purgeGroup := viper.GetString("orchestrator.purge_group"); purgeGroup != "" {
+		host := viper.GetString("orchestrator.host")
+		purgeJobsByGroup(host, purgeGroup)
 		return nil
 	}
 

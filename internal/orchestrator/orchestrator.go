@@ -4731,6 +4731,55 @@ func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, err
 	return len(purgedIDs), nil
 }
 
+// PurgeJobsByGroup purges all completed/failed jobs matching a specific concurrency group from both memory and persistence.
+func (o *Orchestrator) PurgeJobsByGroup(group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	purgedIDs := make(map[string]bool)
+
+	// 1. Purge from memory
+	var newCompleted []JobInfo
+	for _, job := range o.completedJobs {
+		if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
+			purgedIDs[job.ID] = true
+			if logger != nil {
+				logger.Info("Job purged from history by group", "id", job.ID, "group", group)
+			}
+			o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+		} else {
+			newCompleted = append(newCompleted, job)
+		}
+	}
+	o.completedJobs = newCompleted
+
+	// 2. Purge from persistence
+	if o.Persistence != nil {
+		jobsInDb, err := o.Persistence.GetJobs(10000)
+		if err == nil {
+			for _, job := range jobsInDb {
+				if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
+					if err := o.Persistence.PurgeJob(job.ID); err == nil {
+						if !purgedIDs[job.ID] {
+							purgedIDs[job.ID] = true
+							if logger != nil {
+								logger.Info("Job purged from history by group (DB only)", "id", job.ID, "group", group)
+							}
+							o.BroadcastEvent("job_purged", map[string]string{"id": job.ID})
+						}
+					} else {
+						if logger != nil {
+							logger.Error("Failed to purge job from DB", "id", job.ID, "error", err)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return len(purgedIDs), nil
+}
+
 // PurgeJobsOlderThan purges all jobs from history (both in-memory and persistent) that are older than the specified duration.
 func (o *Orchestrator) PurgeJobsOlderThan(d time.Duration, logger *slog.Logger) (int, error) {
 	o.mu.Lock()

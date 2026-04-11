@@ -109,6 +109,45 @@ func TestOrchestrator_PurgeJobsOlderThan(t *testing.T) {
 	mockPersistence.AssertExpectations(t)
 }
 
+func TestOrchestrator_PurgeJobsByGroup(t *testing.T) {
+	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
+
+	mockPersistence := &mockPersistenceClear{}
+	orch.SetPersistence(mockPersistence)
+
+	job1 := JobInfo{ID: "JOB-1", WorkItem: WorkItem{ConcurrencyGroup: "test-group"}}
+	job2 := JobInfo{ID: "JOB-2", WorkItem: WorkItem{ConcurrencyGroup: "other"}}
+
+	orch.completedJobs = append(orch.completedJobs, job1, job2)
+
+	// Add pending job
+	orch.pendingJobs["JOB-3"] = JobInfo{ID: "JOB-3", WorkItem: WorkItem{ConcurrencyGroup: "test-group"}}
+
+	// Add active job
+	orch.activeJobs["JOB-4"] = JobInfo{ID: "JOB-4", WorkItem: WorkItem{ConcurrencyGroup: "test-group"}}
+
+	dbJobs := []JobInfo{
+		{ID: "JOB-5", WorkItem: WorkItem{ConcurrencyGroup: "test-group"}},
+		{ID: "JOB-6", WorkItem: WorkItem{ConcurrencyGroup: "do not delete"}},
+	}
+	mockPersistence.On("GetJobs", 10000).Return(dbJobs, nil)
+	mockPersistence.On("PurgeJob", "JOB-5").Return(nil)
+
+	count, err := orch.PurgeJobsByGroup("test-group", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count) // JOB-1 (memory) and JOB-5 (db)
+
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 1)
+	assert.Equal(t, "JOB-2", completed[0].ID)
+
+	// Pending and Active jobs should not be purged
+	assert.Contains(t, orch.pendingJobs, "JOB-3")
+	assert.Contains(t, orch.activeJobs, "JOB-4")
+
+	mockPersistence.AssertExpectations(t)
+}
+
 func TestOrchestrator_PurgeJobsByMatch(t *testing.T) {
 	orch := New(newMockPoller(nil), &mockSpawner{}, 50*time.Millisecond)
 

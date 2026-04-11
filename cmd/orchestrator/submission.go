@@ -1563,6 +1563,47 @@ func purgeJobsByMatch(host, match string) {
 	fmt.Fprintf(stdout, "Successfully purged %d jobs matching '%s'.\n", int(cleared), match)
 }
 
+func purgeJobsByGroup(host, group string) {
+	urlStr := fmt.Sprintf("%s/history?group=%s", host, url.QueryEscape(group))
+	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to purge jobs by concurrency group: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to parse response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	cleared, ok := result["cleared"].(float64)
+	if !ok {
+		fmt.Fprintf(stdout, "Unexpected response format\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully purged %d jobs with concurrency group '%s'.\n", int(cleared), group)
+}
+
 func purgeJobsOlderThan(host, olderThan string) {
 	urlStr := fmt.Sprintf("%s/history?older_than=%s", host, url.QueryEscape(olderThan))
 	req, err := http.NewRequest(http.MethodDelete, urlStr, nil)
