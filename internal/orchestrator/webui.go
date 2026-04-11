@@ -77,6 +77,7 @@ const DashboardHTML = `
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
                 <button type="button" aria-label="Export Trace" onclick="exportTrace()" style="background-color: #6c757d; margin-right: 10px;">Export Trace</button>
+                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline()" style="background-color: #6c757d; margin-right: 10px;">Export Pipeline</button>
                 <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
                 <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
             </div>
@@ -1122,6 +1123,29 @@ const DashboardHTML = `
             } catch (err) {
                 console.error('Error exporting trace:', err);
                 alert('Error exporting trace: ' + err.message);
+            }
+        }
+
+        async function exportPipeline() {
+            try {
+                const res = await fetch('/jobs/export/pipeline?name=dashboard-export');
+                if (!res.ok) {
+                    const text = await res.text();
+                    alert('Failed to export pipeline: ' + text);
+                    return;
+                }
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'dashboard-export.yaml';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('Error exporting pipeline:', err);
+                alert('Error exporting pipeline: ' + err.message);
             }
         }
 
