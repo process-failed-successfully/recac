@@ -113,6 +113,11 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "async function exportTrace()")
 	assert.Contains(t, html, "fetch('/jobs/export/trace')")
 
+	// Verify Export Pipeline exists
+	assert.Contains(t, html, "Export Pipeline")
+	assert.Contains(t, html, "async function exportPipeline()")
+	assert.Contains(t, html, "fetch('/jobs/export/pipeline?name=dashboard-export')")
+
 	// Verify JS openAnalyzeFailuresModal function exists
 	assert.Contains(t, html, "async function openAnalyzeFailuresModal()")
 	assert.Contains(t, html, "fetch('/jobs?state=all&status=Failed')")
