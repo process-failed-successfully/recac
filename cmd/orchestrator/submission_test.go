@@ -1305,6 +1305,144 @@ func TestPurgeJobsByStatus_ConnectionError(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 }
 
+func TestPurgeJobsByGroup(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/history", r.URL.Path)
+		assert.Equal(t, "group=test-group", r.URL.RawQuery)
+		assert.Equal(t, http.MethodDelete, r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"cleared": 3}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+		pw.Close()
+	}()
+
+	purgeJobsByGroup(server.URL, "test-group")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Successfully purged 3 jobs with concurrency group 'test-group'.")
+}
+
+func TestPurgeJobsByGroup_ErrorResponse(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+		pw.Close()
+	}()
+
+	purgeJobsByGroup(server.URL, "test-group")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to purge jobs by concurrency group: Internal Server Error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByGroup_InvalidJSON(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+		pw.Close()
+	}()
+
+	purgeJobsByGroup(server.URL, "test-group")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to parse response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByGroup_MissingField(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"other": 1}`))
+	}))
+	defer server.Close()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+		pw.Close()
+	}()
+
+	purgeJobsByGroup(server.URL, "test-group")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Unexpected response format")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestPurgeJobsByGroup_ConnectionError(t *testing.T) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	pr, pw, _ := os.Pipe()
+	stdout = pw
+	defer func() {
+		stdout = oldStdout
+		pw.Close()
+	}()
+
+	purgeJobsByGroup("http://localhost:123456", "test-group")
+
+	pw.Close()
+	out, _ := io.ReadAll(pr)
+
+	assert.Contains(t, string(out), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
 func TestPurgeJobsByMatch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/history", r.URL.Path)

@@ -2896,6 +2896,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		tag := r.URL.Query().Get("tag")
 		status := r.URL.Query().Get("status")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 		olderThanStr := r.URL.Query().Get("older_than")
 
 		var count int
@@ -2914,6 +2915,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.PurgeJobsByStatus(status, logger)
 		} else if match != "" {
 			count, err = orch.PurgeJobsByMatch(match, logger)
+		} else if group != "" {
+			count, err = orch.PurgeJobsByGroup(group, logger)
 		} else {
 			count, err = orch.ClearHistory(logger)
 		}
