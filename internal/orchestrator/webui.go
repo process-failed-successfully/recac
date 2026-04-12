@@ -438,6 +438,8 @@ const DashboardHTML = `
 
             if (action === 'approve') {
                 url = '/jobs/' + encodeURIComponent(id) + '/approve';
+            } else if (action === 'skip') {
+                url = '/jobs/' + encodeURIComponent(id) + '/skip';
             } else if (action === 'retry') {
                 url = '/jobs/' + encodeURIComponent(id) + '/retry';
             } else if (action === 'cancel') {
@@ -861,6 +863,8 @@ const DashboardHTML = `
 
                     if (lowerStatus === 'pending approval') {
                         actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
+                    } else if (lowerStatus === 'pending') {
+                        actionButtons += '<button type="button" aria-label="Skip job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'skip\', \'' + escapeHTML(j.id) + '\')">Skip</button>';
                     } else if (lowerStatus === 'failed') {
                         actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
                     }
