@@ -10,6 +10,7 @@ import (
 	"recac/internal/git"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 	"strings"
 	"time"
 )
@@ -293,7 +294,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 					if out, err := commitCmd.CombinedOutput(); err != nil {
 						// It's normal for commit to fail if there are no changes
-						if !strings.Contains(strings.ToLower(string(out)), "nothing to commit") {
+						if !utils.ContainsFold(string(out), "nothing to commit") {
 							fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
 						} else {
 							fmt.Printf("Auto-committed work: Nothing to commit\n")

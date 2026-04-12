@@ -40,9 +40,9 @@ func (p *FilePoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 	}
 
 	var items []WorkItem
-	ext := strings.ToLower(filepath.Ext(p.path))
+	ext := filepath.Ext(p.path)
 
-	if ext == ".yaml" || ext == ".yml" {
+	if strings.EqualFold(ext, ".yaml") || strings.EqualFold(ext, ".yml") {
 		runID := "stable"
 		parsedItems, err := ParsePipelineToWorkItemsWithRunID(data, "", nil, runID, filepath.Dir(p.path))
 		if err != nil {

@@ -36,8 +36,8 @@ func (p *FileDirPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIt
 
 	var items []WorkItem
 	for _, entry := range entries {
-		ext := strings.ToLower(filepath.Ext(entry.Name()))
-		if entry.IsDir() || (ext != ".json" && ext != ".yaml" && ext != ".yml") {
+			ext := filepath.Ext(entry.Name())
+			if entry.IsDir() || (!strings.EqualFold(ext, ".json") && !strings.EqualFold(ext, ".yaml") && !strings.EqualFold(ext, ".yml")) {
 			continue
 		}
 
