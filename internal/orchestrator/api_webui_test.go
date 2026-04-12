@@ -35,6 +35,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 
 	// Verify buttons render logic exists in fetchJobs
 	assert.Contains(t, html, "doJobAction(this, \\'approve\\'")
+	assert.Contains(t, html, "doJobAction(this, \\'skip\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'retry\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'cancel\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'purge\\'")
