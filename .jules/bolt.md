@@ -48,3 +48,6 @@
 ## 2024-04-08 - Optimize Job Status Checks with strings.EqualFold
 **Learning:** Using `strings.ToLower` on short, frequently evaluated fields like `job.Status` inside loops (e.g., when rendering UI or exporting graphs) allocates intermediate strings that quickly pile up, especially when iterating over many elements.
 **Action:** Replace `switch strings.ToLower(s)` with a sequence of `if/else if strings.EqualFold(s, "value")` statements to achieve allocation-free, case-insensitive string matching. This improves performance (e.g., from ~6.2µs to ~1.1µs in a 100-job slice benchmark) and eliminates unnecessary GC pressure.
+## 2026-04-12 - Case-Insensitive String Matching Allocations
+**Learning:** Using `strings.ToLower` in hot loops (like filtering UI components, parsing logs, or evaluating multiple map keys) creates unnecessary intermediate memory allocations for every checked string. For exact equality, `strings.EqualFold` is zero-allocation. For substring checks, a custom `ContainsFold` function can provide the same benefit without intermediate string creation.
+**Action:** Always prefer `strings.EqualFold(a, b)` for exact case-insensitive matches. For case-insensitive substring checks, use the zero-allocation `utils.ContainsFold(s, substr)` rather than converting entire strings to lowercase.

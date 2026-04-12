@@ -24,6 +24,7 @@ import (
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 	"recac/internal/tui"
+	"recac/internal/utils"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/joho/godotenv"
@@ -902,21 +903,21 @@ func loadPipelineVars(varList []string, varFile string) (map[string]string, erro
 	vars := make(map[string]string)
 
 	if varFile != "" {
-		ext := strings.ToLower(filepath.Ext(varFile))
+		ext := filepath.Ext(varFile)
 		content, err := os.ReadFile(varFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read variable file: %w", err)
 		}
 
-		if ext == ".json" {
+		if strings.EqualFold(ext, ".json") {
 			if err := json.Unmarshal(content, &vars); err != nil {
 				return nil, fmt.Errorf("failed to parse JSON variable file: %w", err)
 			}
-		} else if ext == ".yaml" || ext == ".yml" {
+		} else if strings.EqualFold(ext, ".yaml") || strings.EqualFold(ext, ".yml") {
 			if err := yaml.Unmarshal(content, &vars); err != nil {
 				return nil, fmt.Errorf("failed to parse YAML variable file: %w", err)
 			}
-		} else if ext == ".env" || ext == "" {
+		} else if strings.EqualFold(ext, ".env") || ext == "" {
 			envVars, err := godotenv.Unmarshal(string(content))
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse .env variable file: %w", err)
@@ -3435,7 +3436,7 @@ func inspectJob(host, jobID string) {
 		fmt.Fprintln(stdout, labelStyle.Render("Env Vars:"))
 		for k, v := range job.WorkItem.EnvVars {
 			// Mask likely secrets
-			if strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "key") || strings.Contains(strings.ToLower(k), "secret") {
+				if utils.ContainsFold(k, "token") || utils.ContainsFold(k, "key") || utils.ContainsFold(k, "secret") {
 				v = "***"
 			}
 			fmt.Fprintf(stdout, "  %s=%s\n", k, v)

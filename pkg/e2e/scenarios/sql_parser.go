@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"recac/internal/utils"
 )
 
 type SQLParserScenario struct{}
@@ -189,7 +191,7 @@ func (s *SQLParserScenario) Verify(repoPath string, ticketKeys map[string]string
 
 	// Basic Structural Validation with flexible key matching
 	typeVal := getStringKey(result, "type", "statement_type", "kind")
-	if typeVal == "" || !strings.Contains(strings.ToLower(typeVal), "select") {
+	if typeVal == "" || !utils.ContainsFold(typeVal, "select") {
 		return fmt.Errorf("expected type containing 'select', got %v", result["type"])
 	}
 

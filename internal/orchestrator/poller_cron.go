@@ -35,8 +35,8 @@ func NewCronPoller(scheduleStr string, templatePath string) (*CronPoller, error)
 		return nil, fmt.Errorf("invalid cron schedule '%s': %w", scheduleStr, err)
 	}
 
-	ext := strings.ToLower(filepath.Ext(templatePath))
-	isPipeline := ext == ".yaml" || ext == ".yml"
+		ext := filepath.Ext(templatePath)
+		isPipeline := strings.EqualFold(ext, ".yaml") || strings.EqualFold(ext, ".yml")
 
 	poller := &CronPoller{
 		schedule:     schedule,
