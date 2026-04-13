@@ -587,6 +587,44 @@ func (o *Orchestrator) DeletePendingJobsByMatch(ctx context.Context, match strin
 }
 
 // PromoteJob finds the highest priority among all pending jobs and sets the target job's priority to max + 1.
+// DemoteJob finds the lowest priority among all pending jobs and sets the target job's priority to min - 1.
+func (o *Orchestrator) DemoteJob(ctx context.Context, jobID string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		return 0, fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	minPriority := 0
+	first := true
+	for id, pJob := range o.pendingJobs {
+		if id != jobID {
+			if first {
+				minPriority = pJob.WorkItem.Priority
+				first = false
+			} else if pJob.WorkItem.Priority < minPriority {
+				minPriority = pJob.WorkItem.Priority
+			}
+		}
+	}
+
+	newPriority := minPriority - 1
+	if newPriority >= job.WorkItem.Priority {
+		newPriority = job.WorkItem.Priority - 1
+	}
+
+	job.WorkItem.Priority = newPriority
+	o.pendingJobs[jobID] = job
+
+	if logger != nil {
+		logger.Info("Demoted job to minimum priority", "job_id", jobID, "new_priority", newPriority)
+	}
+
+	return newPriority, nil
+}
+
 func (o *Orchestrator) PromoteJob(ctx context.Context, jobID string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
