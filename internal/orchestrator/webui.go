@@ -836,7 +836,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button type="button" aria-label="Submit a new job from empty state" onclick="document.getElementById(\'submitModal\').style.display=\'block\'" style="background-color: #28a745;">+ Submit Job</button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #666;">No jobs found.<br><br><button type="button" aria-label="Submit a new job from empty state" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745;">+ Submit Job (s)</button></td></tr>';
                     return;
                 }
 
@@ -1059,7 +1059,7 @@ const DashboardHTML = `
                 }
                 const graphText = await res.text();
                 if (!graphText.trim()) {
-                    graphDiv.innerHTML = '<span>No jobs to display</span>';
+                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No jobs to display.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back, then press \'s\' to submit a new job.</p></div>';
                     return;
                 }
 
@@ -1090,7 +1090,7 @@ const DashboardHTML = `
                 }
                 const timelineText = await res.text();
                 if (!timelineText.trim() || timelineText.trim() === "gantt\n    title Job Execution Timeline") {
-                    timelineDiv.innerHTML = '<span>No jobs to display</span>';
+                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No jobs to display.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back, then press \'s\' to submit a new job.</p></div>';
                     return;
                 }
 
@@ -1580,6 +1580,10 @@ const DashboardHTML = `
                 document.getElementById('job-search').focus();
             } else if (event.key === 'r') {
                 document.getElementById('refresh-jobs').click();
+            } else if (event.key === 's') {
+                event.preventDefault();
+                document.getElementById('submitModal').style.display = 'block';
+                setTimeout(() => document.getElementById('job-summary').focus(), 10);
             }
         });
     </script>

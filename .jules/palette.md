@@ -70,3 +70,7 @@
 ## 2026-04-10 - Screen Reader Redundancy on Required Fields
 **Learning:** Relying solely on the HTML5 `required` attribute combined with a visual asterisk (e.g. `*`) inside a `<label>` can lead to screen readers inconsistently announcing the required state or redundantly announcing "star".
 **Action:** Always complement the `required` attribute with `aria-required="true"` on the input element for robust screen reader support. Additionally, wrap the visual asterisk in the label with `<span aria-hidden="true">` to prevent screen readers from reading it out loud.
+
+## 2026-04-13 - Actionable Keybindings in Modals
+**Learning:** When triggering a modal or input form via a global keyboard shortcut in a web UI, ensure immediate accessibility by automatically focusing the primary input field using `setTimeout(() => element.focus(), 10)` to prevent the user from needing to manually click.
+**Action:** Always auto-focus primary inputs when opening modals via shortcuts.
