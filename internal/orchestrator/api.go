@@ -1790,6 +1790,24 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("GET /jobs/{id}/artifacts", handleListArtifacts(orch, logger))
 	mux.HandleFunc("DELETE /jobs/{id}/artifacts/{filename}", handleDeleteArtifact(orch, logger))
 
+	mux.HandleFunc("POST /jobs/{id}/demote", func(w http.ResponseWriter, r *http.Request) {
+		jobID := r.PathValue("id")
+
+		newPriority, err := orch.DemoteJob(baseCtx, jobID, logger)
+		if err != nil {
+			if err.Error() == "job "+jobID+" not found in pending queue" {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"priority": %d}`, newPriority)
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/promote", func(w http.ResponseWriter, r *http.Request) {
 		jobID := r.PathValue("id")
 
