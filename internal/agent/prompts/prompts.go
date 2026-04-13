@@ -51,7 +51,9 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 	// Prevent path traversal if the user supplies malicious names like "../../../etc/passwd"
 	// We only want the base file name.
 	// 🛡️ Sentinel: Mitigates Path Traversal (CWE-22)
-	name = filepath.Base(name)
+	if !filepath.IsLocal(name) || filepath.Base(name) != name || name == "." || name == ".." {
+		return "", fmt.Errorf("invalid prompt name: path traversal detected")
+	}
 
 	// 1. Check override directory (Env)
 	if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != "" {
