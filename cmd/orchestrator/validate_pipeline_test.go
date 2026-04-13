@@ -73,3 +73,20 @@ jobs:
 	assert.True(t, exitCalled, "exitFunc should be called on failure")
 	assert.Contains(t, strings.ToLower(buf.String()), "validation failed")
 }
+
+func TestValidatePipeline_FileReadError(t *testing.T) {
+	var buf bytes.Buffer
+	origStdout := stdout
+	stdout = &buf
+	defer func() { stdout = origStdout }()
+
+	exitCalled := false
+	origExitFunc := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = origExitFunc }()
+
+	validatePipeline("nonexistent_file.yaml", "", nil)
+
+	assert.True(t, exitCalled)
+	assert.Contains(t, buf.String(), "Failed to read file")
+}
