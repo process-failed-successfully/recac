@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -104,20 +105,19 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 			trimmed := strings.TrimSpace(blockerContent)
 			if err == nil && len(trimmed) > 0 {
 				// Check for false positives (status messages instead of blockers)
-				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
-				cleanStr := strings.ToLower(trimmed)
+				// 1. Normalize: remove common comment/bullet chars (#, *, -, whitespace)
 				// ⚡ Bolt: Replaced multiple strings.ReplaceAll calls with strings.NewReplacer for efficiency
-				cleanStr = blockerCleanerReplacer.Replace(cleanStr)
+				cleanStr := blockerCleanerReplacer.Replace(trimmed)
 				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
 
-				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
-					strings.HasPrefix(cleanStr, "none") ||
-					strings.Contains(cleanStr, "no technical obstacles") ||
-					strings.Contains(cleanStr, "progressing smoothly") ||
-					strings.Contains(cleanStr, "initial setup complete") ||
-					strings.Contains(cleanStr, "all requirements met") ||
-					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
+				isFalsePositive := utils.ContainsFold(cleanStr, "no blockers") ||
+					utils.HasPrefixFold(cleanStr, "none") ||
+					utils.ContainsFold(cleanStr, "no technical obstacles") ||
+					utils.ContainsFold(cleanStr, "progressing smoothly") ||
+					utils.ContainsFold(cleanStr, "initial setup complete") ||
+					utils.ContainsFold(cleanStr, "all requirements met") ||
+					utils.ContainsFold(cleanStr, "ready for next feature") ||
+					utils.ContainsFold(cleanStr, "ui verification required")
 
 				if isFalsePositive {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)

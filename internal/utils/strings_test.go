@@ -32,3 +32,31 @@ func TestContainsFold(t *testing.T) {
 		})
 	}
 }
+
+func TestHasPrefixFold(t *testing.T) {
+	tests := []struct {
+		name   string
+		s      string
+		prefix string
+		want   bool
+	}{
+		{"empty strings", "", "", true},
+		{"empty prefix", "hello", "", true},
+		{"exact match", "hello", "hello", true},
+		{"exact match upper", "HELLO", "HELLO", true},
+		{"lower s, upper prefix", "hello world", "HELLO", true},
+		{"upper s, lower prefix", "HELLO WORLD", "hello", true},
+		{"mixed case match", "HeLlO WoRlD", "hElLo", true},
+		{"no match", "hello", "world", false},
+		{"prefix longer than s", "hi", "hello", false},
+		{"partial match not at start", "hello world", "world", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasPrefixFold(tt.s, tt.prefix); got != tt.want {
+				t.Errorf("HasPrefixFold(%q, %q) = %v, want %v", tt.s, tt.prefix, got, tt.want)
+			}
+		})
+	}
+}

@@ -45,3 +45,25 @@ func ContainsFold(s, substr string) bool {
 	}
 	return false
 }
+
+// HasPrefixFold reports whether the string s begins with prefix, using a case-insensitive
+// match that does not allocate new strings.
+func HasPrefixFold(s, prefix string) bool {
+	if len(prefix) > len(s) {
+		return false
+	}
+	for i := 0; i < len(prefix); i++ {
+		c2 := s[i]
+		c3 := prefix[i]
+		if c2 >= 'A' && c2 <= 'Z' {
+			c2 += 'a' - 'A'
+		}
+		if c3 >= 'A' && c3 <= 'Z' {
+			c3 += 'a' - 'A'
+		}
+		if c2 != c3 {
+			return false
+		}
+	}
+	return true
+}
