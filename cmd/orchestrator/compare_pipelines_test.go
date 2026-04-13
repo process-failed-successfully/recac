@@ -152,3 +152,92 @@ func TestComparePipelines_Error_FileNotFound(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out, "Error parsing pipeline 1")
 }
+
+func TestComparePipelines_Error_EmptyPaths(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	comparePipelines(" , ")
+
+	out := buf.String()
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out, "Error: Pipeline file paths cannot be empty")
+}
+
+func TestComparePipelines_Error_BadYaml(t *testing.T) {
+	yamlContent1 := `
+name: "TestPipeline"
+jobs:
+  job1:
+    summary: "Job 1 Old"
+`
+	yamlContent2 := `
+	invalid_yaml: {
+`
+
+	tmpDir := t.TempDir()
+	p1Path := filepath.Join(tmpDir, "p1.yaml")
+	p2Path := filepath.Join(tmpDir, "p2.yaml")
+
+	err := os.WriteFile(p1Path, []byte(yamlContent1), 0644)
+	assert.NoError(t, err)
+	err = os.WriteFile(p2Path, []byte(yamlContent2), 0644)
+	assert.NoError(t, err)
+
+	// Capture output
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	comparePipelines(p1Path + "," + p2Path)
+
+	out := buf.String()
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out, "Error parsing pipeline 2")
+}
+
+func TestComparePipelines_EmptyPipelines(t *testing.T) {
+	yamlContent1 := `
+name: "TestPipeline1"
+`
+	yamlContent2 := `
+name: "TestPipeline2"
+`
+	tmpDir := t.TempDir()
+	p1Path := filepath.Join(tmpDir, "p1.yaml")
+	p2Path := filepath.Join(tmpDir, "p2.yaml")
+
+	err := os.WriteFile(p1Path, []byte(yamlContent1), 0644)
+	assert.NoError(t, err)
+	err = os.WriteFile(p2Path, []byte(yamlContent2), 0644)
+	assert.NoError(t, err)
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	comparePipelines(p1Path + "," + p2Path)
+
+	out := buf.String()
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, out, "No jobs in either pipeline.")
+}
