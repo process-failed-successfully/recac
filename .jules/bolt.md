@@ -51,3 +51,7 @@
 ## 2026-04-12 - Case-Insensitive String Matching Allocations
 **Learning:** Using `strings.ToLower` in hot loops (like filtering UI components, parsing logs, or evaluating multiple map keys) creates unnecessary intermediate memory allocations for every checked string. For exact equality, `strings.EqualFold` is zero-allocation. For substring checks, a custom `ContainsFold` function can provide the same benefit without intermediate string creation.
 **Action:** Always prefer `strings.EqualFold(a, b)` for exact case-insensitive matches. For case-insensitive substring checks, use the zero-allocation `utils.ContainsFold(s, substr)` rather than converting entire strings to lowercase.
+
+## 2026-05-15 - Case-Insensitive String Checks in File Output Parsing
+**Learning:** Checking for substrings or prefixes by converting the entire file output string using `strings.ToLower` creates a huge garbage collection pressure, especially when the file content is large or when it's done frequently.
+**Action:** Always use zero-allocation functions like `utils.ContainsFold` and `utils.HasPrefixFold` to do case-insensitive comparisons directly instead of using `strings.ToLower`.
