@@ -72,6 +72,7 @@ const DashboardHTML = `
                 <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; margin-right: 10px;">Generate Postmortem</button>
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
                 <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; margin-right: 10px;">Analyze Durations</button>
+                <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c; margin-right: 10px;">Analyze Anomalies</button>
                 <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff; margin-right: 10px;">Analyze Reliability</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
@@ -240,6 +241,16 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeDurationsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Durations</h2>
                 <div id="analyze-durations-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    Loading analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="analyzeAnomaliesModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeAnomaliesModal()"><span aria-hidden="true">&times;</span></button>
+                <h2 style="margin-bottom: 0;">Analyze Anomalies</h2>
+                <div id="analyze-anomalies-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -1346,6 +1357,65 @@ const DashboardHTML = `
 
         function closeAnalyzeDurationsModal() {
             document.getElementById('analyzeDurationsModal').style.display = 'none';
+        }
+
+        async function openAnalyzeAnomaliesModal() {
+            const modal = document.getElementById('analyzeAnomaliesModal');
+            const contentDiv = document.getElementById('analyze-anomalies-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Loading analysis...';
+
+            try {
+                const res = await fetch('/jobs/analyze/anomalies');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to load anomalies analysis: ' + await res.text() + '</span>';
+                    return;
+                }
+                const anomalies = await res.json();
+                if (!anomalies || anomalies.length === 0) {
+                    contentDiv.innerHTML = '<span>No anomalies found.</span>';
+                    return;
+                }
+
+                // Sort anomalies by most deviant duration first
+                anomalies.sort((a, b) => b.duration_dev - a.duration_dev);
+
+                let html = '<p><strong>Top Anomalies:</strong> ' + anomalies.length + '</p>';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr><th>Job ID</th><th>Model</th><th>Status</th><th>Duration</th><th>Cost</th><th>Dur Dev</th><th>Cost Dev</th></tr></thead><tbody>';
+
+                anomalies.forEach(a => {
+                    let durDevStr = a.duration_dev ? a.duration_dev.toFixed(2) + 'σ' : '-';
+                    let costDevStr = a.cost_dev ? a.cost_dev.toFixed(2) + 'σ' : '-';
+
+                    let durationStr = a.duration ? a.duration + 'ns' : '-';
+                    // Very simple formatter. If duration comes as nanoseconds, convert it manually or let the backend send string.
+                    // Wait, the API returns time.Duration which marshals to nanoseconds integer in JSON. Let's fix that.
+                    // Let's divide by 1e9 to get seconds.
+                    let durationSeconds = (a.duration / 1000000000).toFixed(2) + 's';
+
+                    html += '<tr>' +
+                        '<td>' + escapeHTML(a.job_id) + '</td>' +
+                        '<td>' + escapeHTML(a.model) + '</td>' +
+                        '<td class="status-' + escapeHTML(a.status).replace(/\s+/g, '-') + '">' + escapeHTML(a.status) + '</td>' +
+                        '<td>' + durationSeconds + '</td>' +
+                        '<td>$' + (a.cost || 0).toFixed(4) + '</td>' +
+                        '<td>' + durDevStr + '</td>' +
+                        '<td>' + costDevStr + '</td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table>';
+
+                contentDiv.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error fetching anomalies analysis: ' + err.message + '</span>';
+            }
+        }
+
+        function closeAnalyzeAnomaliesModal() {
+            document.getElementById('analyzeAnomaliesModal').style.display = 'none';
         }
 
         function openReliabilityModal() {
