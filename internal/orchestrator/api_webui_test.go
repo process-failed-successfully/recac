@@ -108,6 +108,11 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "id=\"analyzeAnomaliesModal\"")
 	assert.Contains(t, html, "Analyze Anomalies")
 
+	// Verify Analyze Costs Modal HTML exists
+	assert.Contains(t, html, "id=\"analyzeCostsModal\"")
+	assert.Contains(t, html, "Analyze Costs")
+	assert.Contains(t, html, "async function openAnalyzeCostsModal()")
+
 	// Verify View Timeline HTML exists
 	assert.Contains(t, html, "timelineModal")
 	assert.Contains(t, html, "View Timeline")
