@@ -72,6 +72,7 @@ const DashboardHTML = `
                 <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; margin-right: 10px;">Generate Postmortem</button>
                 <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
                 <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; margin-right: 10px;">Analyze Durations</button>
+                <button type="button" onclick="openAnalyzeCostsModal()" aria-label="Analyze Costs" style="background-color: #28a745; margin-right: 10px;">Analyze Costs</button>
                 <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c; margin-right: 10px;">Analyze Anomalies</button>
                 <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff; margin-right: 10px;">Analyze Reliability</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
@@ -251,6 +252,16 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeAnomaliesModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Anomalies</h2>
                 <div id="analyze-anomalies-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    Loading analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="analyzeCostsModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeCostsModal()"><span aria-hidden="true">&times;</span></button>
+                <h2 style="margin-bottom: 0;">Analyze Costs</h2>
+                <div id="analyze-costs-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -1369,6 +1380,72 @@ const DashboardHTML = `
 
         function closeAnalyzeDurationsModal() {
             document.getElementById('analyzeDurationsModal').style.display = 'none';
+        }
+
+        async function openAnalyzeCostsModal() {
+            const modal = document.getElementById('analyzeCostsModal');
+            const contentDiv = document.getElementById('analyze-costs-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Loading analysis...';
+
+            try {
+                const res = await fetch('/jobs/analyze/costs?limit=10');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to load cost analysis: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                if (!data || data.total_stats.total_jobs === 0) {
+                    contentDiv.innerHTML = '<span>No valid completed jobs with cost data found.</span>';
+                    return;
+                }
+
+                let html = '<h3>Overall Statistics</h3>';
+                html += '<div style="display: flex; gap: 20px; flex-wrap: wrap;">';
+                html += '<div><strong>Total Jobs:</strong> ' + data.total_stats.total_jobs + '</div>';
+                html += '<div><strong>Total Cost:</strong> $' + data.total_stats.total_cost.toFixed(4) + '</div>';
+                html += '<div><strong>Total Tokens (Prompt):</strong> ' + data.total_stats.total_tokens_prompt + '</div>';
+                html += '<div><strong>Total Tokens (Completion):</strong> ' + data.total_stats.total_tokens_completion + '</div>';
+                html += '</div>';
+
+                if (data.model_stats && data.model_stats.length > 0) {
+                    html += '<h3 style="margin-top: 20px;">Cost by Model</h3>';
+                    html += '<table><thead><tr><th>Model</th><th>Count</th><th>Cost ($)</th><th>Tokens (Prompt)</th><th>Tokens (Completion)</th></tr></thead><tbody>';
+                    data.model_stats.forEach(ms => {
+                        html += '<tr><td>' + escapeHTML(ms.model) + '</td><td>' + ms.jobs_count + '</td><td>' + ms.cost.toFixed(4) + '</td><td>' + ms.tokens_prompt + '</td><td>' + ms.tokens_completion + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                if (data.tag_stats && data.tag_stats.length > 0) {
+                    html += '<h3 style="margin-top: 20px;">Cost by Tag</h3>';
+                    html += '<table><thead><tr><th>Tag</th><th>Count</th><th>Cost ($)</th><th>Tokens (Prompt)</th><th>Tokens (Completion)</th></tr></thead><tbody>';
+                    data.tag_stats.forEach(ts => {
+                        html += '<tr><td>' + escapeHTML(ts.tag) + '</td><td>' + ts.jobs_count + '</td><td>' + ts.cost.toFixed(4) + '</td><td>' + ts.tokens_prompt + '</td><td>' + ts.tokens_completion + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                if (data.top_expensive_jobs && data.top_expensive_jobs.length > 0) {
+                    html += '<h3 style="margin-top: 20px;">Top ' + data.top_expensive_jobs.length + ' Expensive Jobs</h3>';
+                    html += '<table><thead><tr><th>ID</th><th>Summary</th><th>Model</th><th>Cost ($)</th></tr></thead><tbody>';
+                    data.top_expensive_jobs.forEach(job => {
+                        const cost = job.metrics && job.metrics.cost_usd ? job.metrics.cost_usd.toFixed(4) : "0.0000";
+                        const model = job.agent_model || "unknown";
+                        html += '<tr><td>' + escapeHTML(job.id) + '</td><td>' + escapeHTML(job.summary) + '</td><td>' + escapeHTML(model) + '</td><td>' + cost + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                contentDiv.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error fetching cost analysis: ' + err.message + '</span>';
+            }
+        }
+
+        function closeAnalyzeCostsModal() {
+            document.getElementById('analyzeCostsModal').style.display = 'none';
         }
 
         async function openAnalyzeAnomaliesModal() {
