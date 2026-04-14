@@ -74,3 +74,7 @@
 ## 2026-04-13 - Actionable Keybindings in Modals
 **Learning:** When triggering a modal or input form via a global keyboard shortcut in a web UI, ensure immediate accessibility by automatically focusing the primary input field using `setTimeout(() => element.focus(), 10)` to prevent the user from needing to manually click.
 **Action:** Always auto-focus primary inputs when opening modals via shortcuts.
+
+## 2026-04-14 - Update WebUI tests when modifying WebUI HTML
+**Learning:** When modifying HTML or JavaScript functions in `internal/orchestrator/webui.go` (such as adding parameters to functions or altering HTML attributes), always ensure to update the corresponding string matching assertions in the UI tests, specifically within `internal/orchestrator/api_webui_test.go`.
+**Action:** Run `go test ./internal/orchestrator/ -run TestAPI_WebUI_Actions -v` to check.

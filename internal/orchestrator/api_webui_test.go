@@ -115,12 +115,12 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 
 	// Verify Export Trace exists
 	assert.Contains(t, html, "Export Trace")
-	assert.Contains(t, html, "async function exportTrace()")
+	assert.Contains(t, html, "async function exportTrace(btn)")
 	assert.Contains(t, html, "fetch('/jobs/export/trace')")
 
 	// Verify Export Pipeline exists
 	assert.Contains(t, html, "Export Pipeline")
-	assert.Contains(t, html, "async function exportPipeline()")
+	assert.Contains(t, html, "async function exportPipeline(btn)")
 	assert.Contains(t, html, "fetch('/jobs/export/pipeline?name=dashboard-export')")
 
 	// Verify JS openAnalyzeFailuresModal function exists

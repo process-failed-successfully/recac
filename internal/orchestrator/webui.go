@@ -77,8 +77,8 @@ const DashboardHTML = `
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
                 <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
-                <button type="button" aria-label="Export Trace" onclick="exportTrace()" style="background-color: #6c757d; margin-right: 10px;">Export Trace</button>
-                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline()" style="background-color: #6c757d; margin-right: 10px;">Export Pipeline</button>
+                <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d; margin-right: 10px;">Export Trace</button>
+                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d; margin-right: 10px;">Export Pipeline</button>
                 <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
                 <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
             </div>
@@ -1118,7 +1118,10 @@ const DashboardHTML = `
             document.getElementById('timelineModal').style.display = 'none';
         }
 
-        async function exportTrace() {
+        async function exportTrace(btn) {
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Exporting...';
             try {
                 const res = await fetch('/jobs/export/trace');
                 if (!res.ok) {
@@ -1138,10 +1141,16 @@ const DashboardHTML = `
             } catch (err) {
                 console.error('Error exporting trace:', err);
                 alert('Error exporting trace: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
 
-        async function exportPipeline() {
+        async function exportPipeline(btn) {
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Exporting...';
             try {
                 const res = await fetch('/jobs/export/pipeline?name=dashboard-export');
                 if (!res.ok) {
@@ -1161,6 +1170,9 @@ const DashboardHTML = `
             } catch (err) {
                 console.error('Error exporting pipeline:', err);
                 alert('Error exporting pipeline: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
 
