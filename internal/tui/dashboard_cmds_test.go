@@ -164,3 +164,139 @@ func TestFetchCriticalPathCmd(t *testing.T) {
 		})
 	}
 }
+
+func TestPromoteJobCmd(t *testing.T) {
+	tests := []struct {
+		name           string
+		url            string
+		handler        http.HandlerFunc
+		expectedErr    bool
+		expectedErrMsg string
+		expectedMsg    string
+	}{
+		{
+			name: "success",
+			url:  "mock",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/jobs/test-id/promote", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+			},
+			expectedMsg: "Promoted",
+		},
+		{
+			name: "error status",
+			url:  "mock",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			expectedErr:    true,
+			expectedErrMsg: "status 500",
+		},
+		{
+			name:        "request error",
+			url:         "http://invalid-url\x00",
+			expectedErr: true,
+		},
+		{
+			name:        "do error",
+			url:         "http://localhost:0",
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := tt.url
+			if tt.url == "mock" {
+				ts := httptest.NewServer(tt.handler)
+				defer ts.Close()
+				url = ts.URL
+			}
+
+			cmd := promoteJobCmd(url, "test-id")
+			msg := cmd()
+
+			actionMsg, ok := msg.(actionMsg)
+			assert.True(t, ok)
+
+			if tt.expectedErr {
+				assert.Error(t, actionMsg.Err)
+				if tt.expectedErrMsg != "" {
+					assert.Contains(t, actionMsg.Err.Error(), tt.expectedErrMsg)
+				}
+			} else {
+				assert.NoError(t, actionMsg.Err)
+				assert.Equal(t, tt.expectedMsg, actionMsg.Message)
+			}
+		})
+	}
+}
+
+func TestDemoteJobCmd(t *testing.T) {
+	tests := []struct {
+		name           string
+		url            string
+		handler        http.HandlerFunc
+		expectedErr    bool
+		expectedErrMsg string
+		expectedMsg    string
+	}{
+		{
+			name: "success",
+			url:  "mock",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/jobs/test-id/demote", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+			},
+			expectedMsg: "Demoted",
+		},
+		{
+			name: "error status",
+			url:  "mock",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			expectedErr:    true,
+			expectedErrMsg: "status 500",
+		},
+		{
+			name:        "request error",
+			url:         "http://invalid-url\x00",
+			expectedErr: true,
+		},
+		{
+			name:        "do error",
+			url:         "http://localhost:0",
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := tt.url
+			if tt.url == "mock" {
+				ts := httptest.NewServer(tt.handler)
+				defer ts.Close()
+				url = ts.URL
+			}
+
+			cmd := demoteJobCmd(url, "test-id")
+			msg := cmd()
+
+			actionMsg, ok := msg.(actionMsg)
+			assert.True(t, ok)
+
+			if tt.expectedErr {
+				assert.Error(t, actionMsg.Err)
+				if tt.expectedErrMsg != "" {
+					assert.Contains(t, actionMsg.Err.Error(), tt.expectedErrMsg)
+				}
+			} else {
+				assert.NoError(t, actionMsg.Err)
+				assert.Equal(t, tt.expectedMsg, actionMsg.Message)
+			}
+		})
+	}
+}
