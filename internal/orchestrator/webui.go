@@ -25,6 +25,7 @@ const DashboardHTML = `
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f8f8; }
+        tbody tr:hover { background-color: #f1f1f1; transition: background-color 0.15s ease-in-out; }
         .status-Completed { color: green; font-weight: bold; }
         .status-Failed, .status-Error { color: red; font-weight: bold; }
         .status-Running, .status-Active, .status-Spawning { color: blue; font-weight: bold; }
