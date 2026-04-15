@@ -78,3 +78,7 @@
 ## 2026-04-14 - Update WebUI tests when modifying WebUI HTML
 **Learning:** When modifying HTML or JavaScript functions in `internal/orchestrator/webui.go` (such as adding parameters to functions or altering HTML attributes), always ensure to update the corresponding string matching assertions in the UI tests, specifically within `internal/orchestrator/api_webui_test.go`.
 **Action:** Run `go test ./internal/orchestrator/ -run TestAPI_WebUI_Actions -v` to check.
+
+## 2026-04-15 - Data Table Row Hover States
+**Learning:** Data-dense tables in dashboards (like the Jobs table) without row hover states make it difficult for users to track data across a single row, increasing cognitive load.
+**Action:** Always add a subtle `tbody tr:hover` background color to data tables to improve scannability and provide visual feedback during interaction.
