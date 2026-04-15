@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -182,4 +183,75 @@ func TestJanitor_Cleanup_Logs(t *testing.T) {
 	// Verify non-log file is kept
 	_, err = os.Stat(otherFile.Name())
 	assert.NoError(t, err)
+}
+
+func TestJanitor_Cleanup_Logs_RemoveError(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	// Setup temp directory
+	tempDir := t.TempDir()
+
+	subDir := filepath.Join(tempDir, "sub")
+	err := os.Mkdir(subDir, 0755)
+	assert.NoError(t, err)
+
+	now := time.Now()
+	oldTime := now.Add(-48 * time.Hour)
+
+	oldLogFile, err := os.CreateTemp(subDir, "old-*.log.gz")
+	assert.NoError(t, err)
+	oldLogFile.Close()
+	err = os.Chtimes(oldLogFile.Name(), oldTime, oldTime)
+	assert.NoError(t, err)
+
+	// Janitor setup
+	janitor := NewJanitor(logger, nil, 1*time.Minute, 24*time.Hour, false, subDir)
+
+	// make subDir un-writable so Remove fails
+	err = os.Chmod(subDir, 0555)
+	assert.NoError(t, err)
+	// Fix permissions
+	defer os.Chmod(subDir, 0755)
+
+	err = janitor.Cleanup(ctx)
+	assert.NoError(t, err) // It continues and logs the error, doesn't return the error.
+
+	// Check the file still exists
+	_, err = os.Stat(oldLogFile.Name())
+	assert.NoError(t, err)
+}
+
+func TestJanitor_Cleanup_Logs_ReadDirError(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	janitor := NewJanitor(logger, nil, 1*time.Minute, 24*time.Hour, false, "/invalid/directory/path/does/not/exist")
+
+	err := janitor.Cleanup(ctx)
+	// IsNotExist returns nil
+	assert.NoError(t, err)
+}
+
+func TestJanitor_Cleanup_Logs_ReadDirRealError(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+
+	// Setup temp directory
+	tempDir := t.TempDir()
+
+	subDir := filepath.Join(tempDir, "sub")
+	err := os.Mkdir(subDir, 0755)
+	assert.NoError(t, err)
+
+	// we want os.ReadDir(subDir) to fail, so we give no permissions
+	err = os.Chmod(subDir, 0000)
+	assert.NoError(t, err)
+	defer os.Chmod(subDir, 0755)
+
+	janitor := NewJanitor(logger, nil, 1*time.Minute, 24*time.Hour, false, subDir)
+
+	err = janitor.Cleanup(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read log directory")
 }

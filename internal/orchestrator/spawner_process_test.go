@@ -169,3 +169,37 @@ func TestProcessSpawner_GetLogs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test log output", string(content))
 }
+
+func TestProcessSpawner_Cleanup_Error(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+
+	// Create a dummy log file
+	tmpDir := t.TempDir()
+
+	// Create a sub directory to cause permission denied on RemoveAll
+	subDir := filepath.Join(tmpDir, "sub")
+	err := os.Mkdir(subDir, 0755)
+	assert.NoError(t, err)
+
+	logPath := filepath.Join(subDir, "logs.txt")
+	err = os.WriteFile(logPath, []byte("test log output"), 0644)
+	assert.NoError(t, err)
+
+	spawner.mu.Lock()
+	spawner.logFiles["TEST-CLEANUP-ERR"] = logPath
+	spawner.mu.Unlock()
+
+	// Cause an error when attempting to remove the directory
+	// Note: We need to set permissions such that os.RemoveAll fails.
+	// os.RemoveAll calls os.Remove on files, and if the parent dir is not writable/executable, it fails.
+	err = os.Chmod(subDir, 0000)
+	assert.NoError(t, err)
+	// Fix permissions to allow test cleanup to work
+	defer os.Chmod(subDir, 0755)
+
+	err = spawner.Cleanup(context.Background(), WorkItem{ID: "TEST-CLEANUP-ERR"})
+	assert.Error(t, err)
+}
