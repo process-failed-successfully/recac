@@ -315,6 +315,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	mux.HandleFunc("GET /jobs/analyze/costs", handleAnalyzeCosts(orch, logger))
 	mux.HandleFunc("GET /jobs/analyze/anomalies", handleAnalyzeAnomalies(orch, logger))
 	mux.HandleFunc("GET /jobs/analyze/agents", handleAnalyzeAgents(orch, logger))
+mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 
 	mux.HandleFunc("GET /jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
 		limitStr := r.URL.Query().Get("limit")

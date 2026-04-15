@@ -140,6 +140,8 @@ func main() {
 	pflag.Bool("analyze-anomalies", false, "Analyze and display jobs whose duration or cost exceeds 2 standard deviations from the model's mean")
 	pflag.Int("analyze-anomalies-limit", 10, "Limit the number of anomalies displayed in anomaly analysis")
 	pflag.Bool("analyze-agents", false, "Analyze and display a statistical breakdown of agent model performance")
+	pflag.Bool("analyze-tags", false, "Analyze and display a statistical breakdown of job tags")
+	pflag.Int("analyze-tags-limit", 10, "Limit the number of tags displayed in tag analysis")
 	pflag.Int("analyze-agents-limit", 10, "Limit the number of agents displayed in agent analysis")
 	pflag.String("heal-job", "", "Retrieve failed job, construct a new one embedding failure context, append auto-heal tag, and resubmit")
 	pflag.String("heal-match", "", "Heal all failed jobs matching the given regex")
@@ -348,6 +350,8 @@ func main() {
 	pflag.String("export-failures-format", "json", "Format for exported failures ('json' or 'csv')")
 	pflag.String("export-anomalies", "", "Export anomalies analysis to a file (use '-' for stdout)")
 	pflag.String("export-anomalies-format", "json", "Format for exported anomalies ('json' or 'csv')")
+	pflag.String("export-tags", "", "Export tag analysis to a file (use '-' for stdout)")
+	pflag.String("export-tags-format", "json", "Format for exported tags ('json' or 'csv')")
 
 	pflag.String("upload-artifact", "", "Path to the local file to upload as an artifact (requires --job-id)")
 	pflag.String("download-artifact", "", "Filename of the artifact to download (requires --job-id)")
@@ -550,6 +554,8 @@ func main() {
 	viper.BindPFlag("orchestrator.analyze_anomalies_limit", pflag.Lookup("analyze-anomalies-limit"))
 	viper.BindPFlag("orchestrator.analyze_agents", pflag.Lookup("analyze-agents"))
 	viper.BindPFlag("orchestrator.analyze_agents_limit", pflag.Lookup("analyze-agents-limit"))
+	viper.BindPFlag("orchestrator.analyze_tags", pflag.Lookup("analyze-tags"))
+	viper.BindPFlag("orchestrator.analyze_tags_limit", pflag.Lookup("analyze-tags-limit"))
 	viper.BindPFlag("orchestrator.heal_job", pflag.Lookup("heal-job"))
 	viper.BindPFlag("orchestrator.heal_match", pflag.Lookup("heal-match"))
 	viper.BindPFlag("orchestrator.heal_tag", pflag.Lookup("heal-tag"))
@@ -757,6 +763,8 @@ func main() {
 	viper.BindPFlag("orchestrator.export_failures_format", pflag.Lookup("export-failures-format"))
 	viper.BindPFlag("orchestrator.export_anomalies", pflag.Lookup("export-anomalies"))
 	viper.BindPFlag("orchestrator.export_anomalies_format", pflag.Lookup("export-anomalies-format"))
+	viper.BindPFlag("orchestrator.export_tags", pflag.Lookup("export-tags"))
+	viper.BindPFlag("orchestrator.export_tags_format", pflag.Lookup("export-tags-format"))
 
 	viper.BindPFlag("orchestrator.upload_artifact", pflag.Lookup("upload-artifact"))
 	viper.BindPFlag("orchestrator.download_artifact", pflag.Lookup("download-artifact"))
@@ -1317,6 +1325,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		limit := viper.GetInt("orchestrator.analyze_anomalies_limit")
 		format := viper.GetString("orchestrator.format")
 		analyzeAnomalies(host, limit, format)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.analyze_tags") {
+		host := viper.GetString("orchestrator.host")
+		limit := viper.GetInt("orchestrator.analyze_tags_limit")
+		format := viper.GetString("orchestrator.format")
+		analyzeTags(host, limit, format)
 		return nil
 	}
 
@@ -2547,6 +2563,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		exportAgents(host, exportAgentsFile, format)
 		return nil
 	}
+	if exportTagsFile := viper.GetString("orchestrator.export_tags"); exportTagsFile != "" {
+		host := viper.GetString("orchestrator.host")
+		format := viper.GetString("orchestrator.export_tags_format")
+		exportTags(host, exportTagsFile, format, viper.GetInt("orchestrator.analyze_tags_limit"))
+		return nil
+	}
+
 	if exportAnomaliesFile := viper.GetString("orchestrator.export_anomalies"); exportAnomaliesFile != "" {
 		host := viper.GetString("orchestrator.host")
 		format := viper.GetString("orchestrator.export_anomalies_format")
