@@ -1410,6 +1410,38 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				return m, scaleConcurrencyCmd(m.host, newMax)
 			}
 			return m, nil
+		case "}":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_promote"
+				m.pendingAction = "promote multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						return m, promoteJobCmd(m.host, id)
+					}
+				}
+			}
+		case "{":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_demote"
+				m.pendingAction = "demote multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := getRawID(selected[0])
+				for _, job := range m.jobs {
+					if job.ID == id {
+						return m, demoteJobCmd(m.host, id)
+					}
+				}
+			}
 		case ">":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_up"
@@ -1479,6 +1511,10 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 						cmds = append(cmds, holdJobCmd(m.host, id))
 					case "unhold multiple":
 						cmds = append(cmds, unholdJobCmd(m.host, id))
+					case "promote multiple":
+						cmds = append(cmds, promoteJobCmd(m.host, id))
+					case "demote multiple":
+						cmds = append(cmds, demoteJobCmd(m.host, id))
 					case "priority multiple":
 						// We need to fetch current priority to change it.
 						for _, job := range m.jobs {
@@ -3075,6 +3111,50 @@ func approveJobCmd(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
 		}
 		return actionMsg{Message: "Approved"}
+	}
+}
+
+func promoteJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := host + "/jobs/" + id + "/promote"
+		req, err := http.NewRequest(http.MethodPost, urlStr, nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+		return actionMsg{Message: "Promoted"}
+	}
+}
+
+func demoteJobCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		urlStr := host + "/jobs/" + id + "/demote"
+		req, err := http.NewRequest(http.MethodPost, urlStr, nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return actionMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+		return actionMsg{Message: "Demoted"}
 	}
 }
 

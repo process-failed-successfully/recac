@@ -655,10 +655,10 @@ func TestDashboardModel_UpdateSubmit(t *testing.T) {
 	newModel, _ = newModel.updateSubmit(msg)
 	assert.NotNil(t, newModel)
 
-    msg = tea.KeyMsg{Type: tea.KeyEsc}
+	msg = tea.KeyMsg{Type: tea.KeyEsc}
 	newModel, _ = newModel.updateSubmit(msg)
 	assert.NotNil(t, newModel)
-    assert.Equal(t, viewMain, newModel.viewState)
+	assert.Equal(t, viewMain, newModel.viewState)
 }
 
 func TestDashboardModel_UpdateConfirmation(t *testing.T) {
@@ -668,57 +668,57 @@ func TestDashboardModel_UpdateConfirmation(t *testing.T) {
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")}
 	newModel, _ := mModel.updateConfirmation(msg)
 	assert.NotNil(t, newModel)
-    assert.Equal(t, viewMain, newModel.viewState)
+	assert.Equal(t, viewMain, newModel.viewState)
 
 	mModel.viewState = viewConfirmation
 	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")}
 	newModel, cmd := mModel.updateConfirmation(msg)
 	assert.NotNil(t, newModel)
 	assert.Nil(t, cmd)
-    assert.Equal(t, viewMain, newModel.viewState)
+	assert.Equal(t, viewMain, newModel.viewState)
 
-    mModel.viewState = viewConfirmation
+	mModel.viewState = viewConfirmation
 	msg = tea.KeyMsg{Type: tea.KeyEsc}
 	newModel, cmd = mModel.updateConfirmation(msg)
 	assert.NotNil(t, newModel)
 	assert.Nil(t, cmd)
-    assert.Equal(t, viewMain, newModel.viewState)
+	assert.Equal(t, viewMain, newModel.viewState)
 }
 
 func TestDashboardModel_View_AllStates(t *testing.T) {
-    mModel := NewDashboardModel("http://localhost:8080")
+	mModel := NewDashboardModel("http://localhost:8080")
 
-    views := []viewState{
-        viewMain,
-        viewDetails,
-        viewLogs,
-        viewConfirmation,
-        viewSubmit,
-        viewAnalytics,
-        viewTree,
-        viewBlockers,
-        viewDependents,
-        viewTimeoutInput,
-        viewDepsInput,
-        viewEnvInput,
-        viewTagsInput,
-        viewAgentInput,
-        viewRenameInput,
-        viewExplain,
-        viewCompare,
-        viewSearchLogsInput,
-        viewSearchLogsResult,
-        viewTags,
-        viewAnalyzeCosts,
-        viewAnalyzeAgents,
-        viewSimulate,
-    }
+	views := []viewState{
+		viewMain,
+		viewDetails,
+		viewLogs,
+		viewConfirmation,
+		viewSubmit,
+		viewAnalytics,
+		viewTree,
+		viewBlockers,
+		viewDependents,
+		viewTimeoutInput,
+		viewDepsInput,
+		viewEnvInput,
+		viewTagsInput,
+		viewAgentInput,
+		viewRenameInput,
+		viewExplain,
+		viewCompare,
+		viewSearchLogsInput,
+		viewSearchLogsResult,
+		viewTags,
+		viewAnalyzeCosts,
+		viewAnalyzeAgents,
+		viewSimulate,
+	}
 
-    for _, v := range views {
-        mModel.viewState = v
-        out := mModel.View()
-        assert.NotEmpty(t, out)
-    }
+	for _, v := range views {
+		mModel.viewState = v
+		out := mModel.View()
+		assert.NotEmpty(t, out)
+	}
 }
 
 func TestDashboardModel_ArchiveKeys(t *testing.T) {
@@ -760,5 +760,65 @@ func TestDashboardModel_ArchiveKeys(t *testing.T) {
 		assert.Equal(t, viewConfirmation, m.viewState)
 		assert.Equal(t, "archive multiple", m.pendingAction)
 		assert.Equal(t, "MULTIPLE_w", m.pendingJobId)
+	})
+}
+
+func TestDashboardModel_PromoteDemoteKeys(t *testing.T) {
+	columns := []table.Column{{Title: "ID", Width: 10}}
+	tModel := table.New(table.WithColumns(columns))
+	rows := []table.Row{{"JOB-1"}}
+	tModel.SetRows(rows)
+	tModel.SetCursor(0)
+
+	model := DashboardModel{
+		table: tModel,
+		jobs: []orchestrator.JobInfo{
+			{ID: "JOB-1", StartTime: time.Now()},
+		},
+		viewState: viewMain,
+	}
+
+	t.Run("Promote Single Key (})", func(t *testing.T) {
+		m := model
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("}")}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(DashboardModel)
+
+		// promote directly triggers command, wait... actually checking dashboard.go:
+		// return m, promoteJobCmd(m.host, id) -> so it returns cmd, state remains viewMain
+		assert.Equal(t, viewMain, m.viewState)
+	})
+
+	t.Run("Demote Single Key ({)", func(t *testing.T) {
+		m := model
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("{")}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(DashboardModel)
+
+		assert.Equal(t, viewMain, m.viewState)
+	})
+
+	t.Run("Promote Multiple Key (})", func(t *testing.T) {
+		m := model
+		m.selectedJobs = map[string]bool{"JOB-1": true}
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("}")}
+		updatedModel, cmd := m.Update(msg)
+		assert.Nil(t, cmd)
+		m = updatedModel.(DashboardModel)
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "promote multiple", m.pendingAction)
+		assert.Equal(t, "MULTIPLE_promote", m.pendingJobId)
+	})
+
+	t.Run("Demote Multiple Key ({)", func(t *testing.T) {
+		m := model
+		m.selectedJobs = map[string]bool{"JOB-1": true}
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("{")}
+		updatedModel, cmd := m.Update(msg)
+		assert.Nil(t, cmd)
+		m = updatedModel.(DashboardModel)
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "demote multiple", m.pendingAction)
+		assert.Equal(t, "MULTIPLE_demote", m.pendingJobId)
 	})
 }
