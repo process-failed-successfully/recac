@@ -75,6 +75,7 @@ const DashboardHTML = `
                 <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; margin-right: 10px;">Analyze Durations</button>
                 <button type="button" onclick="openAnalyzeCostsModal()" aria-label="Analyze Costs" style="background-color: #28a745; margin-right: 10px;">Analyze Costs</button>
                 <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c; margin-right: 10px;">Analyze Anomalies</button>
+                <button type="button" onclick="openAnalyzeAgentsModal()" aria-label="Analyze Agents" style="background-color: #17a2b8; margin-right: 10px;">Analyze Agents</button>
                 <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff; margin-right: 10px;">Analyze Reliability</button>
                 <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
                 <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
@@ -263,6 +264,16 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeCostsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Costs</h2>
                 <div id="analyze-costs-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    Loading analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="analyzeAgentsModal" class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content modal-large">
+                <button type="button" class="close" aria-label="Close modal" onclick="closeAnalyzeAgentsModal()"><span aria-hidden="true">&times;</span></button>
+                <h2 style="margin-bottom: 0;">Analyze Agents</h2>
+                <div id="analyze-agents-content" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     Loading analysis...
                 </div>
             </div>
@@ -1506,6 +1517,55 @@ const DashboardHTML = `
 
         function closeAnalyzeAnomaliesModal() {
             document.getElementById('analyzeAnomaliesModal').style.display = 'none';
+        }
+
+        async function openAnalyzeAgentsModal() {
+            const modal = document.getElementById('analyzeAgentsModal');
+            const contentDiv = document.getElementById('analyze-agents-content');
+            modal.style.display = 'block';
+            contentDiv.innerHTML = 'Loading analysis...';
+
+            try {
+                const res = await fetch('/jobs/analyze/agents?limit=10');
+                if (!res.ok) {
+                    contentDiv.innerHTML = '<span style="color:red">Failed to load agent analysis: ' + await res.text() + '</span>';
+                    return;
+                }
+                const data = await res.json();
+                if (!data.agents || data.agents.length === 0) {
+                    contentDiv.innerHTML = '<span>No agent data found.</span>';
+                    return;
+                }
+
+                let html = '<p><strong>Top Agents:</strong> ' + data.agents.length + '</p>';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr><th>Provider</th><th>Model</th><th>Total Jobs</th><th>Success %</th><th>Avg Duration</th><th>Avg Cost</th><th>Total Cost</th></tr></thead><tbody>';
+
+                data.agents.forEach(a => {
+                    let successPct = (a.success_rate * 100).toFixed(1) + '%';
+                    let avgDur = (a.average_duration / 1000000000).toFixed(2) + 's';
+                    html += '<tr>' +
+                        '<td>' + escapeHTML(a.agent_provider) + '</td>' +
+                        '<td>' + escapeHTML(a.agent_model) + '</td>' +
+                        '<td>' + a.total_jobs + ' (' + a.successful_jobs + ' ok / ' + a.failed_jobs + ' fail)</td>' +
+                        '<td>' + successPct + '</td>' +
+                        '<td>' + avgDur + '</td>' +
+                        '<td>$' + (a.average_cost || 0).toFixed(4) + '</td>' +
+                        '<td>$' + (a.total_cost || 0).toFixed(4) + '</td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table>';
+
+                contentDiv.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<span style="color:red">Error fetching agent analysis: ' + err.message + '</span>';
+            }
+        }
+
+        function closeAnalyzeAgentsModal() {
+            document.getElementById('analyzeAgentsModal').style.display = 'none';
         }
 
         function openReliabilityModal() {
