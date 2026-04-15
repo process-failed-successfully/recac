@@ -113,6 +113,11 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "Analyze Costs")
 	assert.Contains(t, html, "async function openAnalyzeCostsModal()")
 
+	// Verify Analyze Agents Modal HTML exists
+	assert.Contains(t, html, "id=\"analyzeAgentsModal\"")
+	assert.Contains(t, html, "Analyze Agents")
+	assert.Contains(t, html, "async function openAnalyzeAgentsModal()")
+
 	// Verify View Timeline HTML exists
 	assert.Contains(t, html, "timelineModal")
 	assert.Contains(t, html, "View Timeline")
@@ -135,6 +140,10 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	// Verify JS openAnalyzeAnomaliesModal function exists
 	assert.Contains(t, html, "async function openAnalyzeAnomaliesModal()")
 	assert.Contains(t, html, "fetch('/jobs/analyze/anomalies')")
+
+	// Verify JS openAnalyzeAgentsModal function exists
+	assert.Contains(t, html, "async function openAnalyzeAgentsModal()")
+	assert.Contains(t, html, "fetch('/jobs/analyze/agents?limit=10')")
 
 	// Verify JS dryRunPipeline function exists
 	assert.Contains(t, html, "onclick=\"dryRunPipeline()\"")
