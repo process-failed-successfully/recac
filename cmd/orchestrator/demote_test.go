@@ -61,3 +61,66 @@ func TestDemoteJobCmd_Error(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to demote job: job not found")
 }
+
+func TestDemoteJobCmd_RequestError(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// Invalid URL to trigger Request Error
+	demoteJob("http://192.168.0.%31", "JOB-1")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to create request")
+}
+
+func TestDemoteJobCmd_ConnectionError(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// Valid URL but not running
+	demoteJob("http://localhost:12345", "JOB-1")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
+}
+
+func TestDemoteJobCmd_DecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/JOB-1/demote", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitCode := 0
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	demoteJob(server.URL, "JOB-1")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to decode response")
+}
