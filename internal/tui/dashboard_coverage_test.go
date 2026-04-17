@@ -1,11 +1,11 @@
 package tui
 
 import (
-	"testing"
-	"time"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"recac/internal/orchestrator"
+	"testing"
+	"time"
 )
 
 func TestDashboardModel_UpdateSubmitCoverage(t *testing.T) {
@@ -51,19 +51,19 @@ func TestDashboardModel_UpdateSubmitCoverage(t *testing.T) {
 	model = newM.(DashboardModel)
 	assert.Equal(t, len(m.inputs), model.focusedInput) // should stay on textarea
 
-    // Tab behaves differently when navigating logic.
-    m.focusedInput = -1
-    // simulate shift+tab wrapping backwards? Actually -1 sets to len(m.inputs).
-    newM2, _ := m.updateSubmit(tea.KeyMsg{Type: tea.KeyShiftTab, Alt: false})
-    assert.Equal(t, len(m.inputs), newM2.focusedInput)
+	// Tab behaves differently when navigating logic.
+	m.focusedInput = -1
+	// simulate shift+tab wrapping backwards? Actually -1 sets to len(m.inputs).
+	newM2, _ := m.updateSubmit(tea.KeyMsg{Type: tea.KeyShiftTab, Alt: false})
+	assert.Equal(t, len(m.inputs), newM2.focusedInput)
 
-    m.focusedInput = len(m.inputs) + 1
-    newM3, _ := m.updateSubmit(tea.KeyMsg{Type: tea.KeyTab, Alt: false})
-    assert.Equal(t, 0, newM3.focusedInput)
+	m.focusedInput = len(m.inputs) + 1
+	newM3, _ := m.updateSubmit(tea.KeyMsg{Type: tea.KeyTab, Alt: false})
+	assert.Equal(t, 0, newM3.focusedInput)
 
-    m.focusedInput = len(m.inputs)
-    newM4, _ := m.updateSubmit(tea.KeyMsg{Type: tea.KeyEnter, Alt: false})
-    assert.Equal(t, len(m.inputs), newM4.focusedInput) // ignores enter in textarea for focus change
+	m.focusedInput = len(m.inputs)
+	newM4, _ := m.updateSubmit(tea.KeyMsg{Type: tea.KeyEnter, Alt: false})
+	assert.Equal(t, len(m.inputs), newM4.focusedInput) // ignores enter in textarea for focus change
 }
 
 func TestDashboardModel_RenderCompareCoverage(t *testing.T) {
