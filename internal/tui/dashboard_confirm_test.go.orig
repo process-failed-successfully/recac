@@ -152,10 +152,10 @@ func TestDashboardModel_ConfirmationFlow_MultipleActions(t *testing.T) {
 		action   string
 		expected string
 	}{
-		{"promote multiple", "PROMOTE 2 selected"},
-		{"demote multiple", "DEMOTE 2 selected"},
-		{"hold multiple", "HOLD 2 selected"},
-		{"unhold multiple", "UNHOLD 2 selected"},
+		{"promote multiple", "PROMOTE 2 selected jobs?"},
+		{"demote multiple", "DEMOTE 2 selected jobs?"},
+		{"hold multiple", "HOLD 2 selected jobs?"},
+		{"unhold multiple", "UNHOLD 2 selected jobs?"},
 	}
 
 	for _, tc := range testCases {

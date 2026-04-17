@@ -1,0 +1,18 @@
+--- internal/tui/dashboard_confirm_test.go
++++ internal/tui/dashboard_confirm_test.go
+@@ -151,10 +151,10 @@
+	testCases := []struct {
+		action   string
+		expected string
+	}{
+-		{"promote multiple", "PROMOTE 2 selected jobs?"},
+-		{"demote multiple", "DEMOTE 2 selected jobs?"},
+-		{"hold multiple", "HOLD 2 selected jobs?"},
+-		{"unhold multiple", "UNHOLD 2 selected jobs?"},
++		{"promote multiple", "PROMOTE 2 selected"},
++		{"demote multiple", "DEMOTE 2 selected"},
++		{"hold multiple", "HOLD 2 selected"},
++		{"unhold multiple", "UNHOLD 2 selected"},
+	}
+
+	for _, tc := range testCases {

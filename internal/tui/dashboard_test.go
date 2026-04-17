@@ -989,7 +989,7 @@ func TestFetchTagsCmd_BadJSON(t *testing.T) {
 
 func TestUpdateDeletePendingTagInput(t *testing.T) {
 	model := DashboardModel{
-		viewState: viewDeletePendingTagInput,
+		viewState:             viewDeletePendingTagInput,
 		deletePendingTagInput: textinput.New(),
 	}
 	model.deletePendingTagInput.Focus()
@@ -1025,7 +1025,7 @@ func TestUpdateDeletePendingTagInput(t *testing.T) {
 
 func TestUpdateDeletePendingMatchInput(t *testing.T) {
 	model := DashboardModel{
-		viewState: viewDeletePendingMatchInput,
+		viewState:               viewDeletePendingMatchInput,
 		deletePendingMatchInput: textinput.New(),
 	}
 	model.deletePendingMatchInput.Focus()
@@ -1320,8 +1320,8 @@ func TestRenderAnalyzeDurations(t *testing.T) {
 		contains []string
 	}{
 		{
-			name: "Empty stats",
-			stats: DurationStats{TotalJobs: 0},
+			name:     "Empty stats",
+			stats:    DurationStats{TotalJobs: 0},
 			contains: []string{"No valid completed jobs"},
 		},
 		{
@@ -1370,16 +1370,16 @@ func TestRenderAnalyzeReliability(t *testing.T) {
 		contains []string
 	}{
 		{
-			name: "Empty stats",
-			stats: ReliabilityStats{TotalJobs: 0},
+			name:     "Empty stats",
+			stats:    ReliabilityStats{TotalJobs: 0},
 			contains: []string{"Total Evaluated Jobs: 0"},
 		},
 		{
 			name: "With data",
 			stats: ReliabilityStats{
-				TotalJobs: 20,
-				FlakyJobs:     2,
-				FailedJobs:    3,
+				TotalJobs:   20,
+				FlakyJobs:   2,
+				FailedJobs:  3,
 				SuccessRate: 75.0,
 				TopFlakyJobs: []FlakyJobStat{
 					{Summary: "test1", Occurrences: 2, TotalRetries: 3, AvgRetries: 1.5},

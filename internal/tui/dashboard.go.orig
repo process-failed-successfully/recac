@@ -42,6 +42,7 @@ var (
 	statusStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241")).
 			Margin(1, 0)
+
 )
 
 type viewState int
@@ -87,12 +88,12 @@ const (
 )
 
 type DurationStats struct {
-	TotalJobs      int     `json:"total_jobs"`
-	TotalDuration  float64 `json:"total_duration_ms"`
-	MeanDuration   float64 `json:"mean_duration_ms"`
-	MedianDuration float64 `json:"median_duration_ms"`
-	MinDuration    float64 `json:"min_duration_ms"`
-	MaxDuration    float64 `json:"max_duration_ms"`
+	TotalJobs      int       `json:"total_jobs"`
+	TotalDuration  float64   `json:"total_duration_ms"`
+	MeanDuration   float64   `json:"mean_duration_ms"`
+	MedianDuration float64   `json:"median_duration_ms"`
+	MinDuration    float64   `json:"min_duration_ms"`
+	MaxDuration    float64   `json:"max_duration_ms"`
 	TagStats       []struct {
 		Tag          string  `json:"tag"`
 		Count        int     `json:"count"`
@@ -157,16 +158,16 @@ type CostStatsResponse struct {
 }
 
 type AgentPerformance struct {
-	AgentProvider   string        `json:"agent_provider"`
-	AgentModel      string        `json:"agent_model"`
-	TotalJobs       int           `json:"total_jobs"`
-	SuccessfulJobs  int           `json:"successful_jobs"`
-	FailedJobs      int           `json:"failed_jobs"`
-	SuccessRate     float64       `json:"success_rate"`
-	AverageDuration time.Duration `json:"average_duration"`
-	AverageCost     float64       `json:"average_cost"`
-	TotalCost       float64       `json:"total_cost"`
-	TotalTokens     float64       `json:"total_tokens"`
+	AgentProvider    string        `json:"agent_provider"`
+	AgentModel       string        `json:"agent_model"`
+	TotalJobs        int           `json:"total_jobs"`
+	SuccessfulJobs   int           `json:"successful_jobs"`
+	FailedJobs       int           `json:"failed_jobs"`
+	SuccessRate      float64       `json:"success_rate"`
+	AverageDuration  time.Duration `json:"average_duration"`
+	AverageCost      float64       `json:"average_cost"`
+	TotalCost        float64       `json:"total_cost"`
+	TotalTokens      float64       `json:"total_tokens"`
 }
 
 type AgentStatsResponse struct {
@@ -2562,14 +2563,6 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to DELETE PENDING job %s?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "delete pending multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to DELETE PENDING for %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "promote multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to PROMOTE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "demote multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to DEMOTE %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "hold multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to HOLD %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
-		} else if m.pendingAction == "unhold multiple" {
-			dialogMsg = fmt.Sprintf("Are you sure you want to UNHOLD %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "cancel downstream" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "retry downstream" {
@@ -3014,7 +3007,7 @@ func togglePause(host string, isPaused bool) tea.Cmd {
 		if isPaused {
 			endpoint = "/resume"
 		}
-		req, err := http.NewRequest(http.MethodPost, host+endpoint, nil)
+		req, err := http.NewRequest(http.MethodPost, host + endpoint, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3041,7 +3034,7 @@ func toggleDrain(host string, isDraining bool) tea.Cmd {
 		if isDraining {
 			endpoint = "/undrain"
 		}
-		req, err := http.NewRequest(http.MethodPost, host+endpoint, nil)
+		req, err := http.NewRequest(http.MethodPost, host + endpoint, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3064,7 +3057,7 @@ func toggleDrain(host string, isDraining bool) tea.Cmd {
 
 func forcePoll(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/poll", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/poll", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3084,7 +3077,7 @@ func forcePoll(host string) tea.Cmd {
 func scaleConcurrencyCmd(host string, max int) tea.Cmd {
 	return func() tea.Msg {
 		reqBody := fmt.Sprintf(`{"max_concurrent_jobs": %d}`, max)
-		req, err := http.NewRequest(http.MethodPost, host+"/scale", strings.NewReader(reqBody))
+		req, err := http.NewRequest(http.MethodPost, host + "/scale", strings.NewReader(reqBody))
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3103,7 +3096,7 @@ func scaleConcurrencyCmd(host string, max int) tea.Cmd {
 
 func approveJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/approve", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/approve", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3430,7 +3423,7 @@ func updateTimeoutCmd(host, id, newTimeout string) tea.Cmd {
 
 func purgeJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, host+"/history/"+id, nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/history/" + id, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3449,7 +3442,7 @@ func purgeJobCmd(host, id string) tea.Cmd {
 
 func holdJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/hold", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/hold", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3468,7 +3461,7 @@ func holdJobCmd(host, id string) tea.Cmd {
 
 func unholdJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/unhold", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/unhold", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3487,7 +3480,7 @@ func unholdJobCmd(host, id string) tea.Cmd {
 
 func forceCompleteJobCmd(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/force-complete", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/force-complete", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3506,7 +3499,7 @@ func forceCompleteJobCmd(host, id string) tea.Cmd {
 
 func cancelJob(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, host+"/jobs/"+id, nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs/" + id, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3525,7 +3518,7 @@ func cancelJob(host, id string) tea.Cmd {
 
 func cancelJobDownstream(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, host+"/jobs/"+id+"?downstream=true", nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs/" + id + "?downstream=true", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3544,7 +3537,7 @@ func cancelJobDownstream(host, id string) tea.Cmd {
 
 func cancelAllJobs(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, host+"/jobs", nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/jobs", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3573,7 +3566,7 @@ func cancelAllJobs(host string) tea.Cmd {
 
 func retryJob(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/retry", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/retry", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3592,7 +3585,7 @@ func retryJob(host, id string) tea.Cmd {
 
 func retryJobDownstream(host, id string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/retry?downstream=true", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/" + id + "/retry?downstream=true", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3642,7 +3635,7 @@ func healJobCmd(host, jobID string) tea.Cmd {
 
 func clearHistory(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, host+"/history", nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/history", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3883,7 +3876,7 @@ func archiveBulkJobsCmd(host string, selectedJobs map[string]bool) tea.Cmd {
 
 func clearPending(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodDelete, host+"/pending", nil)
+		req, err := http.NewRequest(http.MethodDelete, host + "/pending", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3948,7 +3941,7 @@ func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string
 			return actionMsg{Err: err}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs", strings.NewReader(string(bodyBytes)))
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs", strings.NewReader(string(bodyBytes)))
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3971,7 +3964,7 @@ func submitJobCmd(host, summary, repoUrl, description string, dependsOn []string
 
 func retryFailedJobs(host string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/retry-failed", nil)
+		req, err := http.NewRequest(http.MethodPost, host + "/jobs/retry-failed", nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -4128,20 +4121,20 @@ func NewDashboardModel(host string) DashboardModel {
 	mri.Prompt = "New Max Retries: "
 	mri.Width = 20
 
-	dpgi := textinput.New()
-	dpgi.Placeholder = "e.g., group-1"
-	dpgi.Prompt = "Concurrency Group: "
-	dpgi.Width = 40
+		dpgi := textinput.New()
+		dpgi.Placeholder = "e.g., group-1"
+		dpgi.Prompt = "Concurrency Group: "
+		dpgi.Width = 40
 
-	dpti := textinput.New()
-	dpti.Placeholder = "e.g., tag-1"
-	dpti.Prompt = "Tag: "
-	dpti.Width = 40
+		dpti := textinput.New()
+		dpti.Placeholder = "e.g., tag-1"
+		dpti.Prompt = "Tag: "
+		dpti.Width = 40
 
-	dpmi := textinput.New()
-	dpmi.Placeholder = "e.g., ^job-.*$"
-	dpmi.Prompt = "Match Regex: "
-	dpmi.Width = 40
+		dpmi := textinput.New()
+		dpmi.Placeholder = "e.g., ^job-.*$"
+		dpmi.Prompt = "Match Regex: "
+		dpmi.Width = 40
 
 	si := textinput.New()
 	si.Placeholder = "e.g., error|panic"
@@ -4163,21 +4156,21 @@ func NewDashboardModel(host string) DashboardModel {
 	lfi.Width = 40
 
 	return DashboardModel{
-		host:                    host,
-		table:                   t,
-		viewport:                vp,
-		viewState:               viewMain,
-		inputs:                  inputs,
-		textarea:                ta,
-		filterInput:             fi,
-		isFiltering:             false,
-		timeoutInput:            ti,
-		depsInput:               di,
-		envInput:                ei,
-		tagsInput:               gi,
-		agentProviderInput:      api,
-		agentModelInput:         ami,
-		renameInput:             ri,
+		host:         host,
+		table:        t,
+		viewport:     vp,
+		viewState:    viewMain,
+		inputs:       inputs,
+		textarea:     ta,
+		filterInput:  fi,
+		isFiltering:  false,
+		timeoutInput: ti,
+		depsInput:    di,
+		envInput:     ei,
+		tagsInput:          gi,
+		agentProviderInput: api,
+		agentModelInput:    ami,
+		renameInput:        ri,
 		maxRetriesInput:         mri,
 		deletePendingGroupInput: dpgi,
 		deletePendingTagInput:   dpti,

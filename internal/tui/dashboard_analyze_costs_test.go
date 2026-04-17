@@ -15,10 +15,10 @@ func TestDashboardModel_AnalyzeCosts(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			stats := CostStatsResponse{
 				TotalStats: CostStats{
-					TotalCost: 12.50,
-					TotalTokensPrompt: 50000,
+					TotalCost:             12.50,
+					TotalTokensPrompt:     50000,
 					TotalTokensCompletion: 50000,
-					TotalJobs: 2,
+					TotalJobs:             2,
 				},
 				TagStats: []CostByTag{
 					{Tag: "backend", Cost: 10.00},
