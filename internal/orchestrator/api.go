@@ -4,6 +4,8 @@ import (
 	archive_tar "archive/tar"
 	"bufio"
 	"bytes"
+	"path/filepath"
+	"os"
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
@@ -1444,6 +1446,30 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 				}
 			}
 		}
+
+		// 3. Write artifacts
+		if orch.ArtifactsDir != "" {
+			jobDir := filepath.Join(orch.ArtifactsDir, id)
+			entries, err := os.ReadDir(jobDir)
+			if err == nil {
+				for _, entry := range entries {
+					if !entry.IsDir() {
+						filePath := filepath.Join(jobDir, entry.Name())
+						fileData, err := os.ReadFile(filePath)
+						if err == nil {
+							hdr := &archive_tar.Header{
+								Name: "artifacts/" + entry.Name(),
+								Mode: 0600,
+								Size: int64(len(fileData)),
+							}
+							if err := tarWriter.WriteHeader(hdr); err == nil {
+								tarWriter.Write(fileData)
+							}
+						}
+					}
+				}
+			}
+		}
 	})
 
 	mux.HandleFunc("GET /jobs/archive/bulk", func(w http.ResponseWriter, r *http.Request) {
@@ -1516,6 +1542,29 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 					hdr := &archive_tar.Header{Name: fmt.Sprintf("%s/logs.txt", job.ID), Mode: 0600, Size: int64(len(logData))}
 					if err := tarWriter.WriteHeader(hdr); err == nil {
 						tarWriter.Write(logData)
+					}
+				}
+			}
+
+			if orch.ArtifactsDir != "" {
+				jobDir := filepath.Join(orch.ArtifactsDir, job.ID)
+				entries, err := os.ReadDir(jobDir)
+				if err == nil {
+					for _, entry := range entries {
+						if !entry.IsDir() {
+							filePath := filepath.Join(jobDir, entry.Name())
+							fileData, err := os.ReadFile(filePath)
+							if err == nil {
+								hdr := &archive_tar.Header{
+									Name: fmt.Sprintf("%s/artifacts/%s", job.ID, entry.Name()),
+									Mode: 0600,
+									Size: int64(len(fileData)),
+								}
+								if err := tarWriter.WriteHeader(hdr); err == nil {
+									tarWriter.Write(fileData)
+								}
+							}
+						}
 					}
 				}
 			}

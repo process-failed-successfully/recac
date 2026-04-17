@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
+	"path/filepath"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -25,8 +26,15 @@ func TestAPI_ArchiveJob(t *testing.T) {
 
 	orch := New(mockPoller, mockSpawner, 1*time.Minute)
 
+	// Create temp dir for artifacts
+	tmpDir := t.TempDir()
+	orch.ArtifactsDir = tmpDir
+
 	// Add an existing job to history
 	jobID := "archive-123"
+	jobArtifactDir := filepath.Join(tmpDir, jobID)
+	require.NoError(t, os.MkdirAll(jobArtifactDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(jobArtifactDir, "report.pdf"), []byte("dummy pdf content"), 0644))
 	orch.completedJobs = append(orch.completedJobs, JobInfo{
 		ID:      jobID,
 		Status:  "Completed",
@@ -64,6 +72,7 @@ func TestAPI_ArchiveJob(t *testing.T) {
 
 		var filesFound []string
 		var logsContent string
+		var artifactContent string
 
 		for {
 			hdr, err := tarReader.Next()
@@ -78,11 +87,19 @@ func TestAPI_ArchiveJob(t *testing.T) {
 				require.NoError(t, err)
 				logsContent = string(b)
 			}
+
+			if hdr.Name == "artifacts/report.pdf" {
+				b, err := io.ReadAll(tarReader)
+				require.NoError(t, err)
+				artifactContent = string(b)
+			}
 		}
 
 		assert.Contains(t, filesFound, "job.json")
 		assert.Contains(t, filesFound, "logs.txt")
+		assert.Contains(t, filesFound, "artifacts/report.pdf")
 		assert.Equal(t, "Line 1\nLine 2\n", logsContent)
+		assert.Equal(t, "dummy pdf content", artifactContent)
 	})
 
 	t.Run("Job Not Found", func(t *testing.T) {
