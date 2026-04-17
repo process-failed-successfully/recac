@@ -474,6 +474,10 @@ const DashboardHTML = `
                 url = '/jobs/' + encodeURIComponent(id) + '/approve';
             } else if (action === 'skip') {
                 url = '/jobs/' + encodeURIComponent(id) + '/skip';
+            } else if (action === 'hold') {
+                url = '/jobs/' + encodeURIComponent(id) + '/hold';
+            } else if (action === 'unhold') {
+                url = '/jobs/' + encodeURIComponent(id) + '/unhold';
             } else if (action === 'retry') {
                 url = '/jobs/' + encodeURIComponent(id) + '/retry';
             } else if (action === 'cancel') {
@@ -899,6 +903,11 @@ const DashboardHTML = `
                         actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
                     } else if (lowerStatus === 'pending') {
                         actionButtons += '<button type="button" aria-label="Skip job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'skip\', \'' + escapeHTML(j.id) + '\')">Skip</button>';
+                        if (j.work_item && j.work_item.hold) {
+                            actionButtons += '<button type="button" aria-label="Unhold job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'unhold\', \'' + escapeHTML(j.id) + '\')">Unhold</button>';
+                        } else {
+                            actionButtons += '<button type="button" aria-label="Hold job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'hold\', \'' + escapeHTML(j.id) + '\')">Hold</button>';
+                        }
                     } else if (lowerStatus === 'failed') {
                         actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
                     }
