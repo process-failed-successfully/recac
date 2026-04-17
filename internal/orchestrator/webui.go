@@ -93,7 +93,7 @@ const DashboardHTML = `
                 <h2>Submit Pipeline (YAML)</h2>
                 <form onsubmit="submitPipeline(); return false;">
                     <div class="form-group">
-                        <label for="pipeline-yaml">Pipeline Definition</label>
+                        <label for="pipeline-yaml">Pipeline Definition <span aria-hidden="true" style="color: red;">*</span></label>
                         <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;" required aria-required="true"></textarea>
                     </div>
                     <div style="display: flex; gap: 10px;">
@@ -1222,7 +1222,7 @@ const DashboardHTML = `
                 }
                 const jobs = await res.json();
                 if (!jobs || jobs.length === 0) {
-                    contentDiv.innerHTML = '<span>No failed jobs found.</span>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No failed jobs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
                     return;
                 }
 
@@ -1357,7 +1357,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data || data.total_jobs === 0) {
-                    contentDiv.innerHTML = '<span>No valid completed jobs with duration found.</span>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No valid completed jobs with duration found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
                     return;
                 }
 
@@ -1417,7 +1417,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data || data.total_stats.total_jobs === 0) {
-                    contentDiv.innerHTML = '<span>No valid completed jobs with cost data found.</span>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No valid completed jobs with cost data found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
                     return;
                 }
 
@@ -1483,7 +1483,7 @@ const DashboardHTML = `
                 }
                 const anomalies = await res.json();
                 if (!anomalies || anomalies.length === 0) {
-                    contentDiv.innerHTML = '<span>No anomalies found.</span>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No anomalies found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
                     return;
                 }
 
@@ -1542,7 +1542,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data.agents || data.agents.length === 0) {
-                    contentDiv.innerHTML = '<span>No agent data found.</span>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No agent data found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
                     return;
                 }
 
@@ -1587,7 +1587,7 @@ const DashboardHTML = `
                 .then(res => res.json())
                 .then(data => {
                     if (data.total_jobs === 0) {
-                        content.innerHTML = '<p>No completed jobs found for reliability analysis.</p>';
+                        content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No completed jobs found for reliability analysis.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
                         return;
                     }
 
@@ -1684,7 +1684,7 @@ const DashboardHTML = `
                 const results = await res.json();
 
                 if (!results || results.length === 0) {
-                    resultsDiv.innerHTML = '<span style="color: #bbb;">No matching logs found.</span>';
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #bbb;"><p>No matching logs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
                     return;
                 }
 

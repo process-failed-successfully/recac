@@ -82,3 +82,7 @@
 ## 2026-04-15 - Data Table Row Hover States
 **Learning:** Data-dense tables in dashboards (like the Jobs table) without row hover states make it difficult for users to track data across a single row, increasing cognitive load.
 **Action:** Always add a subtle `tbody tr:hover` background color to data tables to improve scannability and provide visual feedback during interaction.
+
+## 2026-04-18 - Actionable Empty States
+**Learning:** Unstyled or unhelpful empty states in modals (like "No data found") leave users stuck without guidance on how to proceed.
+**Action:** Always style empty states centrally with clear, actionable keybinding instructions (e.g., "Press 'Esc' to go back") to improve UX.
