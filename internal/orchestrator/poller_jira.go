@@ -11,9 +11,7 @@ import (
 	"strings"
 )
 
-var (
-	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-)
+
 
 type JiraPoller struct {
 	Client  JiraClient
@@ -173,7 +171,10 @@ func extractRequiredFeatures(text string) []db.Feature {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if featuresHeaderRegex.MatchString(line) {
+		// ⚡ Bolt: Fast-path zero-allocation check replacing featuresHeaderRegex
+		// Exact case-insensitive match for the specific headers
+		if strings.EqualFold(line, "REQUIRED FEATURES") || strings.EqualFold(line, "REQUIRED FEATURES:") ||
+		   strings.EqualFold(line, "ACCEPTANCE CRITERIA") || strings.EqualFold(line, "ACCEPTANCE CRITERIA:") {
 			inSection = true
 			continue
 		}
