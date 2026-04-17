@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +33,18 @@ func TestBulkArchiveAPI(t *testing.T) {
 
 
 	orch := New(mockPoller, mockSpawner, 1*time.Second)
+
+	// Artifacts setup
+	tmpDir := t.TempDir()
+	orch.ArtifactsDir = tmpDir
+
+	activeArtifactDir := filepath.Join(tmpDir, "JOB-ACTIVE")
+	require.NoError(t, os.MkdirAll(activeArtifactDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(activeArtifactDir, "art.png"), []byte("active artifact"), 0644))
+
+	completedArtifactDir := filepath.Join(tmpDir, "JOB-COMPLETED")
+	require.NoError(t, os.MkdirAll(completedArtifactDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(completedArtifactDir, "out.json"), []byte("completed artifact"), 0644))
 
 	// Inject active and completed jobs
 	activeJob := JobInfo{
@@ -123,13 +137,19 @@ orch.mu.Unlock()
 				} else if strings.Contains(hdr.Name, "JOB-COMPLETED") {
 					require.Equal(t, "Completed Logs", string(fileData))
 				}
+			} else if strings.HasSuffix(hdr.Name, "art.png") {
+				require.Equal(t, "active artifact", string(fileData))
+			} else if strings.HasSuffix(hdr.Name, "out.json") {
+				require.Equal(t, "completed artifact", string(fileData))
 			}
 		}
 
 		require.True(t, foundFiles["JOB-ACTIVE/job.json"])
 		require.True(t, foundFiles["JOB-ACTIVE/logs.txt"])
+		require.True(t, foundFiles["JOB-ACTIVE/artifacts/art.png"])
 		require.True(t, foundFiles["JOB-COMPLETED/job.json"])
 		require.True(t, foundFiles["JOB-COMPLETED/logs.txt"])
+		require.True(t, foundFiles["JOB-COMPLETED/artifacts/out.json"])
 		require.False(t, foundFiles["JOB-IGNORED/job.json"])
 	})
 
