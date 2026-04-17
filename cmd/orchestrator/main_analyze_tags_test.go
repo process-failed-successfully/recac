@@ -2,10 +2,8 @@ package main
 
 import (
 	"bytes"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 )
@@ -17,18 +15,18 @@ func TestExportTagsCmd(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	oldExit := exitFunc
+	exitFunc = func(code int) { }
+	defer func() { exitFunc = oldExit }()
 
 	exportTags(server.URL, "-", "json", 10)
 
-	w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
+	output := out.String()
 
 	if !strings.Contains(output, `"tag": "frontend"`) {
 		t.Errorf("Expected frontend tag in output, got: %s", output)

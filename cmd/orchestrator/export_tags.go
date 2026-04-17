@@ -30,31 +30,35 @@ func exportTags(host, outFile, format string, limit int) {
 	url := fmt.Sprintf("%s/jobs/analyze/tags?limit=%d", host, limit)
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error fetching tag analysis: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Error fetching tag analysis: %v\n", err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(os.Stderr, "Error from server: %s\n", string(body))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Error from server: %s\n", string(body))
+		exitFunc(1)
+		return
 	}
 
 	var stats TagStatsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-		fmt.Fprintf(os.Stderr, "Error decoding response: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Error decoding response: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	var out io.Writer
 	if outFile == "-" || outFile == "" {
-		out = os.Stdout
+		out = stdout
 	} else {
 		f, err := os.Create(outFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(stdout, "Error creating output file: %v\n", err)
+			exitFunc(1)
+			return
 		}
 		defer f.Close()
 		out = f
@@ -81,11 +85,12 @@ func exportTags(host, outFile, format string, limit int) {
 		encoder := json.NewEncoder(out)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(stats); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing JSON: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(stdout, "Error writing JSON: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 	if outFile != "-" && outFile != "" {
-		fmt.Printf("Tag analysis exported to %s\n", outFile)
+		fmt.Fprintf(stdout, "Tag analysis exported to %s\n", outFile)
 	}
 }

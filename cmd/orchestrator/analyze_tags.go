@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"text/tabwriter"
 	"time"
 )
@@ -14,42 +13,46 @@ func analyzeTags(host string, limit int, format string) {
 	url := fmt.Sprintf("%s/jobs/analyze/tags?limit=%d", host, limit)
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error fetching tag analysis: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Error fetching tag analysis: %v\n", err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(os.Stderr, "Error from server: %s\n", string(body))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Error from server: %s\n", string(body))
+		exitFunc(1)
+		return
 	}
 
 	var stats TagStatsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-		fmt.Fprintf(os.Stderr, "Error decoding response: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Error decoding response: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	if format == "json" {
-		encoder := json.NewEncoder(os.Stdout)
+		encoder := json.NewEncoder(stdout)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(stats); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing JSON: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(stdout, "Error writing JSON: %v\n", err)
+			exitFunc(1)
+			return
 		}
 		return
 	}
 
-	fmt.Println("TAG PERFORMANCE ANALYSIS")
-	fmt.Println("========================")
+	fmt.Fprintln(stdout, "TAG PERFORMANCE ANALYSIS")
+	fmt.Fprintln(stdout, "========================")
 
 	if len(stats.Tags) == 0 {
-		fmt.Println("No tag data available.")
+		fmt.Fprintln(stdout, "No tag data available.")
 		return
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "TAG\tJOBS\tSUCCESS\tFAILED\tRATE\tAVG DUR\tAVG COST\tTOTAL COST")
 	for _, t := range stats.Tags {
 		durStr := time.Duration(t.AverageDuration).Truncate(time.Second).String()
