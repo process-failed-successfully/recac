@@ -82,8 +82,8 @@ const DashboardHTML = `
                 <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
                 <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d; margin-right: 10px;">Export Trace</button>
                 <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d; margin-right: 10px;">Export Pipeline</button>
-                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
-                <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'" style="background-color: #28a745;">+ Submit Job</button>
+                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
+                <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'; setTimeout(() => document.getElementById('job-summary').focus(), 10);" aria-keyshortcuts="s" style="background-color: #28a745;">+ Submit Job</button>
             </div>
         </div>
 
@@ -352,8 +352,8 @@ const DashboardHTML = `
                         <option value="completed">Completed Jobs</option>
                         <option value="all">All Jobs</option>
                     </select>
-                    <input type="text" id="job-search" placeholder="Search ID or Summary (Press '/')..." aria-label="Search jobs">
-                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs" title="Shortcut: 'r'">Refresh</button>
+                    <input type="text" id="job-search" placeholder="Search ID or Summary (Press '/')..." aria-label="Search jobs" aria-keyshortcuts="/">
+                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs" aria-keyshortcuts="r" title="Shortcut: 'r'">Refresh</button>
                 </div>
             </div>
             <div id="jobs-container">
@@ -537,6 +537,7 @@ const DashboardHTML = `
                 document.getElementById('job-desc').value = j.work_item.description || '';
 
                 document.getElementById('submitModal').style.display = 'block';
+                setTimeout(() => document.getElementById('job-summary').focus(), 10);
             } catch (e) {
                 console.error("Error cloning job:", e);
                 alert("Failed to clone job details.");
@@ -560,6 +561,7 @@ const DashboardHTML = `
                 }
 
                 document.getElementById("envModal").style.display = "block";
+                setTimeout(() => { const firstKey = document.getElementById('env-vars-container').querySelector('.env-key'); if (firstKey) firstKey.focus(); }, 10);
             } catch (e) {
                 console.error("Error editing env vars:", e);
                 alert("Failed to load job details.");
@@ -656,6 +658,7 @@ const DashboardHTML = `
                 document.getElementById('edit-deps-job-id-display').innerText = j.id;
                 document.getElementById('edit-deps-input').value = (j.work_item.depends_on || []).join(', ');
                 document.getElementById('editDepsModal').style.display = 'block';
+                setTimeout(() => document.getElementById('edit-deps-input').focus(), 10);
             } catch (e) {
                 console.error("Error editing dependencies:", e);
                 alert("Failed to load job details.");
@@ -1646,7 +1649,7 @@ const DashboardHTML = `
 
         function openSearchLogsModal() {
             document.getElementById('searchLogsModal').style.display = 'block';
-            document.getElementById('search-logs-query').focus();
+            setTimeout(() => document.getElementById('search-logs-query').focus(), 10);
         }
 
         function closeSearchLogsModal() {
