@@ -76,9 +76,13 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		}
 
 		projectName := filepath.Base(projectPath)
-		if projectName == "." || projectName == "/" {
+		if projectName == "." || projectName == "/" || projectName == ".." || projectName == "\\" {
 			cwd, _ := os.Getwd()
 			projectName = filepath.Base(cwd)
+		}
+
+		if !filepath.IsLocal(projectName) || projectName == "." || projectName == ".." {
+			return fmt.Errorf("Error: Invalid project name for database initialization: path traversal detected")
 		}
 
 		// Re-initialize store for SQLite specifically, as per the snippet's intent

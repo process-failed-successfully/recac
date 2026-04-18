@@ -51,7 +51,7 @@ func GenerateSequence(root string, entryPoint string, maxDepth int) (string, err
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
-		} else if filepath.Base(relDir) != pkgName {
+		} else if filepath.Base(filepath.Clean(relDir)) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
