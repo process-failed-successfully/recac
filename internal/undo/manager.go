@@ -96,6 +96,10 @@ func (m *Manager) Capture(paths ...string) (string, error) {
 		}
 		// Safe filename for backup
 		backupName := filepath.Base(relPath)
+		if !filepath.IsLocal(backupName) || backupName == "." || backupName == ".." {
+			return "", fmt.Errorf("invalid path for backup: path traversal detected in %s", p)
+		}
+
 		backupPath := filepath.Join(backupDir, backupName)
 
 		if err := copyFile(absPath, backupPath); err != nil {

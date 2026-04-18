@@ -22,3 +22,8 @@
 **Vulnerability:** Path traversal in `GetPrompt` due to reliance on `filepath.Base()`.
 **Learning:** `filepath.Base()` is insufficient to prevent path traversal. It doesn't perform equality checks for input paths, meaning malicious input like `a/b` can bypass security.
 **Prevention:** Use a combination of `filepath.IsLocal()`, explicit checks for `.` and `..`, and `filepath.Base(name) == name` to comprehensively validate filenames and prevent path traversal.
+
+## 2026-04-14 - Path Traversal Fix in Undo Manager
+**Vulnerability:** Path traversal in `internal/undo/manager.go` via reliance on `filepath.Base()` for backups.
+**Learning:** `filepath.Base()` is insufficient to prevent path traversal on its own. `filepath.Base("..")` returns `..`. When appended to a directory path, it can escape the intended directory.
+**Prevention:** Use a combination of `filepath.IsLocal()`, explicit checks for `.` and `..`, and `filepath.Base(name) == name` to comprehensively validate filenames and prevent path traversal.
