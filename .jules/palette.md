@@ -86,3 +86,7 @@
 ## 2026-04-18 - Actionable Empty States
 **Learning:** Unstyled or unhelpful empty states in modals (like "No data found") leave users stuck without guidance on how to proceed.
 **Action:** Always style empty states centrally with clear, actionable keybinding instructions (e.g., "Press 'Esc' to go back") to improve UX.
+
+## 2026-04-20 - Extending Auto-Focus and Native Keyboard Shortcut Exposing
+**Learning:** We previously learned to auto-focus primary inputs when opening modals via keyboard shortcuts. However, click-triggered modals suffer the same accessibility issue—forcing a mouse user to click again to start typing. Furthermore, global keyboard shortcuts defined via JS `keydown` listeners are invisible to screen readers unless explicitly marked.
+**Action:** Always add `setTimeout(() => element.focus(), 10)` to the `onclick` handlers or JS functions for click-triggered modals to immediately focus the primary input field. Also, use the `aria-keyshortcuts` attribute on elements that have JS-bound keyboard shortcuts so assistive technologies can announce them natively.
