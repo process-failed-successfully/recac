@@ -275,3 +275,42 @@ func TestGetBlockers(t *testing.T) {
 		})
 	}
 }
+
+func TestParseDescription_EdgeCases(t *testing.T) {
+	client := NewClient("http://jira.local", "user", "token")
+
+	// Empty data
+	if desc := client.ParseDescription(nil); desc != "" {
+		t.Errorf("Expected empty string, got %s", desc)
+	}
+
+	// Invalid fields
+	invalidData := map[string]interface{}{"fields": "not a map"}
+	if desc := client.ParseDescription(invalidData); desc != "" {
+		t.Errorf("Expected empty string, got %s", desc)
+	}
+
+	// Invalid description
+	invalidDesc := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"description": "not a map",
+		},
+	}
+	if desc := client.ParseDescription(invalidDesc); desc != "" {
+		t.Errorf("Expected empty string, got %s", desc)
+	}
+}
+
+
+func TestCreateTicket_ErrorHandling(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.CreateTicket(context.Background(), "PROJ", "Task", "Test Summary", "Test Description", []string{"backend"})
+	if err == nil {
+		t.Fatalf("Expected error for bad request")
+	}
+}
