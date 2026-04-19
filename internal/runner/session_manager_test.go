@@ -879,3 +879,177 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	err = sm.StopSession(sessionName)
 	require.NoError(t, err, "Failed to stop the session for cleanup")
 }
+
+func TestNewSessionManagerWithDir(t *testing.T) {
+	t.Run("creates directories successfully", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "recac-test-new-sm")
+		require.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
+
+		sm, err := NewSessionManagerWithDir(tmpDir)
+		require.NoError(t, err)
+		assert.NotNil(t, sm)
+		assert.Equal(t, tmpDir, sm.SessionsDir())
+
+		_, err = os.Stat(filepath.Join(tmpDir, "archived"))
+		assert.NoError(t, err)
+	})
+
+	t.Run("fails to create sessions directory", func(t *testing.T) {
+		// Create a file where we want to create a directory
+		tmpFile, err := os.CreateTemp("", "recac-test-file")
+		require.NoError(t, err)
+		tmpFile.Close()
+		defer os.Remove(tmpFile.Name())
+
+		sm, err := NewSessionManagerWithDir(tmpFile.Name())
+		assert.Error(t, err)
+		assert.Nil(t, sm)
+		assert.Contains(t, err.Error(), "failed to create sessions directory")
+	})
+}
+
+func TestSessionManager_SaveSession(t *testing.T) {
+	t.Run("fails with invalid name", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		session := &SessionState{Name: "invalid/name"}
+		err := sm.SaveSession(session)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid session name")
+	})
+
+	t.Run("fails to write file", func(t *testing.T) {
+		if os.PathSeparator == '\\' {
+			t.Skip("Skipping permission test on Windows")
+		}
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		// Make directory read-only
+		err := os.Chmod(sm.sessionsDir, 0500)
+		require.NoError(t, err)
+		defer os.Chmod(sm.sessionsDir, 0700)
+
+		session := &SessionState{Name: "valid-name"}
+		err = sm.SaveSession(session)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write session file")
+	})
+}
+
+func TestSessionManager_StopSession(t *testing.T) {
+	t.Run("fails when session is not found", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		err := sm.StopSession("non-existent")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "session not found")
+	})
+
+	t.Run("fails when process cannot be found", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		session := &SessionState{
+			Name:   "running-session-no-pid",
+			Status: "running",
+			PID:    -1, // Invalid PID to force FindProcess/Signal failure
+		}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		err = sm.StopSession(session.Name)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "process not found")
+	})
+
+	t.Run("successful stop", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		sleepCmd, err := exec.LookPath("sleep")
+		if err != nil {
+			t.Skip("sleep command not found")
+		}
+
+		sessionName := "test-stop-success"
+		command := []string{sleepCmd, "10"}
+		_, err = sm.StartSession(sessionName, "test goal", command, sm.sessionsDir)
+		require.NoError(t, err)
+
+		err = sm.StopSession(sessionName)
+		require.NoError(t, err)
+
+		stoppedSession, err := sm.LoadSession(sessionName)
+		require.NoError(t, err)
+		assert.Equal(t, "stopped", stoppedSession.Status)
+	})
+}
+
+func TestSessionManager_GetSessionLogs_Error(t *testing.T) {
+	t.Run("fails when session not found", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		_, err := sm.GetSessionLogs("non-existent")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "session not found")
+	})
+}
+
+func TestSessionManager_RemoveSession_EdgeCases(t *testing.T) {
+	t.Run("fails when session not found", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		err := sm.RemoveSession("non-existent", false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "session 'non-existent' not found")
+	})
+
+	t.Run("fails when session is running and force is false", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		sleepCmd, err := exec.LookPath("sleep")
+		if err != nil {
+			t.Skip("sleep command not found")
+		}
+
+		sessionName := "test-remove-running"
+		command := []string{sleepCmd, "10"}
+		_, err = sm.StartSession(sessionName, "test goal", command, sm.sessionsDir)
+		require.NoError(t, err)
+
+		err = sm.RemoveSession(sessionName, false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "is running")
+
+		// cleanup
+		sm.StopSession(sessionName)
+	})
+
+	t.Run("removes running session when force is true", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		sleepCmd, err := exec.LookPath("sleep")
+		if err != nil {
+			t.Skip("sleep command not found")
+		}
+
+		sessionName := "test-remove-running-force"
+		command := []string{sleepCmd, "10"}
+		_, err = sm.StartSession(sessionName, "test goal", command, sm.sessionsDir)
+		require.NoError(t, err)
+
+		err = sm.RemoveSession(sessionName, true)
+		require.NoError(t, err)
+
+		_, err = sm.LoadSession(sessionName)
+		assert.Error(t, err)
+	})
+}
