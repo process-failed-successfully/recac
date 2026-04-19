@@ -480,6 +480,8 @@ const DashboardHTML = `
                 url = '/jobs/' + encodeURIComponent(id) + '/unhold';
             } else if (action === 'retry') {
                 url = '/jobs/' + encodeURIComponent(id) + '/retry';
+            } else if (action === 'heal') {
+                url = '/jobs/' + encodeURIComponent(id) + '/heal';
             } else if (action === 'cancel') {
                 if(!confirm('Are you sure you want to cancel job ' + id + '?')) {
                     btn.disabled = false;
@@ -913,6 +915,7 @@ const DashboardHTML = `
                         }
                     } else if (lowerStatus === 'failed') {
                         actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
+                        actionButtons += '<button type="button" aria-label="Heal job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="doJobAction(this, \'heal\', \'' + escapeHTML(j.id) + '\')">Heal</button>';
                     }
 
                     if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {

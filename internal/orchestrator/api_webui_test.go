@@ -39,6 +39,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, "doJobAction(this, \\'hold\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'unhold\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'retry\\'")
+	assert.Contains(t, html, "doJobAction(this, \\'heal\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'cancel\\'")
 	assert.Contains(t, html, "doJobAction(this, \\'purge\\'")
 
