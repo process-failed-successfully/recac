@@ -107,14 +107,41 @@ func TestApproveInteractive(t *testing.T) {
 			expectedExit: 0,
 		},
 		{
-			name: "Invalid input then approve",
+			name: "EOF during input",
 			jobs: []orchestrator.JobInfo{
 				{ID: "JOB-1", Status: "Pending Approval", Summary: "Summary 1"},
+			},
+			inputStr: "", // causes EOF
+			expectedOutput: []string{
+				"Interactive Approval (1 jobs)",
+				"Action for JOB-1",
+				"Error reading input. Exiting.",
+			},
+			expectedExit: 0,
+		},
+		{
+			name: "Invalid input then approve",
+			jobs: []orchestrator.JobInfo{
+				{
+					ID: "JOB-1",
+					Status: "Pending Approval",
+					Summary: "Summary 1",
+					WorkItem: orchestrator.WorkItem{
+						Description: "Different Description",
+						Tags: []string{"tag1", "tag2"},
+						Priority: 5,
+						DependsOn: []string{"JOB-0"},
+					},
+				},
 			},
 			inputStr: "invalid\ny\n",
 			expectedOutput: []string{
 				"Interactive Approval (1 jobs)",
 				"ID:", "JOB-1",
+				"Description:", "Different Description",
+				"Tags:", "tag1, tag2",
+				"Priority:", "5",
+				"Depends On:", "JOB-0",
 				"Invalid input. Please enter 'a', 's', 'c', or 'q'.",
 				"Job JOB-1 approved successfully.",
 			},
@@ -187,4 +214,87 @@ func TestApproveInteractive(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApproveInteractive_ParseError(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	approveInteractive("http://\x7finvalid")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to parse host URL")
+}
+
+func TestApproveInteractive_ConnectionError(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	approveInteractive("http://invalid-host:12345")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
+}
+
+func TestApproveInteractive_StatusError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	approveInteractive(server.URL)
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to fetch pending jobs")
+}
+
+func TestApproveInteractive_DecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	approveInteractive(server.URL)
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to decode response")
 }

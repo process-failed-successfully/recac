@@ -151,6 +151,51 @@ func TestFailBulkJobsCmd_ConnectionError(t *testing.T) {
 	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
 }
 
+func TestFailBulkJobsCmd_ParseError(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	failBulkJobs("http://\x7finvalid", "", "", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to parse URL")
+}
+
+func TestFailBulkJobsCmd_ErrorDecode(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/fail", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	failBulkJobs(server.URL, "test", "test", "")
+
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to decode response")
+}
+
+// http.NewRequest failure branch is extremely hard to hit naturally since url.Parse catches it earlier
+
 func TestFailBulkJobsCmd_ErrorResponse(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/fail", func(w http.ResponseWriter, r *http.Request) {
