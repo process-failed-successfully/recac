@@ -90,3 +90,7 @@
 ## 2026-04-20 - Extending Auto-Focus and Native Keyboard Shortcut Exposing
 **Learning:** We previously learned to auto-focus primary inputs when opening modals via keyboard shortcuts. However, click-triggered modals suffer the same accessibility issue—forcing a mouse user to click again to start typing. Furthermore, global keyboard shortcuts defined via JS `keydown` listeners are invisible to screen readers unless explicitly marked.
 **Action:** Always add `setTimeout(() => element.focus(), 10)` to the `onclick` handlers or JS functions for click-triggered modals to immediately focus the primary input field. Also, use the `aria-keyshortcuts` attribute on elements that have JS-bound keyboard shortcuts so assistive technologies can announce them natively.
+
+## 2026-04-21 - Accessible Text Colors for Status Indicators
+**Learning:** Native named web colors like 'red' (`#FF0000`) and 'orange' (`#FFA500`) often fail WCAG AA text contrast guidelines against light backgrounds (e.g. `#f4f4f4` and `#ffffff`), causing readability issues for visually impaired users.
+**Action:** Always avoid native named colors for text statuses and instead use accessible hex codes that meet the 4.5:1 contrast ratio, such as Bootstrap's `#d32f2f` for danger/error, `#198754` for success, and `#b45309` for warning states.

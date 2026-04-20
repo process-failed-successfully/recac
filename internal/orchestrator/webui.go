@@ -26,10 +26,10 @@ const DashboardHTML = `
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f8f8; }
         tbody tr:hover { background-color: #f1f1f1; transition: background-color 0.15s ease-in-out; }
-        .status-Completed { color: green; font-weight: bold; }
-        .status-Failed, .status-Error { color: red; font-weight: bold; }
-        .status-Running, .status-Active, .status-Spawning { color: blue; font-weight: bold; }
-        .status-Pending, .status-Pending-Approval { color: orange; font-weight: bold; }
+        .status-Completed { color: #198754; font-weight: bold; }
+        .status-Failed, .status-Error { color: #d32f2f; font-weight: bold; }
+        .status-Running, .status-Active, .status-Spawning { color: #0d6efd; font-weight: bold; }
+        .status-Pending, .status-Pending-Approval { color: #b45309; font-weight: bold; }
         .status-Canceled { color: #6c757d; font-weight: bold; }
         .actions { margin-top: 20px; display: flex; gap: 10px; }
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
@@ -93,7 +93,7 @@ const DashboardHTML = `
                 <h2>Submit Pipeline (YAML)</h2>
                 <form onsubmit="submitPipeline(); return false;">
                     <div class="form-group">
-                        <label for="pipeline-yaml">Pipeline Definition <span aria-hidden="true" style="color: red;">*</span></label>
+                        <label for="pipeline-yaml">Pipeline Definition <span aria-hidden="true" style="color: #d32f2f;">*</span></label>
                         <textarea id="pipeline-yaml" placeholder="name: my-pipeline&#10;jobs:&#10;  ..." style="height: 300px; font-family: monospace;" required aria-required="true"></textarea>
                     </div>
                     <div style="display: flex; gap: 10px;">
@@ -128,11 +128,11 @@ const DashboardHTML = `
                         <input type="text" id="job-id" placeholder="e.g., MY-JOB-123">
                     </div>
                     <div class="form-group">
-                        <label for="job-summary">Summary <span aria-hidden="true" style="color: red;">*</span></label>
+                        <label for="job-summary">Summary <span aria-hidden="true" style="color: #d32f2f;">*</span></label>
                         <input type="text" id="job-summary" placeholder="e.g., Fix login bug" required aria-required="true">
                     </div>
                     <div class="form-group">
-                        <label for="job-repo">Repository URL <span aria-hidden="true" style="color: red;">*</span></label>
+                        <label for="job-repo">Repository URL <span aria-hidden="true" style="color: #d32f2f;">*</span></label>
                         <input type="text" id="job-repo" placeholder="e.g., https://github.com/org/repo" required aria-required="true">
                     </div>
                     <div class="form-group">
@@ -408,9 +408,9 @@ const DashboardHTML = `
                     '<div class="metric"><span class="label">Active Spawns:</span> <span class="value">' + data.active_spawns + '</span></div>' +
                     '<div class="metric"><span class="label">Pending Jobs:</span> <span class="value">' + data.pending_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Total Spawns:</span> <span class="value">' + data.total_spawns + '</span></div>' +
-                    '<div class="metric"><span class="label">Circuit Broken:</span> <span class="value" style="color: ' + (data.circuit_broken ? 'red' : 'green') + '">' + (data.circuit_broken ? 'True' : 'False') + '</span></div>' +
+                    '<div class="metric"><span class="label">Circuit Broken:</span> <span class="value" style="color: ' + (data.circuit_broken ? '#d32f2f' : '#198754') + '">' + (data.circuit_broken ? 'True' : 'False') + '</span></div>' +
                     '<div class="metric"><span class="label">Max Concurrent:</span> <span class="value">' + (data.max_concurrent_jobs || 'Unlimited') + '</span></div>' +
-                    '<div class="metric"><span class="label">State:</span> <span class="value" style="color: ' + (data.paused ? 'red' : 'green') + '">' + (data.paused ? 'PAUSED' : 'RUNNING') + ' ' + (data.draining ? '(DRAINING)' : '') + '</span></div>';
+                    '<div class="metric"><span class="label">State:</span> <span class="value" style="color: ' + (data.paused ? '#d32f2f' : '#198754') + '">' + (data.paused ? 'PAUSED' : 'RUNNING') + ' ' + (data.draining ? '(DRAINING)' : '') + '</span></div>';
 
                 let actionsHTML = '';
                 if(data.paused) {
@@ -444,8 +444,8 @@ const DashboardHTML = `
                 const res = await fetch('/analytics');
                 const data = await res.json();
                 let html = '<div class="metric"><span class="label">Total Jobs:</span> <span class="value">' + data.total_jobs + '</span></div>' +
-                    '<div class="metric"><span class="label">Successful:</span> <span class="value" style="color: green">' + data.successful_jobs + '</span></div>' +
-                    '<div class="metric"><span class="label">Failed:</span> <span class="value" style="color: red">' + data.failed_jobs + '</span></div>' +
+                    '<div class="metric"><span class="label">Successful:</span> <span class="value" style="color: #198754">' + data.successful_jobs + '</span></div>' +
+                    '<div class="metric"><span class="label">Failed:</span> <span class="value" style="color: #d32f2f">' + data.failed_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Canceled:</span> <span class="value">' + data.canceled_jobs + '</span></div>' +
                     '<div class="metric"><span class="label">Success Rate:</span> <span class="value">' + data.success_rate.toFixed(2) + '%</span></div>' +
                     '<div class="metric"><span class="label">Avg Duration:</span> <span class="value">' + (data.average_duration/1e9).toFixed(2) + 's</span></div>';
@@ -1103,7 +1103,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs/export/graph?format=mermaid');
                 if (!res.ok) {
-                    graphDiv.innerHTML = '<span style="color:red">Failed to load graph: ' + await res.text() + '</span>';
+                    graphDiv.innerHTML = '<span style="color:#d32f2f">Failed to load graph: ' + await res.text() + '</span>';
                     return;
                 }
                 const graphText = await res.text();
@@ -1117,7 +1117,7 @@ const DashboardHTML = `
                 graphDiv.innerHTML = svg;
             } catch (err) {
                 console.error(err);
-                graphDiv.innerHTML = '<span style="color:red">Error rendering graph: ' + err.message + '</span>';
+                graphDiv.innerHTML = '<span style="color:#d32f2f">Error rendering graph: ' + err.message + '</span>';
             }
         }
 
@@ -1134,7 +1134,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs/export/timeline');
                 if (!res.ok) {
-                    timelineDiv.innerHTML = '<span style="color:red">Failed to load timeline: ' + await res.text() + '</span>';
+                    timelineDiv.innerHTML = '<span style="color:#d32f2f">Failed to load timeline: ' + await res.text() + '</span>';
                     return;
                 }
                 const timelineText = await res.text();
@@ -1148,7 +1148,7 @@ const DashboardHTML = `
                 timelineDiv.innerHTML = svg;
             } catch (err) {
                 console.error(err);
-                timelineDiv.innerHTML = '<span style="color:red">Error rendering timeline: ' + err.message + '</span>';
+                timelineDiv.innerHTML = '<span style="color:#d32f2f">Error rendering timeline: ' + err.message + '</span>';
             }
         }
 
@@ -1223,7 +1223,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs?state=all&status=Failed');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to load jobs: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to load jobs: ' + await res.text() + '</span>';
                     return;
                 }
                 const jobs = await res.json();
@@ -1277,7 +1277,7 @@ const DashboardHTML = `
                 contentDiv.innerHTML = html;
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error rendering analysis: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error rendering analysis: ' + err.message + '</span>';
             }
         }
 
@@ -1297,14 +1297,14 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/changelog/generate');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to generate changelog: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to generate changelog: ' + await res.text() + '</span>';
                     return;
                 }
                 const data = await res.json();
                 contentDiv.innerText = data.changelog || 'No changelog generated.';
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error generating changelog: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error generating changelog: ' + err.message + '</span>';
             } finally {
                 btn.disabled = false;
                 btn.innerText = originalText;
@@ -1327,14 +1327,14 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/postmortem/generate');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to generate postmortem: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to generate postmortem: ' + await res.text() + '</span>';
                     return;
                 }
                 const data = await res.json();
                 contentDiv.innerText = data.postmortem || 'No postmortem generated.';
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error generating postmortem: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error generating postmortem: ' + err.message + '</span>';
             } finally {
                 btn.disabled = false;
                 btn.innerText = originalText;
@@ -1358,7 +1358,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs/analyze/durations?limit=10');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to load duration analysis: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to load duration analysis: ' + await res.text() + '</span>';
                     return;
                 }
                 const data = await res.json();
@@ -1401,7 +1401,7 @@ const DashboardHTML = `
                 contentDiv.innerHTML = html;
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error fetching duration analysis: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error fetching duration analysis: ' + err.message + '</span>';
             }
         }
 
@@ -1418,7 +1418,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs/analyze/costs?limit=10');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to load cost analysis: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to load cost analysis: ' + await res.text() + '</span>';
                     return;
                 }
                 const data = await res.json();
@@ -1467,7 +1467,7 @@ const DashboardHTML = `
                 contentDiv.innerHTML = html;
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error fetching cost analysis: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error fetching cost analysis: ' + err.message + '</span>';
             }
         }
 
@@ -1484,7 +1484,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs/analyze/anomalies');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to load anomalies analysis: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to load anomalies analysis: ' + await res.text() + '</span>';
                     return;
                 }
                 const anomalies = await res.json();
@@ -1526,7 +1526,7 @@ const DashboardHTML = `
 
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error fetching anomalies analysis: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error fetching anomalies analysis: ' + err.message + '</span>';
             }
         }
 
@@ -1543,7 +1543,7 @@ const DashboardHTML = `
             try {
                 const res = await fetch('/jobs/analyze/agents?limit=10');
                 if (!res.ok) {
-                    contentDiv.innerHTML = '<span style="color:red">Failed to load agent analysis: ' + await res.text() + '</span>';
+                    contentDiv.innerHTML = '<span style="color:#d32f2f">Failed to load agent analysis: ' + await res.text() + '</span>';
                     return;
                 }
                 const data = await res.json();
@@ -1575,7 +1575,7 @@ const DashboardHTML = `
 
             } catch (err) {
                 console.error(err);
-                contentDiv.innerHTML = '<span style="color:red">Error fetching agent analysis: ' + err.message + '</span>';
+                contentDiv.innerHTML = '<span style="color:#d32f2f">Error fetching agent analysis: ' + err.message + '</span>';
             }
         }
 
@@ -1600,9 +1600,9 @@ const DashboardHTML = `
                     let html = '<h3>Overall Stats</h3>';
                     html += '<ul>' +
                         '<li>Total Evaluated Jobs: ' + data.total_jobs + '</li>' +
-                        '<li>Successful Jobs: <span style="color: #4CAF50">' + data.successful_jobs + ' (' + (data.successful_jobs/data.total_jobs*100).toFixed(2) + '%)</span></li>' +
-                        '<li>Flaky Jobs: <span style="color: #FF9800">' + data.flaky_jobs + ' (' + data.flakiness_rate.toFixed(2) + '%)</span></li>' +
-                        '<li>Failed Jobs: <span style="color: #F44336">' + data.failed_jobs + ' (' + data.failure_rate.toFixed(2) + '%)</span></li>' +
+                        '<li>Successful Jobs: <span style="color: #198754">' + data.successful_jobs + ' (' + (data.successful_jobs/data.total_jobs*100).toFixed(2) + '%)</span></li>' +
+                        '<li>Flaky Jobs: <span style="color: #b45309">' + data.flaky_jobs + ' (' + data.flakiness_rate.toFixed(2) + '%)</span></li>' +
+                        '<li>Failed Jobs: <span style="color: #d32f2f">' + data.failed_jobs + ' (' + data.failure_rate.toFixed(2) + '%)</span></li>' +
                         '<li>Overall Success Rate (incl. Flaky): <strong>' + data.success_rate.toFixed(2) + '%</strong></li>' +
                         '<li>Total Retries Performed: ' + data.total_retries + '</li>' +
                     '</ul>';
@@ -1683,7 +1683,7 @@ const DashboardHTML = `
 
                 if (!res.ok) {
                     const errorText = await res.text();
-                    resultsDiv.innerHTML = '<span style="color:red">Search failed: ' + errorText + '</span>';
+                    resultsDiv.innerHTML = '<span style="color:#d32f2f">Search failed: ' + errorText + '</span>';
                     return;
                 }
 
@@ -1734,7 +1734,7 @@ const DashboardHTML = `
 
             } catch (err) {
                 console.error(err);
-                resultsDiv.innerHTML = '<span style="color:red">Error performing search: ' + err.message + '</span>';
+                resultsDiv.innerHTML = '<span style="color:#d32f2f">Error performing search: ' + err.message + '</span>';
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Search';
