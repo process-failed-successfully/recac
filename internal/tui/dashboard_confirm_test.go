@@ -156,6 +156,18 @@ func TestDashboardModel_ConfirmationFlow_MultipleActions(t *testing.T) {
 		{"demote multiple", "DEMOTE 2 selected"},
 		{"hold multiple", "HOLD 2 selected"},
 		{"unhold multiple", "UNHOLD 2 selected"},
+		{"heal multiple", "HEAL 2 selected"},
+		{"cancel multiple", "CANCEL 2 selected"},
+		{"force complete multiple", "FORCE COMPLETE 2"},
+		{"pause group multiple", "PAUSE the concurrency"},
+		{"resume group multiple", "RESUME the"},
+		{"purge multiple", "PURGE 2 selected"},
+		{"retry multiple", "RETRY 2 selected"},
+		{"retry downstream multiple", "RETRY 2 selected"},
+		{"approve multiple", "APPROVE 2 selected"},
+		{"priority multiple", "CHANGE PRIORITY for 2"},
+		{"archive multiple", "ARCHIVE 2 selected"},
+		{"delete pending multiple", "DELETE PENDING for 2"},
 	}
 
 	for _, tc := range testCases {

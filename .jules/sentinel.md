@@ -27,3 +27,6 @@
 **Vulnerability:** Path traversal in `internal/undo/manager.go` via reliance on `filepath.Base()` for backups.
 **Learning:** `filepath.Base()` is insufficient to prevent path traversal on its own. `filepath.Base("..")` returns `..`. When appended to a directory path, it can escape the intended directory.
 **Prevention:** Use a combination of `filepath.IsLocal()`, explicit checks for `.` and `..`, and `filepath.Base(name) == name` to comprehensively validate filenames and prevent path traversal.
+## 2026-04-20 - Added missing multiple selection confirmation test for TUI
+**Learning:** Ensure all bulk actions have their corresponding confirmation states properly tested in `internal/tui/dashboard_confirm_test.go` inside `TestDashboardModel_ConfirmationFlow_MultipleActions`.
+**Action:** Fixed the inconsistency by adding missing bulk action configurations (e.g. `heal multiple`) to the `testCases` table.
