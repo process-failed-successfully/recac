@@ -196,6 +196,7 @@ func main() {
 	pflag.String("skip-job", "", "Skip a specific pending job by ID")
 	pflag.String("skip-tag", "", "Skip all pending jobs with the specified tag")
 	pflag.String("skip-match", "", "Skip all pending jobs matching the given regex")
+	pflag.String("skip-group", "", "Skip all pending jobs within the specified concurrency group")
 	pflag.String("force-complete-job", "", "Force mark an active, pending, or failed job as completed by ID")
 	pflag.String("force-complete-tag", "", "Force mark jobs with the specified tag as completed")
 	pflag.String("force-complete-match", "", "Force mark jobs matching the given regex as completed")
@@ -609,6 +610,7 @@ func main() {
 	viper.BindPFlag("orchestrator.skip_job", pflag.Lookup("skip-job"))
 	viper.BindPFlag("orchestrator.skip_tag", pflag.Lookup("skip-tag"))
 	viper.BindPFlag("orchestrator.skip_match", pflag.Lookup("skip-match"))
+	viper.BindPFlag("orchestrator.skip_group", pflag.Lookup("skip-group"))
 	viper.BindPFlag("orchestrator.force_complete_job", pflag.Lookup("force-complete-job"))
 	viper.BindPFlag("orchestrator.force_complete_tag", pflag.Lookup("force-complete-tag"))
 	viper.BindPFlag("orchestrator.force_complete_match", pflag.Lookup("force-complete-match"))
@@ -1682,9 +1684,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	skipTag := viper.GetString("orchestrator.skip_tag")
 	skipMatch := viper.GetString("orchestrator.skip_match")
-	if skipTag != "" || skipMatch != "" {
+	skipGroup := viper.GetString("orchestrator.skip_group")
+	if skipTag != "" || skipMatch != "" || skipGroup != "" {
 		host := viper.GetString("orchestrator.host")
-		skipJobs(host, skipMatch, skipTag)
+		skipJobs(host, skipMatch, skipTag, skipGroup)
 		return nil
 	}
 

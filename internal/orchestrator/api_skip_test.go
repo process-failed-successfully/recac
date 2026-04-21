@@ -93,9 +93,40 @@ func TestAPI_BulkSkip_MissingParam(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	// Call Bulk Skip without Tag or Match
+	// Call Bulk Skip without Tag, Match or Group
 	req, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/skip", nil)
 	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAPI_BulkSkipByGroup(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+	orch.RequireApproval = true
+
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J1", ConcurrencyGroup: "group1"}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J2", ConcurrencyGroup: "group2"}, nil)
+	orch.SubmitJob(context.Background(), WorkItem{ID: "J3", ConcurrencyGroup: "group1"}, nil)
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, nil, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Call Bulk Skip by Group
+	req, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/skip?group=group1", nil)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 2)
+	assert.Equal(t, "Skipped", completed[0].Status)
+	assert.Equal(t, "Skipped", completed[1].Status)
+
+	pending := orch.GetPendingJobs()
+	assert.Len(t, pending, 1)
+	assert.Equal(t, "J2", pending[0].ID)
 }

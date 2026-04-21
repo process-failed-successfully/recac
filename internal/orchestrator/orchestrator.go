@@ -1411,6 +1411,27 @@ func (o *Orchestrator) SkipJobsByTag(ctx context.Context, tag string, logger *sl
 	return count, nil
 }
 
+// SkipJobsByGroup marks all pending jobs within the specified concurrency group as Skipped.
+func (o *Orchestrator) SkipJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			delete(o.pendingJobs, id)
+			job.Status = "Skipped"
+			job.EndTime = time.Now()
+			job.Error = "Skipped by concurrency group: " + group
+			o.addToHistory(job, logger)
+			o.BroadcastEvent("job_skipped", job)
+			count++
+		}
+	}
+	return count, nil
+}
+
 // SkipJobsByMatch marks all pending jobs matching the regex as Skipped.
 func (o *Orchestrator) SkipJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
 	matcher, err := regexp.Compile("(?i)" + match)
