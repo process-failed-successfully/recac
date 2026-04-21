@@ -1622,7 +1622,7 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			repoUrl := m.inputs[1].Value()
 			dependsOnStr := m.inputs[2].Value()
 			concurrencyGroup := m.inputs[3].Value()
-			cancelInProgressStr := strings.ToLower(strings.TrimSpace(m.inputs[4].Value()))
+			cancelInProgressStr := strings.TrimSpace(m.inputs[4].Value())
 			tagsStr := m.inputs[5].Value()
 			agentProvider := m.inputs[6].Value()
 			agentModel := m.inputs[7].Value()
@@ -1630,7 +1630,7 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			description := m.textarea.Value()
 
 			cancelInProgress := false
-			if cancelInProgressStr == "true" || cancelInProgressStr == "t" || cancelInProgressStr == "yes" || cancelInProgressStr == "y" || cancelInProgressStr == "1" {
+			if strings.EqualFold(cancelInProgressStr, "true") || strings.EqualFold(cancelInProgressStr, "t") || strings.EqualFold(cancelInProgressStr, "yes") || strings.EqualFold(cancelInProgressStr, "y") || cancelInProgressStr == "1" {
 				cancelInProgress = true
 			}
 
