@@ -61,3 +61,7 @@
 ## 2024-05-19 - Allocation-Free String Parsing
 **Learning:** Replaced `regexp` usage with native `strings` functions (like `strings.Index`, `strings.TrimSpace`, slicing) for parsing formatted strings (like JSON blocks or custom `<file>` tags). Regular expressions in Go can have high CPU overhead and cause unnecessary heap allocations compared to simple string scanning. In a benchmark, replacing regex in `utils.CleanJSONBlock` gave a ~20x performance improvement (from ~1000ns/op to ~45ns/op).
 **Action:** When extracting data from predictable formats (e.g., standard AI output markers), default to `strings.Index` and slicing instead of `regexp.MustCompile`, especially in hot paths or when parsing large texts.
+
+## 2024-05-18 - Case-Insensitive String Checks in Form Submission
+**Learning:** Using `strings.ToLower` in hot paths (like checking input form values in `internal/tui/dashboard.go`) creates unnecessary intermediate memory allocations for every checked string.
+**Action:** Always prefer `strings.EqualFold(a, b)` for exact case-insensitive matches instead of converting the string with `strings.ToLower`.
