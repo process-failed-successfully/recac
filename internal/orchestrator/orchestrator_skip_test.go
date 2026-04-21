@@ -63,6 +63,31 @@ func TestOrchestrator_SkipJobsByTag(t *testing.T) {
 	assert.Equal(t, "J3", pending[0].ID)
 }
 
+func TestOrchestrator_SkipJobsByGroup(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+	orch.RequireApproval = true
+	ctx := context.Background()
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", ConcurrencyGroup: "group1"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", ConcurrencyGroup: "group2"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", ConcurrencyGroup: "group1"}, nil)
+
+	count, err := orch.SkipJobsByGroup(ctx, "group1", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	completed := orch.GetCompletedJobs()
+	assert.Len(t, completed, 2)
+	assert.Equal(t, "Skipped", completed[0].Status)
+	assert.Equal(t, "Skipped", completed[1].Status)
+
+	pending := orch.GetPendingJobs()
+	assert.Len(t, pending, 1)
+	assert.Equal(t, "J2", pending[0].ID)
+}
+
 func TestOrchestrator_SkipJobsByMatch(t *testing.T) {
 	mockSpawner := new(MockSpawner)
 	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)

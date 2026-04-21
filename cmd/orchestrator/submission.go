@@ -2547,7 +2547,7 @@ func skipJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s skipped successfully.\n", jobID)
 }
 
-func skipJobs(host, match, tag string) {
+func skipJobs(host, match, tag, group string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/skip", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -2561,6 +2561,9 @@ func skipJobs(host, match, tag string) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 
