@@ -431,11 +431,11 @@ const DashboardHTML = `
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
-                document.getElementById('connection-status').style.color = 'lightgreen';
+                document.getElementById('connection-status').style.color = '#198754';
             } catch (err) {
                 console.error('Error fetching status:', err);
                 document.getElementById('connection-status').innerText = 'Disconnected';
-                document.getElementById('connection-status').style.color = 'red';
+                document.getElementById('connection-status').style.color = '#d32f2f';
             }
         }
 
