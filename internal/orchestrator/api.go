@@ -1847,6 +1847,38 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("GET /jobs/{id}/artifacts", handleListArtifacts(orch, logger))
 	mux.HandleFunc("DELETE /jobs/{id}/artifacts/{filename}", handleDeleteArtifact(orch, logger))
 
+	mux.HandleFunc("POST /jobs/demote/bulk", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.DemoteJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.DemoteJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk demote", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"demoted": count,
+		})
+	})
+
 	mux.HandleFunc("POST /jobs/{id}/demote", func(w http.ResponseWriter, r *http.Request) {
 		jobID := r.PathValue("id")
 
@@ -1863,6 +1895,38 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"priority": %d}`, newPriority)
+	})
+
+	mux.HandleFunc("POST /jobs/promote/bulk", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		var count int
+		var err error
+
+		if tag != "" {
+			count, err = orch.PromoteJobsByTag(r.Context(), tag, logger)
+		} else if match != "" {
+			count, err = orch.PromoteJobsByMatch(r.Context(), match, logger)
+		} else {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk promote", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid match regex") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"promoted": count,
+		})
 	})
 
 	mux.HandleFunc("POST /jobs/{id}/promote", func(w http.ResponseWriter, r *http.Request) {

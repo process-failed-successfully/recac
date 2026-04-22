@@ -588,6 +588,77 @@ func (o *Orchestrator) DeletePendingJobsByMatch(ctx context.Context, match strin
 
 // PromoteJob finds the highest priority among all pending jobs and sets the target job's priority to max + 1.
 // DemoteJob finds the lowest priority among all pending jobs and sets the target job's priority to min - 1.
+func (o *Orchestrator) DemoteJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	minPriority := 0
+	first := true
+	for _, pJob := range o.pendingJobs {
+		if first || pJob.WorkItem.Priority < minPriority {
+			minPriority = pJob.WorkItem.Priority
+			first = false
+		}
+	}
+
+	for id, job := range o.pendingJobs {
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.EqualFold(t, tag) {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag {
+			job.WorkItem.Priority = minPriority - 1
+			o.pendingJobs[id] = job
+			count++
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			logger.Info("Demoted job by tag", "job_id", id, "tag", tag, "new_priority", job.WorkItem.Priority)
+		}
+	}
+
+	return count, nil
+}
+
+func (o *Orchestrator) DemoteJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	regex, err := regexp.Compile(match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	minPriority := 0
+	first := true
+	for _, pJob := range o.pendingJobs {
+		if first || pJob.WorkItem.Priority < minPriority {
+			minPriority = pJob.WorkItem.Priority
+			first = false
+		}
+	}
+
+	for id, job := range o.pendingJobs {
+		if regex.MatchString(id) || regex.MatchString(job.WorkItem.Description) {
+			job.WorkItem.Priority = minPriority - 1
+			o.pendingJobs[id] = job
+			count++
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			logger.Info("Demoted job by match", "job_id", id, "match", match, "new_priority", job.WorkItem.Priority)
+		}
+	}
+
+	return count, nil
+}
+
 func (o *Orchestrator) DemoteJob(ctx context.Context, jobID string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -623,6 +694,73 @@ func (o *Orchestrator) DemoteJob(ctx context.Context, jobID string, logger *slog
 	}
 
 	return newPriority, nil
+}
+
+func (o *Orchestrator) PromoteJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	maxPriority := 0
+	for _, pJob := range o.pendingJobs {
+		if pJob.WorkItem.Priority > maxPriority {
+			maxPriority = pJob.WorkItem.Priority
+		}
+	}
+
+	for id, job := range o.pendingJobs {
+		hasTag := false
+		for _, t := range job.WorkItem.Tags {
+			if strings.EqualFold(t, tag) {
+				hasTag = true
+				break
+			}
+		}
+
+		if hasTag {
+			job.WorkItem.Priority = maxPriority + 1
+			o.pendingJobs[id] = job
+			count++
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			logger.Info("Promoted job by tag", "job_id", id, "tag", tag, "new_priority", job.WorkItem.Priority)
+		}
+	}
+
+	return count, nil
+}
+
+func (o *Orchestrator) PromoteJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
+	regex, err := regexp.Compile(match)
+	if err != nil {
+		return 0, fmt.Errorf("invalid match regex: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	maxPriority := 0
+	for _, pJob := range o.pendingJobs {
+		if pJob.WorkItem.Priority > maxPriority {
+			maxPriority = pJob.WorkItem.Priority
+		}
+	}
+
+	for id, job := range o.pendingJobs {
+		if regex.MatchString(id) || regex.MatchString(job.WorkItem.Description) {
+			job.WorkItem.Priority = maxPriority + 1
+			o.pendingJobs[id] = job
+			count++
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			logger.Info("Promoted job by match", "job_id", id, "match", match, "new_priority", job.WorkItem.Priority)
+		}
+	}
+
+	return count, nil
 }
 
 func (o *Orchestrator) PromoteJob(ctx context.Context, jobID string, logger *slog.Logger) (int, error) {
