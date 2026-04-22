@@ -220,7 +220,11 @@ func main() {
 	pflag.String("update-priority-match", "", "Update the priority of all pending jobs matching the given regex")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("promote-job", "", "Promote a specific pending job to run next by bumping its priority to max")
+	pflag.String("promote-tag", "", "Promote all pending jobs with the specified tag")
+	pflag.String("promote-match", "", "Promote all pending jobs matching the given regex")
 	pflag.String("demote-job", "", "Demote a specific pending job to run last by dropping its priority to min")
+	pflag.String("demote-tag", "", "Demote all pending jobs with the specified tag")
+	pflag.String("demote-match", "", "Demote all pending jobs matching the given regex")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("update-timeout-tag", "", "Update the timeout of all pending jobs with the specified tag")
 	pflag.String("update-timeout-match", "", "Update the timeout of all pending jobs matching the given regex")
@@ -635,7 +639,11 @@ func main() {
 	viper.BindPFlag("orchestrator.update_priority_match", pflag.Lookup("update-priority-match"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.promote_job", pflag.Lookup("promote-job"))
+	viper.BindPFlag("orchestrator.promote_tag", pflag.Lookup("promote-tag"))
+	viper.BindPFlag("orchestrator.promote_match", pflag.Lookup("promote-match"))
 	viper.BindPFlag("orchestrator.demote_job", pflag.Lookup("demote-job"))
+	viper.BindPFlag("orchestrator.demote_tag", pflag.Lookup("demote-tag"))
+	viper.BindPFlag("orchestrator.demote_match", pflag.Lookup("demote-match"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.update_timeout_tag", pflag.Lookup("update-timeout-tag"))
 	viper.BindPFlag("orchestrator.update_timeout_match", pflag.Lookup("update-timeout-match"))
@@ -1838,9 +1846,25 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
+	promoteTag := viper.GetString("orchestrator.promote_tag")
+	promoteMatch := viper.GetString("orchestrator.promote_match")
+	if promoteTag != "" || promoteMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		promoteBulkJobs(host, promoteMatch, promoteTag)
+		return nil
+	}
+
 	if demoteJobID := viper.GetString("orchestrator.demote_job"); demoteJobID != "" {
 		host := viper.GetString("orchestrator.host")
 		demoteJob(host, demoteJobID)
+		return nil
+	}
+
+	demoteTag := viper.GetString("orchestrator.demote_tag")
+	demoteMatch := viper.GetString("orchestrator.demote_match")
+	if demoteTag != "" || demoteMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		demoteBulkJobs(host, demoteMatch, demoteTag)
 		return nil
 	}
 
