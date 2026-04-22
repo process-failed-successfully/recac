@@ -1476,9 +1476,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
 		status := r.URL.Query().Get("status")
+		group := r.URL.Query().Get("group")
 
-		if tag == "" && match == "" && status == "" {
-			http.Error(w, "Either 'tag', 'match', or 'status' query parameter is required for bulk archive", http.StatusBadRequest)
+		if tag == "" && match == "" && status == "" && group == "" {
+			http.Error(w, "Either 'tag', 'match', 'status', or 'group' query parameter is required for bulk archive", http.StatusBadRequest)
 			return
 		}
 
@@ -1512,6 +1513,12 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		} else if status != "" {
 			for _, job := range jobs {
 				if strings.EqualFold(job.Status, status) {
+					filtered = append(filtered, job)
+				}
+			}
+		} else if group != "" {
+			for _, job := range jobs {
+				if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
 					filtered = append(filtered, job)
 				}
 			}
