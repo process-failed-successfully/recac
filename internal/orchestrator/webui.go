@@ -1090,7 +1090,11 @@ const DashboardHTML = `
                 }
 
                 const data = await response.json();
-                content.innerText = data.explanation || 'No explanation provided.';
+                if (data.explanation) {
+                    content.innerText = data.explanation;
+                } else {
+                    content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No explanation provided.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                }
             } catch (err) {
                 content.innerText = 'Error: ' + err.message;
             }
@@ -1307,7 +1311,11 @@ const DashboardHTML = `
                     return;
                 }
                 const data = await res.json();
-                contentDiv.innerText = data.changelog || 'No changelog generated.';
+                if (data.changelog) {
+                    contentDiv.innerText = data.changelog;
+                } else {
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No changelog generated.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                }
             } catch (err) {
                 console.error(err);
                 contentDiv.innerHTML = '<span style="color:#d32f2f">Error generating changelog: ' + err.message + '</span>';
@@ -1337,7 +1345,11 @@ const DashboardHTML = `
                     return;
                 }
                 const data = await res.json();
-                contentDiv.innerText = data.postmortem || 'No postmortem generated.';
+                if (data.postmortem) {
+                    contentDiv.innerText = data.postmortem;
+                } else {
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No postmortem generated.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                }
             } catch (err) {
                 console.error(err);
                 contentDiv.innerHTML = '<span style="color:#d32f2f">Error generating postmortem: ' + err.message + '</span>';
