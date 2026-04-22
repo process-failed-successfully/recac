@@ -478,6 +478,10 @@ const DashboardHTML = `
                 url = '/jobs/' + encodeURIComponent(id) + '/hold';
             } else if (action === 'unhold') {
                 url = '/jobs/' + encodeURIComponent(id) + '/unhold';
+            } else if (action === 'demote') {
+                url = '/jobs/' + encodeURIComponent(id) + '/demote';
+            } else if (action === 'promote') {
+                url = '/jobs/' + encodeURIComponent(id) + '/promote';
             } else if (action === 'retry') {
                 url = '/jobs/' + encodeURIComponent(id) + '/retry';
             } else if (action === 'heal') {
@@ -908,6 +912,8 @@ const DashboardHTML = `
                         actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
                     } else if (lowerStatus === 'pending') {
                         actionButtons += '<button type="button" aria-label="Skip job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'skip\', \'' + escapeHTML(j.id) + '\')">Skip</button>';
+                        actionButtons += '<button type="button" aria-label="Demote job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'demote\', \'' + escapeHTML(j.id) + '\')">Demote</button>';
+                        actionButtons += '<button type="button" aria-label="Promote job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'promote\', \'' + escapeHTML(j.id) + '\')">Promote</button>';
                         if (j.work_item && j.work_item.hold) {
                             actionButtons += '<button type="button" aria-label="Unhold job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'unhold\', \'' + escapeHTML(j.id) + '\')">Unhold</button>';
                         } else {
