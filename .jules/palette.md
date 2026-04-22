@@ -97,3 +97,7 @@
 ## 2026-04-21 - Accessible Text Colors for Status Indicators
 **Learning:** Native named web colors like 'red' (`#FF0000`) and 'orange' (`#FFA500`) often fail WCAG AA text contrast guidelines against light backgrounds (e.g. `#f4f4f4` and `#ffffff`), causing readability issues for visually impaired users.
 **Action:** Always avoid native named colors for text statuses and instead use accessible hex codes that meet the 4.5:1 contrast ratio, such as Bootstrap's `#d32f2f` for danger/error, `#198754` for success, and `#b45309` for warning states.
+
+## 2026-04-22 - Empty States for AI Generated Content
+**Learning:** AI-generated string outputs (like changelogs, postmortems, or explanations) often just return an empty string when no data is available. Rendering this as a bare "No explanation provided" text node within a modal is visually inconsistent and lacks guidance compared to structural data empty states.
+**Action:** Always wrap text-based empty states in the same actionable empty state styling as structured data (e.g., using a centered div with clear keybinding instructions like "Press 'Esc' to close").
