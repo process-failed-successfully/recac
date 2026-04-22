@@ -45,7 +45,7 @@ func TestArchiveBulkJobs(t *testing.T) {
 		exitCode = 0
 		outPath := filepath.Join(t.TempDir(), "test_tag_archive.tar.gz")
 
-		archiveBulkJobs(ts.URL, "test-tag", "", "", outPath)
+		archiveBulkJobs(ts.URL, "test-tag", "", "", "", outPath)
 
 		require.Equal(t, 0, exitCode)
 		require.Contains(t, buf.String(), "Successfully saved bulk archive")
@@ -60,7 +60,7 @@ func TestArchiveBulkJobs(t *testing.T) {
 		exitCode = 0
 		outPath := filepath.Join(t.TempDir(), "test_match_archive.tar.gz")
 
-		archiveBulkJobs(ts.URL, "", "test-match", "", outPath)
+		archiveBulkJobs(ts.URL, "", "test-match", "", "", outPath)
 
 		require.Equal(t, 0, exitCode)
 		require.Contains(t, buf.String(), "Successfully saved bulk archive")
@@ -75,7 +75,7 @@ func TestArchiveBulkJobs(t *testing.T) {
 		exitCode = 0
 		outPath := filepath.Join(t.TempDir(), "test_status_archive.tar.gz")
 
-		archiveBulkJobs(ts.URL, "", "", "Failed", outPath)
+		archiveBulkJobs(ts.URL, "", "", "Failed", "", outPath)
 
 		require.Equal(t, 0, exitCode)
 		require.Contains(t, buf.String(), "Successfully saved bulk archive")
@@ -89,7 +89,7 @@ func TestArchiveBulkJobs(t *testing.T) {
 		buf.Reset()
 		exitCode = 0
 
-		archiveBulkJobs(ts.URL, "invalid-tag", "", "", "")
+		archiveBulkJobs(ts.URL, "invalid-tag", "", "", "", "")
 
 		require.Equal(t, 1, exitCode)
 		require.Contains(t, buf.String(), "Failed to bulk archive jobs: bad request")

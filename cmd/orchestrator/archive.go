@@ -59,7 +59,7 @@ func archiveJob(host, jobID, outPath string) {
 	fmt.Fprintf(stdout, "Successfully saved job archive to %s\n", outPath)
 }
 
-func archiveBulkJobs(host, tag, match, status, outPath string) {
+func archiveBulkJobs(host, tag, match, status, group, outPath string) {
 	urlStr := fmt.Sprintf("%s/jobs/archive/bulk?", host)
 	params := []string{}
 	if tag != "" {
@@ -70,6 +70,9 @@ func archiveBulkJobs(host, tag, match, status, outPath string) {
 	}
 	if status != "" {
 		params = append(params, "status="+url.QueryEscape(status))
+	}
+	if group != "" {
+		params = append(params, "group="+url.QueryEscape(group))
 	}
 	urlStr += strings.Join(params, "&")
 

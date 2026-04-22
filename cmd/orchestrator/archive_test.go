@@ -130,7 +130,7 @@ func TestArchiveBulkJobs_CLI(t *testing.T) {
 		tmpDir := t.TempDir()
 		outPath := filepath.Join(tmpDir, "custom-bulk.tar.gz")
 
-		archiveBulkJobs(mockServer.URL, "mytag", "", "", outPath)
+		archiveBulkJobs(mockServer.URL, "mytag", "", "", "", outPath)
 
 		// Check file exists and content
 		content, err := os.ReadFile(outPath)
@@ -145,7 +145,7 @@ func TestArchiveBulkJobs_CLI(t *testing.T) {
 		expectedPath := "bulk_archive.tar.gz"
 		defer os.Remove(expectedPath)
 
-		archiveBulkJobs(mockServer.URL, "", "mymatch", "", "")
+		archiveBulkJobs(mockServer.URL, "", "mymatch", "", "", "")
 
 		content, err := os.ReadFile(expectedPath)
 		require.NoError(t, err)
@@ -154,12 +154,12 @@ func TestArchiveBulkJobs_CLI(t *testing.T) {
 	})
 
 	t.Run("API Error", func(t *testing.T) {
-		archiveBulkJobs(mockServer.URL, "not-found", "", "", "")
+		archiveBulkJobs(mockServer.URL, "not-found", "", "", "", "")
 		assert.Equal(t, 1, exitCode)
 	})
 
 	t.Run("Connection Error", func(t *testing.T) {
-		archiveBulkJobs("http://invalid-url:12345", "mytag", "", "", "")
+		archiveBulkJobs("http://invalid-url:12345", "mytag", "", "", "", "")
 		assert.Equal(t, 1, exitCode)
 	})
 
@@ -170,7 +170,7 @@ func TestArchiveBulkJobs_CLI(t *testing.T) {
 		os.WriteFile(filePath, []byte("test"), 0644)
 		outPath := filepath.Join(filePath, "custom.tar.gz")
 
-		archiveBulkJobs(mockServer.URL, "mytag", "", "", outPath)
+		archiveBulkJobs(mockServer.URL, "mytag", "", "", "", outPath)
 		assert.Equal(t, 1, exitCode)
 	})
 
@@ -180,7 +180,7 @@ func TestArchiveBulkJobs_CLI(t *testing.T) {
 		outPath := filepath.Join(tmpDir, "custom.tar.gz")
 		os.Mkdir(outPath, 0755)
 
-		archiveBulkJobs(mockServer.URL, "mytag", "", "", outPath)
+		archiveBulkJobs(mockServer.URL, "mytag", "", "", "", outPath)
 		assert.Equal(t, 1, exitCode)
 	})
 

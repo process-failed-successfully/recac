@@ -56,6 +56,7 @@ func TestBulkArchiveAPI(t *testing.T) {
 			ID:      "JOB-ACTIVE",
 			Summary: "Active Test",
 			Tags:    []string{"bulk-test", "another-tag"},
+			ConcurrencyGroup: "test-group",
 		},
 	}
 	orch.mu.Lock()
@@ -213,7 +214,37 @@ orch.mu.Unlock()
 		require.True(t, foundFiles["JOB-IGNORED/logs.txt"])
 	})
 
-	t.Run("No Tag or Match or Status", func(t *testing.T) {
+	t.Run("Valid Group", func(t *testing.T) {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/archive/bulk?group=test-group", server.URL))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// Read tar.gz
+		gzReader, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err)
+		defer gzReader.Close()
+
+		tarReader := tar.NewReader(gzReader)
+
+		foundFiles := make(map[string]bool)
+		for {
+			hdr, err := tarReader.Next()
+			if err == io.EOF {
+				break // End of archive
+			}
+			require.NoError(t, err)
+			foundFiles[hdr.Name] = true
+		}
+
+		require.True(t, foundFiles["JOB-ACTIVE/job.json"])
+		require.True(t, foundFiles["JOB-ACTIVE/logs.txt"])
+		require.False(t, foundFiles["JOB-COMPLETED/job.json"])
+		require.False(t, foundFiles["JOB-IGNORED/job.json"])
+	})
+
+	t.Run("No Tag or Match or Status or Group", func(t *testing.T) {
 		resp, err := http.Get(fmt.Sprintf("%s/jobs/archive/bulk", server.URL))
 		require.NoError(t, err)
 		defer resp.Body.Close()
