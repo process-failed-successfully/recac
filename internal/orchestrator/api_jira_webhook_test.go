@@ -58,13 +58,14 @@ func TestJiraWebhook(t *testing.T) {
 
 		// Verify job was created
 		jobs := orch.GetActiveJobs()
-		assert.Len(t, jobs, 1)
-		job := jobs[0]
-		assert.Equal(t, "Test Issue", job.Summary)
-		assert.Equal(t, "Repo: https://github.com/test/repo", job.WorkItem.Description)
-		assert.Equal(t, "https://github.com/test/repo", job.WorkItem.RepoURL)
-		assert.Equal(t, "TEST-123", job.WorkItem.EnvVars["JIRA_TICKET"])
-		assert.Equal(t, "TEST-123", job.WorkItem.ConcurrencyGroup)
+		if assert.Equal(t, 1, len(jobs)) {
+			job := jobs[0]
+			assert.Equal(t, "Test Issue", job.Summary)
+			assert.Equal(t, "Repo: https://github.com/test/repo", job.WorkItem.Description)
+			assert.Equal(t, "https://github.com/test/repo", job.WorkItem.RepoURL)
+			assert.Equal(t, "TEST-123", job.WorkItem.EnvVars["JIRA_TICKET"])
+			assert.Equal(t, "TEST-123", job.WorkItem.ConcurrencyGroup)
+		}
 	})
 
 	t.Run("Invalid Secret", func(t *testing.T) {

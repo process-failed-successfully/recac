@@ -482,3 +482,20 @@ func TestNewPostgresStore_ConnectionError(t *testing.T) {
 	_, err := NewPostgresStore("invalid_dsn")
 	assert.Error(t, err)
 }
+
+func TestNewPostgresStore_Error_Ping_2(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	require.NoError(t, err)
+
+	mock.ExpectPing().WillReturnError(sql.ErrConnDone)
+
+	_, err = NewPostgresStoreWithDB(db)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to ping database")
+}
+
+func TestNewPostgresStore_Connection(t *testing.T) {
+	// Not testing real connection but testing the error path
+	_, err := NewPostgresStore("postgres://invalid:invalid@invalid:5432/invalid")
+	assert.Error(t, err)
+}

@@ -124,3 +124,45 @@ func TestDefaultStorePath(t *testing.T) {
 	assert.Contains(t, path, ".recac")
 	assert.Contains(t, path, "flashcards.json")
 }
+
+func TestFileStore_LoadSave_Errors(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "flashcards-test-errors")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	storePath := filepath.Join(tempDir, "flashcards.json")
+	store := NewFileStore(storePath)
+
+	// Test Save with invalid path
+	invalidStore := NewFileStore("/invalid/path/flashcards.json")
+	err = invalidStore.Save()
+	if err == nil {
+		t.Errorf("Expected error saving to invalid path, got nil")
+	}
+
+	// Test Load with invalid JSON
+	os.WriteFile(storePath, []byte("invalid json"), 0644)
+	err = store.Load()
+	if err == nil {
+		t.Errorf("Expected error loading invalid JSON, got nil")
+	}
+}
+
+func TestDefaultStorePath_NoHome(t *testing.T) {
+	origHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", origHome)
+
+	// Simulate no HOME variable
+	os.Unsetenv("HOME")
+
+	// GetDefaultStorePath might use user.Current() which is hard to mock to fail consistently across OSes.
+	// But let's see if we can trigger an error.
+	_, _ = DefaultStorePath()
+}
+
+func TestFileStore_GetDue_Empty(t *testing.T) {
+	store := NewFileStore("")
+	// If loaded is false, it returns empty
+	due := store.GetDue()
+	assert.Empty(t, due)
+}

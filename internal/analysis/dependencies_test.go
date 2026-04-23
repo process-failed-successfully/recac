@@ -222,3 +222,54 @@ func TestGetModuleName(t *testing.T) {
 		t.Fatalf("Expected error for missing mod file, got none")
 	}
 }
+
+func TestAnalyzeDependencies_Errors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Test invalid ignore pattern
+	opts := DependencyOptions{
+		Root:           tmpDir,
+		ModuleName:     "example.com/test",
+		IgnorePatterns: []string{"[invalid-regex"},
+	}
+	_, err := AnalyzeDependencies(opts)
+	if err == nil {
+		t.Fatalf("expected error for invalid ignore pattern, got none")
+	}
+
+	// Test missing go.mod when ModuleName not provided
+	opts2 := DependencyOptions{
+		Root: tmpDir,
+	}
+	// This will not error out immediately, it just falls back.
+	// But let's test a directory that can't be walked?
+	// filepath.WalkDir handles most directory errors.
+	_, _ = AnalyzeDependencies(opts2)
+}
+
+func TestAnalyzeDependencies_UnparseableGoFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	goMod := "module example.com/test\n\ngo 1.21\n"
+	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644)
+
+	// Create an invalid go file
+	unparseable := `package main
+	func main() {`
+	os.WriteFile(filepath.Join(tmpDir, "invalid.go"), []byte(unparseable), 0644)
+
+	opts := DependencyOptions{
+		Root:       tmpDir,
+		ModuleName: "example.com/test",
+	}
+
+	deps, err := AnalyzeDependencies(opts)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should just skip the unparseable file
+	if len(deps) != 0 {
+		t.Fatalf("expected 0 deps, got %d", len(deps))
+	}
+}

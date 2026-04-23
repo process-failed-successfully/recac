@@ -805,3 +805,132 @@ func TestOrchestrator_FailJobsByMatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
+func TestOrchestrator_FailJobsByTag(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+	ctx := context.Background()
+
+	orch.pendingJobs["job-1"] = JobInfo{
+		ID:      "job-1",
+		Status:  "Pending",
+		WorkItem: WorkItem{
+			Tags: []string{"backend"},
+		},
+	}
+	orch.pendingJobs["job-2"] = JobInfo{
+		ID:      "job-2",
+		Status:  "Pending",
+		WorkItem: WorkItem{
+			Tags: []string{"frontend"},
+		},
+	}
+
+	orch.activeJobs["job-3"] = JobInfo{
+		ID:     "job-3",
+		Status: "Active",
+		WorkItem: WorkItem{
+			Tags: []string{"backend"},
+		},
+	}
+	orch.activeJobs["job-4"] = JobInfo{
+		ID:     "job-4",
+		Status: "Active",
+		WorkItem: WorkItem{
+			Tags: []string{"database"},
+		},
+	}
+
+	count, err := orch.FailJobsByTag(ctx, "backend", silentLogger)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.NotContains(t, orch.pendingJobs, "job-1")
+	assert.NotContains(t, orch.activeJobs, "job-3")
+
+
+
+	var failedJob1, failedJob3 JobInfo
+	found1, found3 := false, false
+	for _, j := range orch.completedJobs {
+		if j.ID == "job-1" {
+			failedJob1 = j
+			found1 = true
+		}
+		if j.ID == "job-3" {
+			failedJob3 = j
+			found3 = true
+		}
+	}
+
+	assert.True(t, found1)
+	assert.Equal(t, "Failed", failedJob1.Status)
+
+	assert.True(t, found3)
+	assert.Equal(t, "Failed", failedJob3.Status)
+}
+
+func TestOrchestrator_FailJobsByGroup(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+	ctx := context.Background()
+
+	orch.pendingJobs["job-1"] = JobInfo{
+		ID:      "job-1",
+		Status:  "Pending",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "group-A",
+		},
+	}
+	orch.pendingJobs["job-2"] = JobInfo{
+		ID:      "job-2",
+		Status:  "Pending",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "group-B",
+		},
+	}
+
+	orch.activeJobs["job-3"] = JobInfo{
+		ID:     "job-3",
+		Status: "Active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "group-A",
+		},
+	}
+	orch.activeJobs["job-4"] = JobInfo{
+		ID:     "job-4",
+		Status: "Active",
+		WorkItem: WorkItem{
+			ConcurrencyGroup: "group-C",
+		},
+	}
+
+	count, err := orch.FailJobsByGroup(ctx, "group-A", silentLogger)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.NotContains(t, orch.pendingJobs, "job-1")
+	assert.NotContains(t, orch.activeJobs, "job-3")
+
+
+
+	var failedJob1, failedJob3 JobInfo
+	found1, found3 := false, false
+	for _, j := range orch.completedJobs {
+		if j.ID == "job-1" {
+			failedJob1 = j
+			found1 = true
+		}
+		if j.ID == "job-3" {
+			failedJob3 = j
+			found3 = true
+		}
+	}
+
+	assert.True(t, found1)
+	assert.Equal(t, "Failed", failedJob1.Status)
+
+	assert.True(t, found3)
+	assert.Equal(t, "Failed", failedJob3.Status)
+}
