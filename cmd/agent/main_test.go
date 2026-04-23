@@ -17,13 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Mock functions for workflow paths
-var (
-	mockRunWorkflow       func(ctx context.Context, cfg workflow.SessionConfig) error
-	mockProcessJiraTicket func(ctx context.Context, ticketID string, jClient *jira.Client, cfg workflow.SessionConfig, ignoredBlockers map[string]bool) error
-	mockProcessDirectTask func(ctx context.Context, cfg workflow.SessionConfig) error
-)
-
 func TestRunApp(t *testing.T) {
 	// Setup mock implementations
 	originalRunWorkflow := workflow.RunWorkflow

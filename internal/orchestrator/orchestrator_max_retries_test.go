@@ -9,11 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// We need a dummy spawner to ensure evaluatePendingJobs doesn't fail
-type dummySpawner struct {
-	mockSpawner
-}
-
 type mockPersistence struct {
 	savedJobs map[string]JobInfo
 }
