@@ -197,3 +197,28 @@ func TestUpdateBulkTags(t *testing.T) {
 		assert.Contains(t, output, "Failed to connect to orchestrator")
 	})
 }
+
+func TestUpdateBulkTags_DecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/tags", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkTags(server.URL, "", "", []string{"test"})
+
+	assert.Contains(t, buf.String(), "Failed to decode response")
+	assert.Equal(t, 1, exitCode)
+}

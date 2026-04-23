@@ -124,3 +124,91 @@ func TestDemoteJobCmd_DecodeError(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to decode response")
 }
+
+func TestDemoteBulkJobs_Success(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/demote/bulk", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "tag1", r.URL.Query().Get("tag"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"demoted": 5}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	demoteBulkJobs(server.URL, "", "tag1")
+
+	assert.Contains(t, buf.String(), "Successfully demoted 5 jobs.")
+}
+
+func TestDemoteBulkJobs_Error(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/demote/bulk", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	demoteBulkJobs(server.URL, "match-me", "")
+
+	assert.Contains(t, buf.String(), "Failed to demote jobs: internal server error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestDemoteBulkJobs_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	demoteBulkJobs("http://localhost:0", "match-me", "")
+
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestDemoteBulkJobs_DecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/demote/bulk", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	demoteBulkJobs(server.URL, "", "")
+
+	assert.Contains(t, buf.String(), "Failed to decode response")
+	assert.Equal(t, 1, exitCode)
+}

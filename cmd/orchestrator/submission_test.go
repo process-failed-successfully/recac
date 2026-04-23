@@ -3318,7 +3318,6 @@ func TestWaitIdle_ErrorRecovery(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-
 func TestGetJobMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -3362,9 +3361,9 @@ func TestGetJobMetrics(t *testing.T) {
 			expectedExit:   1,
 		},
 		{
-			name: "ConnectionError",
-			url:  "http://invalid-url",
-			key:  "cost",
+			name:           "ConnectionError",
+			url:            "http://invalid-url",
+			key:            "cost",
 			expectedOutput: "Failed to connect to orchestrator",
 			expectedExit:   1,
 		},
@@ -3442,9 +3441,9 @@ func TestGetJobOutput(t *testing.T) {
 			expectedExit:   1,
 		},
 		{
-			name: "ConnectionError",
-			url:  "http://invalid-url",
-			key:  "mykey",
+			name:           "ConnectionError",
+			url:            "http://invalid-url",
+			key:            "mykey",
 			expectedOutput: "Failed to connect to orchestrator",
 			expectedExit:   1,
 		},

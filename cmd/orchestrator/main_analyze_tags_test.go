@@ -21,7 +21,7 @@ func TestExportTagsCmd(t *testing.T) {
 	defer func() { stdout = oldStdout }()
 
 	oldExit := exitFunc
-	exitFunc = func(code int) { }
+	exitFunc = func(code int) {}
 	defer func() { exitFunc = oldExit }()
 
 	exportTags(server.URL, "-", "json", 10)

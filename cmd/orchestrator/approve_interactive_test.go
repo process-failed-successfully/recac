@@ -123,14 +123,14 @@ func TestApproveInteractive(t *testing.T) {
 			name: "Invalid input then approve",
 			jobs: []orchestrator.JobInfo{
 				{
-					ID: "JOB-1",
-					Status: "Pending Approval",
+					ID:      "JOB-1",
+					Status:  "Pending Approval",
 					Summary: "Summary 1",
 					WorkItem: orchestrator.WorkItem{
 						Description: "Different Description",
-						Tags: []string{"tag1", "tag2"},
-						Priority: 5,
-						DependsOn: []string{"JOB-0"},
+						Tags:        []string{"tag1", "tag2"},
+						Priority:    5,
+						DependsOn:   []string{"JOB-0"},
 					},
 				},
 			},

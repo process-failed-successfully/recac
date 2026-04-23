@@ -3503,7 +3503,7 @@ func inspectJob(host, jobID string) {
 		fmt.Fprintln(stdout, labelStyle.Render("Env Vars:"))
 		for k, v := range job.WorkItem.EnvVars {
 			// Mask likely secrets
-				if utils.ContainsFold(k, "token") || utils.ContainsFold(k, "key") || utils.ContainsFold(k, "secret") {
+			if utils.ContainsFold(k, "token") || utils.ContainsFold(k, "key") || utils.ContainsFold(k, "secret") {
 				v = "***"
 			}
 			fmt.Fprintf(stdout, "  %s=%s\n", k, v)
