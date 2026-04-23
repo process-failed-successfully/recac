@@ -59,3 +59,31 @@ func TestEaseUpdate(t *testing.T) {
 	updated = Review(updated, RatingAgain)
 	assert.Less(t, updated.EaseFactor, 2.46)
 }
+
+func TestUpdateEase(t *testing.T) {
+	// Base ease is 2.5
+
+	// Correct response (Quality = 5)
+	ease := updateEase(2.5, 5)
+	if ease <= 2.5 {
+		t.Errorf("expected ease to increase for quality 5, got %f", ease)
+	}
+
+	// Correct response with hesitation (Quality = 3)
+	ease2 := updateEase(2.5, 3)
+	if ease2 >= 2.5 {
+		t.Errorf("expected ease to decrease for quality 3, got %f", ease2)
+	}
+
+	// Incorrect response (Quality = 0)
+	ease3 := updateEase(2.5, 0)
+	if ease3 >= 2.5 {
+		t.Errorf("expected ease to decrease for quality 0, got %f", ease3)
+	}
+
+	// Boundary check: Ease should not drop below 1.3
+	ease4 := updateEase(1.3, 0)
+	if ease4 < 1.3 {
+		t.Errorf("expected ease to not drop below 1.3, got %f", ease4)
+	}
+}

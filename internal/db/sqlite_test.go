@@ -269,3 +269,140 @@ func TestSQLiteStore_GetActiveLocks(t *testing.T) {
 	assert.Len(t, locks, 1)
 	assert.Equal(t, "file.txt", locks[0].Path)
 }
+
+func TestSQLiteStore_UpdateFeatureStatus_Errors(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	store := &SQLiteStore{db: db}
+
+	// 1. GetFeatures returns error
+	mock.ExpectQuery("SELECT content FROM project_features").
+		WithArgs("proj1").
+		WillReturnError(sql.ErrConnDone)
+
+	err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
+	assert.Error(t, err)
+
+	// 2. GetFeatures returns empty string
+	mock.ExpectQuery("SELECT content FROM project_features").
+		WithArgs("proj1").
+		WillReturnError(sql.ErrNoRows) // Emulates GetFeatures returning empty string
+
+	err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
+	assert.Error(t, err)
+
+	// 3. JSON unmarshal error
+	rows := sqlmock.NewRows([]string{"content"}).AddRow("invalid json")
+	mock.ExpectQuery("SELECT content FROM project_features").
+		WithArgs("proj1").
+		WillReturnRows(rows)
+
+	err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
+	assert.Error(t, err)
+
+	// 4. Feature not found
+	featuresJSON := `{"features": [{"id": "feat2", "status": "pending", "passes": false}]}`
+	rows2 := sqlmock.NewRows([]string{"content"}).AddRow(featuresJSON)
+	mock.ExpectQuery("SELECT content FROM project_features").
+		WithArgs("proj1").
+		WillReturnRows(rows2)
+
+	err = store.UpdateFeatureStatus("proj1", "feat1", "completed", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "feature ID feat1 not found")
+}
+
+func TestSQLiteStore_GetActiveLocks_Errors(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	store := &SQLiteStore{db: db}
+
+	// Query error
+	mock.ExpectQuery("SELECT path, agent_id, expires_at FROM file_locks").
+		WillReturnError(sql.ErrConnDone)
+
+	_, err = store.GetActiveLocks("proj1")
+	assert.Error(t, err)
+
+	// Scan error
+	rows := sqlmock.NewRows([]string{"path", "agent_id", "expires_at"}).AddRow("file.txt", "agent1", "invalid date")
+	mock.ExpectQuery("SELECT path, agent_id, expires_at FROM file_locks").
+		WillReturnRows(rows)
+
+	_, err = store.GetActiveLocks("proj1")
+	assert.Error(t, err)
+}
+
+func TestSQLiteStore_QueryHistory_Errors(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	store := &SQLiteStore{db: db}
+
+	// Query error
+	mock.ExpectQuery("SELECT id, agent_id, content, created_at FROM observations").
+		WillReturnError(sql.ErrConnDone)
+
+	_, err = store.QueryHistory("proj1", 10)
+	assert.Error(t, err)
+
+	// Scan error
+	rows := sqlmock.NewRows([]string{"id", "agent_id", "content", "created_at"}).AddRow("invalid", "agent1", "content", "invalid date")
+	mock.ExpectQuery("SELECT id, agent_id, content, created_at FROM observations").
+		WillReturnRows(rows)
+
+	_, err = store.QueryHistory("proj1", 10)
+	assert.Error(t, err)
+}
+
+func TestSQLiteStore_Cleanup_Errors(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	store := &SQLiteStore{db: db}
+
+	// First exec error
+	mock.ExpectExec("DELETE FROM file_locks").WillReturnError(sql.ErrConnDone)
+	err = store.Cleanup()
+	assert.Error(t, err)
+
+	// Second exec error
+	mock.ExpectExec("DELETE FROM file_locks").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM signals").WillReturnError(sql.ErrConnDone)
+	err = store.Cleanup()
+	assert.Error(t, err)
+
+	// Third exec error
+	mock.ExpectExec("DELETE FROM file_locks").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM signals").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM observations").WillReturnError(sql.ErrConnDone)
+	err = store.Cleanup()
+	assert.Error(t, err)
+}
+
+func TestSQLiteStore_AcquireLock_RetryAndFail(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	store := &SQLiteStore{db: db}
+
+	// Return error other than ErrNoRows
+	mock.ExpectQuery("SELECT agent_id, expires_at FROM file_locks").
+		WillReturnError(sql.ErrConnDone)
+
+	acquired, err := store.AcquireLock("proj1", "file.txt", "agent1", time.Second)
+	assert.Error(t, err)
+	assert.False(t, acquired)
+}
+
+func TestSQLiteStore_Close_Nil(t *testing.T) {
+	var store *SQLiteStore
+	err := store.Close()
+	assert.NoError(t, err)
+
+	store = &SQLiteStore{}
+	err = store.Close()
+	assert.NoError(t, err)
+}

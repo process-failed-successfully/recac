@@ -102,3 +102,48 @@ func main() {
 		t.Errorf("Expected %d routes, got %d", len(expected), len(found))
 	}
 }
+
+func TestScanRoutes_ErrorsAndEdgeCases(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Test malformed file
+	malformedFile := `package main
+func main() {
+	unclosed := "`
+	if err := os.WriteFile(filepath.Join(tmpDir, "malformed.go"), []byte(malformedFile), 0644); err != nil {
+		t.Fatalf("failed to write malformed.go: %v", err)
+	}
+
+	// Test ignored dirs
+	vendorDir := filepath.Join(tmpDir, "vendor")
+	if err := os.Mkdir(vendorDir, 0755); err != nil {
+		t.Fatalf("failed to create vendor dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(vendorDir, "ignore.go"), []byte(`package main`), 0644); err != nil {
+		t.Fatalf("failed to write ignore.go: %v", err)
+	}
+
+	hiddenDir := filepath.Join(tmpDir, ".hidden")
+	if err := os.Mkdir(hiddenDir, 0755); err != nil {
+		t.Fatalf("failed to create hidden dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hiddenDir, "hidden.go"), []byte(`package main`), 0644); err != nil {
+		t.Fatalf("failed to write hidden.go: %v", err)
+	}
+
+	routes, err := ScanRoutes(tmpDir)
+	if err != nil {
+		t.Fatalf("ScanRoutes failed: %v", err)
+	}
+
+	if len(routes) != 0 {
+		t.Errorf("Expected 0 routes from malformed/ignored files, got %d", len(routes))
+	}
+}
+
+func TestExtractSourceSnippet_Error(t *testing.T) {
+	snippet := extractSourceSnippet("/non/existent/path/to/file.go", 1)
+	if snippet != "" {
+		t.Errorf("Expected empty snippet for non-existent file, got %q", snippet)
+	}
+}

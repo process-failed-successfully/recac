@@ -143,3 +143,48 @@ func TestStateManager_LoadSave_Errors(t *testing.T) {
 		t.Fatalf("expected error on save due to mkdir failure, got none")
 	}
 }
+
+func TestStateManager_InitializeState(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "state_init_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	stateFile := filepath.Join(tempDir, "state.json")
+	sm := NewStateManager(stateFile)
+
+	// Test Initializing empty state
+	err = sm.InitializeState(1000, "test-model")
+	if err != nil {
+		t.Fatalf("failed to initialize state: %v", err)
+	}
+
+	state, err := sm.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if state.MaxTokens != 1000 {
+		t.Errorf("expected MaxTokens to be 1000, got %d", state.MaxTokens)
+	}
+	if state.Model != "test-model" {
+		t.Errorf("expected Model to be test-model, got %s", state.Model)
+	}
+
+	// Test Initializing an already initialized state (should not override)
+	err = sm.InitializeState(2000, "new-model")
+	if err != nil {
+		t.Fatalf("failed to initialize state: %v", err)
+	}
+
+	state, err = sm.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if state.MaxTokens != 1000 {
+		t.Errorf("expected MaxTokens to remain 1000, got %d", state.MaxTokens)
+	}
+	if state.Model != "test-model" {
+		t.Errorf("expected Model to remain test-model, got %s", state.Model)
+	}
+}

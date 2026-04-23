@@ -81,3 +81,51 @@ func TestSanitizeID(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateSequence_Errors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Test missing entry point
+	_, err := GenerateSequence(tmpDir, "nonexistent.main", 5)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "entry point 'nonexistent.main' not found")
+
+	// Test ambiguous entry point
+	file1 := `package pkg
+func Ambiguous() {}
+`
+	file2 := `package other
+func Ambiguous() {}
+`
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "pkg"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "pkg", "f1.go"), []byte(file1), 0644))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "other"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "other", "f2.go"), []byte(file2), 0644))
+
+	_, err = GenerateSequence(tmpDir, "Ambiguous", 5)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ambiguous entry point 'Ambiguous'")
+}
+
+func TestGenerateSequence_Receiver(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package main
+
+type MyStruct struct{}
+
+func (m *MyStruct) Method() {}
+
+func main() {
+	var m MyStruct
+	m.Method()
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644))
+
+	mermaid, err := GenerateSequence(tmpDir, "main.main", 5)
+	require.NoError(t, err)
+	require.Contains(t, mermaid, "participant main as main")
+	// main->>main.MyStruct: Method()
+}
