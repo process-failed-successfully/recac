@@ -80,3 +80,111 @@ func TestUpdatePriority_Error(t *testing.T) {
 	assert.Contains(t, output, "job TEST-123 not found")
 	assert.True(t, exitCalled)
 }
+
+func TestUpdateBulkPriority_Success(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/priority", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+
+		tag := r.URL.Query().Get("tag")
+		assert.Equal(t, "backend", tag)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"updated": 3}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	updateBulkPriority(server.URL, "", "backend", 10)
+
+	assert.Contains(t, buf.String(), "Successfully updated priority for 3 jobs.")
+}
+
+func TestUpdatePriority_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updatePriority("http://localhost:0", "TEST-123", 5)
+
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkPriority_Error(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/priority", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkPriority(server.URL, "match-me", "", 10)
+
+	assert.Contains(t, buf.String(), "Failed to update bulk priority: internal server error")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkPriority_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkPriority("http://localhost:0", "match-me", "", 10)
+
+	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkPriority_DecodeError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/priority", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkPriority(server.URL, "", "", 10)
+
+	assert.Contains(t, buf.String(), "Failed to decode response")
+	assert.Equal(t, 1, exitCode)
+}
