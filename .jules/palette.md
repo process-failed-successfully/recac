@@ -101,3 +101,7 @@
 ## 2026-04-22 - Empty States for AI Generated Content
 **Learning:** AI-generated string outputs (like changelogs, postmortems, or explanations) often just return an empty string when no data is available. Rendering this as a bare "No explanation provided" text node within a modal is visually inconsistent and lacks guidance compared to structural data empty states.
 **Action:** Always wrap text-based empty states in the same actionable empty state styling as structured data (e.g., using a centered div with clear keybinding instructions like "Press 'Esc' to close").
+
+## 2026-04-23 - Focusable Scrollable Containers
+**Learning:** Native scrollable containers (`overflow: auto` or `overflow-y: auto`) without inherently focusable elements inside them are completely inaccessible to keyboard-only users, preventing them from scrolling through content like logs, long graphs, or analysis reports.
+**Action:** Always add `tabindex="0"` to containers with `overflow` properties (along with a `:focus-visible` outline) to ensure they can receive focus and be scrolled using the keyboard arrow keys.
