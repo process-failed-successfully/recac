@@ -365,5 +365,16 @@ var secretMaskRegex = regexp.MustCompile(`(?i)(["']?[a-z0-9_]*(?:token|password|
 
 // maskSecrets redacts potential secrets from output strings to prevent leakage in logs or context
 func maskSecrets(text string) string {
+	// ⚡ Bolt: Fast-path optimization to skip regex execution on large output text without secrets.
+	// We use zero-allocation utils.ContainsFold to search for target keywords.
+	// Impact: Prevents massive CPU overhead and garbage generation when processing large multi-kilobyte log blocks.
+	if !utils.ContainsFold(text, "token") &&
+		!utils.ContainsFold(text, "password") &&
+		!utils.ContainsFold(text, "secret") &&
+		!utils.ContainsFold(text, "key") &&
+		!utils.ContainsFold(text, "pwd") {
+		return text
+	}
+
 	return secretMaskRegex.ReplaceAllString(text, "${1}[REDACTED]")
 }
