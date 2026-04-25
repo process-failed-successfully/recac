@@ -105,3 +105,7 @@
 ## 2026-04-23 - Focusable Scrollable Containers
 **Learning:** Native scrollable containers (`overflow: auto` or `overflow-y: auto`) without inherently focusable elements inside them are completely inaccessible to keyboard-only users, preventing them from scrolling through content like logs, long graphs, or analysis reports.
 **Action:** Always add `tabindex="0"` to containers with `overflow` properties (along with a `:focus-visible` outline) to ensure they can receive focus and be scrolled using the keyboard arrow keys.
+
+## $(date +%Y-%m-%d) - Empty States for Generated Content Should Include Close Instruction
+**Learning:** We previously learned that AI-generated string outputs should be rendered using the same styled, actionable empty state pattern as structured data. I noticed that we had missed a few empty states for "No flaky jobs found" and "No failing jobs found" in the reliability modal analysis, which were just bare `<p>` tags without an explicit close instruction.
+**Action:** Ensure all empty states within modals have consistent styling (`text-align: center; padding: 2em; color: #666;`) and provide an explicit instruction like "Press 'Esc' to close." so users know how to proceed.

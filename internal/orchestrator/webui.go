@@ -1640,7 +1640,7 @@ const DashboardHTML = `
                         });
                         html += '</table>';
                     } else {
-                        html += '<p>No flaky jobs found.</p>';
+                        html += '<div style="text-align: center; padding: 2em; color: #666;"><p>No flaky jobs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
                     }
 
                     html += '<h3 style="margin-top: 20px;">Top Failing Jobs (Failed completely)</h3>';
@@ -1655,7 +1655,7 @@ const DashboardHTML = `
                         });
                         html += '</table>';
                     } else {
-                        html += '<p>No failing jobs found.</p>';
+                        html += '<div style="text-align: center; padding: 2em; color: #666;"><p>No failing jobs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
                     }
 
                     content.innerHTML = html;
