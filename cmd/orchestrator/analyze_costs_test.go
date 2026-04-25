@@ -141,3 +141,136 @@ func TestAnalyzeCosts_NoJobs(t *testing.T) {
 	assert.Equal(t, "No valid completed jobs with cost data found.", output)
 	assert.Equal(t, 0, exitCode)
 }
+
+func TestAnalyzeCosts_InvalidHost(t *testing.T) {
+	oldExit := exitFunc
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	analyzeCosts("http://\x00invalid", 10, "text")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Failed to parse host URL")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestAnalyzeCosts_ConnectionError(t *testing.T) {
+	oldExit := exitFunc
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	analyzeCosts("http://localhost:0", 10, "text")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Failed to connect to orchestrator")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestAnalyzeCosts_HTTPError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	oldExit := exitFunc
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	analyzeCosts(server.URL, 10, "text")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Failed to fetch cost analysis: status 500")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestAnalyzeCosts_InvalidJSONResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer server.Close()
+
+	oldExit := exitFunc
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	analyzeCosts(server.URL, 10, "text")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Failed to decode response:")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestAnalyzeCosts_SummaryTruncation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{
+			"total_stats": {"total_jobs": 1},
+			"top_expensive_jobs": [
+				{"id": "job-long", "summary": "This is a very long summary that exceeds the thirty eight character limit and should be truncated", "metrics": {"cost_usd": 25.0}}
+			]
+		}`))
+	}))
+	defer server.Close()
+
+	oldExit := exitFunc
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	analyzeCosts(server.URL, 10, "text")
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "This is a very long summary that ex...")
+	assert.Equal(t, 0, exitCode)
+}
