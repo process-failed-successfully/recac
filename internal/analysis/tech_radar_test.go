@@ -83,3 +83,8 @@ func TestGenerateRadarHTML(t *testing.T) {
 	assert.Contains(t, html, `"quadrant":"Languages \u0026 Frameworks"`)
 	assert.Contains(t, html, `"ring":"Adopt"`)
 }
+
+func TestScanForDependencyFiles_Error(t *testing.T) {
+	_, err := ScanForDependencyFiles("/nonexistent/directory/path/that/should/not/exist")
+	require.Error(t, err)
+}
