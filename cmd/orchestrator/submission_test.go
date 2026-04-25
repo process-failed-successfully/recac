@@ -3477,3 +3477,134 @@ func TestGetJobOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestCancelJobsByGroup_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, http.MethodDelete, r.Method)
+		assert.Equal(t, "test-group", r.URL.Query().Get("group"))
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"canceled": 3}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	cancelJobsByGroup(server.URL, "test-group")
+
+	out := buf.String()
+	assert.Contains(t, out, "Successfully canceled 3 jobs")
+}
+
+func TestCancelJobsByGroup_ErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`internal server error`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	cancelJobsByGroup(server.URL, "test-group")
+
+	out := buf.String()
+	assert.Contains(t, out, "Failed to cancel jobs by concurrency group: internal server error")
+	assert.True(t, exitCalled)
+}
+
+func TestCancelJobsByGroup_ConnectionError(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	cancelJobsByGroup("http://invalid-host", "test-group")
+
+	out := buf.String()
+	assert.Contains(t, out, "Failed to connect to orchestrator")
+	assert.True(t, exitCalled)
+}
+
+func TestCancelJobsByGroup_DecodeError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	cancelJobsByGroup(server.URL, "test-group")
+
+	out := buf.String()
+	assert.Contains(t, out, "Failed to decode response")
+	assert.True(t, exitCalled)
+}
+
+func TestCancelJobsByGroup_UnexpectedFormat(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"canceled": "three"}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	cancelJobsByGroup(server.URL, "test-group")
+
+	out := buf.String()
+	assert.Contains(t, out, "Failed to decode response")
+	assert.True(t, exitCalled)
+}
+
+func TestCancelJobsByGroup_InvalidURL(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	exitCalled := false
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCalled = true }
+	defer func() { exitFunc = oldExit }()
+
+	cancelJobsByGroup("::invalid_host", "test-group")
+
+	out := buf.String()
+	assert.Contains(t, out, "Failed to parse URL")
+	assert.True(t, exitCalled)
+}
