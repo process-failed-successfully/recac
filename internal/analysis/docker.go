@@ -1,16 +1,16 @@
 package analysis
 
 import (
-	"regexp"
+	"recac/internal/utils"
 	"strings"
 )
 
 type DockerFinding struct {
-	Line      int    `json:"line"`
-	Rule      string `json:"rule"`
-	Message   string `json:"message"`
-	Severity  string `json:"severity"` // "info", "warning", "error"
-	Advice    string `json:"advice"`
+	Line     int    `json:"line"`
+	Rule     string `json:"rule"`
+	Message  string `json:"message"`
+	Severity string `json:"severity"` // "info", "warning", "error"
+	Advice   string `json:"advice"`
 }
 
 type dockerInstruction struct {
@@ -137,12 +137,14 @@ func checkWorkDir(instr dockerInstruction, findings *[]DockerFinding) {
 	}
 }
 
-var secretRegex = regexp.MustCompile(`(?i)(PASSWORD|SECRET|KEY|TOKEN)`)
-
 func checkSecretsEnv(instr dockerInstruction, findings *[]DockerFinding) {
 	if instr.Command == "ENV" {
 		// ENV MY_PASSWORD=...
-		if secretRegex.MatchString(instr.Args) {
+		// ⚡ Bolt: Replaced regex with zero-allocation utils.ContainsFold for massive performance improvement
+		if utils.ContainsFold(instr.Args, "PASSWORD") ||
+			utils.ContainsFold(instr.Args, "SECRET") ||
+			utils.ContainsFold(instr.Args, "KEY") ||
+			utils.ContainsFold(instr.Args, "TOKEN") {
 			*findings = append(*findings, DockerFinding{
 				Line:     instr.Line,
 				Rule:     "secrets_env",

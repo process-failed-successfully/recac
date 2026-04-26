@@ -2,14 +2,12 @@ package gamify
 
 import (
 	"fmt"
-	"regexp"
+	"recac/internal/utils"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
-
-var bugFixRe = regexp.MustCompile(`(?i)(fix|resolve|close|bug|issue)`)
 
 // GitClient defines the interface needed for gamification analysis.
 type GitClient interface {
@@ -18,16 +16,16 @@ type GitClient interface {
 
 // Player represents a contributor.
 type Player struct {
-	Name        string
-	Commits     int
-	LinesAdded  int
-	LinesDel    int
-	BugFixes    int
-	DocEdits    int
-	TestEdits   int
-	XP          int
-	Badges      []string
-	LastCommit  time.Time
+	Name       string
+	Commits    int
+	LinesAdded int
+	LinesDel   int
+	BugFixes   int
+	DocEdits   int
+	TestEdits  int
+	XP         int
+	Badges     []string
+	LastCommit time.Time
 }
 
 // Leaderboard holds all players.
@@ -87,7 +85,12 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 			currentPlayer.XP += 10
 
 			// Bug Fix XP
-			if bugFixRe.MatchString(msg) {
+			// ⚡ Bolt: Replaced regex with zero-allocation utils.ContainsFold for massive performance improvement
+			if utils.ContainsFold(msg, "fix") ||
+				utils.ContainsFold(msg, "resolve") ||
+				utils.ContainsFold(msg, "close") ||
+				utils.ContainsFold(msg, "bug") ||
+				utils.ContainsFold(msg, "issue") {
 				currentPlayer.BugFixes++
 				currentPlayer.XP += 20
 			}

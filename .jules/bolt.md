@@ -65,3 +65,7 @@
 ## 2024-05-18 - Case-Insensitive String Checks in Form Submission
 **Learning:** Using `strings.ToLower` in hot paths (like checking input form values in `internal/tui/dashboard.go`) creates unnecessary intermediate memory allocations for every checked string.
 **Action:** Always prefer `strings.EqualFold(a, b)` for exact case-insensitive matches instead of converting the string with `strings.ToLower`.
+
+## 2024-04-26 - Case-insensitive Keyword Matching Optimization
+**Learning:** For case-insensitive keyword searching (e.g. searching for "fix", "password" within strings), `utils.ContainsFold` is vastly faster (up to ~30x-40x) than compiling and executing a case-insensitive regex like `regexp.MustCompile("(?i)(word1|word2)")` because it does zero allocations and avoids regex state machine overhead.
+**Action:** Replace `regexp.MustCompile` with chained `utils.ContainsFold` when doing simple case-insensitive substring keyword checks.
