@@ -2,10 +2,10 @@ package orchestrator
 
 import (
 	"context"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
 )
 
 func TestUpdateJobTagsWithPersistence(t *testing.T) {
@@ -128,4 +128,52 @@ func TestUpdateJobsTagsBulkWithPersistence(t *testing.T) {
 
 	require.Contains(t, mp.savedJobs, "JOB-1")
 	require.Contains(t, mp.savedJobs, "JOB-2")
+}
+
+func TestOrchestrator_AddJobTags(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+	ctx := context.Background()
+
+	orch.mu.Lock()
+	orch.pendingJobs["JOB-PENDING"] = JobInfo{
+		ID: "JOB-PENDING",
+		WorkItem: WorkItem{
+			Tags: []string{"tag1"},
+		},
+	}
+	orch.mu.Unlock()
+
+	tagsToAdd := []string{"tag2", "tag2"} // Add tag2, test duplication
+	err := orch.AddJobTags(ctx, "JOB-PENDING", tagsToAdd, nil)
+	require.NoError(t, err)
+
+	orch.mu.Lock()
+	job := orch.pendingJobs["JOB-PENDING"]
+	orch.mu.Unlock()
+
+	assert.ElementsMatch(t, []string{"tag1", "tag2"}, job.WorkItem.Tags)
+}
+
+func TestOrchestrator_RemoveJobTags(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+	ctx := context.Background()
+
+	orch.mu.Lock()
+	orch.pendingJobs["JOB-PENDING"] = JobInfo{
+		ID: "JOB-PENDING",
+		WorkItem: WorkItem{
+			Tags: []string{"tag1", "tag2", "tag3"},
+		},
+	}
+	orch.mu.Unlock()
+
+	tagsToRemove := []string{"tag1", "tag3", "tag-not-exist"}
+	err := orch.RemoveJobTags(ctx, "JOB-PENDING", tagsToRemove, nil)
+	require.NoError(t, err)
+
+	orch.mu.Lock()
+	job := orch.pendingJobs["JOB-PENDING"]
+	orch.mu.Unlock()
+
+	assert.ElementsMatch(t, []string{"tag2"}, job.WorkItem.Tags)
 }

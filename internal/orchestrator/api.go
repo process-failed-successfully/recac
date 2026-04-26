@@ -2009,6 +2009,181 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		w.Write(respData)
 	})
 
+
+	mux.HandleFunc("PUT /jobs/{id}/tags/add", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.AddJobTags(r.Context(), id, req.Tags, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"Tags added successfully"}`))
+	})
+
+	mux.HandleFunc("PUT /jobs/{id}/tags/remove", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		if err := orch.RemoveJobTags(r.Context(), id, req.Tags, logger); err != nil {
+			if strings.Contains(err.Error(), "already active") || strings.Contains(err.Error(), "already completed") {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else if strings.Contains(err.Error(), "not found") {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"Tags removed successfully"}`))
+	})
+
+	mux.HandleFunc("PUT /jobs/tags/add", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk tag add", http.StatusBadRequest)
+			return
+		}
+
+		if tag != "" && match != "" {
+			http.Error(w, "Only one of 'tag' or 'match' query parameter can be provided", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var regex *regexp.Regexp
+		if match != "" {
+			var err error
+			regex, err = regexp.Compile("(?i)" + match)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Invalid regex match parameter: %v", err), http.StatusBadRequest)
+				return
+			}
+		}
+
+		updatedCount := 0
+		for _, job := range orch.GetPendingJobs() {
+			matches := false
+			if tag != "" {
+				for _, t := range job.WorkItem.Tags {
+					if strings.EqualFold(t, tag) {
+						matches = true
+						break
+					}
+				}
+			} else if regex != nil {
+				if regex.MatchString(job.ID) || regex.MatchString(job.WorkItem.Description) || regex.MatchString(job.WorkItem.Summary) {
+					matches = true
+				}
+			}
+
+			if matches {
+				if err := orch.AddJobTags(r.Context(), job.ID, req.Tags, logger); err == nil {
+					updatedCount++
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		respData, _ := json.Marshal(map[string]int{"updated": updatedCount})
+		w.Write(respData)
+	})
+
+	mux.HandleFunc("PUT /jobs/tags/remove", func(w http.ResponseWriter, r *http.Request) {
+		tag := r.URL.Query().Get("tag")
+		match := r.URL.Query().Get("match")
+
+		if tag == "" && match == "" {
+			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk tag remove", http.StatusBadRequest)
+			return
+		}
+
+		if tag != "" && match != "" {
+			http.Error(w, "Only one of 'tag' or 'match' query parameter can be provided", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+
+		var regex *regexp.Regexp
+		if match != "" {
+			var err error
+			regex, err = regexp.Compile("(?i)" + match)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Invalid regex match parameter: %v", err), http.StatusBadRequest)
+				return
+			}
+		}
+
+		updatedCount := 0
+		for _, job := range orch.GetPendingJobs() {
+			matches := false
+			if tag != "" {
+				for _, t := range job.WorkItem.Tags {
+					if strings.EqualFold(t, tag) {
+						matches = true
+						break
+					}
+				}
+			} else if regex != nil {
+				if regex.MatchString(job.ID) || regex.MatchString(job.WorkItem.Description) || regex.MatchString(job.WorkItem.Summary) {
+					matches = true
+				}
+			}
+
+			if matches {
+				if err := orch.RemoveJobTags(r.Context(), job.ID, req.Tags, logger); err == nil {
+					updatedCount++
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		respData, _ := json.Marshal(map[string]int{"updated": updatedCount})
+		w.Write(respData)
+	})
+
 	mux.HandleFunc("PUT /jobs/tags", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")

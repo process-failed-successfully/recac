@@ -2110,6 +2110,103 @@ func (o *Orchestrator) UpdateJobsEnvByMatch(ctx context.Context, match string, e
 }
 
 // UpdateJobTags updates the tags of a job in the pending queue.
+
+func (o *Orchestrator) AddJobTags(ctx context.Context, jobID string, tags []string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have tags updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	// Add new tags, ensuring no duplicates
+	tagMap := make(map[string]bool)
+	for _, t := range job.WorkItem.Tags {
+		tagMap[t] = true
+	}
+	var newTags []string
+	for _, t := range tags {
+		if !tagMap[t] {
+			tagMap[t] = true
+			newTags = append(newTags, t)
+		}
+	}
+	job.WorkItem.Tags = append(job.WorkItem.Tags, newTags...)
+
+	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
+	o.mu.Unlock()
+	o.BroadcastEvent("job_tags_added", job)
+
+	if logger != nil {
+		logger.Info("Added job tags", "jobID", jobID, "tags", tags)
+	}
+	return nil
+}
+
+func (o *Orchestrator) RemoveJobTags(ctx context.Context, jobID string, tags []string, logger *slog.Logger) error {
+	o.mu.Lock()
+	job, exists := o.pendingJobs[jobID]
+	if !exists {
+		o.mu.Unlock()
+		// Check if active or completed to return a more specific error
+		o.mu.RLock()
+		if _, active := o.activeJobs[jobID]; active {
+			o.mu.RUnlock()
+			return fmt.Errorf("job %s is already active and cannot have tags updated", jobID)
+		}
+		for _, completed := range o.completedJobs {
+			if completed.ID == jobID {
+				o.mu.RUnlock()
+				return fmt.Errorf("job %s is already completed", jobID)
+			}
+		}
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	// Remove tags
+	tagMapToRemove := make(map[string]bool)
+	for _, t := range tags {
+		tagMapToRemove[t] = true
+	}
+
+	var finalTags []string
+	for _, t := range job.WorkItem.Tags {
+		if !tagMapToRemove[t] {
+			finalTags = append(finalTags, t)
+		}
+	}
+	job.WorkItem.Tags = finalTags
+
+	o.pendingJobs[jobID] = job
+	if o.Persistence != nil {
+		o.Persistence.SaveJob(job)
+	}
+	o.mu.Unlock()
+	o.BroadcastEvent("job_tags_removed", job)
+
+	if logger != nil {
+		logger.Info("Removed job tags", "jobID", jobID, "tags", tags)
+	}
+	return nil
+}
+
 func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []string, logger *slog.Logger) error {
 	o.mu.Lock()
 	job, exists := o.pendingJobs[jobID]

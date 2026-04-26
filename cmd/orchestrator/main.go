@@ -252,6 +252,14 @@ func main() {
 	pflag.String("update-tags-job", "", "Update the tags of a specific pending job")
 	pflag.String("update-tags-tag", "", "Update the tags of all pending jobs with the specified tag")
 	pflag.String("update-tags-match", "", "Update the tags of all pending jobs matching the given regex")
+
+	pflag.String("add-tag-job", "", "Add tags to a specific pending job")
+	pflag.String("add-tag-tag", "", "Add tags to all pending jobs with the specified tag")
+	pflag.String("add-tag-match", "", "Add tags to all pending jobs matching the given regex")
+	pflag.String("remove-tag-job", "", "Remove tags from a specific pending job")
+	pflag.String("remove-tag-tag", "", "Remove tags from all pending jobs with the specified tag")
+	pflag.String("remove-tag-match", "", "Remove tags from all pending jobs matching the given regex")
+
 	pflag.StringSlice("set-tags", []string{}, "Comma-separated list of new tags (requires --update-tags-job, --update-tags-tag, or --update-tags-match)")
 	pflag.String("wait-job", "", "Wait for a specific job to complete and stream its logs")
 	pflag.String("wait-jobs", "", "Wait for multiple comma-separated job IDs to complete")
@@ -671,6 +679,14 @@ func main() {
 	viper.BindPFlag("orchestrator.update_tags_job", pflag.Lookup("update-tags-job"))
 	viper.BindPFlag("orchestrator.update_tags_tag", pflag.Lookup("update-tags-tag"))
 	viper.BindPFlag("orchestrator.update_tags_match", pflag.Lookup("update-tags-match"))
+
+	viper.BindPFlag("orchestrator.add_tag_job", pflag.Lookup("add-tag-job"))
+	viper.BindPFlag("orchestrator.add_tag_tag", pflag.Lookup("add-tag-tag"))
+	viper.BindPFlag("orchestrator.add_tag_match", pflag.Lookup("add-tag-match"))
+	viper.BindPFlag("orchestrator.remove_tag_job", pflag.Lookup("remove-tag-job"))
+	viper.BindPFlag("orchestrator.remove_tag_tag", pflag.Lookup("remove-tag-tag"))
+	viper.BindPFlag("orchestrator.remove_tag_match", pflag.Lookup("remove-tag-match"))
+
 	viper.BindPFlag("orchestrator.set_tags", pflag.Lookup("set-tags"))
 	viper.BindPFlag("orchestrator.wait_job", pflag.Lookup("wait-job"))
 	viper.BindPFlag("orchestrator.wait_jobs", pflag.Lookup("wait-jobs"))
@@ -2193,6 +2209,97 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		updateBulkTags(host, updateTagsMatch, updateTagsTag, setTagsPtr)
 		return nil
 	}
+
+	addTagJob := viper.GetString("orchestrator.add_tag_job")
+	addTagTag := viper.GetString("orchestrator.add_tag_tag")
+	addTagMatch := viper.GetString("orchestrator.add_tag_match")
+
+	addTagsFlagsSet := 0
+	if addTagJob != "" {
+		addTagsFlagsSet++
+	}
+	if addTagTag != "" {
+		addTagsFlagsSet++
+	}
+	if addTagMatch != "" {
+		addTagsFlagsSet++
+	}
+
+	if addTagsFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --add-tag-job, --add-tag-tag, and --add-tag-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if addTagJob != "" {
+		host := viper.GetString("orchestrator.host")
+		var setTagsPtr []string
+		if viper.IsSet("orchestrator.set_tags") {
+			setTagsPtr = viper.GetStringSlice("orchestrator.set_tags")
+		} else {
+			setTagsPtr = []string{}
+		}
+		addTags(host, addTagJob, setTagsPtr)
+		return nil
+	}
+
+	if addTagTag != "" || addTagMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		var setTagsPtr []string
+		if viper.IsSet("orchestrator.set_tags") {
+			setTagsPtr = viper.GetStringSlice("orchestrator.set_tags")
+		} else {
+			setTagsPtr = []string{}
+		}
+		addBulkTags(host, addTagMatch, addTagTag, setTagsPtr)
+		return nil
+	}
+
+	removeTagJob := viper.GetString("orchestrator.remove_tag_job")
+	removeTagTag := viper.GetString("orchestrator.remove_tag_tag")
+	removeTagMatch := viper.GetString("orchestrator.remove_tag_match")
+
+	removeTagsFlagsSet := 0
+	if removeTagJob != "" {
+		removeTagsFlagsSet++
+	}
+	if removeTagTag != "" {
+		removeTagsFlagsSet++
+	}
+	if removeTagMatch != "" {
+		removeTagsFlagsSet++
+	}
+
+	if removeTagsFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --remove-tag-job, --remove-tag-tag, and --remove-tag-match together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if removeTagJob != "" {
+		host := viper.GetString("orchestrator.host")
+		var setTagsPtr []string
+		if viper.IsSet("orchestrator.set_tags") {
+			setTagsPtr = viper.GetStringSlice("orchestrator.set_tags")
+		} else {
+			setTagsPtr = []string{}
+		}
+		removeTags(host, removeTagJob, setTagsPtr)
+		return nil
+	}
+
+	if removeTagTag != "" || removeTagMatch != "" {
+		host := viper.GetString("orchestrator.host")
+		var setTagsPtr []string
+		if viper.IsSet("orchestrator.set_tags") {
+			setTagsPtr = viper.GetStringSlice("orchestrator.set_tags")
+		} else {
+			setTagsPtr = []string{}
+		}
+		removeBulkTags(host, removeTagMatch, removeTagTag, setTagsPtr)
+		return nil
+	}
+
 
 	if waitJob := viper.GetString("orchestrator.wait_job"); waitJob != "" {
 		host := viper.GetString("orchestrator.host")
