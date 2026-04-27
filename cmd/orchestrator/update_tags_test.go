@@ -222,3 +222,339 @@ func TestUpdateBulkTags_DecodeError(t *testing.T) {
 	assert.Contains(t, buf.String(), "Failed to decode response")
 	assert.Equal(t, 1, exitCode)
 }
+
+func TestAddTags(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        http.HandlerFunc
+		useRealServer  bool
+		expectedOutput string
+		expectExit     bool
+	}{
+		{
+			name: "Success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "PUT", r.Method)
+				assert.Equal(t, "/jobs/TEST-123/tags/add", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, `{"message": "tags added successfully"}`)
+			},
+			useRealServer:  true,
+			expectedOutput: "Job TEST-123 tags added: tag1",
+			expectExit:     false,
+		},
+		{
+			name: "Error",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprintln(w, "job TEST-123 not found")
+			},
+			useRealServer:  true,
+			expectedOutput: "Failed to add tags",
+			expectExit:     true,
+		},
+		{
+			name:           "Connection Error",
+			useRealServer:  false,
+			expectedOutput: "Failed to connect to orchestrator",
+			expectExit:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var urlStr string
+			if tt.useRealServer {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				urlStr = server.URL
+			} else {
+				urlStr = "http://localhost:0"
+			}
+
+			var buf bytes.Buffer
+			oldStdout := stdout
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExit := exitFunc
+			exitFunc = func(code int) { exitCalled = true }
+			defer func() { exitFunc = oldExit }()
+
+			viper.Reset()
+			defer viper.Reset()
+
+			addTags(urlStr, "TEST-123", []string{"tag1"})
+
+			output := buf.String()
+			assert.Contains(t, output, tt.expectedOutput)
+			assert.Equal(t, tt.expectExit, exitCalled)
+		})
+	}
+}
+
+func TestRemoveTags(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        http.HandlerFunc
+		useRealServer  bool
+		expectedOutput string
+		expectExit     bool
+	}{
+		{
+			name: "Success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "PUT", r.Method)
+				assert.Equal(t, "/jobs/TEST-123/tags/remove", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, `{"message": "tags removed successfully"}`)
+			},
+			useRealServer:  true,
+			expectedOutput: "Job TEST-123 tags removed: tag1",
+			expectExit:     false,
+		},
+		{
+			name: "Error",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprintln(w, "job TEST-123 not found")
+			},
+			useRealServer:  true,
+			expectedOutput: "Failed to remove tags",
+			expectExit:     true,
+		},
+		{
+			name:           "Connection Error",
+			useRealServer:  false,
+			expectedOutput: "Failed to connect to orchestrator",
+			expectExit:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var urlStr string
+			if tt.useRealServer {
+				server := httptest.NewServer(tt.handler)
+				defer server.Close()
+				urlStr = server.URL
+			} else {
+				urlStr = "http://localhost:0"
+			}
+
+			var buf bytes.Buffer
+			oldStdout := stdout
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExit := exitFunc
+			exitFunc = func(code int) { exitCalled = true }
+			defer func() { exitFunc = oldExit }()
+
+			viper.Reset()
+			defer viper.Reset()
+
+			removeTags(urlStr, "TEST-123", []string{"tag1"})
+
+			output := buf.String()
+			assert.Contains(t, output, tt.expectedOutput)
+			assert.Equal(t, tt.expectExit, exitCalled)
+		})
+	}
+}
+
+func TestAddBulkTags(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        http.HandlerFunc
+		useRealServer  bool
+		match          string
+		tag            string
+		expectedOutput string
+		expectExit     bool
+	}{
+		{
+			name: "AddTagsByTag_Success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/tags/add", r.URL.Path)
+				assert.Equal(t, "tag1", r.URL.Query().Get("tag"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"updated": 2}`))
+			},
+			useRealServer:  true,
+			tag:            "tag1",
+			expectedOutput: "Successfully added tags for 2 pending jobs",
+			expectExit:     false,
+		},
+		{
+			name: "AddTagsByMatch_Success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/tags/add", r.URL.Path)
+				assert.Equal(t, "regex", r.URL.Query().Get("match"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"updated": 1}`))
+			},
+			useRealServer:  true,
+			match:          "regex",
+			expectedOutput: "Successfully added tags for 1 pending jobs",
+			expectExit:     false,
+		},
+		{
+			name: "ServerError",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "server error", http.StatusInternalServerError)
+			},
+			useRealServer:  true,
+			match:          "regex",
+			expectedOutput: "Failed to add bulk tags:",
+			expectExit:     true,
+		},
+		{
+			name:           "ConnectionError",
+			useRealServer:  false,
+			match:          "regex",
+			expectedOutput: "Failed to connect to orchestrator",
+			expectExit:     true,
+		},
+		{
+			name: "DecodeError",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`invalid json`))
+			},
+			useRealServer:  true,
+			expectedOutput: "Failed to decode response",
+			expectExit:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var urlStr string
+			if tt.useRealServer {
+				mux := http.NewServeMux()
+				mux.HandleFunc("/jobs/tags/add", tt.handler)
+				server := httptest.NewServer(mux)
+				defer server.Close()
+				urlStr = server.URL
+			} else {
+				urlStr = "http://localhost:0"
+			}
+
+			var buf bytes.Buffer
+			oldStdout := stdout
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExit := exitFunc
+			exitFunc = func(code int) { exitCalled = true }
+			defer func() { exitFunc = oldExit }()
+
+			addBulkTags(urlStr, tt.match, tt.tag, []string{"newtag"})
+
+			output := buf.String()
+			assert.Contains(t, output, tt.expectedOutput)
+			assert.Equal(t, tt.expectExit, exitCalled)
+		})
+	}
+}
+
+func TestRemoveBulkTags(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        http.HandlerFunc
+		useRealServer  bool
+		match          string
+		tag            string
+		expectedOutput string
+		expectExit     bool
+	}{
+		{
+			name: "RemoveTagsByTag_Success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/tags/remove", r.URL.Path)
+				assert.Equal(t, "tag1", r.URL.Query().Get("tag"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"updated": 2}`))
+			},
+			useRealServer:  true,
+			tag:            "tag1",
+			expectedOutput: "Successfully removed tags for 2 pending jobs",
+			expectExit:     false,
+		},
+		{
+			name: "RemoveTagsByMatch_Success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/tags/remove", r.URL.Path)
+				assert.Equal(t, "regex", r.URL.Query().Get("match"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"updated": 1}`))
+			},
+			useRealServer:  true,
+			match:          "regex",
+			expectedOutput: "Successfully removed tags for 1 pending jobs",
+			expectExit:     false,
+		},
+		{
+			name: "ServerError",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "server error", http.StatusInternalServerError)
+			},
+			useRealServer:  true,
+			match:          "regex",
+			expectedOutput: "Failed to remove bulk tags:",
+			expectExit:     true,
+		},
+		{
+			name:           "ConnectionError",
+			useRealServer:  false,
+			match:          "regex",
+			expectedOutput: "Failed to connect to orchestrator",
+			expectExit:     true,
+		},
+		{
+			name: "DecodeError",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`invalid json`))
+			},
+			useRealServer:  true,
+			expectedOutput: "Failed to decode response",
+			expectExit:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var urlStr string
+			if tt.useRealServer {
+				mux := http.NewServeMux()
+				mux.HandleFunc("/jobs/tags/remove", tt.handler)
+				server := httptest.NewServer(mux)
+				defer server.Close()
+				urlStr = server.URL
+			} else {
+				urlStr = "http://localhost:0"
+			}
+
+			var buf bytes.Buffer
+			oldStdout := stdout
+			stdout = &buf
+			defer func() { stdout = oldStdout }()
+
+			exitCalled := false
+			oldExit := exitFunc
+			exitFunc = func(code int) { exitCalled = true }
+			defer func() { exitFunc = oldExit }()
+
+			removeBulkTags(urlStr, tt.match, tt.tag, []string{"newtag"})
+
+			output := buf.String()
+			assert.Contains(t, output, tt.expectedOutput)
+			assert.Equal(t, tt.expectExit, exitCalled)
+		})
+	}
+}
