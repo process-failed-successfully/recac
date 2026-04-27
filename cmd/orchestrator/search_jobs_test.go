@@ -155,3 +155,27 @@ func TestSearchJobsGlobally_ServerError(t *testing.T) {
 	assert.True(t, exitCalled)
 	assert.Contains(t, buf.String(), "Failed to search jobs: invalid regex")
 }
+
+func TestSearchJobsGlobally_FormatCSV(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/search", r.URL.Path)
+		assert.Equal(t, "test", r.URL.Query().Get("q"))
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[
+			{"id": "job-csv-search", "summary": "Search CSV Summary", "status": "Pending", "work_item": {"tags": ["tagA", "tagB"]}}
+		]`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	searchJobsGlobally(server.URL, "test", "", "", "csv")
+
+	output := buf.String()
+	assert.Contains(t, output, "ID,Status,Summary,Tags")
+	assert.Contains(t, output, "job-csv-search,Pending,Search CSV Summary,\"tagA,tagB\"")
+}

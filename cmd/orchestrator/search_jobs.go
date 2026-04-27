@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -60,6 +61,22 @@ func searchJobsGlobally(host, query, tag, status, format string) {
 	if format == "json" {
 		out, _ := json.MarshalIndent(jobs, "", "  ")
 		fmt.Fprintln(stdout, string(out))
+		return
+	}
+
+	if format == "csv" {
+		writer := csv.NewWriter(stdout)
+		defer writer.Flush()
+
+		writer.Write([]string{"ID", "Status", "Summary", "Tags"})
+		for _, job := range jobs {
+			writer.Write([]string{
+				job.ID,
+				job.Status,
+				job.Summary,
+				strings.Join(job.WorkItem.Tags, ","),
+			})
+		}
 		return
 	}
 
