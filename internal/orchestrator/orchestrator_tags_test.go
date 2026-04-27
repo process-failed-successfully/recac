@@ -177,3 +177,55 @@ func TestOrchestrator_RemoveJobTags(t *testing.T) {
 
 	assert.ElementsMatch(t, []string{"tag2"}, job.WorkItem.Tags)
 }
+
+func TestOrchestrator_AddJobTags_Errors(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+	ctx := context.Background()
+
+	// Setup state
+	orch.mu.Lock()
+	orch.activeJobs["JOB-ACTIVE"] = JobInfo{ID: "JOB-ACTIVE"}
+	orch.completedJobs = append(orch.completedJobs, JobInfo{ID: "JOB-COMPLETED"})
+	orch.mu.Unlock()
+
+	// Test adding to active job
+	err := orch.AddJobTags(ctx, "JOB-ACTIVE", []string{"tag1"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already active")
+
+	// Test adding to completed job
+	err = orch.AddJobTags(ctx, "JOB-COMPLETED", []string{"tag1"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already completed")
+
+	// Test adding to missing job
+	err = orch.AddJobTags(ctx, "JOB-MISSING", []string{"tag1"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestOrchestrator_RemoveJobTags_Errors(t *testing.T) {
+	orch := New(nil, nil, time.Minute)
+	ctx := context.Background()
+
+	// Setup state
+	orch.mu.Lock()
+	orch.activeJobs["JOB-ACTIVE"] = JobInfo{ID: "JOB-ACTIVE"}
+	orch.completedJobs = append(orch.completedJobs, JobInfo{ID: "JOB-COMPLETED"})
+	orch.mu.Unlock()
+
+	// Test removing from active job
+	err := orch.RemoveJobTags(ctx, "JOB-ACTIVE", []string{"tag1"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already active")
+
+	// Test removing from completed job
+	err = orch.RemoveJobTags(ctx, "JOB-COMPLETED", []string{"tag1"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already completed")
+
+	// Test removing from missing job
+	err = orch.RemoveJobTags(ctx, "JOB-MISSING", []string{"tag1"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
