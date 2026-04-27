@@ -110,6 +110,63 @@ func TestListPendingJobs_FormatJSON(t *testing.T) {
 	assert.NotContains(t, output, "Pending Jobs")
 }
 
+func TestListJobs_FormatCSV(t *testing.T) {
+	// Start a mock server to intercept the API request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"id": "job-csv-1", "summary": "CSV Test", "status": "Running", "work_item": {"priority": 1, "tags": ["tag1", "tag2"]}}]`))
+	}))
+	defer server.Close()
+
+	// Intercept stdout to prevent spamming test output
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	// Execute listJobs with CSV format
+	listJobs(server.URL, false, "", "", "", "", "csv")
+
+	// Read and verify stdout
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "ID,Summary,Status,Priority,Tags,Duration")
+	assert.Contains(t, output, "job-csv-1,CSV Test,Running,1,\"tag1,tag2\",")
+}
+
+func TestListPendingJobs_FormatCSV(t *testing.T) {
+	// Start a mock server to intercept the API request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs", r.URL.Path)
+		assert.Equal(t, "pending", r.URL.Query().Get("state"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"id": "job-pending-csv", "summary": "Pending CSV Test", "status": "Pending", "work_item": {"priority": 2, "tags": ["tag3"]}}]`))
+	}))
+	defer server.Close()
+
+	// Intercept stdout to prevent spamming test output
+	oldStdout := stdout
+	r, w, _ := os.Pipe()
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	// Execute listPendingJobs with CSV format
+	listPendingJobs(server.URL, "", "csv")
+
+	// Read and verify stdout
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	assert.Contains(t, output, "ID,Summary,Status,Priority,Tags")
+	assert.Contains(t, output, "job-pending-csv,Pending CSV Test,Pending,2,tag3")
+}
+
 func TestListJobs_PriorityFilter(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {

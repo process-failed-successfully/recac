@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,7 +105,7 @@ func main() {
 	pflag.String("list-jobs-match", "", "Filter jobs by a regex matching the summary or error")
 	pflag.String("list-jobs-priority", "", "Filter jobs by a specific priority")
 	pflag.String("search-jobs", "", "Search pending, active, and completed jobs by regex query")
-	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json)")
+	pflag.String("list-jobs-format", "table", "Output format for list-jobs and list-pending (table, json, csv)")
 	pflag.String("format", "text", "Output format for status and analytics (text, json)")
 	pflag.Bool("summary", false, "Get a summary of job counts by status")
 	pflag.Bool("watch", false, "Continuously watch the output of list-jobs or list-pending")
@@ -3347,6 +3348,23 @@ func listPendingJobs(host string, priority string, format string) {
 		return
 	}
 
+	if format == "csv" {
+		writer := csv.NewWriter(stdout)
+		defer writer.Flush()
+
+		writer.Write([]string{"ID", "Summary", "Status", "Priority", "Tags"})
+		for _, job := range jobs {
+			writer.Write([]string{
+				job.ID,
+				job.Summary,
+				job.Status,
+				fmt.Sprintf("%d", job.WorkItem.Priority),
+				strings.Join(job.WorkItem.Tags, ","),
+			})
+		}
+		return
+	}
+
 	if len(jobs) == 0 {
 		fmt.Fprintln(stdout, "No pending jobs.")
 		return
@@ -3451,6 +3469,25 @@ func listJobs(host string, history bool, status, tag, match, priority, format st
 		if err := encoder.Encode(jobs); err != nil {
 			fmt.Fprintf(stdout, "Failed to encode jobs to JSON: %v\n", err)
 			exitFunc(1)
+		}
+		return
+	}
+
+	if format == "csv" {
+		writer := csv.NewWriter(stdout)
+		defer writer.Flush()
+
+		writer.Write([]string{"ID", "Summary", "Status", "Priority", "Tags", "Duration"})
+		for _, job := range jobs {
+			duration := time.Since(job.StartTime).Round(time.Second).String()
+			writer.Write([]string{
+				job.ID,
+				job.Summary,
+				job.Status,
+				fmt.Sprintf("%d", job.WorkItem.Priority),
+				strings.Join(job.WorkItem.Tags, ","),
+				duration,
+			})
 		}
 		return
 	}
