@@ -62,3 +62,66 @@ func TestDashboardLogFiltering(t *testing.T) {
 	assert.Contains(t, content, "WARNING: new warning")
 	assert.NotContains(t, content, "ERROR: fail")
 }
+
+func TestDashboardModel_UpdateLogsView(t *testing.T) {
+	m := NewDashboardModel("localhost:8080")
+	m.viewState = viewLogs
+	m.isLogFiltering = true
+
+	// Simulate Esc key
+	mEsc, _ := m.updateLogsView(tea.KeyMsg{Type: tea.KeyEsc})
+
+	assert.False(t, mEsc.isLogFiltering)
+	assert.Empty(t, mEsc.logFilterInput.Value())
+
+	// Simulate Enter key
+	m.isLogFiltering = true
+	m.logFilterInput.SetValue("test")
+	mEnter, _ := m.updateLogsView(tea.KeyMsg{Type: tea.KeyEnter})
+
+	assert.False(t, mEnter.isLogFiltering)
+	assert.Equal(t, "test", mEnter.logFilterInput.Value())
+
+	// Simulate normal typing
+	m.isLogFiltering = true
+	m.logFilterInput.SetValue("t")
+	mType, _ := m.updateLogsView(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}, Alt: false})
+	assert.True(t, mType.isLogFiltering)
+}
+
+func TestDashboardModel_UpdateLogsView_Normal(t *testing.T) {
+	m := NewDashboardModel("localhost:8080")
+	m.viewState = viewLogs
+	m.isLogFiltering = false
+
+	// Test slash to start filtering
+	// Key mapping for slash is runes '/' but String() will return "/"
+	mSlash, _ := m.updateLogsView(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+
+	assert.True(t, mSlash.isLogFiltering)
+
+	// Test esc to clear filter or quit when filter is already empty
+	mEscEmpty, _ := m.updateLogsView(tea.KeyMsg{Type: tea.KeyEsc})
+	assert.Equal(t, viewMain, mEscEmpty.viewState)
+	assert.False(t, mEscEmpty.isLogFiltering)
+
+	// Test esc to clear filter when filter HAS value
+	mSlashWithVal := mSlash
+	mSlashWithVal.logFilterInput.SetValue("query")
+
+	mEscWithVal, _ := mSlashWithVal.updateLogsView(tea.KeyMsg{Type: tea.KeyEsc})
+
+	assert.Equal(t, viewLogs, mEscWithVal.viewState) // Check if it keeps it in logs view
+	assert.Empty(t, mEscWithVal.logFilterInput.Value())
+}
+
+func TestDashboardModel_UpdateLogsView_ExtraKeys(t *testing.T) {
+	m := NewDashboardModel("localhost:8080")
+	m.viewState = viewLogs
+	m.isLogFiltering = false
+
+	// Try a key that does not trigger anything in the log switch (e.g. key 'j')
+	mAny, cmdAny := m.updateLogsView(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	assert.False(t, mAny.isLogFiltering)
+	_ = cmdAny // viewport update command
+}
