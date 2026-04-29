@@ -109,3 +109,6 @@
 ## $(date +%Y-%m-%d) - Empty States for Generated Content Should Include Close Instruction
 **Learning:** We previously learned that AI-generated string outputs should be rendered using the same styled, actionable empty state pattern as structured data. I noticed that we had missed a few empty states for "No flaky jobs found" and "No failing jobs found" in the reliability modal analysis, which were just bare `<p>` tags without an explicit close instruction.
 **Action:** Ensure all empty states within modals have consistent styling (`text-align: center; padding: 2em; color: #666;`) and provide an explicit instruction like "Press 'Esc' to close." so users know how to proceed.
+## 2026-04-29 - Explicit Form Labels vs Placeholders
+**Learning:** Relying solely on 'placeholder' and 'aria-label' attributes for form inputs (like in searchLogsModal and editDepsModal) causes usability issues for visual users because the context disappears as soon as they start typing. The aria-label is inaccessible to visual users.
+**Action:** Always pair inputs with explicit, visible <label> elements, even in dense horizontal flex layouts (where 'align-items: flex-end' can be used to neatly align the labels above the inputs and buttons).
