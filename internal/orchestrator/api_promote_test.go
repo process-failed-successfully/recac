@@ -70,6 +70,12 @@ func TestAPIPromoteBulkJobs(t *testing.T) {
 	orch.pendingJobs["match-job"] = JobInfo{
 		WorkItem: WorkItem{ID: "match-job", Priority: 1},
 	}
+	orch.pendingJobs["group-job1"] = JobInfo{
+		WorkItem: WorkItem{ID: "group-job1", Priority: 15, ConcurrencyGroup: "group1"},
+	}
+	orch.pendingJobs["group-job2"] = JobInfo{
+		WorkItem: WorkItem{ID: "group-job2", Priority: 20, ConcurrencyGroup: "group1"},
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mux := http.NewServeMux()
@@ -104,9 +110,24 @@ func TestAPIPromoteBulkJobs(t *testing.T) {
 	assert.Equal(t, float64(2), resultMatch["promoted"])
 	resp.Body.Close()
 
-	// Validate internal state (max priority was 11, should become 12)
-	assert.Equal(t, 12, orch.pendingJobs["job3"].WorkItem.Priority)
-	assert.Equal(t, 12, orch.pendingJobs["match-job"].WorkItem.Priority)
+	// Validate internal state (max priority was 20, should become 21)
+	assert.Equal(t, 21, orch.pendingJobs["job3"].WorkItem.Priority)
+	assert.Equal(t, 21, orch.pendingJobs["match-job"].WorkItem.Priority)
+
+	// Promote valid jobs by group
+	resp, err = http.Post(server.URL+"/jobs/promote/bulk?group=group1", "application/json", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var resultGroup map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&resultGroup)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(2), resultGroup["promoted"])
+	resp.Body.Close()
+
+	// Validate internal state (max priority was 21, should become 22)
+	assert.Equal(t, 22, orch.pendingJobs["group-job1"].WorkItem.Priority)
+	assert.Equal(t, 22, orch.pendingJobs["group-job2"].WorkItem.Priority)
 
 	// Promote missing query param
 	respMissing, err := http.Post(server.URL+"/jobs/promote/bulk", "application/json", nil)

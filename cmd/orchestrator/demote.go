@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func demoteBulkJobs(host, match, tag string) {
+func demoteBulkJobs(host, match, tag, group string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/demote/bulk", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -23,6 +23,9 @@ func demoteBulkJobs(host, match, tag string) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 

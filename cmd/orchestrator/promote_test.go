@@ -135,10 +135,35 @@ func TestPromoteBulkJobs_Success(t *testing.T) {
 	stdout = &buf
 	defer func() { stdout = oldStdout }()
 
-	promoteBulkJobs(server.URL, "m1", "t1")
+	promoteBulkJobs(server.URL, "m1", "t1", "")
 
 	out := buf.String()
 	assert.Contains(t, out, "Successfully promoted 5 jobs.")
+}
+
+func TestPromoteBulkJobs_Group_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/jobs/promote/bulk", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+
+		q := r.URL.Query()
+		assert.Equal(t, "group1", q.Get("group"))
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"promoted": 3}`))
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	promoteBulkJobs(server.URL, "", "", "group1")
+
+	out := buf.String()
+	assert.Contains(t, out, "Successfully promoted 3 jobs.")
 }
 
 func TestPromoteBulkJobs_Error(t *testing.T) {
@@ -158,7 +183,7 @@ func TestPromoteBulkJobs_Error(t *testing.T) {
 	exitFunc = func(code int) { exitCalled = true }
 	defer func() { exitFunc = oldExit }()
 
-	promoteBulkJobs(server.URL, "", "")
+	promoteBulkJobs(server.URL, "", "", "")
 
 	out := buf.String()
 	assert.Contains(t, out, "Failed to promote jobs: bad request error")
@@ -176,7 +201,7 @@ func TestPromoteBulkJobs_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCalled = true }
 	defer func() { exitFunc = oldExit }()
 
-	promoteBulkJobs("http://invalid-host", "", "")
+	promoteBulkJobs("http://invalid-host", "", "", "")
 
 	out := buf.String()
 	assert.Contains(t, out, "Failed to connect to orchestrator")
@@ -200,7 +225,7 @@ func TestPromoteBulkJobs_DecodeError(t *testing.T) {
 	exitFunc = func(code int) { exitCalled = true }
 	defer func() { exitFunc = oldExit }()
 
-	promoteBulkJobs(server.URL, "m", "t")
+	promoteBulkJobs(server.URL, "m", "t", "")
 
 	out := buf.String()
 	assert.Contains(t, out, "Failed to decode response")
@@ -218,7 +243,7 @@ func TestPromoteBulkJobs_InvalidURL(t *testing.T) {
 	exitFunc = func(code int) { exitCalled = true }
 	defer func() { exitFunc = oldExit }()
 
-	promoteBulkJobs("::invalid_host", "m", "t")
+	promoteBulkJobs("::invalid_host", "m", "t", "")
 
 	out := buf.String()
 	assert.Contains(t, out, "Failed to parse URL")

@@ -70,6 +70,12 @@ func TestAPIDemoteBulkJobs(t *testing.T) {
 	orch.pendingJobs["match-job"] = JobInfo{
 		WorkItem: WorkItem{ID: "match-job", Priority: 1},
 	}
+	orch.pendingJobs["group-job1"] = JobInfo{
+		WorkItem: WorkItem{ID: "group-job1", Priority: 15, ConcurrencyGroup: "group1"},
+	}
+	orch.pendingJobs["group-job2"] = JobInfo{
+		WorkItem: WorkItem{ID: "group-job2", Priority: 20, ConcurrencyGroup: "group1"},
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mux := http.NewServeMux()
@@ -107,6 +113,21 @@ func TestAPIDemoteBulkJobs(t *testing.T) {
 	// Validate internal state (min priority was 0, should become -1)
 	assert.Equal(t, -1, orch.pendingJobs["job3"].WorkItem.Priority)
 	assert.Equal(t, -1, orch.pendingJobs["match-job"].WorkItem.Priority)
+
+	// Demote valid jobs by group
+	resp, err = http.Post(server.URL+"/jobs/demote/bulk?group=group1", "application/json", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var resultGroup map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&resultGroup)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(2), resultGroup["demoted"])
+	resp.Body.Close()
+
+	// Validate internal state (min priority was -1, should become -2)
+	assert.Equal(t, -2, orch.pendingJobs["group-job1"].WorkItem.Priority)
+	assert.Equal(t, -2, orch.pendingJobs["group-job2"].WorkItem.Priority)
 
 	// Demote missing query param
 	respMissing, err := http.Post(server.URL+"/jobs/demote/bulk", "application/json", nil)

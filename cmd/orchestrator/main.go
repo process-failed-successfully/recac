@@ -223,9 +223,11 @@ func main() {
 	pflag.String("promote-job", "", "Promote a specific pending job to run next by bumping its priority to max")
 	pflag.String("promote-tag", "", "Promote all pending jobs with the specified tag")
 	pflag.String("promote-match", "", "Promote all pending jobs matching the given regex")
+	pflag.String("promote-group", "", "Promote all pending jobs with the specified concurrency group")
 	pflag.String("demote-job", "", "Demote a specific pending job to run last by dropping its priority to min")
 	pflag.String("demote-tag", "", "Demote all pending jobs with the specified tag")
 	pflag.String("demote-match", "", "Demote all pending jobs matching the given regex")
+	pflag.String("demote-group", "", "Demote all pending jobs with the specified concurrency group")
 	pflag.String("update-timeout", "", "Update the timeout of a specific pending job")
 	pflag.String("update-timeout-tag", "", "Update the timeout of all pending jobs with the specified tag")
 	pflag.String("update-timeout-match", "", "Update the timeout of all pending jobs matching the given regex")
@@ -650,9 +652,11 @@ func main() {
 	viper.BindPFlag("orchestrator.promote_job", pflag.Lookup("promote-job"))
 	viper.BindPFlag("orchestrator.promote_tag", pflag.Lookup("promote-tag"))
 	viper.BindPFlag("orchestrator.promote_match", pflag.Lookup("promote-match"))
+	viper.BindPFlag("orchestrator.promote_group", pflag.Lookup("promote-group"))
 	viper.BindPFlag("orchestrator.demote_job", pflag.Lookup("demote-job"))
 	viper.BindPFlag("orchestrator.demote_tag", pflag.Lookup("demote-tag"))
 	viper.BindPFlag("orchestrator.demote_match", pflag.Lookup("demote-match"))
+	viper.BindPFlag("orchestrator.demote_group", pflag.Lookup("demote-group"))
 	viper.BindPFlag("orchestrator.update_timeout", pflag.Lookup("update-timeout"))
 	viper.BindPFlag("orchestrator.update_timeout_tag", pflag.Lookup("update-timeout-tag"))
 	viper.BindPFlag("orchestrator.update_timeout_match", pflag.Lookup("update-timeout-match"))
@@ -1857,31 +1861,77 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if promoteJobID := viper.GetString("orchestrator.promote_job"); promoteJobID != "" {
+	promoteJobID := viper.GetString("orchestrator.promote_job")
+	promoteTag := viper.GetString("orchestrator.promote_tag")
+	promoteMatch := viper.GetString("orchestrator.promote_match")
+	promoteGroup := viper.GetString("orchestrator.promote_group")
+
+	promoteFlagsSet := 0
+	if promoteJobID != "" {
+		promoteFlagsSet++
+	}
+	if promoteTag != "" {
+		promoteFlagsSet++
+	}
+	if promoteMatch != "" {
+		promoteFlagsSet++
+	}
+	if promoteGroup != "" {
+		promoteFlagsSet++
+	}
+
+	if promoteFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --promote-job, --promote-tag, --promote-match, and --promote-group together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if promoteJobID != "" {
 		host := viper.GetString("orchestrator.host")
 		promoteJob(host, promoteJobID)
 		return nil
 	}
 
-	promoteTag := viper.GetString("orchestrator.promote_tag")
-	promoteMatch := viper.GetString("orchestrator.promote_match")
-	if promoteTag != "" || promoteMatch != "" {
+	if promoteTag != "" || promoteMatch != "" || promoteGroup != "" {
 		host := viper.GetString("orchestrator.host")
-		promoteBulkJobs(host, promoteMatch, promoteTag)
+		promoteBulkJobs(host, promoteMatch, promoteTag, promoteGroup)
 		return nil
 	}
 
-	if demoteJobID := viper.GetString("orchestrator.demote_job"); demoteJobID != "" {
+	demoteJobID := viper.GetString("orchestrator.demote_job")
+	demoteTag := viper.GetString("orchestrator.demote_tag")
+	demoteMatch := viper.GetString("orchestrator.demote_match")
+	demoteGroup := viper.GetString("orchestrator.demote_group")
+
+	demoteFlagsSet := 0
+	if demoteJobID != "" {
+		demoteFlagsSet++
+	}
+	if demoteTag != "" {
+		demoteFlagsSet++
+	}
+	if demoteMatch != "" {
+		demoteFlagsSet++
+	}
+	if demoteGroup != "" {
+		demoteFlagsSet++
+	}
+
+	if demoteFlagsSet > 1 {
+		fmt.Fprintf(stdout, "Error: Cannot use --demote-job, --demote-tag, --demote-match, and --demote-group together. Please specify only one.\n")
+		exitFunc(1)
+		return nil
+	}
+
+	if demoteJobID != "" {
 		host := viper.GetString("orchestrator.host")
 		demoteJob(host, demoteJobID)
 		return nil
 	}
 
-	demoteTag := viper.GetString("orchestrator.demote_tag")
-	demoteMatch := viper.GetString("orchestrator.demote_match")
-	if demoteTag != "" || demoteMatch != "" {
+	if demoteTag != "" || demoteMatch != "" || demoteGroup != "" {
 		host := viper.GetString("orchestrator.host")
-		demoteBulkJobs(host, demoteMatch, demoteTag)
+		demoteBulkJobs(host, demoteMatch, demoteTag, demoteGroup)
 		return nil
 	}
 
