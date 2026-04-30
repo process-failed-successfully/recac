@@ -10,9 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type LogMatch struct {
+type ContextLine struct {
 	LineNumber int    `json:"line_number"`
 	Text       string `json:"text"`
+}
+
+type LogMatch struct {
+	LineNumber    int           `json:"line_number"`
+	Text          string        `json:"text"`
+	ContextBefore []ContextLine `json:"context_before,omitempty"`
+	ContextAfter  []ContextLine `json:"context_after,omitempty"`
 }
 
 type JobLogResult struct {
@@ -37,7 +44,16 @@ func TestDashboardSearchLogsInteractive(t *testing.T) {
 					Summary: "Test Job",
 					Status:  "Failed",
 					Matches: []LogMatch{
-						{LineNumber: 42, Text: "fatal error: panic"},
+						{
+							LineNumber: 42,
+							Text:       "fatal error: panic",
+							ContextBefore: []ContextLine{
+								{LineNumber: 41, Text: "doing some work"},
+							},
+							ContextAfter: []ContextLine{
+								{LineNumber: 43, Text: "stack trace follows"},
+							},
+						},
 					},
 				},
 			}
@@ -90,12 +106,18 @@ func TestDashboardSearchLogsInteractive(t *testing.T) {
 	assert.NoError(t, searchMsg.Err)
 	assert.Contains(t, searchMsg.Output, "fatal error: panic")
 	assert.Contains(t, searchMsg.Output, "JOB-1")
+	assert.Contains(t, searchMsg.Output, "doing some work")
+	assert.Contains(t, searchMsg.Output, "stack trace follows")
+	assert.Contains(t, searchMsg.Output, "---")
 
 	// Pass result msg back to model
 	mModel, _ = m.Update(searchMsg)
 	m = mModel.(DashboardModel)
 	assert.Equal(t, viewSearchLogsResult, m.viewState)
 	assert.Contains(t, m.viewport.View(), "fatal error: panic")
+	assert.Contains(t, m.viewport.View(), "doing some work")
+	assert.Contains(t, m.viewport.View(), "stack trace follows")
+	assert.Contains(t, m.viewport.View(), "---")
 }
 
 func TestDashboardSearchLogsNoResults(t *testing.T) {

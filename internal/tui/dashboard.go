@@ -2962,9 +2962,15 @@ func searchLogsCmd(host, query, contextLines string) tea.Cmd {
 			return searchLogsResultMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
 		}
 
-		type LogMatch struct {
+		type ContextLine struct {
 			LineNumber int    `json:"line_number"`
 			Text       string `json:"text"`
+		}
+		type LogMatch struct {
+			LineNumber    int           `json:"line_number"`
+			Text          string        `json:"text"`
+			ContextBefore []ContextLine `json:"context_before,omitempty"`
+			ContextAfter  []ContextLine `json:"context_after,omitempty"`
 		}
 		type JobLogResult struct {
 			JobID   string     `json:"job_id"`
@@ -2988,6 +2994,7 @@ func searchLogsCmd(host, query, contextLines string) tea.Cmd {
 		statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 		lineNumStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 		textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
+		contextStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 
 		sb.WriteString(titleStyle.Render(fmt.Sprintf("Log Search Results (query: %q)", query)) + "\n\n")
 
@@ -2996,10 +3003,25 @@ func searchLogsCmd(host, query, contextLines string) tea.Cmd {
 			sb.WriteString(fmt.Sprintf("Summary: %s\n", job.Summary))
 
 			for _, match := range job.Matches {
+				for _, ctx := range match.ContextBefore {
+					sb.WriteString(fmt.Sprintf("  %s %s\n",
+						lineNumStyle.Render(fmt.Sprintf("Line %d:", ctx.LineNumber)),
+						contextStyle.Render(strings.TrimSpace(ctx.Text)),
+					))
+				}
 				sb.WriteString(fmt.Sprintf("  %s %s\n",
 					lineNumStyle.Render(fmt.Sprintf("Line %d:", match.LineNumber)),
 					textStyle.Render(strings.TrimSpace(match.Text)),
 				))
+				for _, ctx := range match.ContextAfter {
+					sb.WriteString(fmt.Sprintf("  %s %s\n",
+						lineNumStyle.Render(fmt.Sprintf("Line %d:", ctx.LineNumber)),
+						contextStyle.Render(strings.TrimSpace(ctx.Text)),
+					))
+				}
+				if len(match.ContextBefore) > 0 || len(match.ContextAfter) > 0 {
+					sb.WriteString("  ---\n")
+				}
 			}
 			sb.WriteString("\n")
 		}
