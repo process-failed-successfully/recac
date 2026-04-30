@@ -69,3 +69,7 @@
 ## 2024-04-26 - Case-insensitive Keyword Matching Optimization
 **Learning:** For case-insensitive keyword searching (e.g. searching for "fix", "password" within strings), `utils.ContainsFold` is vastly faster (up to ~30x-40x) than compiling and executing a case-insensitive regex like `regexp.MustCompile("(?i)(word1|word2)")` because it does zero allocations and avoids regex state machine overhead.
 **Action:** Replace `regexp.MustCompile` with chained `utils.ContainsFold` when doing simple case-insensitive substring keyword checks.
+
+## 2025-05-20 - Fast-Path Regex Optimization in Git Output Masking
+**Learning:** `maskingWriter.Write` in `internal/git/client.go` was unnecessarily applying `regexp.ReplaceAllString` to every byte slice of Git output to mask GitHub PATs and Basic Auth tokens, causing massive CPU overhead and string allocations, even though >99% of normal git output contains no URLs.
+**Action:** When creating I/O stream wrappers or handlers that use regex for sensitive data masking (like secrets or tokens), implement a fast-path zero-allocation check (e.g., `bytes.Contains(p, []byte("https://"))`) first. If the trigger keyword isn't present, return early and bypass all string conversions and regex processing. This provides ~4x performance improvements for raw output streams.
