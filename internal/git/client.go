@@ -32,6 +32,13 @@ var (
 )
 
 func (mw *maskingWriter) Write(p []byte) (n int, err error) {
+	// ⚡ Bolt: Fast-path optimization to skip string allocation and regex execution
+	// when processing raw command output that does not contain 'https://'.
+	// This provides a substantial performance boost for the vast majority of git output.
+	if !bytes.Contains(p, []byte("https://")) {
+		return mw.w.Write(p)
+	}
+
 	s := string(p)
 	// Mask GitHub PATs in URLs: https://<token>@github.com/
 	s = reGitHubPAT.ReplaceAllString(s, "https://[REDACTED]@github.com")
