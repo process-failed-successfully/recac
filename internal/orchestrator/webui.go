@@ -352,16 +352,22 @@ const DashboardHTML = `
         </div>
 
         <div class="card" style="margin-top: 20px;">
-            <div class="controls">
-                <h2>Jobs</h2>
-                <div>
-                    <select id="job-state-filter" aria-label="Filter jobs by state">
-                        <option value="">Active Jobs</option>
-                        <option value="completed">Completed Jobs</option>
-                        <option value="all">All Jobs</option>
-                    </select>
-                    <input type="text" id="job-search" placeholder="Search ID or Summary (Press '/')..." aria-label="Search jobs" aria-keyshortcuts="/">
-                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs" aria-keyshortcuts="r" title="Shortcut: 'r'">Refresh</button>
+            <div class="controls" style="align-items: flex-end;">
+                <h2 style="margin-bottom: 0;">Jobs</h2>
+                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="job-state-filter" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">State Filter</label>
+                        <select id="job-state-filter" aria-label="Filter jobs by state" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 6px; box-sizing: border-box;">
+                            <option value="">Active Jobs</option>
+                            <option value="completed">Completed Jobs</option>
+                            <option value="all">All Jobs</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="job-search" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">Search Jobs</label>
+                        <input type="text" id="job-search" placeholder="ID or Summary (Press '/')..." aria-label="Search jobs" aria-keyshortcuts="/" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs" aria-keyshortcuts="r" title="Shortcut: 'r'" style="margin-bottom: 1px; height: 31px;">Refresh</button>
                 </div>
             </div>
             <div id="jobs-container" tabindex="0">
