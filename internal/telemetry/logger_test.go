@@ -92,24 +92,33 @@ func TestInitLogger_VerboseMode(t *testing.T) {
 	oldLogger := slog.Default()
 	t.Cleanup(func() { slog.SetDefault(oldLogger) })
 
+	// Create a temp file to pass to InitLogger so that we can capture its output
+	tmpFile, err := os.CreateTemp("", "verbose.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
 	// Step 1: Configure logger with verbose/debug mode enabled
-	var buf bytes.Buffer
-	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Verbose mode enables DEBUG level
-	})
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
+	InitLogger(true, tmpPath, true)
 
 	// Step 2: Generate a DEBUG level log entry
 	LogDebug("debug message", "key", "value", "api_key", "sk-secret123")
 
-	output := buf.String()
+	content, err := os.ReadFile(tmpPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := string(content)
+
 	if !strings.Contains(output, `"msg":"debug message"`) {
 		t.Errorf("Expected output to contain debug message, got %s", output)
 	}
 
 	var logMap map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &logMap); err != nil {
+	if err := json.Unmarshal([]byte(output), &logMap); err != nil {
 		t.Fatalf("Output is not valid JSON: %v", err)
 	}
 
@@ -123,12 +132,11 @@ func TestInitLogger_VerboseMode(t *testing.T) {
 	}
 
 	// Step 3: Verify sensitive info (API keys) is NOT logged
-	// In this test, we're checking that the logger doesn't filter API keys,
-	// but in production, sensitive fields should be masked.
-	// For now, we verify that DEBUG logs are produced when verbose is enabled.
-	// In a real implementation, API keys should be masked or filtered.
 	if strings.Contains(output, "sk-secret123") {
-		t.Log("WARNING: API key is visible in logs - should be masked in production")
+		t.Errorf("SECURITY BREACH: API key is visible in logs!")
+	}
+	if !strings.Contains(output, "[REDACTED]") {
+		t.Errorf("Expected sensitive field to be masked with [REDACTED]")
 	}
 }
 
