@@ -112,3 +112,6 @@
 ## 2026-04-29 - Explicit Form Labels vs Placeholders
 **Learning:** Relying solely on 'placeholder' and 'aria-label' attributes for form inputs (like in searchLogsModal and editDepsModal) causes usability issues for visual users because the context disappears as soon as they start typing. The aria-label is inaccessible to visual users.
 **Action:** Always pair inputs with explicit, visible <label> elements, even in dense horizontal flex layouts (where 'align-items: flex-end' can be used to neatly align the labels above the inputs and buttons).
+## 2026-04-30 - Explicit Form Labels vs Placeholders
+**Learning:** Relying solely on 'placeholder' and 'aria-label' attributes for form inputs (like in searchLogsModal and editDepsModal) causes usability issues for visual users because the context disappears as soon as they start typing. The aria-label is inaccessible to visual users.
+**Action:** Always pair inputs with explicit, visible <label> elements, even in dense horizontal flex layouts (where 'align-items: flex-end' can be used to neatly align the labels above the inputs and buttons).
