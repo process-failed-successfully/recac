@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // NewLogger creates a new configured logger.
@@ -14,12 +15,23 @@ func NewLogger(debug bool, logFile string, silenceStdout bool) *slog.Logger {
 		level = slog.LevelDebug
 	}
 
+	replaceAttr := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Value.Kind() == slog.KindString {
+			key := strings.ToLower(a.Key)
+			if strings.Contains(key, "api_key") || strings.Contains(key, "secret") || strings.Contains(key, "password") || strings.Contains(key, "token") {
+				return slog.String(a.Key, "[REDACTED]")
+			}
+		}
+		return a
+	}
+
 	var handlers []slog.Handler
 
 	// Default handler is stdout, unless silenced
 	if !silenceStdout {
 		handlers = append(handlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: level,
+			Level:       level,
+			ReplaceAttr: replaceAttr,
 		}))
 	}
 
@@ -28,7 +40,8 @@ func NewLogger(debug bool, logFile string, silenceStdout bool) *slog.Logger {
 		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err == nil {
 			handlers = append(handlers, slog.NewJSONHandler(f, &slog.HandlerOptions{
-				Level: level,
+				Level:       level,
+				ReplaceAttr: replaceAttr,
 			}))
 		} else {
 			slog.Error("Failed to open log file", "path", logFile, "error", err)
@@ -43,7 +56,10 @@ func NewLogger(debug bool, logFile string, silenceStdout bool) *slog.Logger {
 		handler = handlers[0]
 	} else {
 		// No handlers? usage with discard
-		handler = slog.NewJSONHandler(os.NewFile(0, os.DevNull), &slog.HandlerOptions{Level: level})
+		handler = slog.NewJSONHandler(os.NewFile(0, os.DevNull), &slog.HandlerOptions{
+			Level:       level,
+			ReplaceAttr: replaceAttr,
+		})
 	}
 
 	return slog.New(handler)
