@@ -94,9 +94,9 @@ func TestAPIPromoteBulkJobs(t *testing.T) {
 	assert.Equal(t, float64(2), result["promoted"])
 	resp.Body.Close()
 
-	// Validate internal state (max priority was 10, should become 11)
-	assert.Equal(t, 11, orch.pendingJobs["job1"].WorkItem.Priority)
-	assert.Equal(t, 11, orch.pendingJobs["job2"].WorkItem.Priority)
+	// Validate internal state (max priority was 20, should become 21)
+	assert.Equal(t, 21, orch.pendingJobs["job1"].WorkItem.Priority)
+	assert.Equal(t, 21, orch.pendingJobs["job2"].WorkItem.Priority)
 	assert.Equal(t, 2, orch.pendingJobs["job3"].WorkItem.Priority) // unchanged
 
 	// Promote valid jobs by match
@@ -110,9 +110,9 @@ func TestAPIPromoteBulkJobs(t *testing.T) {
 	assert.Equal(t, float64(2), resultMatch["promoted"])
 	resp.Body.Close()
 
-	// Validate internal state (max priority was 20, should become 21)
-	assert.Equal(t, 21, orch.pendingJobs["job3"].WorkItem.Priority)
-	assert.Equal(t, 21, orch.pendingJobs["match-job"].WorkItem.Priority)
+	// Validate internal state (max priority was 21, should become 22)
+	assert.Equal(t, 22, orch.pendingJobs["job3"].WorkItem.Priority)
+	assert.Equal(t, 22, orch.pendingJobs["match-job"].WorkItem.Priority)
 
 	// Promote valid jobs by group
 	resp, err = http.Post(server.URL+"/jobs/promote/bulk?group=group1", "application/json", nil)
@@ -125,9 +125,9 @@ func TestAPIPromoteBulkJobs(t *testing.T) {
 	assert.Equal(t, float64(2), resultGroup["promoted"])
 	resp.Body.Close()
 
-	// Validate internal state (max priority was 21, should become 22)
-	assert.Equal(t, 22, orch.pendingJobs["group-job1"].WorkItem.Priority)
-	assert.Equal(t, 22, orch.pendingJobs["group-job2"].WorkItem.Priority)
+	// Validate internal state (max priority was 22, should become 23)
+	assert.Equal(t, 23, orch.pendingJobs["group-job1"].WorkItem.Priority)
+	assert.Equal(t, 23, orch.pendingJobs["group-job2"].WorkItem.Priority)
 
 	// Promote missing query param
 	respMissing, err := http.Post(server.URL+"/jobs/promote/bulk", "application/json", nil)
