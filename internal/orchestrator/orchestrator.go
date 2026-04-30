@@ -659,6 +659,35 @@ func (o *Orchestrator) DemoteJobsByMatch(ctx context.Context, match string, logg
 	return count, nil
 }
 
+func (o *Orchestrator) DemoteJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	minPriority := 0
+	first := true
+	for _, pJob := range o.pendingJobs {
+		if first || pJob.WorkItem.Priority < minPriority {
+			minPriority = pJob.WorkItem.Priority
+			first = false
+		}
+	}
+
+	for id, job := range o.pendingJobs {
+		if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
+			job.WorkItem.Priority = minPriority - 1
+			o.pendingJobs[id] = job
+			count++
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			logger.Info("Demoted job by group", "job_id", id, "group", group, "new_priority", job.WorkItem.Priority)
+		}
+	}
+
+	return count, nil
+}
+
 func (o *Orchestrator) DemoteJob(ctx context.Context, jobID string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -757,6 +786,33 @@ func (o *Orchestrator) PromoteJobsByMatch(ctx context.Context, match string, log
 				o.Persistence.SaveJob(job)
 			}
 			logger.Info("Promoted job by match", "job_id", id, "match", match, "new_priority", job.WorkItem.Priority)
+		}
+	}
+
+	return count, nil
+}
+
+func (o *Orchestrator) PromoteJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	maxPriority := 0
+	for _, pJob := range o.pendingJobs {
+		if pJob.WorkItem.Priority > maxPriority {
+			maxPriority = pJob.WorkItem.Priority
+		}
+	}
+
+	for id, job := range o.pendingJobs {
+		if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
+			job.WorkItem.Priority = maxPriority + 1
+			o.pendingJobs[id] = job
+			count++
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			logger.Info("Promoted job by group", "job_id", id, "group", group, "new_priority", job.WorkItem.Priority)
 		}
 	}
 

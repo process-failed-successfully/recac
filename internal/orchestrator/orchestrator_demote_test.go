@@ -50,6 +50,37 @@ func TestDemoteJob(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
+func TestDemoteJobsByGroup(t *testing.T) {
+	poller := newMockPoller([]WorkItem{})
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	orch.pendingJobs["job1"] = JobInfo{
+		ID:       "job1",
+		Status:   "Pending",
+		WorkItem: WorkItem{Priority: 10, ConcurrencyGroup: "group1"},
+	}
+	orch.pendingJobs["job2"] = JobInfo{
+		ID:       "job2",
+		Status:   "Pending",
+		WorkItem: WorkItem{Priority: 5, ConcurrencyGroup: "group1"},
+	}
+	orch.pendingJobs["job3"] = JobInfo{
+		ID:       "job3",
+		Status:   "Pending",
+		WorkItem: WorkItem{Priority: 20, ConcurrencyGroup: "group2"},
+	}
+
+	count, err := orch.DemoteJobsByGroup(context.Background(), "group1", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// Min priority before demotion was 5, so new priority should be 4
+	assert.Equal(t, 4, orch.pendingJobs["job1"].WorkItem.Priority)
+	assert.Equal(t, 4, orch.pendingJobs["job2"].WorkItem.Priority)
+	assert.Equal(t, 20, orch.pendingJobs["job3"].WorkItem.Priority)
+}
+
 func TestDemoteJob_EmptyOtherJobs(t *testing.T) {
 	poller := newMockPoller([]WorkItem{})
 	spawner := &mockSpawner{}

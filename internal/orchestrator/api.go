@@ -1850,6 +1850,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/demote/bulk", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
 		var count int
 		var err error
@@ -1858,8 +1859,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.DemoteJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.DemoteJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.DemoteJobsByGroup(r.Context(), group, logger)
 		} else {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk demote", http.StatusBadRequest)
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk demote", http.StatusBadRequest)
 			return
 		}
 
@@ -1900,6 +1903,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/promote/bulk", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
 		var count int
 		var err error
@@ -1908,8 +1912,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.PromoteJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.PromoteJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.PromoteJobsByGroup(r.Context(), group, logger)
 		} else {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk promote", http.StatusBadRequest)
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk promote", http.StatusBadRequest)
 			return
 		}
 

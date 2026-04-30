@@ -141,9 +141,30 @@ func TestDemoteBulkJobs_Success(t *testing.T) {
 	stdout = &buf
 	defer func() { stdout = oldStdout }()
 
-	demoteBulkJobs(server.URL, "", "tag1")
+	demoteBulkJobs(server.URL, "", "tag1", "")
 
 	assert.Contains(t, buf.String(), "Successfully demoted 5 jobs.")
+}
+
+func TestDemoteBulkJobs_Group_Success(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/demote/bulk", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "group1", r.URL.Query().Get("group"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"demoted": 3}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	var buf bytes.Buffer
+	oldStdout := stdout
+	stdout = &buf
+	defer func() { stdout = oldStdout }()
+
+	demoteBulkJobs(server.URL, "", "", "group1")
+
+	assert.Contains(t, buf.String(), "Successfully demoted 3 jobs.")
 }
 
 func TestDemoteBulkJobs_Error(t *testing.T) {
@@ -165,7 +186,7 @@ func TestDemoteBulkJobs_Error(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	demoteBulkJobs(server.URL, "match-me", "")
+	demoteBulkJobs(server.URL, "match-me", "", "")
 
 	assert.Contains(t, buf.String(), "Failed to demote jobs: internal server error")
 	assert.Equal(t, 1, exitCode)
@@ -182,7 +203,7 @@ func TestDemoteBulkJobs_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	demoteBulkJobs("http://localhost:0", "match-me", "")
+	demoteBulkJobs("http://localhost:0", "match-me", "", "")
 
 	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
 	assert.Equal(t, 1, exitCode)
@@ -207,7 +228,7 @@ func TestDemoteBulkJobs_DecodeError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	demoteBulkJobs(server.URL, "", "")
+	demoteBulkJobs(server.URL, "", "", "")
 
 	assert.Contains(t, buf.String(), "Failed to decode response")
 	assert.Equal(t, 1, exitCode)

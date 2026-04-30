@@ -33,6 +33,25 @@ func TestPromoteJob(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found in pending queue")
 }
 
+func TestPromoteJobsByGroup(t *testing.T) {
+	orch := &Orchestrator{
+		pendingJobs: map[string]JobInfo{
+			"job1": {WorkItem: WorkItem{ID: "job1", Priority: 5, ConcurrencyGroup: "group1"}},
+			"job2": {WorkItem: WorkItem{ID: "job2", Priority: 10, ConcurrencyGroup: "group1"}},
+			"job3": {WorkItem: WorkItem{ID: "job3", Priority: 2, ConcurrencyGroup: "group2"}},
+		},
+	}
+
+	count, err := orch.PromoteJobsByGroup(context.Background(), "group1", silentLogger)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// max priority before was 10, so new priority should be 11
+	assert.Equal(t, 11, orch.pendingJobs["job1"].WorkItem.Priority)
+	assert.Equal(t, 11, orch.pendingJobs["job2"].WorkItem.Priority)
+	assert.Equal(t, 2, orch.pendingJobs["job3"].WorkItem.Priority)
+}
+
 func TestPromoteJob_EmptyOtherJobs(t *testing.T) {
 	orch := &Orchestrator{
 		pendingJobs: map[string]JobInfo{
