@@ -227,6 +227,73 @@ func TestOrchestrator_UnholdJobsByTag(t *testing.T) {
 	}
 }
 
+func TestOrchestrator_HoldJobsByGroup(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+	orch.RequireApproval = true
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "S1", ConcurrencyGroup: "db-ops"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "S2", ConcurrencyGroup: "db-ops"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "S3", ConcurrencyGroup: "api-ops"}, nil)
+
+	count, err := orch.HoldJobsByGroup(ctx, "db-ops", nil)
+	if err != nil {
+		t.Fatalf("Failed to hold jobs by group: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("Expected 2 jobs held, got %d", count)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	j2, _ := orch.GetJob("J2")
+	j3, _ := orch.GetJob("J3")
+
+	if !j1.WorkItem.Hold || !j2.WorkItem.Hold {
+		t.Fatalf("Expected J1 and J2 to be held")
+	}
+	if j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 not to be held")
+	}
+}
+
+func TestOrchestrator_UnholdJobsByGroup(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	ctx := context.Background()
+	orch.RequireApproval = true
+
+	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "S1", ConcurrencyGroup: "db-ops"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "S2", ConcurrencyGroup: "db-ops"}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "S3", ConcurrencyGroup: "api-ops"}, nil)
+
+	orch.HoldJobsByGroup(ctx, "db-ops", nil)
+	orch.HoldJob(ctx, "J3", nil)
+
+	count, err := orch.UnholdJobsByGroup(ctx, "db-ops", nil)
+	if err != nil {
+		t.Fatalf("Failed to unhold jobs by group: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("Expected 2 jobs unheld, got %d", count)
+	}
+
+	j1, _ := orch.GetJob("J1")
+	j2, _ := orch.GetJob("J2")
+	j3, _ := orch.GetJob("J3")
+
+	if j1.WorkItem.Hold || j2.WorkItem.Hold {
+		t.Fatalf("Expected J1 and J2 to be unheld")
+	}
+	if !j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 to remain held")
+	}
+}
+
 func TestOrchestrator_UnholdJobsByMatch(t *testing.T) {
 	mockSpawner := new(MockSpawner)
 	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil)
