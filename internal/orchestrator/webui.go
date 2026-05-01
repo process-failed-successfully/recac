@@ -478,6 +478,9 @@ const DashboardHTML = `
         }
 
         async function doJobAction(btn, action, id) {
+            if ((action === 'purge' || action === 'cancel' || action === 'skip') && !confirm('Are you sure you want to ' + action + ' job ' + id + '?')) {
+                return;
+            }
             const originalText = btn.innerText;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
