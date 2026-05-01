@@ -73,3 +73,7 @@
 ## 2025-05-20 - Fast-Path Regex Optimization in Git Output Masking
 **Learning:** `maskingWriter.Write` in `internal/git/client.go` was unnecessarily applying `regexp.ReplaceAllString` to every byte slice of Git output to mask GitHub PATs and Basic Auth tokens, causing massive CPU overhead and string allocations, even though >99% of normal git output contains no URLs.
 **Action:** When creating I/O stream wrappers or handlers that use regex for sensitive data masking (like secrets or tokens), implement a fast-path zero-allocation check (e.g., `bytes.Contains(p, []byte("https://"))`) first. If the trigger keyword isn't present, return early and bypass all string conversions and regex processing. This provides ~4x performance improvements for raw output streams.
+
+## 2025-05-20 - Avoid string allocations in telemetry log filtering
+**Learning:** Using `strings.ToLower(a.Key)` and `strings.Contains()` in a hot path like `slog`'s `ReplaceAttr` (which runs for every attribute of every log message) creates significant unnecessary memory pressure and garbage collection overhead by allocating a new string on each invocation.
+**Action:** Always use zero-allocation, case-insensitive substring search methods such as `utils.ContainsFold` to redact sensitive fields or perform string matching in heavily-executed log pipelines.
