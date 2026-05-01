@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
+
+	"recac/internal/utils"
 )
 
 // NewLogger creates a new configured logger.
@@ -17,8 +18,7 @@ func NewLogger(debug bool, logFile string, silenceStdout bool) *slog.Logger {
 
 	replaceAttr := func(groups []string, a slog.Attr) slog.Attr {
 		if a.Value.Kind() == slog.KindString {
-			key := strings.ToLower(a.Key)
-			if strings.Contains(key, "api_key") || strings.Contains(key, "secret") || strings.Contains(key, "password") || strings.Contains(key, "token") {
+			if utils.ContainsFold(a.Key, "api_key") || utils.ContainsFold(a.Key, "secret") || utils.ContainsFold(a.Key, "password") || utils.ContainsFold(a.Key, "token") {
 				return slog.String(a.Key, "[REDACTED]")
 			}
 		}
