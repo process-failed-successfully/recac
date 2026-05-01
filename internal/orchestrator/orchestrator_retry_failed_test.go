@@ -34,7 +34,7 @@ func TestOrchestrator_RetryFailedJobs(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	count, err := orch.RetryFailedJobs(ctx, "", "", silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "", "", "", silentLogger)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
@@ -74,7 +74,7 @@ func TestOrchestrator_RetryFailedJobs_AlreadyActive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	count, err := orch.RetryFailedJobs(ctx, "", "", silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "", "", "", silentLogger)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 
@@ -119,7 +119,7 @@ func TestOrchestrator_RetryFailedJobs_WithMatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Test matching "connection refused"
-	count, err := orch.RetryFailedJobs(ctx, "connection refused", "", silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "connection refused", "", "", silentLogger)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
@@ -148,7 +148,7 @@ func TestOrchestrator_RetryFailedJobs_WithInvalidRegex(t *testing.T) {
 	ctx := context.Background()
 
 	// Test with invalid regex
-	count, err := orch.RetryFailedJobs(ctx, "[invalid regex", "", silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "[invalid regex", "", "", silentLogger)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid retry match pattern")
 	assert.Equal(t, 0, count)
@@ -185,7 +185,7 @@ func TestOrchestrator_RetryFailedJobs_WithTag(t *testing.T) {
 	ctx := context.Background()
 
 	// Test matching tag "backend"
-	count, err := orch.RetryFailedJobs(ctx, "", "backend", silentLogger)
+	count, err := orch.RetryFailedJobs(ctx, "", "backend", "", silentLogger)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
@@ -204,4 +204,56 @@ func TestOrchestrator_RetryFailedJobs_WithTag(t *testing.T) {
 	assert.False(t, ids["JOB-2"]) // Completed, not failed
 	assert.False(t, ids["JOB-3"]) // No backend tag
 	assert.True(t, ids["JOB-4"])  // Has BACKEND tag (case-insensitive check)
+}
+
+func TestOrchestrator_RetryFailedJobs_WithGroup(t *testing.T) {
+	poller := newMockPoller(nil)
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	orch.completedJobs = []JobInfo{
+		{
+			ID:       "JOB-1",
+			Status:   "Failed",
+			WorkItem: WorkItem{ID: "JOB-1", Summary: "Failed Job 1", ConcurrencyGroup: "groupA"},
+		},
+		{
+			ID:       "JOB-2",
+			Status:   "Completed",
+			WorkItem: WorkItem{ID: "JOB-2", Summary: "Success Job 2", ConcurrencyGroup: "groupA"},
+		},
+		{
+			ID:       "JOB-3",
+			Status:   "Failed",
+			WorkItem: WorkItem{ID: "JOB-3", Summary: "Failed Job 3", ConcurrencyGroup: "groupB"},
+		},
+		{
+			ID:       "JOB-4",
+			Status:   "Failed",
+			WorkItem: WorkItem{ID: "JOB-4", Summary: "Failed Job 4", ConcurrencyGroup: "GROUPa"},
+		},
+	}
+
+	ctx := context.Background()
+
+	// Test matching group "groupA"
+	count, err := orch.RetryFailedJobs(ctx, "", "", "groupA", silentLogger)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	time.Sleep(50 * time.Millisecond)
+
+	spawner.mu.Lock()
+	defer spawner.mu.Unlock()
+
+	assert.Len(t, spawner.spawned, 2)
+
+	ids := make(map[string]bool)
+	for _, item := range spawner.spawned {
+		ids[item.ID] = true
+	}
+	assert.True(t, ids["JOB-1"])
+	assert.False(t, ids["JOB-2"]) // Completed, not failed
+	assert.False(t, ids["JOB-3"]) // Not in groupA
+	assert.True(t, ids["JOB-4"])  // Has GROUPa group (case-insensitive check)
 }
