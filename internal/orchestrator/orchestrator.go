@@ -2727,6 +2727,30 @@ func (o *Orchestrator) HoldJobsByMatch(ctx context.Context, match string, logger
 	return count, nil
 }
 
+// HoldJobsByGroup holds pending jobs that belong to the given concurrency group.
+func (o *Orchestrator) HoldJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group && !job.WorkItem.Hold {
+			job.WorkItem.Hold = true
+			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			count++
+			o.BroadcastEvent("job_held", job)
+			if logger != nil {
+				logger.Info("Held job", "jobID", id)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	return count, nil
+}
+
 // RenameJob renames a pending job and cascades the ID change to dependent jobs.
 func (o *Orchestrator) RenameJob(ctx context.Context, oldID, newID string, logger *slog.Logger) error {
 	o.mu.Lock()
@@ -2929,6 +2953,30 @@ func (o *Orchestrator) UnholdJobsByMatch(ctx context.Context, match string, logg
 	if count > 0 {
 		o.evaluatePendingJobs(ctx, logger)
 	}
+
+	return count, nil
+}
+
+// UnholdJobsByGroup unholds pending jobs that belong to the given concurrency group.
+func (o *Orchestrator) UnholdJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group && job.WorkItem.Hold {
+			job.WorkItem.Hold = false
+			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			count++
+			o.BroadcastEvent("job_unheld", job)
+			if logger != nil {
+				logger.Info("Unheld job", "jobID", id)
+			}
+		}
+	}
+	o.mu.Unlock()
 
 	return count, nil
 }

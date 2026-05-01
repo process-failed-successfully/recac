@@ -190,8 +190,10 @@ func main() {
 	pflag.String("unhold-job", "", "Unhold a pending job to allow it to run")
 	pflag.String("hold-tag", "", "Hold all pending jobs with the specified tag")
 	pflag.String("hold-match", "", "Hold all pending jobs matching the given regex")
+	pflag.String("hold-group", "", "Hold all pending jobs within the specified concurrency group")
 	pflag.String("unhold-tag", "", "Unhold all pending jobs with the specified tag")
 	pflag.String("unhold-match", "", "Unhold all pending jobs matching the given regex")
+	pflag.String("unhold-group", "", "Unhold all pending jobs within the specified concurrency group")
 	pflag.String("rename-job", "", "Rename a pending job by ID")
 	pflag.String("new-job-id", "", "New ID for the job (requires --rename-job)")
 	pflag.String("skip-job", "", "Skip a specific pending job by ID")
@@ -619,8 +621,10 @@ func main() {
 	viper.BindPFlag("orchestrator.unhold_job", pflag.Lookup("unhold-job"))
 	viper.BindPFlag("orchestrator.hold_tag", pflag.Lookup("hold-tag"))
 	viper.BindPFlag("orchestrator.hold_match", pflag.Lookup("hold-match"))
+	viper.BindPFlag("orchestrator.hold_group", pflag.Lookup("hold-group"))
 	viper.BindPFlag("orchestrator.unhold_tag", pflag.Lookup("unhold-tag"))
 	viper.BindPFlag("orchestrator.unhold_match", pflag.Lookup("unhold-match"))
+	viper.BindPFlag("orchestrator.unhold_group", pflag.Lookup("unhold-group"))
 	viper.BindPFlag("orchestrator.rename_job", pflag.Lookup("rename-job"))
 	viper.BindPFlag("orchestrator.new_job_id", pflag.Lookup("new-job-id"))
 	viper.BindPFlag("orchestrator.skip_job", pflag.Lookup("skip-job"))
@@ -1682,9 +1686,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	holdTag := viper.GetString("orchestrator.hold_tag")
 	holdMatch := viper.GetString("orchestrator.hold_match")
-	if holdTag != "" || holdMatch != "" {
+	holdGroup := viper.GetString("orchestrator.hold_group")
+	if holdTag != "" || holdMatch != "" || holdGroup != "" {
 		host := viper.GetString("orchestrator.host")
-		holdJobs(host, holdMatch, holdTag)
+		holdJobs(host, holdMatch, holdTag, holdGroup)
 		return nil
 	}
 
@@ -1696,9 +1701,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	unholdTag := viper.GetString("orchestrator.unhold_tag")
 	unholdMatch := viper.GetString("orchestrator.unhold_match")
-	if unholdTag != "" || unholdMatch != "" {
+	unholdGroup := viper.GetString("orchestrator.unhold_group")
+	if unholdTag != "" || unholdMatch != "" || unholdGroup != "" {
 		host := viper.GetString("orchestrator.host")
-		unholdJobs(host, unholdMatch, unholdTag)
+		unholdJobs(host, unholdMatch, unholdTag, unholdGroup)
 		return nil
 	}
 

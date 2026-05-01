@@ -2392,7 +2392,7 @@ func updateBulkEnvVars(host, match, tag string, envVars map[string]string) {
 	fmt.Fprintf(stdout, "Successfully updated environment variables for %d pending jobs.\n", result.Updated)
 }
 
-func holdJobs(host, match, tag string) {
+func holdJobs(host, match, tag, group string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/hold", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -2406,6 +2406,9 @@ func holdJobs(host, match, tag string) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 
@@ -2443,7 +2446,7 @@ func holdJobs(host, match, tag string) {
 	fmt.Fprintf(stdout, "Successfully held %d jobs.\n", result.Held)
 }
 
-func unholdJobs(host, match, tag string) {
+func unholdJobs(host, match, tag, group string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/unhold", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -2457,6 +2460,9 @@ func unholdJobs(host, match, tag string) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 
