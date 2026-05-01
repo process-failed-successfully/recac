@@ -15,6 +15,7 @@ func TestHoldJobs(t *testing.T) {
 		name           string
 		match          string
 		tag            string
+		group          string
 		handler        http.HandlerFunc
 		expectedOutput string
 		expectedExit   int
@@ -23,11 +24,13 @@ func TestHoldJobs(t *testing.T) {
 			name:  "success",
 			match: "test-match",
 			tag:   "test-tag",
+			group: "test-group",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, http.MethodPost, r.Method)
 				assert.Equal(t, "/jobs/hold", r.URL.Path)
 				assert.Equal(t, "test-match", r.URL.Query().Get("match"))
 				assert.Equal(t, "test-tag", r.URL.Query().Get("tag"))
+				assert.Equal(t, "test-group", r.URL.Query().Get("group"))
 
 				w.WriteHeader(http.StatusOK)
 				json.NewEncoder(w).Encode(map[string]int{"held": 5})
@@ -77,7 +80,7 @@ func TestHoldJobs(t *testing.T) {
 			}
 			defer func() { exitFunc = origExitFunc }()
 
-			holdJobs(serverURL, tt.match, tt.tag)
+			holdJobs(serverURL, tt.match, tt.tag, tt.group)
 
 			if tt.expectedExit != exitCode {
 				t.Errorf("expected exit code %d, got %d", tt.expectedExit, exitCode)
@@ -94,6 +97,7 @@ func TestUnholdJobs(t *testing.T) {
 		name           string
 		match          string
 		tag            string
+		group          string
 		handler        http.HandlerFunc
 		expectedOutput string
 		expectedExit   int
@@ -102,11 +106,13 @@ func TestUnholdJobs(t *testing.T) {
 			name:  "success",
 			match: "test-match",
 			tag:   "test-tag",
+			group: "test-group",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, http.MethodPost, r.Method)
 				assert.Equal(t, "/jobs/unhold", r.URL.Path)
 				assert.Equal(t, "test-match", r.URL.Query().Get("match"))
 				assert.Equal(t, "test-tag", r.URL.Query().Get("tag"))
+				assert.Equal(t, "test-group", r.URL.Query().Get("group"))
 
 				w.WriteHeader(http.StatusOK)
 				json.NewEncoder(w).Encode(map[string]int{"unheld": 3})
@@ -146,7 +152,7 @@ func TestUnholdJobs(t *testing.T) {
 			}
 			defer func() { exitFunc = origExitFunc }()
 
-			unholdJobs(serverURL, tt.match, tt.tag)
+			unholdJobs(serverURL, tt.match, tt.tag, tt.group)
 
 			if tt.expectedExit != exitCode {
 				t.Errorf("expected exit code %d, got %d", tt.expectedExit, exitCode)

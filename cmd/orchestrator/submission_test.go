@@ -2574,7 +2574,7 @@ func TestUnholdJobs_ConnectionError(t *testing.T) {
 	stdout = pw
 	defer func() { stdout = oldStdout }()
 
-	unholdJobs("http://localhost:12345", "match-val", "tag-val")
+	unholdJobs("http://localhost:12345", "match-val", "tag-val", "")
 	pw.Close()
 
 	out, _ := io.ReadAll(pr)

@@ -558,7 +558,7 @@ func TestSubmissionHoldJobs(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	holdJobs(server.URL, "test-match", "test-tag")
+	holdJobs(server.URL, "test-match", "test-tag", "")
 
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, out.String(), "Successfully held 2 jobs")
@@ -575,7 +575,7 @@ func TestSubmissionHoldJobs_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	holdJobs("http://invalid-host:12345", "test-match", "test-tag")
+	holdJobs("http://invalid-host:12345", "test-match", "test-tag", "")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
@@ -601,7 +601,7 @@ func TestSubmissionHoldJobs_ErrorResponse(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	holdJobs(server.URL, "test-match", "test-tag")
+	holdJobs(server.URL, "test-match", "test-tag", "")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to hold jobs")
@@ -631,7 +631,7 @@ func TestSubmissionUnholdJobs(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	unholdJobs(server.URL, "test-match", "test-tag")
+	unholdJobs(server.URL, "test-match", "test-tag", "")
 
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, out.String(), "Successfully unheld 2 jobs")
@@ -648,7 +648,7 @@ func TestSubmissionUnholdJobs_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	unholdJobs("http://invalid-host:12345", "test-match", "test-tag")
+	unholdJobs("http://invalid-host:12345", "test-match", "test-tag", "")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
@@ -674,7 +674,7 @@ func TestSubmissionUnholdJobs_ErrorResponse(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	unholdJobs(server.URL, "test-match", "test-tag")
+	unholdJobs(server.URL, "test-match", "test-tag", "")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "Failed to unhold jobs")

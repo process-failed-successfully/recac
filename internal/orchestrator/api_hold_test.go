@@ -83,6 +83,7 @@ func TestAPI_BulkHold(t *testing.T) {
 
 	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "S1", Tags: []string{"tag1"}}, nil)
 	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "S2", Tags: []string{"tag1", "tag2"}}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "S3", ConcurrencyGroup: "group1"}, nil)
 
 	mux := http.NewServeMux()
 	RegisterAPI(mux, orch, nil, ctx)
@@ -110,6 +111,23 @@ func TestAPI_BulkHold(t *testing.T) {
 	if !j2.WorkItem.Hold {
 		t.Fatalf("Expected J2 to be held")
 	}
+
+	// Call Bulk Hold by Group
+	reqGroup, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/hold?group=group1", nil)
+	respGroup, errGroup := http.DefaultClient.Do(reqGroup)
+	if errGroup != nil {
+		t.Fatalf("Failed to execute request: %v", errGroup)
+	}
+	defer respGroup.Body.Close()
+
+	if respGroup.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", respGroup.StatusCode)
+	}
+
+	j3, _ := orch.GetJob("J3")
+	if !j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 to be held")
+	}
 }
 
 func TestAPI_BulkUnhold(t *testing.T) {
@@ -121,7 +139,9 @@ func TestAPI_BulkUnhold(t *testing.T) {
 
 	orch.SubmitJob(ctx, WorkItem{ID: "J1", Summary: "S1", Tags: []string{"tag1"}}, nil)
 	orch.SubmitJob(ctx, WorkItem{ID: "J2", Summary: "S2", Tags: []string{"tag1", "tag2"}}, nil)
+	orch.SubmitJob(ctx, WorkItem{ID: "J3", Summary: "S3", ConcurrencyGroup: "group1"}, nil)
 	orch.HoldJobsByTag(ctx, "tag1", nil)
+	orch.HoldJobsByGroup(ctx, "group1", nil)
 
 	mux := http.NewServeMux()
 	RegisterAPI(mux, orch, nil, ctx)
@@ -148,5 +168,9 @@ func TestAPI_BulkUnhold(t *testing.T) {
 	j2, _ := orch.GetJob("J2")
 	if j2.WorkItem.Hold {
 		t.Fatalf("Expected J2 to be unheld")
+	}
+	j3, _ := orch.GetJob("J3")
+	if j3.WorkItem.Hold {
+		t.Fatalf("Expected J3 to be unheld")
 	}
 }

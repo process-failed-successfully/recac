@@ -2600,6 +2600,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/hold", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
 		var count int
 		var err error
@@ -2608,8 +2609,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.HoldJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.HoldJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.HoldJobsByGroup(r.Context(), group, logger)
 		} else {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk hold", http.StatusBadRequest)
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk hold", http.StatusBadRequest)
 			return
 		}
 
@@ -2630,6 +2633,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/unhold", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
 		var count int
 		var err error
@@ -2638,8 +2642,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.UnholdJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.UnholdJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.UnholdJobsByGroup(r.Context(), group, logger)
 		} else {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk unhold", http.StatusBadRequest)
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk unhold", http.StatusBadRequest)
 			return
 		}
 
