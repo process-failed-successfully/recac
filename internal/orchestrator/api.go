@@ -3027,7 +3027,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
 		match := r.URL.Query().Get("match")
 		tag := r.URL.Query().Get("tag")
-		count, err := orch.RetryFailedJobs(r.Context(), match, tag, logger)
+		group := r.URL.Query().Get("group")
+		count, err := orch.RetryFailedJobs(r.Context(), match, tag, group, logger)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

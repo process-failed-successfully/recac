@@ -3467,7 +3467,7 @@ func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *
 }
 
 // RetryFailedJobs resubmits all failed jobs from history.
-func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag string, logger *slog.Logger) (int, error) {
+func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag string, group string, logger *slog.Logger) (int, error) {
 	var matcher *regexp.Regexp
 	var err error
 	if match != "" {
@@ -3496,6 +3496,10 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 				if !hasTag {
 					continue
 				}
+			}
+
+			if group != "" && !strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
+				continue
 			}
 
 			// Check if already active
