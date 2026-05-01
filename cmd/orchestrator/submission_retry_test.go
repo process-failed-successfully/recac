@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -56,4 +57,46 @@ func TestRetryJob_WithOverrides(t *testing.T) {
 
 	envVarsPayload := reqBody["env_vars"].(map[string]interface{})
 	assert.Equal(t, "NEW_VAL", envVarsPayload["NEW_VAR"])
+}
+
+func TestRetryJob_Errors(t *testing.T) {
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	var exitCode int
+	exitFunc = func(code int) { exitCode = code }
+
+	origStdout := stdout
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = origStdout }()
+
+	t.Run("InvalidURL", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		retryJob("http://\x00invalid", "JOB-123", false, nil, "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to create request")
+	})
+
+	t.Run("ConnectionError", func(t *testing.T) {
+		exitCode = 0
+		buf.Reset()
+		retryJob("http://invalid-host:12345", "JOB-123", false, nil, "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
+	})
+
+	t.Run("ServerError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Internal Server Error`))
+		}))
+		defer server.Close()
+
+		exitCode = 0
+		buf.Reset()
+		retryJob(server.URL, "JOB-123", false, nil, "", "")
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, buf.String(), "Failed to retry job")
+	})
 }
