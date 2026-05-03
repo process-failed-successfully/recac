@@ -203,3 +203,144 @@ func TestProcessSpawner_Cleanup_Error(t *testing.T) {
 	err = spawner.Cleanup(context.Background(), WorkItem{ID: "TEST-CLEANUP-ERR"})
 	assert.Error(t, err)
 }
+
+func TestProcessSpawner_Cancel_NonExistent(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+
+	err := spawner.Cancel(context.Background(), "NON-EXISTENT")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job NON-EXISTENT is not actively running as a process")
+}
+
+func TestProcessSpawner_Cancel_NilProcess(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+
+	spawner.mu.Lock()
+	spawner.activeCmds["TEST-NIL"] = &exec.Cmd{} // Process is nil
+	spawner.mu.Unlock()
+
+	err := spawner.Cancel(context.Background(), "TEST-NIL")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job TEST-NIL is not actively running as a process")
+}
+
+func TestProcessSpawner_GetLogs_Missing(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+
+	reader, err := spawner.GetLogs(context.Background(), "NON-EXISTENT")
+	assert.Error(t, err)
+	assert.Nil(t, reader)
+	assert.Contains(t, err.Error(), "no logs found for job NON-EXISTENT")
+}
+
+func TestProcessSpawner_GetLogs_PermissionDenied(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "logs.txt")
+	err := os.WriteFile(logPath, []byte("test"), 0000)
+	assert.NoError(t, err)
+
+	spawner.mu.Lock()
+	spawner.logFiles["TEST-PERM"] = logPath
+	spawner.mu.Unlock()
+
+	// Need to make sure file cannot be read
+	err = os.Chmod(logPath, 0000)
+	assert.NoError(t, err)
+	defer os.Chmod(logPath, 0644)
+
+	reader, err := spawner.GetLogs(context.Background(), "TEST-PERM")
+	assert.Error(t, err)
+	assert.Nil(t, reader)
+	assert.Contains(t, err.Error(), "failed to open log file")
+}
+
+// A mock process to trigger error on Signal
+func TestProcessSpawner_Cancel_SignalError(t *testing.T) {
+	logger := telemetry.NewLogger(true, "test", true)
+	sm := &mockSessionManager{}
+	spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+
+	// Create a dummy process that has already exited to cause a signal error
+	cmd := exec.Command("true")
+	err := cmd.Start()
+	assert.NoError(t, err)
+	cmd.Wait() // wait for it to exit so signal fails
+
+	spawner.mu.Lock()
+	spawner.activeCmds["TEST-SIGERR"] = cmd
+	spawner.mu.Unlock()
+
+	err = spawner.Cancel(context.Background(), "TEST-SIGERR")
+	// On some systems sending a signal to an exited process might not return an error but os: process already finished.
+	// Actually, Go 1.16+ returns an error os.ErrProcessDone.
+	assert.Error(t, err)
+}
+
+func TestProcessSpawner_Ping_Coverage(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupPATH   func(t *testing.T)
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "Fail_AgentNotFound",
+			setupPATH: func(t *testing.T) {
+				t.Setenv("PATH", "") // Guarantee exec.LookPath fails
+			},
+			expectError: true,
+			errorMsg:    "recac-agent not found in PATH",
+		},
+		{
+			name: "Success_AgentFound",
+			setupPATH: func(t *testing.T) {
+				tmpDir := t.TempDir()
+				dummyBin := filepath.Join(tmpDir, "recac-agent")
+				err := os.WriteFile(dummyBin, []byte("#!/bin/sh\nexit 0"), 0755)
+				assert.NoError(t, err)
+				t.Setenv("PATH", tmpDir)
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := telemetry.NewLogger(true, "test", true)
+			sm := &mockSessionManager{}
+			spawner := NewProcessSpawner(logger, nil, "provider", "model", sm, 10, 5, 2)
+			mockGit := new(MockGitClient)
+			spawner.GitClient = mockGit
+
+			tt.setupPATH(t)
+
+			err := spawner.Ping(context.Background())
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

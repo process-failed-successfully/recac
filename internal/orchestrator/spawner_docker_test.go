@@ -575,3 +575,137 @@ func TestDockerSpawner_PullPolicy(t *testing.T) {
 		client.AssertExpectations(t)
 	})
 }
+
+func TestDockerSpawner_Spawn_PullImageFails_Always(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Always", sm, 30, 5, 10)
+
+	item := WorkItem{ID: "TEST", RepoURL: "http://git"}
+
+	client.On("PullImage", mock.Anything, "img").Return(errors.New("pull error")).Once()
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to pull image (policy: Always)")
+	client.AssertExpectations(t)
+}
+
+func TestDockerSpawner_Spawn_ImageExistsFails_Never(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Never", sm, 30, 5, 10)
+
+	item := WorkItem{ID: "TEST", RepoURL: "http://git"}
+
+	client.On("ImageExists", mock.Anything, "img").Return(false, errors.New("check error")).Once()
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to check image existence")
+	client.AssertExpectations(t)
+}
+
+func TestDockerSpawner_Spawn_ImageExistsFails_IfNotPresent(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "IfNotPresent", sm, 30, 5, 10)
+
+	item := WorkItem{ID: "TEST", RepoURL: "http://git"}
+
+	client.On("ImageExists", mock.Anything, "img").Return(false, errors.New("check error")).Once()
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to check image existence")
+	client.AssertExpectations(t)
+}
+
+func TestDockerSpawner_Spawn_PullImageFails_IfNotPresent(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "IfNotPresent", sm, 30, 5, 10)
+
+	item := WorkItem{ID: "TEST", RepoURL: "http://git"}
+
+	client.On("ImageExists", mock.Anything, "img").Return(false, nil).Once()
+	client.On("PullImage", mock.Anything, "img").Return(errors.New("pull error")).Once()
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to pull image")
+	client.AssertExpectations(t)
+}
+
+func TestDockerSpawner_Spawn_WaitContainerFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
+
+	spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Always", sm, 30, 5, 10)
+
+	item := WorkItem{ID: "TEST-WAIT", RepoURL: "http://git"}
+
+	client.On("PullImage", mock.Anything, "img").Return(nil).Once()
+	client.On("RunContainerWithLabels", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("c1", nil).Once()
+
+	client.On("WaitContainer", mock.Anything, "c1").Return(int(0), errors.New("wait error")).Once()
+	client.On("ContainerLogs", mock.Anything, "c1").Return(io.NopCloser(strings.NewReader("log content")), nil).Maybe()
+
+	poller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Return(nil).Once()
+
+	// mock git
+	gitCli := new(MockGitClient)
+	spawner.GitClient = gitCli
+	gitCli.On("CurrentCommitSHA", mock.Anything).Return("sha", nil).Once()
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.NoError(t, err)
+	client.AssertExpectations(t)
+}
+
+func TestDockerSpawner_Spawn_WaitContainerNonZeroStatus(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return filepath.IsAbs(s.AgentStateFile) && filepath.Base(s.AgentStateFile) == ".agent_state.json"
+	})).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{AgentStateFile: "/tmp/.agent_state.json"}, nil)
+
+	spawner := NewDockerSpawner(logger, client, "img", "proj", poller, "p", "m", "Always", sm, 30, 5, 10)
+
+	item := WorkItem{ID: "TEST-WAIT2", RepoURL: "http://git"}
+
+	client.On("PullImage", mock.Anything, "img").Return(nil).Once()
+	client.On("RunContainerWithLabels", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("c1", nil).Once()
+
+	client.On("WaitContainer", mock.Anything, "c1").Return(int(1), nil).Once()
+	client.On("ContainerLogs", mock.Anything, "c1").Return(io.NopCloser(strings.NewReader("log content")), nil).Maybe()
+	poller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Return(nil).Once()
+
+	// mock git
+	gitCli := new(MockGitClient)
+	spawner.GitClient = gitCli
+	gitCli.On("CurrentCommitSHA", mock.Anything).Return("sha", nil).Once()
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.NoError(t, err)
+	client.AssertExpectations(t)
+}
