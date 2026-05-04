@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // simple wait loop
@@ -156,6 +158,40 @@ func TestOrchestrator_ApproveJobsByTag(t *testing.T) {
 	if j3.Approved {
 		t.Errorf("J3 should NOT be approved")
 	}
+}
+
+func TestOrchestrator_ApproveJobsByGroup(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+	orch.RequireApproval = true
+
+	// Add a few jobs
+	j1 := WorkItem{ID: "J1", ConcurrencyGroup: "group1"}
+	j2 := WorkItem{ID: "J2", ConcurrencyGroup: "group2"}
+	j3 := WorkItem{ID: "J3", ConcurrencyGroup: "group1"}
+
+	_ = orch.SubmitJob(context.Background(), j1, nil)
+	_ = orch.SubmitJob(context.Background(), j2, nil)
+	_ = orch.SubmitJob(context.Background(), j3, nil)
+
+	// Approve by Group
+	count, err := orch.ApproveJobsByConcurrencyGroup(context.Background(), "group1", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// Verify statuses
+	job1, _ := orch.GetJob("J1")
+	assert.Equal(t, "Pending", job1.Status)
+	assert.True(t, job1.Approved)
+
+	job2, _ := orch.GetJob("J2")
+	assert.Equal(t, "Pending Approval", job2.Status)
+	assert.False(t, job2.Approved)
+
+	job3, _ := orch.GetJob("J3")
+	assert.Equal(t, "Pending", job3.Status)
+	assert.True(t, job3.Approved)
 }
 
 func TestOrchestrator_ApproveJobsByMatch(t *testing.T) {

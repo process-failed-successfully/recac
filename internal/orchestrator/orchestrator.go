@@ -1925,6 +1925,35 @@ func (o *Orchestrator) ApproveJobsByTag(ctx context.Context, tag string, logger 
 }
 
 // ApproveJobsByMatch approves pending jobs whose ID matches the given regular expression and are pending approval.
+func (o *Orchestrator) ApproveJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+
+	for id, job := range o.pendingJobs {
+		if job.Status != "Pending Approval" {
+			continue
+		}
+
+		if job.WorkItem.ConcurrencyGroup == group {
+			job.Status = "Pending"
+			job.Approved = true
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_approved", job)
+			if logger != nil {
+				logger.Info("Job approved by concurrency group", "id", id, "group", group)
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil && count > 0 {
+		logger.Info("Approved jobs by concurrency group", "group", group, "count", count)
+	}
+
+	return count, nil
+}
+
 func (o *Orchestrator) ApproveJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
 	matcher, err := regexp.Compile("(?i)" + match)
 	if err != nil {
