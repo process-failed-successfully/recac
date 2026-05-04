@@ -19,6 +19,7 @@ import (
 	"recac/internal/orchestrator"
 
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 )
 
 var (
@@ -302,8 +303,14 @@ func submitPipelineInteractiveJob(host, filePath string, wait bool, dryRun bool,
 		editor = "vi" // Default fallback
 	}
 
-	shellCmd := fmt.Sprintf("%s \"$1\"", editor)
-	cmd := exec.Command("sh", "-c", shellCmd, "--", tmpFile.Name())
+	args, err := shellquote.Split(editor)
+	if err != nil || len(args) == 0 {
+		fmt.Fprintf(stdout, "Failed to parse editor string: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	args = append(args, tmpFile.Name())
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
@@ -2214,10 +2221,14 @@ func editJobInteractive(host, jobID string, requirePending bool) (*orchestrator.
 		editor = "vi" // Default fallback
 	}
 
-	// Wrap editor command in sh -c to properly support arguments in $EDITOR (e.g. "code --wait")
-	// Pass the filename as an argument to avoid command injection via string interpolation
-	shellCmd := fmt.Sprintf("%s \"$1\"", editor)
-	cmd := exec.Command("sh", "-c", shellCmd, "--", tmpFile.Name())
+	// Use shellquote to properly support arguments in $EDITOR (e.g. "code --wait")
+	// and to avoid OS command injection
+	args, err := shellquote.Split(editor)
+	if err != nil || len(args) == 0 {
+		return nil, nil, fmt.Errorf("Failed to parse editor string: %w", err)
+	}
+	args = append(args, tmpFile.Name())
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
