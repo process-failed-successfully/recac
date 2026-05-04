@@ -95,6 +95,23 @@ func TestAPI_ApproveBulkJobs(t *testing.T) {
 		t.Errorf("FOO-1 should be approved")
 	}
 
+	// Submit another job for group
+	orch.SubmitJob(context.Background(), WorkItem{ID: "G1", ConcurrencyGroup: "group1"}, nil)
+
+	// Test Approve by Group
+	req = httptest.NewRequest(http.MethodPost, "/jobs/approve?group=group1", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200 OK, got %d", rr.Code)
+	}
+
+	g1, _ := orch.GetJob("G1")
+	if !g1.Approved {
+		t.Errorf("G1 should be approved")
+	}
+
 	// Test Missing Parameters
 	req = httptest.NewRequest(http.MethodPost, "/jobs/approve", nil)
 	rr = httptest.NewRecorder()

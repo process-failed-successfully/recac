@@ -2558,6 +2558,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/approve", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
 		var count int
 		var err error
@@ -2566,8 +2567,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.ApproveJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.ApproveJobsByMatch(r.Context(), match, logger)
+		} else if group != "" {
+			count, err = orch.ApproveJobsByConcurrencyGroup(r.Context(), group, logger)
 		} else {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk approve", http.StatusBadRequest)
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk approve", http.StatusBadRequest)
 			return
 		}
 

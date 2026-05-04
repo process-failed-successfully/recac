@@ -224,6 +224,7 @@ func TestApproveBulkJobs(t *testing.T) {
 		name        string
 		match       string
 		tag         string
+		group       string
 		serverURL   string
 		handler     http.HandlerFunc
 		expectedOut string
@@ -242,6 +243,18 @@ func TestApproveBulkJobs(t *testing.T) {
 				w.Write([]byte(`{"approved": 5}`))
 			},
 			expectedOut: "Successfully approved 5 jobs.",
+		},
+		{
+			name:  "Success with Group",
+			group: "test-group",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/jobs/approve", r.URL.Path)
+				assert.Equal(t, "POST", r.Method)
+				assert.Equal(t, "test-group", r.URL.Query().Get("group"))
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"approved": 3}`))
+			},
+			expectedOut: "Successfully approved 3 jobs.",
 		},
 		{
 			name:        "Connection Error",
@@ -283,7 +296,7 @@ func TestApproveBulkJobs(t *testing.T) {
 			exitFunc = func(int) { exitCalled = true }
 			defer func() { exitFunc = oldExitFunc }()
 
-			approveBulkJobs(serverURL, tt.match, tt.tag)
+			approveBulkJobs(serverURL, tt.match, tt.tag, tt.group)
 
 			assert.Equal(t, tt.expectExit, exitCalled)
 			assert.Contains(t, buf.String(), tt.expectedOut)
