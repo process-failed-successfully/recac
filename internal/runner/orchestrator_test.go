@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -100,6 +101,7 @@ func TestOrchestrator_hasLifecycleSignal(t *testing.T) {
 				Pool:      NewWorkerPool(1),
 				Graph:     NewTaskGraph(),
 				MaxAgents: 1,
+		TickInterval: 1 * time.Millisecond,
 			}
 
 			assert.Equal(t, tt.expected, o.hasLifecycleSignal())
@@ -180,4 +182,90 @@ func TestOrchestrator_hasFailures(t *testing.T) {
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func TestOrchestrator_Run_Deadlock(t *testing.T) {
+	graph := NewTaskGraph()
+	// Add a single node that is Pending
+	graph.Nodes["t1"] = &TaskNode{
+		ID:     "t1",
+		Status: TaskPending,
+	}
+
+	o := &Orchestrator{
+		Project: "test_project",
+		DB: &customMockDBStore{
+			getSignalFunc: func(p, k string) (string, error) { return "", nil },
+			getFeaturesFunc: func(p string) (string, error) { return "", nil },
+		},
+
+
+
+		Pool:      NewWorkerPool(1),
+		Graph:     graph,
+		MaxAgents: 1,
+		TickInterval: 1 * time.Millisecond,
+	}
+
+	// This should trigger the deadlock logic, mark t1 as TaskFailed, and exit the loop.
+	err := o.Run(context.Background())
+	assert.NoError(t, err)
+
+	status, _ := o.Graph.GetTaskStatus("t1")
+	assert.Equal(t, TaskFailed, status)
+}
+
+func TestOrchestrator_Run_Success(t *testing.T) {
+	graph := NewTaskGraph()
+	// Add a node that is TaskDone
+	graph.Nodes["t1"] = &TaskNode{
+		ID:     "t1",
+		Status: TaskDone,
+	}
+
+	o := &Orchestrator{
+		Project: "test_project",
+		DB: &customMockDBStore{
+			getSignalFunc: func(p, k string) (string, error) { return "", nil },
+			getFeaturesFunc: func(p string) (string, error) { return "", nil },
+		},
+		Pool:      NewWorkerPool(1),
+		Graph:     graph,
+		MaxAgents: 1,
+		TickInterval: 1 * time.Millisecond,
+	}
+
+	// This should exit immediately because no pending, ready or in progress tasks
+	err := o.Run(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestOrchestrator_Run_LifecycleSignal(t *testing.T) {
+	graph := NewTaskGraph()
+	// Node is InProgress
+	graph.Nodes["t1"] = &TaskNode{
+		ID:     "t1",
+		Status: TaskInProgress,
+	}
+
+	o := &Orchestrator{
+		Project: "test_project",
+		DB: &customMockDBStore{
+			getSignalFunc: func(p, k string) (string, error) {
+				if k == "QA_PASSED" {
+					return "true", nil
+				}
+				return "", nil
+			},
+			getFeaturesFunc: func(p string) (string, error) { return "", nil },
+		},
+		Pool:      NewWorkerPool(1),
+		Graph:     graph,
+		MaxAgents: 1,
+		TickInterval: 1 * time.Millisecond,
+	}
+
+	// Should exit due to lifecycle signal detected
+	err := o.Run(context.Background())
+	assert.NoError(t, err)
 }
