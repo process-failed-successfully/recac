@@ -119,3 +119,7 @@
 ## 2026-05-01 - Confirmation for Destructive Row Actions
 **Learning:** Tightly packed data tables with inline action buttons (like Cancel, Purge, Skip) are highly susceptible to accidental clicks. If these buttons map directly to destructive API calls without a client-side confirmation, users can easily cause unrecoverable data loss or interrupt critical flows.
 **Action:** Always wrap inline destructive actions in data tables with a `confirm()` dialog to provide a friction layer against accidental clicks.
+
+## 2026-05-07 - Focus Management in Read-Only Modals
+**Learning:** In click-triggered read-only modals (like `viewLogs`, `explainJob`, and `analyzeFailures`), keyboard accessibility is severely degraded if the primary scrollable container does not automatically receive focus when opened. Keyboard users are otherwise forced to manually tab through the underlying DOM to interact with the newly displayed content.
+**Action:** Always append a `setTimeout(() => content.focus(), 10);` call immediately after setting `modal.style.display = 'block'` in display-only modal opening functions, specifically targeting the scrollable content container (which should already possess `tabindex="0"`).

@@ -1041,6 +1041,7 @@ const DashboardHTML = `
 
         async function viewLogs(id) {
             document.getElementById('logsModal').style.display = 'block';
+            setTimeout(() => document.getElementById('logs-output').focus(), 10);
             document.getElementById('logs-title').innerText = 'Logs for ' + id;
             const output = document.getElementById('logs-output');
             output.textContent = 'Connecting to logs...\n';
@@ -1095,6 +1096,7 @@ const DashboardHTML = `
 
         async function explainJob(id) {
             document.getElementById('explainModal').style.display = 'block';
+            setTimeout(() => document.getElementById('explain-content').focus(), 10);
             document.getElementById('explain-title').innerText = 'Explanation for ' + id;
             const content = document.getElementById('explain-content');
             content.innerHTML = '<i>Asking AI to analyze the failure...</i>';
@@ -1245,6 +1247,7 @@ const DashboardHTML = `
             const modal = document.getElementById('analyzeFailuresModal');
             const contentDiv = document.getElementById('analyze-failures-content');
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             contentDiv.innerHTML = 'Loading analysis...';
 
             try {
@@ -1388,6 +1391,7 @@ const DashboardHTML = `
             const modal = document.getElementById('analyzeDurationsModal');
             const contentDiv = document.getElementById('analyze-durations-content');
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             contentDiv.innerHTML = 'Loading analysis...';
 
             try {
@@ -1448,6 +1452,7 @@ const DashboardHTML = `
             const modal = document.getElementById('analyzeCostsModal');
             const contentDiv = document.getElementById('analyze-costs-content');
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             contentDiv.innerHTML = 'Loading analysis...';
 
             try {
@@ -1514,6 +1519,7 @@ const DashboardHTML = `
             const modal = document.getElementById('analyzeAnomaliesModal');
             const contentDiv = document.getElementById('analyze-anomalies-content');
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             contentDiv.innerHTML = 'Loading analysis...';
 
             try {
@@ -1573,6 +1579,7 @@ const DashboardHTML = `
             const modal = document.getElementById('analyzeAgentsModal');
             const contentDiv = document.getElementById('analyze-agents-content');
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             contentDiv.innerHTML = 'Loading analysis...';
 
             try {
@@ -1622,6 +1629,7 @@ const DashboardHTML = `
             const modal = document.getElementById('reliabilityModal');
             modal.style.display = 'block';
             const content = document.getElementById('reliability-content');
+            setTimeout(() => content.focus(), 10);
             content.innerHTML = 'Loading analysis...';
 
             fetch('/jobs/analyze/reliability?limit=10')
