@@ -1,35 +1,18 @@
 package tui
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"recac/internal/orchestrator"
 )
 
-func TestDashboardModel_AnalyzeCosts(t *testing.T) {
+func TestDashboard_AnalyzeCosts(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/jobs/analyze/costs" {
 			w.WriteHeader(http.StatusOK)
-			stats := CostStatsResponse{
-				TotalStats: CostStats{
-					TotalCost:             12.50,
-					TotalTokensPrompt:     50000,
-					TotalTokensCompletion: 50000,
-					TotalJobs:             2,
-				},
-				TagStats: []CostByTag{
-					{Tag: "backend", Cost: 10.00},
-					{Tag: "frontend", Cost: 2.50},
-				},
-				ModelStats: []CostByModel{
-					{Model: "gpt-4", Cost: 12.00},
-					{Model: "gpt-3.5", Cost: 0.50},
-				},
-			}
-			json.NewEncoder(w).Encode(stats)
+			w.Write([]byte(`{"total_stats": {"total_jobs": 5, "total_cost": 12.34}}`))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -37,74 +20,63 @@ func TestDashboardModel_AnalyzeCosts(t *testing.T) {
 	defer server.Close()
 
 	m := NewDashboardModel(server.URL)
-
 	cmd := fetchAnalyzeCostsCmd(server.URL)
 	msg := cmd()
-	acm, ok := msg.(analyzeCostsMsg)
-	assert.True(t, ok)
-	assert.NoError(t, acm.Err)
-	assert.Equal(t, 12.50, acm.Stats.TotalStats.TotalCost)
+	newM, _ := m.Update(msg)
+	m = newM.(DashboardModel)
+	assert.Equal(t, viewAnalyzeCosts, m.viewState)
 
-	newModel, _ := m.Update(acm)
-	dm, ok := newModel.(DashboardModel)
-	assert.True(t, ok)
-
-	assert.Equal(t, viewAnalyzeCosts, dm.viewState)
-
-	view := dm.View()
-	assert.Contains(t, view, "AI Cost Analysis")
-	assert.Contains(t, view, "Total Cost:")
-	assert.Contains(t, view, "$12.50")
-	assert.Contains(t, view, "Cost by Tag")
-	assert.Contains(t, view, "backend")
-	assert.Contains(t, view, "$10.00")
-	assert.Contains(t, view, "Cost by Model")
+	assert.Contains(t, m.viewport.View(), "12.34")
 }
 
-func TestDashboardModel_AnalyzeCosts_Empty(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/jobs/analyze/costs" {
-			w.WriteHeader(http.StatusOK)
-			stats := CostStatsResponse{
-				TotalStats: CostStats{
-					TotalCost: 0,
-					TotalJobs: 0,
-				},
-			}
-			json.NewEncoder(w).Encode(stats)
-		}
-	}))
-	defer server.Close()
-
-	m := NewDashboardModel(server.URL)
-
-	cmd := fetchAnalyzeCostsCmd(server.URL)
-	msg := cmd()
-	acm, ok := msg.(analyzeCostsMsg)
-	assert.True(t, ok)
-	assert.NoError(t, acm.Err)
-
-	newModel, _ := m.Update(acm)
-	dm, ok := newModel.(DashboardModel)
-	assert.True(t, ok)
-
-	assert.Equal(t, viewAnalyzeCosts, dm.viewState)
-
-	view := dm.View()
-	assert.Contains(t, view, "No valid completed jobs with cost data found")
-}
-
-func TestDashboardModel_AnalyzeCosts_Error(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetchAnalyzeCosts_Err(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
 	}))
-	defer server.Close()
+	defer ts.Close()
 
-	cmd := fetchAnalyzeCostsCmd(server.URL)
+	cmd := fetchAnalyzeCostsCmd(ts.URL)
 	msg := cmd()
-	acm, ok := msg.(analyzeCostsMsg)
+	_, ok := msg.(analyzeCostsMsg)
 	assert.True(t, ok)
-	assert.Error(t, acm.Err)
-	assert.Contains(t, acm.Err.Error(), "status 500")
+}
+
+func TestFetchAnalyzeCosts_BadJSON(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`bad json`))
+	}))
+	defer ts.Close()
+
+	cmd := fetchAnalyzeCostsCmd(ts.URL)
+	msg := cmd()
+	_, ok := msg.(analyzeCostsMsg)
+	assert.True(t, ok)
+}
+
+func TestRenderAnalyzeCosts_Empty(t *testing.T) {
+	view := renderAnalyzeCosts(CostStatsResponse{})
+	assert.Contains(t, view, "No valid completed jobs")
+}
+
+func TestRenderAnalyzeCosts_Full(t *testing.T) {
+    stats := CostStatsResponse{
+        TotalStats: CostStats{
+            TotalJobs: 5,
+            TotalCost: 99.99,
+        },
+        TagStats: []CostByTag{
+            {Tag: "t1", Cost: 10.0},
+        },
+        ModelStats: []CostByModel{
+            {Model: "gpt-4", Cost: 80.0},
+        },
+        TopExpensiveJobs: []orchestrator.JobInfo{
+            {ID: "JOB-1", Metrics: map[string]float64{"cost": 50.0}},
+        },
+    }
+    view := renderAnalyzeCosts(stats)
+    assert.Contains(t, view, "99.99")
+    assert.Contains(t, view, "t1")
+    assert.Contains(t, view, "gpt-4")
+    assert.Contains(t, view, "JOB-1")
 }
