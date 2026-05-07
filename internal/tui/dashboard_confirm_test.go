@@ -157,6 +157,7 @@ func TestDashboardModel_ConfirmationFlow_MultipleActions(t *testing.T) {
 		{"hold multiple", "HOLD 2 selected"},
 		{"unhold multiple", "UNHOLD 2 selected"},
 		{"heal multiple", "HEAL 2 selected"},
+		{"skip multiple", "SKIP 2 selected"},
 		{"cancel multiple", "CANCEL 2 selected"},
 		{"force complete multiple", "FORCE COMPLETE 2"},
 		{"pause group multiple", "PAUSE the concurrency"},
