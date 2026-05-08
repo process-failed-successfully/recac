@@ -77,3 +77,7 @@
 ## 2025-05-20 - Avoid string allocations in telemetry log filtering
 **Learning:** Using `strings.ToLower(a.Key)` and `strings.Contains()` in a hot path like `slog`'s `ReplaceAttr` (which runs for every attribute of every log message) creates significant unnecessary memory pressure and garbage collection overhead by allocating a new string on each invocation.
 **Action:** Always use zero-allocation, case-insensitive substring search methods such as `utils.ContainsFold` to redact sensitive fields or perform string matching in heavily-executed log pipelines.
+
+## 2025-05-21 - Fast-Path Regex Optimization in regex matching
+**Learning:** Using `regexp.FindStringSubmatch` unconditionally can be a bottleneck when the target keyword is not present, because of regex state machine overhead.
+**Action:** When extracting data using regex that relies on a specific keyword, implement a fast-path zero-allocation check (e.g., `utils.ContainsFold(text, "keyword")`) first. If the trigger keyword isn't present, return early and bypass regex processing.

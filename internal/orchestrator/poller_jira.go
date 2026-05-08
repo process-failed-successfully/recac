@@ -7,11 +7,10 @@ import (
 	"log/slog"
 	"recac/internal/db"
 	"recac/internal/jira"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 )
-
-
 
 type JiraPoller struct {
 	Client  JiraClient
@@ -148,7 +147,9 @@ func (p *JiraPoller) Ping(ctx context.Context) error {
 }
 
 func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
-	if repoRegex == nil {
+	// ⚡ Bolt: Fast-path optimization to skip regex state machine execution
+	// when processing issue descriptions that do not contain 'repo:'.
+	if repoRegex == nil || !utils.ContainsFold(text, "repo:") {
 		return ""
 	}
 	matches := repoRegex.FindStringSubmatch(text)
@@ -174,7 +175,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 		// ⚡ Bolt: Fast-path zero-allocation check replacing featuresHeaderRegex
 		// Exact case-insensitive match for the specific headers
 		if strings.EqualFold(line, "REQUIRED FEATURES") || strings.EqualFold(line, "REQUIRED FEATURES:") ||
-		   strings.EqualFold(line, "ACCEPTANCE CRITERIA") || strings.EqualFold(line, "ACCEPTANCE CRITERIA:") {
+			strings.EqualFold(line, "ACCEPTANCE CRITERIA") || strings.EqualFold(line, "ACCEPTANCE CRITERIA:") {
 			inSection = true
 			continue
 		}
