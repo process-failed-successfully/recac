@@ -177,7 +177,8 @@ func main() {
 	pflag.String("clone-job", "", "Clone an existing job by ID")
 	pflag.String("clone-match", "", "Clone all jobs matching the given regex")
 	pflag.String("clone-tag", "", "Clone all jobs with the specified tag")
-	pflag.Bool("clone-remap-deps", false, "Remap dependencies between cloned jobs (used with clone-match or clone-tag)")
+	pflag.String("clone-group", "", "Clone all jobs with the specified concurrency group")
+	pflag.Bool("clone-remap-deps", false, "Remap dependencies between cloned jobs (used with clone-match, clone-tag, or clone-group)")
 	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.String("retry-match", "", "Optional regex to match against error messages when retrying failed jobs")
 	pflag.String("retry-tag", "", "Retry all failed jobs from history with the specified tag")
@@ -610,6 +611,7 @@ func main() {
 	viper.BindPFlag("orchestrator.clone_job", pflag.Lookup("clone-job"))
 	viper.BindPFlag("orchestrator.clone_match", pflag.Lookup("clone-match"))
 	viper.BindPFlag("orchestrator.clone_tag", pflag.Lookup("clone-tag"))
+	viper.BindPFlag("orchestrator.clone_group", pflag.Lookup("clone-group"))
 	viper.BindPFlag("orchestrator.clone_remap_deps", pflag.Lookup("clone-remap-deps"))
 	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.retry_match", pflag.Lookup("retry-match"))
@@ -1622,7 +1624,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	cloneMatch := viper.GetString("orchestrator.clone_match")
 	cloneTag := viper.GetString("orchestrator.clone_tag")
-	if cloneMatch != "" || cloneTag != "" {
+	cloneGroup := viper.GetString("orchestrator.clone_group")
+	if cloneMatch != "" || cloneTag != "" || cloneGroup != "" {
 		host := viper.GetString("orchestrator.host")
 		priority := viper.GetInt("orchestrator.submit_priority")
 		wait := viper.GetBool("orchestrator.wait")
@@ -1650,7 +1653,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			submitDepsPtr = submitDeps
 		}
 
-		cloneBulkJobs(host, cloneMatch, cloneTag, priorityPtr, wait, envMap, submitDepsPtr, remapDeps)
+		cloneBulkJobs(host, cloneMatch, cloneTag, cloneGroup, priorityPtr, wait, envMap, submitDepsPtr, remapDeps)
 		return nil
 	}
 

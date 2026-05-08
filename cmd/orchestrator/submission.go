@@ -573,7 +573,7 @@ func submitBatchJob(host, filePath string, wait bool) {
 	}
 }
 
-func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars map[string]string, dependsOn []string, remapDeps bool) {
+func cloneBulkJobs(host, match, tag, group string, priority *int, wait bool, envVars map[string]string, dependsOn []string, remapDeps bool) {
 	overrides := struct {
 		EnvVars           map[string]string `json:"env_vars,omitempty"`
 		Priority          *int              `json:"priority,omitempty"`
@@ -606,6 +606,9 @@ func cloneBulkJobs(host, match, tag string, priority *int, wait bool, envVars ma
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 

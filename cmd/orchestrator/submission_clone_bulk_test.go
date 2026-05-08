@@ -25,7 +25,7 @@ func TestCloneBulkJobs_Tag(t *testing.T) {
 	stdout = w
 
 	var priority int = 10
-	cloneBulkJobs(server.URL, "", "bulk-test-tag", &priority, false, nil, nil, false)
+	cloneBulkJobs(server.URL, "", "bulk-test-tag", "", &priority, false, nil, nil, false)
 
 	w.Close()
 	buf := new(strings.Builder)
@@ -35,6 +35,29 @@ func TestCloneBulkJobs_Tag(t *testing.T) {
 	assert.Contains(t, out, "Successfully cloned 2 jobs.")
 	assert.Contains(t, out, "- JOB-1")
 	assert.Contains(t, out, "- JOB-2")
+}
+
+func TestCloneBulkJobs_Group(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/clone/bulk", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "bulk-group-test", r.URL.Query().Get("group"))
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"cloned": 3, "cloned_job_ids": ["JOB-1", "JOB-2", "JOB-3"]}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	stdout = w
+
+	cloneBulkJobs(server.URL, "", "", "bulk-group-test", nil, false, nil, nil, false)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Successfully cloned 3 jobs.")
 }
 
 func TestCloneBulkJobs_Match(t *testing.T) {
@@ -50,7 +73,7 @@ func TestCloneBulkJobs_Match(t *testing.T) {
 	r, w, _ := os.Pipe()
 	stdout = w
 
-	cloneBulkJobs(server.URL, "regex-test", "", nil, false, nil, nil, false)
+	cloneBulkJobs(server.URL, "regex-test", "", "", nil, false, nil, nil, false)
 
 	w.Close()
 	buf := new(strings.Builder)
@@ -76,7 +99,7 @@ func TestCloneBulkJobs_Overrides(t *testing.T) {
 	priority := 5
 	envVars := map[string]string{"TEST": "test"}
 	dependsOn := []string{"DEP-1"}
-	cloneBulkJobs(server.URL, "test", "", &priority, false, envVars, dependsOn, false)
+	cloneBulkJobs(server.URL, "test", "", "", &priority, false, envVars, dependsOn, false)
 
 	w.Close()
 	buf := new(strings.Builder)
@@ -108,7 +131,7 @@ func TestCloneBulkJobs_Error(t *testing.T) {
 	r, w, _ := os.Pipe()
 	stdout = w
 
-	cloneBulkJobs(server.URL, "bad-query", "", nil, false, nil, nil, false)
+	cloneBulkJobs(server.URL, "bad-query", "", "", nil, false, nil, nil, false)
 
 	w.Close()
 	buf := new(strings.Builder)

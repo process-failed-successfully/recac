@@ -2747,9 +2747,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("POST /jobs/clone/bulk", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
-		if tag == "" && match == "" {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk clone", http.StatusBadRequest)
+		if tag == "" && match == "" && group == "" {
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk clone", http.StatusBadRequest)
 			return
 		}
 
@@ -2794,6 +2795,12 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 			for _, job := range jobs {
 				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
+					filtered = append(filtered, job)
+				}
+			}
+		} else if group != "" {
+			for _, job := range jobs {
+				if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
 					filtered = append(filtered, job)
 				}
 			}
