@@ -59,6 +59,7 @@ func setupBulkCloneTest(t *testing.T) (*Orchestrator, *MockSpawner, *httptest.Se
 			ID:      "job-3",
 			Summary: "Another task",
 			Tags:    []string{"ignore-tag"},
+			ConcurrencyGroup: "test-group",
 		},
 	})
 
@@ -92,6 +93,31 @@ func TestAPI_CloneBulk_Tag(t *testing.T) {
 	assert.Equal(t, float64(2), result["cloned"])
 	clonedIDs := result["cloned_job_ids"].([]interface{})
 	assert.Len(t, clonedIDs, 2)
+}
+
+func TestAPI_CloneBulk_Group(t *testing.T) {
+	_, mockSpawner, server := setupBulkCloneTest(t)
+	defer server.Close()
+
+	mockSpawner.On("Spawn", mock.Anything, mock.Anything).Return(nil).Once()
+
+	url := server.URL + "/jobs/clone/bulk?group=test-group"
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+
+	var result map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), result["cloned"])
+	clonedIDs := result["cloned_job_ids"].([]interface{})
+	assert.Len(t, clonedIDs, 1)
 }
 
 func TestAPI_CloneBulk_Match(t *testing.T) {
