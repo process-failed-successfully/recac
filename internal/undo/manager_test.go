@@ -168,6 +168,30 @@ func TestManager_SaveHistory_MkdirError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestManager_AppendHistory_ListError(t *testing.T) {
+	tmpDir := t.TempDir()
+	m := NewManager(tmpDir)
+
+	indexPath := filepath.Join(tmpDir, UndoDir, IndexFile)
+	require.NoError(t, os.MkdirAll(filepath.Dir(indexPath), 0755))
+	require.NoError(t, os.WriteFile(indexPath, []byte("{invalid json"), 0644))
+
+	err := m.appendHistory(Operation{ID: "test"})
+	require.Error(t, err)
+}
+
+func TestManager_RemoveHistory_ListError(t *testing.T) {
+	tmpDir := t.TempDir()
+	m := NewManager(tmpDir)
+
+	indexPath := filepath.Join(tmpDir, UndoDir, IndexFile)
+	require.NoError(t, os.MkdirAll(filepath.Dir(indexPath), 0755))
+	require.NoError(t, os.WriteFile(indexPath, []byte("{invalid json"), 0644))
+
+	err := m.removeHistory("test")
+	require.Error(t, err)
+}
+
 func TestCopyFile_Errors(t *testing.T) {
 	tmpDir := t.TempDir()
 
