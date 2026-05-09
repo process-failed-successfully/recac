@@ -2,11 +2,15 @@ package web
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"recac/internal/runner"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServer_HandleFeatures(t *testing.T) {
@@ -135,6 +139,37 @@ func TestServer_HandleGraph(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServer_Start_PortInUse(t *testing.T) {
+	// Start a dummy server to occupy a port
+	dummyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer dummyServer.Close()
+
+	// Extract the port from the dummy server
+	port := 0
+	fmt.Sscanf(dummyServer.URL, "http://127.0.0.1:%d", &port)
+	if port == 0 {
+		// some environments may use localhost or ipv6, let's just parse the last part
+		parts := strings.Split(dummyServer.URL, ":")
+		if len(parts) > 2 {
+			fmt.Sscanf(parts[len(parts)-1], "%d", &port)
+		}
+	}
+
+	// Ensure we got a valid port
+	require.NotEqual(t, 0, port, "could not parse port from dummy server URL: %s", dummyServer.URL)
+
+	store := &MockStore{}
+	server := NewServer(store, port, "test")
+
+	// Test the OpenBrowser path slightly, though utils.OpenBrowser will just try to run a command
+	server.OpenBrowser = true
+
+	// Start should fail because the port is already in use
+	err := server.Start()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bind")
 }
 
 func TestSanitizeMermaidID(t *testing.T) {
