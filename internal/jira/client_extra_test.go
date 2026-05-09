@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -312,5 +313,22 @@ func TestCreateTicket_ErrorHandling(t *testing.T) {
 	_, err := client.CreateTicket(context.Background(), "PROJ", "Task", "Test Summary", "Test Description", []string{"backend"})
 	if err == nil {
 		t.Fatalf("Expected error for bad request")
+	}
+}
+
+func TestCreateChildTicket_ErrorStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("bad request"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.CreateChildTicket(context.Background(), "PROJ", "Summary", "Desc", "Task", "PARENT-1", []string{})
+	if err == nil {
+		t.Fatalf("Expected CreateChildTicket to fail")
+	}
+	if !strings.Contains(err.Error(), "status: 400") {
+		t.Errorf("Expected error to contain status 400, got: %v", err)
 	}
 }
