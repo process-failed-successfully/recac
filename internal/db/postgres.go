@@ -122,6 +122,9 @@ func (s *PostgresStore) migrate() error {
 
 // Close closes the database connection
 func (s *PostgresStore) Close() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
 	return s.db.Close()
 }
 
