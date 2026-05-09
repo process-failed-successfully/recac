@@ -65,7 +65,9 @@
 ## 2024-04-05 - Missing aria-live in Async Modals
 **Learning:** Asynchronous content updates in modals (like graphs, timelines, and dry-run results) and main dashboard dynamic content (like status and analytics) were not being announced to screen readers.
 **Action:** Applied `aria-live="polite"` to the dynamic container elements so updates are smoothly read out after network fetches or SSE updates complete.
-## 2026-04-08 - TUI Keybinding Hint Accuracy\n**Learning:** When adding keyboard instructions to Bubble Tea TUI components, failing to verify the actual key handling logic in the `Update` loop can result in incomplete hints (e.g., showing only 'tab' when 'up' and 'down' are also supported), confusing users.\n**Action:** Always cross-reference the UI hint in the `View` logic with the actual handled inputs in the component's `Update` loop to ensure accuracy.
+## 2026-04-08 - TUI Keybinding Hint Accuracy
+**Learning:** When adding keyboard instructions to Bubble Tea TUI components, failing to verify the actual key handling logic in the `Update` loop can result in incomplete hints (e.g., showing only 'tab' when 'up' and 'down' are also supported), confusing users.
+**Action:** Always cross-reference the UI hint in the `View` logic with the actual handled inputs in the component's `Update` loop to ensure accuracy.
 
 ## 2026-04-10 - Screen Reader Redundancy on Required Fields
 **Learning:** Relying solely on the HTML5 `required` attribute combined with a visual asterisk (e.g. `*`) inside a `<label>` can lead to screen readers inconsistently announcing the required state or redundantly announcing "star".
@@ -123,3 +125,6 @@
 ## 2026-05-07 - Focus Management in Read-Only Modals
 **Learning:** In click-triggered read-only modals (like `viewLogs`, `explainJob`, and `analyzeFailures`), keyboard accessibility is severely degraded if the primary scrollable container does not automatically receive focus when opened. Keyboard users are otherwise forced to manually tab through the underlying DOM to interact with the newly displayed content.
 **Action:** Always append a `setTimeout(() => content.focus(), 10);` call immediately after setting `modal.style.display = 'block'` in display-only modal opening functions, specifically targeting the scrollable content container (which should already possess `tabindex="0"`).
+## 2026-05-08 - Focus Management in Read-Only Modals (Correction)
+**Learning:** In click-triggered read-only modals, calling `.focus()` on the content container (`graphDiv`, `timelineDiv`, etc.) will silently fail unless that container has a `tabindex` attribute. A standard `<div>` is not natively focusable.
+**Action:** When adding programmatic focus management to arbitrary containers, ensure you also add `tabindex="0"` (or `"-1"`) to the HTML elements so they can successfully receive focus.

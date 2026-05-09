@@ -1127,6 +1127,7 @@ const DashboardHTML = `
             const modal = document.getElementById('graphModal');
             const graphDiv = document.getElementById('graphDiv');
             modal.style.display = 'block';
+            setTimeout(() => graphDiv.focus(), 10);
             graphDiv.innerHTML = 'Loading graph...';
 
             try {
@@ -1158,6 +1159,7 @@ const DashboardHTML = `
             const modal = document.getElementById('timelineModal');
             const timelineDiv = document.getElementById('timelineDiv');
             modal.style.display = 'block';
+            setTimeout(() => timelineDiv.focus(), 10);
             timelineDiv.innerHTML = 'Loading timeline...';
 
             try {
@@ -1321,6 +1323,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('report-content');
 
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             titleElement.innerText = 'Changelog Report';
             contentDiv.innerHTML = 'Generating AI changelog report...';
 
@@ -1355,6 +1358,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('report-content');
 
             modal.style.display = 'block';
+            setTimeout(() => contentDiv.focus(), 10);
             titleElement.innerText = 'Postmortem Report';
             contentDiv.innerHTML = 'Generating AI postmortem report...';
 
