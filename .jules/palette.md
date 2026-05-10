@@ -128,3 +128,6 @@
 ## 2026-05-08 - Focus Management in Read-Only Modals (Correction)
 **Learning:** In click-triggered read-only modals, calling `.focus()` on the content container (`graphDiv`, `timelineDiv`, etc.) will silently fail unless that container has a `tabindex` attribute. A standard `<div>` is not natively focusable.
 **Action:** When adding programmatic focus management to arbitrary containers, ensure you also add `tabindex="0"` (or `"-1"`) to the HTML elements so they can successfully receive focus.
+## 2024-05-01 - Explicit Labels for Dynamic Inputs
+**Learning:** When generating dynamic form inputs in vanilla JS, relying solely on `placeholder` and `aria-label` attributes limits usability since the context disappears once a user starts typing. Explicit `<label>` elements are crucial for retaining context for visual users and native accessibility.
+**Action:** When adding inputs dynamically via `document.createElement`, always generate a unique `id` using a counter to properly link a visible `<label>` using `htmlFor`, providing full context for both visual and screen reader users.

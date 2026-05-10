@@ -591,28 +591,45 @@ const DashboardHTML = `
             }
         }
 
+        let envFieldCounter = 0;
+
         function addEnvField(key, val) {
             const container = document.getElementById("env-vars-container");
             const div = document.createElement("div");
             div.style.display = "flex";
             div.style.gap = "10px";
             div.style.marginBottom = "10px";
+            div.style.alignItems = "center";
+
+            envFieldCounter++;
+            const keyId = "env-key-" + envFieldCounter;
+            const valId = "env-val-" + envFieldCounter;
+
+            const keyLabel = document.createElement("label");
+            keyLabel.htmlFor = keyId;
+            keyLabel.innerText = "Key";
+            keyLabel.style.marginRight = "5px";
 
             const keyInput = document.createElement("input");
             keyInput.type = "text";
+            keyInput.id = keyId;
             keyInput.className = "env-key";
             keyInput.placeholder = "KEY";
             keyInput.value = key;
             keyInput.style.flex = "1";
-            keyInput.setAttribute("aria-label", "Environment variable key");
+
+            const valLabel = document.createElement("label");
+            valLabel.htmlFor = valId;
+            valLabel.innerText = "Value";
+            valLabel.style.marginRight = "5px";
 
             const valInput = document.createElement("input");
             valInput.type = "text";
+            valInput.id = valId;
             valInput.className = "env-val";
             valInput.placeholder = "VALUE";
             valInput.value = val;
             valInput.style.flex = "2";
-            valInput.setAttribute("aria-label", "Environment variable value");
 
             const removeBtn = document.createElement("button");
             removeBtn.type = "button";
@@ -623,7 +640,9 @@ const DashboardHTML = `
                 container.removeChild(div);
             };
 
+            div.appendChild(keyLabel);
             div.appendChild(keyInput);
+            div.appendChild(valLabel);
             div.appendChild(valInput);
             div.appendChild(removeBtn);
             container.appendChild(div);
