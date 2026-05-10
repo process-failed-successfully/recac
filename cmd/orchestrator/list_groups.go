@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -45,6 +46,22 @@ func listGroups(host string, format string) {
 		if err := encoder.Encode(groups); err != nil {
 			fmt.Fprintf(stdout, "Failed to encode groups to JSON: %v\n", err)
 			exitFunc(1)
+		}
+		return
+	}
+
+	if format == "csv" {
+		writer := csv.NewWriter(stdout)
+		defer writer.Flush()
+
+		writer.Write([]string{"Name", "Active Jobs", "Pending Jobs", "Paused"})
+		for _, group := range groups {
+			writer.Write([]string{
+				group.Name,
+				fmt.Sprintf("%d", group.ActiveJobs),
+				fmt.Sprintf("%d", group.PendingJobs),
+				fmt.Sprintf("%t", group.Paused),
+			})
 		}
 		return
 	}
