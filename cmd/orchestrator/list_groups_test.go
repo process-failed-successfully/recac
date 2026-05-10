@@ -44,6 +44,17 @@ func TestListGroups(t *testing.T) {
 			expectedExit:   0,
 		},
 		{
+			name:   "CSVFormat",
+			format: "csv",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/groups", r.URL.Path)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[{"name": "csv-group", "active_jobs": 2, "pending_jobs": 1, "paused": true}]`))
+			},
+			expectedOutput: "Name,Active Jobs,Pending Jobs,Paused\ncsv-group,2,1,true\n",
+			expectedExit:   0,
+		},
+		{
 			name:   "Empty",
 			format: "table",
 			handler: func(w http.ResponseWriter, r *http.Request) {
