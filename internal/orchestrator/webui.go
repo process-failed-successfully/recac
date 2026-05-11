@@ -1128,7 +1128,7 @@ const DashboardHTML = `
                 }
 
                 const data = await response.json();
-                if (data.explanation) {
+                if (data.explanation && data.explanation.trim() !== '') {
                     content.innerText = data.explanation;
                 } else {
                     content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No explanation provided.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
@@ -1353,7 +1353,7 @@ const DashboardHTML = `
                     return;
                 }
                 const data = await res.json();
-                if (data.changelog) {
+                if (data.changelog && data.changelog.trim() !== '') {
                     contentDiv.innerText = data.changelog;
                 } else {
                     contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No changelog generated.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
@@ -1388,7 +1388,7 @@ const DashboardHTML = `
                     return;
                 }
                 const data = await res.json();
-                if (data.postmortem) {
+                if (data.postmortem && data.postmortem.trim() !== '') {
                     contentDiv.innerText = data.postmortem;
                 } else {
                     contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No postmortem generated.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
