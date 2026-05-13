@@ -31,6 +31,7 @@ type multiplexer struct {
 	host         string
 	tag          string
 	match        string
+	group        string
 	active       map[string]context.CancelFunc
 	mu           sync.Mutex
 	wg           sync.WaitGroup
@@ -76,11 +77,12 @@ func tailSingleJob(ctx context.Context, host, jobID string) error {
 	}
 }
 
-func tailActiveJobs(ctx context.Context, host, tag, match string) error {
+func tailActiveJobs(ctx context.Context, host, tag, match, group string) error {
 	m := &multiplexer{
 		host:   host,
 		tag:    tag,
 		match:  match,
+		group:  group,
 		active: make(map[string]context.CancelFunc),
 	}
 
@@ -124,6 +126,9 @@ func (m *multiplexer) poll(ctx context.Context) {
 	}
 	if m.match != "" {
 		q.Set("match", m.match)
+	}
+	if m.group != "" {
+		q.Set("group", m.group)
 	}
 	u.RawQuery = q.Encode()
 
