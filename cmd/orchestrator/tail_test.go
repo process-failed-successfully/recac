@@ -179,7 +179,7 @@ func TestTailActiveJobs(t *testing.T) {
 	defer cancel()
 
 	// Run the multiplexer
-	err := tailActiveJobs(ctx, server.URL, "", "")
+	err := tailActiveJobs(ctx, server.URL, "", "", "")
 	assert.NoError(t, err)
 
 	output := out.String()
@@ -202,6 +202,7 @@ func TestTailActiveJobs_WithFilters(t *testing.T) {
 		assert.Equal(t, "active", r.URL.Query().Get("state"))
 		assert.Equal(t, "my-tag", r.URL.Query().Get("tag"))
 		assert.Equal(t, "my-match", r.URL.Query().Get("match"))
+		assert.Equal(t, "my-group", r.URL.Query().Get("group"))
 
 		var jobs []orchestrator.JobInfo
 		// Return no jobs so it just exits cleanly
@@ -221,7 +222,7 @@ func TestTailActiveJobs_WithFilters(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	err := tailActiveJobs(ctx, server.URL, "my-tag", "my-match")
+	err := tailActiveJobs(ctx, server.URL, "my-tag", "my-match", "my-group")
 	assert.NoError(t, err)
 }
 
