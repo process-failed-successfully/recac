@@ -48,18 +48,16 @@ func exportAgents(host string, outPath string, format string) {
 
 	var out io.Writer
 	var f *os.File
+	var exportErr error
 
-	if outPath == "-" || outPath == "" {
-		out = stdout
-	} else {
-		f, err = os.Create(outPath)
-		if err != nil {
-			fmt.Fprintf(stdout, "Failed to create output file: %v\n", err)
-			exitFunc(1)
-			return
-		}
+	out, f, exportErr = getExportWriter(outPath)
+	if exportErr != nil {
+		fmt.Fprintf(stdout, "%v\n", exportErr)
+		exitFunc(1)
+		return
+	}
+	if f != nil {
 		defer f.Close()
-		out = f
 	}
 
 	if format == "csv" {
