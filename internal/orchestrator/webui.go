@@ -354,7 +354,7 @@ const DashboardHTML = `
         <div class="card" style="margin-top: 20px;">
             <div class="controls" style="align-items: flex-end;">
                 <h2 style="margin-bottom: 0;">Jobs</h2>
-                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <form id="jobs-filter-form" style="display: flex; gap: 10px; align-items: flex-end; margin: 0;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="job-state-filter" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">State Filter</label>
                         <select id="job-state-filter" aria-label="Filter jobs by state" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 6px; box-sizing: border-box;">
@@ -367,8 +367,8 @@ const DashboardHTML = `
                         <label for="job-search" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">Search Jobs</label>
                         <input type="text" id="job-search" placeholder="ID or Summary (Press '/')..." aria-label="Search jobs" aria-keyshortcuts="/" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                     </div>
-                    <button type="button" aria-label="Refresh jobs list" id="refresh-jobs" aria-keyshortcuts="r" title="Shortcut: 'r'" style="margin-bottom: 1px; height: 31px;">Refresh</button>
-                </div>
+                    <button type="submit" aria-label="Refresh jobs list" id="refresh-jobs" aria-keyshortcuts="r" title="Shortcut: 'r'" style="margin-bottom: 1px; height: 31px;">Refresh</button>
+                </form>
             </div>
             <div id="jobs-container" tabindex="0">
                 <table id="jobs-table">
@@ -1034,8 +1034,9 @@ const DashboardHTML = `
             }
         }
 
-        document.getElementById('refresh-jobs').addEventListener('click', async function() {
-            const btn = this;
+        document.getElementById('jobs-filter-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('refresh-jobs');
             const originalText = btn.innerText;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
@@ -1047,9 +1048,6 @@ const DashboardHTML = `
             }
         });
         document.getElementById('job-state-filter').addEventListener('change', fetchJobs);
-        document.getElementById('job-search').addEventListener('keyup', (e) => {
-            if(e.key === 'Enter') fetchJobs();
-        });
 
         // Init loops
         fetchStatus();
