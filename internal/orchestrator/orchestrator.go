@@ -3122,6 +3122,36 @@ func (o *Orchestrator) UpdateJobsPriorityByTag(ctx context.Context, tag string, 
 	return updatedCount, nil
 }
 
+// UpdateJobsPriorityByGroup updates the priority of pending jobs that match a concurrency group.
+func (o *Orchestrator) UpdateJobsPriorityByGroup(ctx context.Context, group string, newPriority int, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	updatedCount := 0
+
+	for id, job := range o.pendingJobs {
+		if job.WorkItem.ConcurrencyGroup == group {
+			job.WorkItem.Priority = newPriority
+			o.pendingJobs[id] = job
+			if o.Persistence != nil {
+				o.Persistence.SaveJob(job)
+			}
+			updatedCount++
+			o.BroadcastEvent("job_priority_updated", job)
+			if logger != nil {
+				logger.Info("Updated job priority by group", "jobID", id, "group", group, "newPriority", newPriority)
+			}
+		}
+	}
+
+	if updatedCount > 0 {
+		o.mu.Unlock()
+		o.evaluatePendingJobs(ctx, logger)
+		o.mu.Lock()
+	}
+	return updatedCount, nil
+}
+
 // UpdateJobsPriorityByMatch updates the priority of pending jobs that match a regular expression.
 func (o *Orchestrator) UpdateJobsPriorityByMatch(ctx context.Context, match string, newPriority int, logger *slog.Logger) (int, error) {
 	matcher, err := regexp.Compile("(?i)" + match)

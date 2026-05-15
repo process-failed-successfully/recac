@@ -1777,13 +1777,25 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	mux.HandleFunc("PUT /jobs/priority", func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
+		group := r.URL.Query().Get("group")
 
-		if tag == "" && match == "" {
-			http.Error(w, "Either 'tag' or 'match' query parameter is required for bulk priority update", http.StatusBadRequest)
+		paramsSet := 0
+		if tag != "" {
+			paramsSet++
+		}
+		if match != "" {
+			paramsSet++
+		}
+		if group != "" {
+			paramsSet++
+		}
+
+		if paramsSet == 0 {
+			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk priority update", http.StatusBadRequest)
 			return
 		}
-		if tag != "" && match != "" {
-			http.Error(w, "Cannot provide both 'tag' and 'match' query parameters for bulk priority update", http.StatusBadRequest)
+		if paramsSet > 1 {
+			http.Error(w, "Cannot provide multiple query parameters ('tag', 'match', or 'group') for bulk priority update", http.StatusBadRequest)
 			return
 		}
 
@@ -1802,6 +1814,8 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			count, err = orch.UpdateJobsPriorityByTag(r.Context(), tag, req.Priority, logger)
 		} else if match != "" {
 			count, err = orch.UpdateJobsPriorityByMatch(r.Context(), match, req.Priority, logger)
+		} else if group != "" {
+			count, err = orch.UpdateJobsPriorityByGroup(r.Context(), group, req.Priority, logger)
 		}
 
 		if err != nil {

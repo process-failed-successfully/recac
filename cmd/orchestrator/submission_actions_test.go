@@ -774,7 +774,7 @@ func TestUpdateBulkPriority(t *testing.T) {
 			exitFunc = func(int) { exitCalled = true }
 			defer func() { exitFunc = oldExitFunc }()
 
-			updateBulkPriority(serverURL, tt.match, tt.tag, tt.priority)
+			updateBulkPriority(serverURL, tt.match, tt.tag, "", tt.priority)
 
 			assert.Equal(t, tt.expectExit, exitCalled)
 			assert.Contains(t, buf.String(), tt.expectedOut)
