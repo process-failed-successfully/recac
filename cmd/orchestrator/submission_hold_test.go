@@ -129,15 +129,31 @@ func TestUnholdJobs(t *testing.T) {
 			expectedOutput: "Failed to unhold jobs: internal error\n",
 			expectedExit:   1,
 		},
+		{
+			name:           "invalid url",
+			handler:        nil,
+			expectedOutput: "Failed to parse URL",
+			expectedExit:   1,
+		},
+		{
+			name:           "connection error",
+			handler:        nil,
+			expectedOutput: "Failed to connect to orchestrator",
+			expectedExit:   1,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var serverURL string
-			if tt.handler != nil {
+			if tt.name == "invalid url" {
+				serverURL = "://invalid"
+			} else if tt.handler != nil {
 				ts := httptest.NewServer(tt.handler)
 				defer ts.Close()
 				serverURL = ts.URL
+			} else {
+				serverURL = "http://127.0.0.1:0"
 			}
 
 			var buf bytes.Buffer
@@ -257,6 +273,13 @@ func TestUnholdJob(t *testing.T) {
 			expectedOutput: "Failed to unhold job: internal error\n",
 			expectedExit:   1,
 		},
+		{
+			name:           "connection error",
+			jobID:          "job-1",
+			handler:        nil,
+			expectedOutput: "Failed to connect to orchestrator",
+			expectedExit:   1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -266,6 +289,8 @@ func TestUnholdJob(t *testing.T) {
 				ts := httptest.NewServer(tt.handler)
 				defer ts.Close()
 				serverURL = ts.URL
+			} else {
+				serverURL = "http://127.0.0.1:0"
 			}
 
 			var buf bytes.Buffer

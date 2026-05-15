@@ -2375,7 +2375,6 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-
 	if waitJob := viper.GetString("orchestrator.wait_job"); waitJob != "" {
 		host := viper.GetString("orchestrator.host")
 		if err := waitForJob(host, waitJob, stdout); err != nil {

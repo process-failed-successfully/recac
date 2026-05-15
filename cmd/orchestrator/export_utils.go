@@ -1,9 +1,9 @@
 package main
 
 import (
-    "io"
-    "os"
-    "fmt"
+	"fmt"
+	"io"
+	"os"
 )
 
 func getExportWriter(outPath string) (io.Writer, *os.File, error) {
