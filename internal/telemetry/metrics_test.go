@@ -34,6 +34,11 @@ func TestMetricsHelpers(t *testing.T) {
 }
 
 func TestStartMetricsServer(t *testing.T) {
+	// First reset state in case other tests ran and didn't shut down cleanly yet
+	metricsMu.Lock()
+	metricsRunning = false
+	metricsMu.Unlock()
+
 	// Use port 0 to let the OS choose a free port
 	srv, port, err := StartMetricsServer(0)
 	if err != nil {
@@ -74,6 +79,11 @@ func TestStartMetricsServer(t *testing.T) {
 }
 
 func TestStartMetricsServer_AlreadyRunning(t *testing.T) {
+	// First reset state in case other tests ran and didn't shut down cleanly yet
+	metricsMu.Lock()
+	metricsRunning = false
+	metricsMu.Unlock()
+
 	srv, _, err := StartMetricsServer(0)
 	if err != nil {
 		t.Fatalf("First start failed: %v", err)

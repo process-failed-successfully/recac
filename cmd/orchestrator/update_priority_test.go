@@ -100,7 +100,7 @@ func TestUpdateBulkPriority_Success(t *testing.T) {
 	stdout = &buf
 	defer func() { stdout = oldStdout }()
 
-	updateBulkPriority(server.URL, "", "backend", 10)
+	updateBulkPriority(server.URL, "", "backend", "", 10)
 
 	assert.Contains(t, buf.String(), "Successfully updated priority for 3 jobs.")
 }
@@ -141,7 +141,7 @@ func TestUpdateBulkPriority_Error(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	updateBulkPriority(server.URL, "match-me", "", 10)
+	updateBulkPriority(server.URL, "match-me", "", "", 10)
 
 	assert.Contains(t, buf.String(), "Failed to update bulk priority: internal server error")
 	assert.Equal(t, 1, exitCode)
@@ -158,7 +158,7 @@ func TestUpdateBulkPriority_ConnectionError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	updateBulkPriority("http://localhost:0", "match-me", "", 10)
+	updateBulkPriority("http://localhost:0", "match-me", "", "", 10)
 
 	assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
 	assert.Equal(t, 1, exitCode)
@@ -183,7 +183,7 @@ func TestUpdateBulkPriority_DecodeError(t *testing.T) {
 	exitFunc = func(code int) { exitCode = code }
 	defer func() { exitFunc = oldExit }()
 
-	updateBulkPriority(server.URL, "", "", 10)
+	updateBulkPriority(server.URL, "", "", "", 10)
 
 	assert.Contains(t, buf.String(), "Failed to decode response")
 	assert.Equal(t, 1, exitCode)

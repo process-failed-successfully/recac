@@ -225,6 +225,7 @@ func main() {
 	pflag.String("update-priority", "", "Update the priority of a specific pending job")
 	pflag.String("update-priority-tag", "", "Update the priority of all pending jobs with the specified tag")
 	pflag.String("update-priority-match", "", "Update the priority of all pending jobs matching the given regex")
+	pflag.String("update-priority-group", "", "Update the priority of all pending jobs with the specified concurrency group")
 	pflag.Int("priority-val", 0, "The new priority value to assign (requires --update-priority)")
 	pflag.String("promote-job", "", "Promote a specific pending job to run next by bumping its priority to max")
 	pflag.String("promote-tag", "", "Promote all pending jobs with the specified tag")
@@ -660,6 +661,7 @@ func main() {
 	viper.BindPFlag("orchestrator.update_priority", pflag.Lookup("update-priority"))
 	viper.BindPFlag("orchestrator.update_priority_tag", pflag.Lookup("update-priority-tag"))
 	viper.BindPFlag("orchestrator.update_priority_match", pflag.Lookup("update-priority-match"))
+	viper.BindPFlag("orchestrator.update_priority_group", pflag.Lookup("update-priority-group"))
 	viper.BindPFlag("orchestrator.priority_val", pflag.Lookup("priority-val"))
 	viper.BindPFlag("orchestrator.promote_job", pflag.Lookup("promote-job"))
 	viper.BindPFlag("orchestrator.promote_tag", pflag.Lookup("promote-tag"))
@@ -1854,6 +1856,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	updatePriorityJob := viper.GetString("orchestrator.update_priority")
 	updatePriorityTag := viper.GetString("orchestrator.update_priority_tag")
 	updatePriorityMatch := viper.GetString("orchestrator.update_priority_match")
+	updatePriorityGroup := viper.GetString("orchestrator.update_priority_group")
 
 	priorityFlagsSet := 0
 	if updatePriorityJob != "" {
@@ -1865,9 +1868,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if updatePriorityMatch != "" {
 		priorityFlagsSet++
 	}
+	if updatePriorityGroup != "" {
+		priorityFlagsSet++
+	}
 
 	if priorityFlagsSet > 1 {
-		fmt.Fprintf(stdout, "Error: Cannot use --update-priority, --update-priority-tag, and --update-priority-match together. Please specify only one.\n")
+		fmt.Fprintf(stdout, "Error: Cannot use --update-priority, --update-priority-tag, --update-priority-match, and --update-priority-group together. Please specify only one.\n")
 		exitFunc(1)
 		return nil
 	}
@@ -1953,10 +1959,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updatePriorityTag != "" || updatePriorityMatch != "" {
+	if updatePriorityTag != "" || updatePriorityMatch != "" || updatePriorityGroup != "" {
 		host := viper.GetString("orchestrator.host")
 		priorityVal := viper.GetInt("orchestrator.priority_val")
-		updateBulkPriority(host, updatePriorityMatch, updatePriorityTag, priorityVal)
+		updateBulkPriority(host, updatePriorityMatch, updatePriorityTag, updatePriorityGroup, priorityVal)
 		return nil
 	}
 

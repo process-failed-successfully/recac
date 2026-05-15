@@ -38,7 +38,7 @@ func updatePriority(host, jobID string, priority int) {
 	fmt.Fprintf(stdout, "Job %s priority updated to %d\n", jobID, priority)
 }
 
-func updateBulkPriority(host, match, tag string, priority int) {
+func updateBulkPriority(host, match, tag, group string, priority int) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/priority", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -52,6 +52,9 @@ func updateBulkPriority(host, match, tag string, priority int) {
 	}
 	if tag != "" {
 		q.Set("tag", tag)
+	}
+	if group != "" {
+		q.Set("group", group)
 	}
 	u.RawQuery = q.Encode()
 

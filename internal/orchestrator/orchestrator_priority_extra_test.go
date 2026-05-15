@@ -81,6 +81,18 @@ func TestUpdateJobsPriorityBulkWithPersistence(t *testing.T) {
 			Tags:      []string{"backend", "urgent"},
 			Summary:   "New feature",
 			DependsOn: []string{"DEP"},
+			ConcurrencyGroup: "test-group",
+		},
+	}
+	orch.pendingJobs["JOB-4"] = JobInfo{
+		ID: "JOB-4",
+			Summary: "Another job",
+		WorkItem: WorkItem{
+			ID:        "JOB-4",
+			Tags:      []string{"frontend"},
+			Summary:   "Another job",
+			DependsOn: []string{"DEP"},
+			ConcurrencyGroup: "test-group",
 		},
 	}
 	orch.mu.Unlock()
@@ -128,4 +140,23 @@ func TestUpdateJobsPriorityBulkWithPersistence(t *testing.T) {
 
 	require.Contains(t, mp.savedJobs, "JOB-1")
 	require.Contains(t, mp.savedJobs, "JOB-2")
+
+	// Test UpdateJobsPriorityByGroup
+	priorityGroup := 25
+	countGroup, errGroup := orch.UpdateJobsPriorityByGroup(ctx, "test-group", priorityGroup, nil)
+	require.NoError(t, errGroup)
+	assert.Equal(t, 2, countGroup)
+
+	orch.mu.Lock()
+	j3, _ = orch.pendingJobs["JOB-3"]
+	j4, _ := orch.pendingJobs["JOB-4"]
+	j1, _ = orch.pendingJobs["JOB-1"]
+	orch.mu.Unlock()
+
+	assert.Equal(t, priorityGroup, j3.WorkItem.Priority)
+	assert.Equal(t, priorityGroup, j4.WorkItem.Priority)
+	assert.Equal(t, priorityMatch, j1.WorkItem.Priority) // Should not change
+
+	require.Contains(t, mp.savedJobs, "JOB-3")
+	require.Contains(t, mp.savedJobs, "JOB-4")
 }
