@@ -301,8 +301,8 @@ func TestDownloadArtifact_FallbackOutPath(t *testing.T) {
 }
 
 func TestUploadArtifact_RequestCreationError(t *testing.T) {
-    // This is hard to simulate without mocking http.NewRequest directly,
-    // but we can try to pass an invalid URL.
+	// This is hard to simulate without mocking http.NewRequest directly,
+	// but we can try to pass an invalid URL.
 	var buf bytes.Buffer
 	oldStdout := stdout
 	stdout = &buf
@@ -316,10 +316,10 @@ func TestUploadArtifact_RequestCreationError(t *testing.T) {
 	}
 	defer func() { exitFunc = oldExit }()
 
-    tempFile := filepath.Join(t.TempDir(), "test.txt")
-    os.WriteFile(tempFile, []byte("test"), 0644)
+	tempFile := filepath.Join(t.TempDir(), "test.txt")
+	os.WriteFile(tempFile, []byte("test"), 0644)
 
-    // Using a control character in the URL to trigger http.NewRequest error
+	// Using a control character in the URL to trigger http.NewRequest error
 	assert.PanicsWithValue(t, "exit 1", func() {
 		uploadArtifact("http://localhost:8080\x00invalid", "job1", tempFile)
 	})

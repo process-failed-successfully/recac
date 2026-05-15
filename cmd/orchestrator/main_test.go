@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"testing"
-	"bytes"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -147,7 +147,6 @@ func TestMainRun_PrintBlockers(t *testing.T) {
 
 // TailJob omitted because it sleeps and timeouts.
 
-
 func TestMainRun_GenerateChangelog(t *testing.T) {
 	viper.Reset()
 	viper.Set("orchestrator.generate_changelog", true)
@@ -257,7 +256,6 @@ func TestMainRun_WatchPipeline(t *testing.T) {
 	_ = run(ctx, logger)
 	assert.Equal(t, 1, exitCode)
 }
-
 
 func TestMainRun_PrintAnalytics(t *testing.T) {
 	viper.Reset()

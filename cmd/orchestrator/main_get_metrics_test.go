@@ -153,7 +153,7 @@ func TestMainGetJobMetrics_MissingKeyData(t *testing.T) {
 	os.Stdout = os.NewFile(0, os.DevNull)
 	defer func() { os.Stdout = oldOut }()
 
-	main()
+	getJobMetrics(server.URL, "JOB-789", "missing_metric")
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, outBuf.String(), "Metrics key 'missing_metric' not found for job JOB-789")

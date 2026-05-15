@@ -133,6 +133,80 @@ func TestUpdateMaxRetries_ConnectionError(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 }
 
+func TestUpdateBulkMaxRetries_InvalidURL(t *testing.T) {
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkMaxRetries(":\x7f//invalid", "match-me", "", 10)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to parse URL")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateBulkMaxRetries_JSONError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/jobs/max-retries", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`invalid json`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateBulkMaxRetries(server.URL, "match-me", "", 10)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to decode response")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestUpdateMaxRetries_InvalidRequest(t *testing.T) {
+	r, w, _ := os.Pipe()
+	oldStdout := stdout
+	stdout = w
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	updateMaxRetries("http://localhost\x7f", "TEST-123", 5)
+
+	w.Close()
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, r)
+	out := buf.String()
+
+	assert.Contains(t, out, "Failed to create request")
+	assert.Equal(t, 1, exitCode)
+}
+
 func TestUpdateBulkMaxRetries_Error(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/max-retries", func(w http.ResponseWriter, r *http.Request) {

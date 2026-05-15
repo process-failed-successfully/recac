@@ -388,6 +388,36 @@ func TestSubmitBatchJob_InvalidJSON(t *testing.T) {
 	assert.Contains(t, out.String(), "Failed to submit batch job:")
 }
 
+func TestSubmitBatchJob_Errors(t *testing.T) {
+	var out bytes.Buffer
+	oldStdout := stdout
+	stdout = &out
+	defer func() { stdout = oldStdout }()
+
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) { exitCode = code }
+	defer func() { exitFunc = oldExit }()
+
+	// Test 1: File error
+	submitBatchJob("http://localhost", "/non/existent/file.json", false)
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to open file")
+
+	out.Reset()
+	exitCode = 0
+
+	// Test 2: Connection error
+	file, _ := os.CreateTemp("", "batch*.json")
+	defer os.Remove(file.Name())
+	file.Write([]byte(`[{"id": "job1"}]`))
+	file.Close()
+
+	submitBatchJob("http://127.0.0.1:0", file.Name(), false)
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, out.String(), "Failed to connect to orchestrator")
+}
+
 func TestSetJobOutput_Success(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jobs/JOB-123/output", func(w http.ResponseWriter, r *http.Request) {
