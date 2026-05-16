@@ -3461,12 +3461,18 @@ func listPendingJobs(host string, priority string, format string) {
 	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Pending Jobs (%d)", len(jobs))))
 	fmt.Fprintln(stdout, "")
 
-	// Table Header
-	fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
-		headerStyle.Render("ID"),
-		headerStyle.Render("Summary"),
-		headerStyle.Render("Status"),
-		headerStyle.Render("Duration"),
+	// Define column widths explicitly using lipgloss Width
+	idCol := lipgloss.NewStyle().Width(15)
+	summaryCol := lipgloss.NewStyle().Width(40)
+	statusCol := lipgloss.NewStyle().Width(25)
+	durationCol := lipgloss.NewStyle().Width(20)
+
+	// Table Header (using lipgloss width instead of fmt %-15s)
+	fmt.Fprintf(stdout, "%s %s %s %s\n",
+		idCol.Render(headerStyle.Render("ID")),
+		summaryCol.Render(headerStyle.Render("Summary")),
+		statusCol.Render(headerStyle.Render("Status")),
+		durationCol.Render(headerStyle.Render("Duration")),
 	)
 
 	for _, job := range jobs {
@@ -3480,11 +3486,11 @@ func listPendingJobs(host string, priority string, format string) {
 		}
 		statusDisplay = limitString(statusDisplay, 25)
 
-		fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
-			rowStyle.Render(job.ID),
-			rowStyle.Render(limitString(job.Summary, 38)),
-			rowStyle.Render(statusDisplay),
-			rowStyle.Render(duration),
+		fmt.Fprintf(stdout, "%s %s %s %s\n",
+			idCol.Render(rowStyle.Render(job.ID)),
+			summaryCol.Render(rowStyle.Render(limitString(job.Summary, 38))),
+			statusCol.Render(rowStyle.Render(statusDisplay)),
+			durationCol.Render(rowStyle.Render(duration)),
 		)
 	}
 }
@@ -3592,12 +3598,18 @@ func listJobs(host string, history bool, status, tag, match, priority, format st
 	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("%s (%d)", title, len(jobs))))
 	fmt.Fprintln(stdout, "")
 
-	// Table Header
-	fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
-		headerStyle.Render("ID"),
-		headerStyle.Render("Summary"),
-		headerStyle.Render("Status"),
-		headerStyle.Render("Duration"),
+	// Define column widths explicitly using lipgloss Width
+	idCol := lipgloss.NewStyle().Width(15)
+	summaryCol := lipgloss.NewStyle().Width(40)
+	statusCol := lipgloss.NewStyle().Width(25)
+	durationCol := lipgloss.NewStyle().Width(20)
+
+	// Table Header (using lipgloss width instead of fmt %-15s)
+	fmt.Fprintf(stdout, "%s %s %s %s\n",
+		idCol.Render(headerStyle.Render("ID")),
+		summaryCol.Render(headerStyle.Render("Summary")),
+		statusCol.Render(headerStyle.Render("Status")),
+		durationCol.Render(headerStyle.Render("Duration")),
 	)
 
 	for _, job := range jobs {
@@ -3611,11 +3623,11 @@ func listJobs(host string, history bool, status, tag, match, priority, format st
 		}
 		statusDisplay = limitString(statusDisplay, 25)
 
-		fmt.Fprintf(stdout, "%-15s %-40s %-25s %-20s\n",
-			rowStyle.Render(job.ID),
-			rowStyle.Render(limitString(job.Summary, 38)),
-			rowStyle.Render(statusDisplay),
-			rowStyle.Render(duration),
+		fmt.Fprintf(stdout, "%s %s %s %s\n",
+			idCol.Render(rowStyle.Render(job.ID)),
+			summaryCol.Render(rowStyle.Render(limitString(job.Summary, 38))),
+			statusCol.Render(rowStyle.Render(statusDisplay)),
+			durationCol.Render(rowStyle.Render(duration)),
 		)
 	}
 }
