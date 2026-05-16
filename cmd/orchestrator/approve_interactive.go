@@ -110,18 +110,19 @@ func approveInteractive(host string) {
 				return
 			}
 
-			input = strings.TrimSpace(strings.ToLower(input))
+			// ⚡ Bolt: Use strings.EqualFold to avoid allocating a new string with strings.ToLower
+			input = strings.TrimSpace(input)
 
-			if input == "" || input == "s" || input == "skip" {
+			if input == "" || strings.EqualFold(input, "s") || strings.EqualFold(input, "skip") {
 				skipJob(host, job.ID)
 				break
-			} else if input == "a" || input == "approve" || input == "y" || input == "yes" {
+			} else if strings.EqualFold(input, "a") || strings.EqualFold(input, "approve") || strings.EqualFold(input, "y") || strings.EqualFold(input, "yes") {
 				approveJob(host, job.ID)
 				break
-			} else if input == "c" || input == "cancel" {
+			} else if strings.EqualFold(input, "c") || strings.EqualFold(input, "cancel") {
 				cancelJob(host, job.ID, false)
 				break
-			} else if input == "q" || input == "quit" {
+			} else if strings.EqualFold(input, "q") || strings.EqualFold(input, "quit") {
 				fmt.Fprintln(stdout, "Exiting interactive approval.")
 				return
 			} else {

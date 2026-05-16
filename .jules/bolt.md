@@ -81,3 +81,6 @@
 ## 2025-05-21 - Fast-Path Regex Optimization in regex matching
 **Learning:** Using `regexp.FindStringSubmatch` unconditionally can be a bottleneck when the target keyword is not present, because of regex state machine overhead.
 **Action:** When extracting data using regex that relies on a specific keyword, implement a fast-path zero-allocation check (e.g., `utils.ContainsFold(text, "keyword")`) first. If the trigger keyword isn't present, return early and bypass regex processing.
+## 2025-05-21 - [Optimize strings.ToLower with strings.EqualFold]
+**Learning:** Using `strings.ToLower` for case-insensitive string comparisons in interactive CLI paths creates unnecessary intermediate memory allocations.
+**Action:** Replaced `strings.ToLower(input) == "value"` checks with `strings.EqualFold(input, "value")` to perform case-insensitive string comparisons without allocating new memory, making the code more idiomatic and performant.
