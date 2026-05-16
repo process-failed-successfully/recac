@@ -139,8 +139,9 @@ func main() {
 		fmt.Print("\nAre you sure you want to delete these issues? (y/N): ")
 		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(strings.ToLower(input))
-		if input != "y" && input != "yes" {
+		// ⚡ Bolt: Use strings.EqualFold to avoid allocating a new string with strings.ToLower
+		input = strings.TrimSpace(input)
+		if !strings.EqualFold(input, "y") && !strings.EqualFold(input, "yes") {
 			fmt.Println("Aborted.")
 			return
 		}

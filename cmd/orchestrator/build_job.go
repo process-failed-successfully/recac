@@ -103,7 +103,8 @@ func buildJobInteractive(host string, wait bool) {
 	fmt.Fprintln(stdout, string(jsonData))
 
 	confirm := prompt("Submit this job? [Y/n]: ", false)
-	if strings.ToLower(confirm) == "n" || strings.ToLower(confirm) == "no" {
+	// ⚡ Bolt: Use strings.EqualFold to avoid allocating a new string with strings.ToLower
+	if strings.EqualFold(confirm, "n") || strings.EqualFold(confirm, "no") {
 		fmt.Fprintln(stdout, "Job submission cancelled.")
 		return
 	}
