@@ -89,20 +89,26 @@ func listGroups(host string, format string) {
 	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Concurrency Groups (%d)", len(groups))))
 	fmt.Fprintln(stdout, "")
 
+	// Define column widths explicitly using lipgloss Width
+	nameCol := lipgloss.NewStyle().Width(30)
+	activeCol := lipgloss.NewStyle().Width(15)
+	pendingCol := lipgloss.NewStyle().Width(15)
+	pausedCol := lipgloss.NewStyle().Width(15)
+
 	// Table Header
-	fmt.Fprintf(stdout, "%-30s %-15s %-15s %-15s\n",
-		headerStyle.Render("Name"),
-		headerStyle.Render("Active Jobs"),
-		headerStyle.Render("Pending Jobs"),
-		headerStyle.Render("Paused"),
+	fmt.Fprintf(stdout, "%s %s %s %s\n",
+		nameCol.Render(headerStyle.Render("Name")),
+		activeCol.Render(headerStyle.Render("Active Jobs")),
+		pendingCol.Render(headerStyle.Render("Pending Jobs")),
+		pausedCol.Render(headerStyle.Render("Paused")),
 	)
 
 	for _, group := range groups {
-		fmt.Fprintf(stdout, "%-30s %-15s %-15s %-15s\n",
-			rowStyle.Render(limitString(group.Name, 28)),
-			rowStyle.Render(fmt.Sprintf("%d", group.ActiveJobs)),
-			rowStyle.Render(fmt.Sprintf("%d", group.PendingJobs)),
-			rowStyle.Render(fmt.Sprintf("%t", group.Paused)),
+		fmt.Fprintf(stdout, "%s %s %s %s\n",
+			nameCol.Render(rowStyle.Render(limitString(group.Name, 28))),
+			activeCol.Render(rowStyle.Render(fmt.Sprintf("%d", group.ActiveJobs))),
+			pendingCol.Render(rowStyle.Render(fmt.Sprintf("%d", group.PendingJobs))),
+			pausedCol.Render(rowStyle.Render(fmt.Sprintf("%t", group.Paused))),
 		)
 	}
 }
