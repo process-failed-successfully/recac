@@ -358,6 +358,7 @@ func main() {
 	pflag.String("export-graph-format", "mermaid", "Format for exported graph ('mermaid', 'dot', or 'plantuml')")
 	pflag.String("export-metrics", "", "Export metrics for jobs to a CSV file (use '-' for stdout)")
 	pflag.String("export-metrics-state", "all", "State of jobs to export metrics for ('all', 'active', 'completed', 'failed')")
+	pflag.String("export-junit", "", "Export jobs as a JUnit XML report to a file (use '-' for stdout)")
 	pflag.String("export-trace", "", "Export jobs as Chrome Trace Event format to a JSON file (use '-' for stdout)")
 	pflag.String("export-trace-state", "all", "State of jobs to export trace for ('all', 'active', 'completed', 'failed')")
 	pflag.String("export-timeline", "", "Export jobs as a Mermaid Gantt chart to a text file (use '-' for stdout)")
@@ -794,6 +795,7 @@ func main() {
 	viper.BindPFlag("orchestrator.export_graph_format", pflag.Lookup("export-graph-format"))
 	viper.BindPFlag("orchestrator.export_metrics", pflag.Lookup("export-metrics"))
 	viper.BindPFlag("orchestrator.export_metrics_state", pflag.Lookup("export-metrics-state"))
+	viper.BindPFlag("orchestrator.export_junit", pflag.Lookup("export-junit"))
 	viper.BindPFlag("orchestrator.export_trace", pflag.Lookup("export-trace"))
 	viper.BindPFlag("orchestrator.export_trace_state", pflag.Lookup("export-trace-state"))
 	viper.BindPFlag("orchestrator.export_timeline", pflag.Lookup("export-timeline"))
@@ -2754,6 +2756,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		host := viper.GetString("orchestrator.host")
 		state := viper.GetString("orchestrator.export_metrics_state")
 		exportMetrics(host, exportMetricsFile, state)
+		return nil
+	}
+
+	if exportJunitFile := viper.GetString("orchestrator.export_junit"); exportJunitFile != "" {
+		host := viper.GetString("orchestrator.host")
+		exportJunit(host, exportJunitFile)
 		return nil
 	}
 	if exportTraceFile := viper.GetString("orchestrator.export_trace"); exportTraceFile != "" {
