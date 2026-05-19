@@ -2857,7 +2857,7 @@ func TestSkipJob_Success(t *testing.T) {
 	stdout = &buf
 	defer func() { stdout = originalStdout }()
 
-	skipJob(server.URL, "JOB-123")
+	skipJob(server.URL, "JOB-123", false)
 
 	assert.Contains(t, buf.String(), "Job JOB-123 skipped successfully")
 }
@@ -2942,7 +2942,7 @@ func TestSkipJob_ConnectionError(t *testing.T) {
 			os.Exit(code)
 		}
 
-		skipJob("http://localhost:12345", "test")
+		skipJob("http://localhost:12345", "test", false)
 		return
 	}
 
@@ -2972,7 +2972,7 @@ func TestSkipJob_Failure(t *testing.T) {
 			os.Exit(code)
 		}
 
-		skipJob(server.URL, "JOB-123")
+		skipJob(server.URL, "JOB-123", false)
 		return
 	}
 

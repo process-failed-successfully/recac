@@ -1738,7 +1738,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if skipJobID := viper.GetString("orchestrator.skip_job"); skipJobID != "" {
 		host := viper.GetString("orchestrator.host")
-		skipJob(host, skipJobID)
+		downstream := viper.GetBool("orchestrator.downstream")
+		skipJob(host, skipJobID, downstream)
 		return nil
 	}
 

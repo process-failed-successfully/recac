@@ -1560,6 +1560,64 @@ func (o *Orchestrator) GetAnalytics() Analytics {
 	return stats
 }
 
+// SkipJobDownstream skips a pending job and all its transitive pending downstream dependencies.
+func (o *Orchestrator) SkipJobDownstream(ctx context.Context, jobID string, logger *slog.Logger) ([]string, error) {
+	downstreamMap := make(map[string][]string)
+
+	o.mu.Lock()
+	if _, ok := o.pendingJobs[jobID]; !ok {
+		o.mu.Unlock()
+		return nil, fmt.Errorf("job %s not found in pending queue", jobID)
+	}
+
+	// Build adjacency list for downstream dependencies among pending jobs
+	for _, job := range o.pendingJobs {
+		for _, dep := range job.WorkItem.DependsOn {
+			downstreamMap[dep] = append(downstreamMap[dep], job.ID)
+		}
+	}
+
+	// Find all transitive downstream jobs using BFS
+	visited := make(map[string]bool)
+	queue := []string{jobID}
+	var jobsToSkip []string
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		if visited[curr] {
+			continue
+		}
+		visited[curr] = true
+
+		if job, exists := o.pendingJobs[curr]; exists {
+			jobsToSkip = append(jobsToSkip, curr)
+			delete(o.pendingJobs, curr)
+			job.Status = "Skipped"
+			job.EndTime = time.Now()
+			if curr == jobID {
+				job.Error = "Skipped by user"
+			} else {
+				job.Error = "Skipped because upstream dependency " + jobID + " was skipped"
+			}
+			o.addToHistory(job, logger)
+			o.BroadcastEvent("job_skipped", job)
+		}
+
+		if dependents, hasDependents := downstreamMap[curr]; hasDependents {
+			queue = append(queue, dependents...)
+		}
+	}
+	o.mu.Unlock()
+
+	if logger != nil {
+		logger.Info("Skipped job downstream", "id", jobID, "count", len(jobsToSkip), "skipped", jobsToSkip)
+	}
+
+	return jobsToSkip, nil
+}
+
 // SkipJob forcefully marks a pending job as Skipped, bypassing execution.
 func (o *Orchestrator) SkipJob(ctx context.Context, jobID string, logger *slog.Logger) error {
 	o.mu.Lock()
