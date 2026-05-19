@@ -140,3 +140,61 @@ func TestOrchestrator_DependencyMetOnSkip(t *testing.T) {
 	orch.mu.Unlock()
 	assert.True(t, met)
 }
+
+func TestSkipJobDownstream(t *testing.T) {
+	ctx := context.Background()
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	// Setup graph: A -> B -> C, D (independent)
+	orch.pendingJobs["A"] = JobInfo{
+		ID:       "A",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "A"},
+	}
+	orch.pendingJobs["B"] = JobInfo{
+		ID:       "B",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "B", DependsOn: []string{"A"}},
+	}
+	orch.pendingJobs["C"] = JobInfo{
+		ID:       "C",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "C", DependsOn: []string{"B"}},
+	}
+	orch.pendingJobs["D"] = JobInfo{
+		ID:       "D",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "D"},
+	}
+
+	// Skip A and its downstream
+	skippedIDs, err := orch.SkipJobDownstream(ctx, "A", nil)
+	assert.NoError(t, err)
+
+	// A, B, C should be skipped
+	assert.ElementsMatch(t, []string{"A", "B", "C"}, skippedIDs)
+
+	// Verify they are removed from pending queue
+	_, okA := orch.pendingJobs["A"]
+	_, okB := orch.pendingJobs["B"]
+	_, okC := orch.pendingJobs["C"]
+	assert.False(t, okA)
+	assert.False(t, okB)
+	assert.False(t, okC)
+
+	// D should still be pending
+	_, okD := orch.pendingJobs["D"]
+	assert.True(t, okD)
+}
+
+func TestSkipJobDownstream_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	skippedIDs, err := orch.SkipJobDownstream(ctx, "NON_EXISTENT", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+	assert.Nil(t, skippedIDs)
+}

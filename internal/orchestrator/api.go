@@ -2746,6 +2746,24 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 
 	mux.HandleFunc("POST /jobs/{id}/skip", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
+		downstream := r.URL.Query().Get("downstream") == "true"
+
+		if downstream {
+			skippedIDs, err := orch.SkipJobDownstream(r.Context(), id, logger)
+			if err != nil {
+				if strings.Contains(err.Error(), "not found") {
+					http.Error(w, err.Error(), http.StatusNotFound)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `{"skipped": %d, "ids": ["%s"]}`, len(skippedIDs), strings.Join(skippedIDs, `", "`))
+			return
+		}
+
 		if err := orch.SkipJob(r.Context(), id, logger); err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				http.Error(w, err.Error(), http.StatusNotFound)

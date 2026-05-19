@@ -114,7 +114,7 @@ func approveInteractive(host string) {
 			input = strings.TrimSpace(input)
 
 			if input == "" || strings.EqualFold(input, "s") || strings.EqualFold(input, "skip") {
-				skipJob(host, job.ID)
+				skipJob(host, job.ID, false)
 				break
 			} else if strings.EqualFold(input, "a") || strings.EqualFold(input, "approve") || strings.EqualFold(input, "y") || strings.EqualFold(input, "yes") {
 				approveJob(host, job.ID)

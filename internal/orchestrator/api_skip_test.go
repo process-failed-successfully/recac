@@ -130,3 +130,56 @@ func TestAPI_BulkSkipByGroup(t *testing.T) {
 	assert.Len(t, pending, 1)
 	assert.Equal(t, "J2", pending[0].ID)
 }
+
+func TestSkipJobDownstreamAPI(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	orch.pendingJobs["A"] = JobInfo{
+		ID:       "A",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "A"},
+	}
+	orch.pendingJobs["B"] = JobInfo{
+		ID:       "B",
+		Status:   "Pending",
+		WorkItem: WorkItem{ID: "B", DependsOn: []string{"A"}},
+	}
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, nil, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/A/skip?downstream=true", nil)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Verify they are skipped
+	orch.mu.RLock()
+	_, okA := orch.pendingJobs["A"]
+	_, okB := orch.pendingJobs["B"]
+	orch.mu.RUnlock()
+	assert.False(t, okA)
+	assert.False(t, okB)
+}
+
+func TestSkipJobDownstreamAPI_NotFound(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, nil, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/UNKNOWN/skip?downstream=true", nil)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}

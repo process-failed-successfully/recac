@@ -2541,8 +2541,12 @@ func renameJob(host, jobID, newID string) {
 	fmt.Fprintf(stdout, "Job %s renamed successfully to %s.\n", jobID, newID)
 }
 
-func skipJob(host, jobID string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/skip", host, jobID), nil)
+func skipJob(host, jobID string, downstream bool) {
+	url := fmt.Sprintf("%s/jobs/%s/skip", host, jobID)
+	if downstream {
+		url += "?downstream=true"
+	}
+	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
 		exitFunc(1)
@@ -2564,7 +2568,11 @@ func skipJob(host, jobID string) {
 		return
 	}
 
-	fmt.Fprintf(stdout, "Job %s skipped successfully.\n", jobID)
+	if downstream {
+		fmt.Fprintf(stdout, "Job %s and its pending downstream dependencies skipped successfully.\n", jobID)
+	} else {
+		fmt.Fprintf(stdout, "Job %s skipped successfully.\n", jobID)
+	}
 }
 
 func skipJobs(host, match, tag, group string) {

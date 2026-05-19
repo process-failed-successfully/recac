@@ -144,7 +144,75 @@ func TestSkipJob(t *testing.T) {
 			}
 			defer func() { exitFunc = origExitFunc }()
 
-			skipJob(serverURL, tt.jobID)
+			skipJob(serverURL, tt.jobID, false)
+
+			if tt.expectedExit != exitCode {
+				t.Errorf("expected exit code %d, got %d", tt.expectedExit, exitCode)
+			}
+			if !bytes.Contains(buf.Bytes(), []byte(tt.expectedOutput)) && string(buf.Bytes()) != tt.expectedOutput {
+				t.Errorf("expected output containing %q, got %q", tt.expectedOutput, buf.String())
+			}
+		})
+	}
+}
+
+func TestSkipJobDownstreamCLI(t *testing.T) {
+	tests := []struct {
+		name           string
+		jobID          string
+		downstream     bool
+		handler        http.HandlerFunc
+		expectedOutput string
+		expectedExit   int
+	}{
+		{
+			name:       "success with downstream",
+			jobID:      "job-1",
+			downstream: true,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/jobs/job-1/skip", r.URL.Path)
+				assert.Equal(t, "true", r.URL.Query().Get("downstream"))
+				w.WriteHeader(http.StatusOK)
+			},
+			expectedOutput: "Job job-1 and its pending downstream dependencies skipped successfully.\n",
+			expectedExit:   0,
+		},
+		{
+			name:       "server error with downstream",
+			jobID:      "job-1",
+			downstream: true,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("internal error"))
+			},
+			expectedOutput: "Failed to skip job: internal error\n",
+			expectedExit:   1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var serverURL string
+			if tt.handler != nil {
+				ts := httptest.NewServer(tt.handler)
+				defer ts.Close()
+				serverURL = ts.URL
+			}
+
+			var buf bytes.Buffer
+			origStdout := stdout
+			stdout = &buf
+			defer func() { stdout = origStdout }()
+
+			var exitCode int
+			origExitFunc := exitFunc
+			exitFunc = func(code int) {
+				exitCode = code
+			}
+			defer func() { exitFunc = origExitFunc }()
+
+			skipJob(serverURL, tt.jobID, tt.downstream)
 
 			if tt.expectedExit != exitCode {
 				t.Errorf("expected exit code %d, got %d", tt.expectedExit, exitCode)
