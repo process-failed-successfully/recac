@@ -7,3 +7,6 @@
 ## 2026-05-15 - Adding Inline Copy Functionality to Table IDs
 **Learning:** Users of the Orchestrator frequently need to copy Job IDs from the dashboard to grep logs or query the API. Rendering IDs as plain text forces manual selection. Making the ID a transparent, styled `<button>` that copies to the clipboard natively solves a major friction point.
 **Action:** When displaying critical unique identifiers (like IDs, hashes, or trace keys) in a data table, convert them into accessible button elements (`background: none; border: none; text-decoration: underline;`) with an `onclick="navigator.clipboard.writeText(...)"` handler that provides inline, immediate visual feedback (e.g., temporarily changing the text to 'Copied!').
+## 2026-05-15 - Tooltips for Icon-Only Buttons with Shortcut Hints
+**Learning:** Icon-only buttons (like modal close buttons using `&times;`) often rely solely on `aria-label` for screen readers, leaving mouse users without text context and unaware of implicit keyboard shortcuts (like 'Esc').
+**Action:** Always pair `aria-label` with a visual `title` attribute for icon-only buttons, and include any associated keyboard shortcuts in the tooltip (e.g., `title="Close (Esc)"`) to aid discoverability.
