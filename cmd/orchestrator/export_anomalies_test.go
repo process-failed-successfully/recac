@@ -110,4 +110,80 @@ func TestExportAnomalies_ErrorHandling(t *testing.T) {
 		exportAnomalies(server.URL, "-", "json")
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})
+
+	t.Run("URL Parse Error", func(t *testing.T) {
+		buf.Reset()
+		// Use a control character to force url.Parse error
+		exportAnomalies("http://\x00/", "-", "json")
+		assert.Contains(t, buf.String(), "Failed to parse host URL")
+	})
+
+	t.Run("Export Writer Error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]orchestrator.AnomalyReport{})
+		}))
+		defer server.Close()
+
+		buf.Reset()
+		// Try to write to a root path or invalid path
+		exportAnomalies(server.URL, "/root/restricted_dir/file.json", "json")
+		assert.Contains(t, buf.String(), "Failed to create output file:")
+	})
+
+	t.Run("JSON Encode Error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]orchestrator.AnomalyReport{{JobID: "job1"}})
+		}))
+		defer server.Close()
+
+		buf.Reset()
+		// Use error writer for stdout
+		originalStdout := stdout
+		stdout = &errorWriter{}
+		defer func() { stdout = originalStdout }()
+
+		exitCalled := false
+		originalExitFunc := exitFunc
+		exitFunc = func(code int) {
+			exitCalled = true
+			assert.Equal(t, 1, code)
+		}
+		defer func() { exitFunc = originalExitFunc }()
+
+		exportAnomalies(server.URL, "-", "json")
+		assert.True(t, exitCalled, "Expected exitFunc to be called due to encoding error")
+	})
+
+	t.Run("CSV Write Error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]orchestrator.AnomalyReport{{JobID: "job1"}})
+		}))
+		defer server.Close()
+
+		buf.Reset()
+		// Use error writer for stdout
+		originalStdout := stdout
+		stdout = &errorWriter{}
+		defer func() { stdout = originalStdout }()
+
+		exitCalled := false
+		originalExitFunc := exitFunc
+		exitFunc = func(code int) {
+			exitCalled = true
+			assert.Equal(t, 1, code)
+		}
+		defer func() { exitFunc = originalExitFunc }()
+
+		exportAnomalies(server.URL, "-", "csv")
+		assert.True(t, exitCalled, "Expected exitFunc to be called due to CSV write error")
+	})
+}
+
+type errorWriter struct{}
+
+func (e *errorWriter) Write(p []byte) (n int, err error) {
+	return 0, os.ErrPermission
 }
