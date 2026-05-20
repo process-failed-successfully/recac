@@ -442,6 +442,7 @@ const DashboardHTML = `
                 actionsHTML += '<button type="button" aria-label="Force manual poll" onclick="postAction(this, \'/poll\')">Force Poll</button>';
                 actionsHTML += '<button type="button" aria-label="Clear all pending jobs" class="danger" onclick="deleteAction(this, \'/pending\')">Clear Pending</button>';
                 actionsHTML += '<button type="button" aria-label="Clear all history jobs" class="danger" onclick="deleteAction(this, \'/history\')">Clear History</button>';
+                actionsHTML += '<button type="button" aria-label="Retry all failed jobs" onclick="retryFailedJobs(this)" style="background-color: #ffc107; color: #212529;">Retry Failed</button>';
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
@@ -474,6 +475,32 @@ const DashboardHTML = `
                 document.getElementById('analytics-content').innerHTML = html;
             } catch (err) {
                 console.error('Error fetching analytics:', err);
+            }
+        }
+
+        async function retryFailedJobs(btn) {
+            const originalText = btn.innerText;
+            if(!confirm('Are you sure you want to retry all failed jobs?')) return;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
+            try {
+                const res = await fetch('/jobs/retry-failed', { method: 'POST' });
+                if(res.ok) {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerText = originalText;
+                        fetchStatus();
+                        fetchJobs();
+                    }, 1000);
+                } else {
+                    alert('Action failed: ' + await res.text());
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            } catch(e) {
+                alert('Request error: ' + e);
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
 
