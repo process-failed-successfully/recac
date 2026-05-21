@@ -168,3 +168,66 @@ func TestGenericScenario_AppSpec(t *testing.T) {
 		t.Errorf("Unexpected spec content: %s", spec)
 	}
 }
+
+func TestGenericScenario_AppSpec_Errors(t *testing.T) {
+	// Parse error
+	configParse := GenericScenarioConfig{
+		AppSpec: "{{.RepoURL", // Missing closing brace
+	}
+	sParse := NewGenericScenario(configParse)
+	specParse := sParse.AppSpec("http://repo.com")
+	if !strings.Contains(specParse, "ERROR PARSING APPSPEC TEMPLATE") {
+		t.Errorf("Expected parse error message, got: %s", specParse)
+	}
+
+	// Execute error
+	configExec := GenericScenarioConfig{
+		AppSpec: "{{template \"nonexistent\"}}",
+	}
+	sExec := NewGenericScenario(configExec)
+	specExec := sExec.AppSpec("http://repo.com")
+	if !strings.Contains(specExec, "ERROR EXECUTING APPSPEC TEMPLATE") {
+		t.Errorf("Expected execute error message, got: %s", specExec)
+	}
+}
+
+func TestGenericScenario_Generate_Errors(t *testing.T) {
+	config := GenericScenarioConfig{
+		Name: "Test Scenario",
+		Tickets: []TicketTemplate{
+			{
+				ID:      "TEST-1",
+				Summary: "{{.UniqueID",                  // Parse error
+				Desc:    "{{template \"nonexistent\"}}", // Execute error
+				Type:    "Task",
+			},
+			{
+				ID:      "TEST-2",
+				Summary: "{{template \"nonexistent\"}}", // Execute error
+				Desc:    "{{.RepoURL",                   // Parse error
+				Type:    "Task",
+			},
+		},
+	}
+	s := NewGenericScenario(config)
+
+	specs := s.Generate("12345", "https://example.com/repo")
+
+	if len(specs) != 2 {
+		t.Fatalf("Expected 2 ticket specs, got %d", len(specs))
+	}
+
+	if !strings.Contains(specs[0].Summary, "ERROR PARSING TEMPLATE") {
+		t.Errorf("Expected parse error for summary, got: %s", specs[0].Summary)
+	}
+	if !strings.Contains(specs[0].Desc, "ERROR EXECUTING TEMPLATE") {
+		t.Errorf("Expected execute error for desc, got: %s", specs[0].Desc)
+	}
+
+	if !strings.Contains(specs[1].Summary, "ERROR EXECUTING TEMPLATE") {
+		t.Errorf("Expected execute error for summary, got: %s", specs[1].Summary)
+	}
+	if !strings.Contains(specs[1].Desc, "ERROR PARSING TEMPLATE") {
+		t.Errorf("Expected parse error for desc, got: %s", specs[1].Desc)
+	}
+}
