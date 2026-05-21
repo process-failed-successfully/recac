@@ -55,7 +55,7 @@ func GenerateSequence(root string, entryPoint string, maxDepth int) (string, err
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
-		fullPkg = strings.ReplaceAll(fullPkg, "\\", "/") // Normalize for Windows
+		fullPkg = filepath.ToSlash(fullPkg) // Normalize for Windows
 
 		// Index Imports
 		imports := make(map[string]string)

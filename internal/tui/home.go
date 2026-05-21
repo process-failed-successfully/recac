@@ -18,11 +18,6 @@ type GitStatus struct {
 	Unpushed       bool
 }
 
-type TodoSummary struct {
-	Count    int
-	Critical int
-}
-
 type RecentSession struct {
 	Name    string
 	Status  string
@@ -39,17 +34,15 @@ type SystemInfo struct {
 
 type HomeModel struct {
 	Git      GitStatus
-	Todos    TodoSummary
 	Sessions []RecentSession
 	System   SystemInfo
 	Width    int
 	Height   int
 }
 
-func NewHomeModel(git GitStatus, todos TodoSummary, sessions []RecentSession, sys SystemInfo) HomeModel {
+func NewHomeModel(git GitStatus, sessions []RecentSession, sys SystemInfo) HomeModel {
 	return HomeModel{
 		Git:      git,
-		Todos:    todos,
 		Sessions: sessions,
 		System:   sys,
 	}
@@ -122,16 +115,6 @@ func (m HomeModel) View() string {
 		headerStyle.Render("Recent Agent Sessions") + "\n" + sessionsContent,
 	)
 
-	// Todos Section
-	todoContent := fmt.Sprintf("Total TODOs: %d\n", m.Todos.Count)
-	if m.Todos.Critical > 0 {
-		todoContent += fmt.Sprintf("Critical: %d\n", m.Todos.Critical)
-	}
-
-	todoBox := boxStyle.Render(
-		headerStyle.Render("Tasks & TODOs") + "\n" + todoContent,
-	)
-
 	// Layout
 	// Use simple vertical stacking or horizontal if width permits
 	// For now, vertical stack
@@ -139,7 +122,6 @@ func (m HomeModel) View() string {
 		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Render("RECAC Developer Home"),
 		"",
 		lipgloss.JoinHorizontal(lipgloss.Top, gitBox, sessionsBox),
-		todoBox,
 		"\nPress 'q' or 'ctrl+c' to quit.",
 	)
 }

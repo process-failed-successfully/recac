@@ -88,7 +88,7 @@ func AnalyzeDependencies(opts DependencyOptions) (DepMap, error) {
 			pkgPath = filepath.Join(moduleName, relDir)
 		}
 		// Windows fix
-		pkgPath = strings.ReplaceAll(pkgPath, "\\", "/")
+		pkgPath = filepath.ToSlash(pkgPath)
 
 		// Check ignore patterns for source package
 		for _, re := range ignoreRegexps {

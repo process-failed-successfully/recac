@@ -3,7 +3,8 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"strings"
+
+	"recac/internal/utils"
 )
 
 const pipelineGeneratePromptTemplate = `You are an expert software architect and DevOps engineer.
@@ -44,16 +45,7 @@ func GeneratePipelineYAML(ctx context.Context, prompt, provider, model, apiKey s
 	}
 
 	// Clean up markdown wrapping if the model ignored the instructions
-	response = strings.TrimSpace(response)
-	if strings.HasPrefix(response, "```yaml") {
-		response = strings.TrimPrefix(response, "```yaml")
-	} else if strings.HasPrefix(response, "```") {
-		response = strings.TrimPrefix(response, "```")
-	}
-	if strings.HasSuffix(response, "```") {
-		response = strings.TrimSuffix(response, "```")
-	}
-	response = strings.TrimSpace(response)
+	response = utils.CleanCodeBlock(response)
 
 	return response, nil
 }

@@ -130,13 +130,14 @@ func checkAIProvider() string {
 	}
 	latency := time.Since(start)
 
+	// Escape newlines to keep formatting clean before truncating
+	cleanResp := strings.ReplaceAll(resp, "\n", " ")
+
 	// Truncate response for display
-	displayResp := resp
+	displayResp := cleanResp
 	if len(displayResp) > 50 {
 		displayResp = displayResp[:50] + "..."
 	}
-	// Escape newlines to keep formatting clean
-	displayResp = strings.ReplaceAll(displayResp, "\n", " ")
 
 	return fmt.Sprintf("[✔] AI: Connected to %s/%s (Latency: %v)\n    Response: %q\n", provider, model, latency, displayResp)
 }
