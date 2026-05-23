@@ -15,6 +15,7 @@ fi
 echo "Running tests for shard $SHARD_INDEX of $TOTAL_SHARDS"
 
 # List all packages, filter by shard index using round-robin
+export GIT_TERMINAL_PROMPT=0
 PACKAGES=$(go list -buildvcs=false ./... | awk "NR % $TOTAL_SHARDS == ($SHARD_INDEX - 1)")
 
 if [ -z "$PACKAGES" ]; then

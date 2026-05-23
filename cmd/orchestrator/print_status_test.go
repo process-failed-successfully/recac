@@ -15,7 +15,7 @@ func TestPrintStatus_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/status", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"uptime": "10h", "active_spawns": 2}`))
+		w.Write([]byte(`{"uptime": "10h", "active_spawns": 2, "draining": true}`))
 	}))
 	defer server.Close()
 
@@ -36,6 +36,8 @@ func TestPrintStatus_Success(t *testing.T) {
 	io.Copy(&buf, r)
 	assert.Contains(t, buf.String(), "Orchestrator Status")
 	assert.Contains(t, buf.String(), "10h")
+	assert.Contains(t, buf.String(), "Draining:")
+	assert.Contains(t, buf.String(), "true")
 	assert.Equal(t, 0, exitCode)
 }
 
@@ -88,7 +90,7 @@ func TestPrintStatus_FormatJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/status", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"uptime": "15h", "active_spawns": 4}`))
+		w.Write([]byte(`{"uptime": "15h", "active_spawns": 4, "draining": true}`))
 	}))
 	defer server.Close()
 
@@ -111,6 +113,7 @@ func TestPrintStatus_FormatJSON(t *testing.T) {
 
 	assert.Contains(t, output, `"uptime": "15h"`)
 	assert.Contains(t, output, `"active_spawns": 4`)
+	assert.Contains(t, output, `"draining": true`)
 	assert.NotContains(t, output, "Orchestrator Status") // Human readable text shouldn't be here
 	assert.Equal(t, 0, exitCode)
 }

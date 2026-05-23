@@ -89,6 +89,7 @@ jobs:
         id: set-matrix
         env:
           PACKAGES_PER_SHARD: 5
+          GIT_TERMINAL_PROMPT: 0
         run: |
           PACKAGE_COUNT=$(go list ./... | wc -l)
           # Calculate total shards (ceil(PACKAGE_COUNT / PACKAGES_PER_SHARD))
