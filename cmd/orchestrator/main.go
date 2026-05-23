@@ -3375,6 +3375,7 @@ func printStatus(host, format string) {
 	printField("Pending Jobs", fmt.Sprintf("%d", status.PendingJobs))
 	printField("Total Spawns", fmt.Sprintf("%d", status.TotalSpawns))
 	printField("Paused", fmt.Sprintf("%t", status.Paused))
+	printField("Draining", fmt.Sprintf("%t", status.Draining))
 	printField("Circuit Broken", fmt.Sprintf("%t", status.CircuitBroken))
 	if status.MaxConcurrentJobs > 0 {
 		printField("Max Concurrent Jobs", fmt.Sprintf("%d", status.MaxConcurrentJobs))
