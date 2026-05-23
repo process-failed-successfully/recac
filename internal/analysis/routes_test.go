@@ -106,6 +106,12 @@ func main() {
 func TestScanRoutes_ErrorsAndEdgeCases(t *testing.T) {
 	tmpDir := t.TempDir()
 
+	// Test walk error by passing a file instead of a dir or a non-existent path
+	_, err := ScanRoutes(filepath.Join(tmpDir, "does-not-exist"))
+	if err == nil {
+		t.Errorf("Expected error for non-existent root")
+	}
+
 	// Test malformed file
 	malformedFile := `package main
 func main() {
@@ -131,6 +137,11 @@ func main() {
 		t.Fatalf("failed to write hidden.go: %v", err)
 	}
 
+	// Test non-go file
+	if err := os.WriteFile(filepath.Join(tmpDir, "readme.md"), []byte(`hello`), 0644); err != nil {
+		t.Fatalf("failed to write readme.md: %v", err)
+	}
+
 	routes, err := ScanRoutes(tmpDir)
 	if err != nil {
 		t.Fatalf("ScanRoutes failed: %v", err)
@@ -145,5 +156,93 @@ func TestExtractSourceSnippet_Error(t *testing.T) {
 	snippet := extractSourceSnippet("/non/existent/path/to/file.go", 1)
 	if snippet != "" {
 		t.Errorf("Expected empty snippet for non-existent file, got %q", snippet)
+	}
+
+	// Line out of bounds
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "dummy.go")
+	os.WriteFile(filePath, []byte("package main\n"), 0644)
+	snippet = extractSourceSnippet(filePath, 10)
+	if snippet != "" {
+		t.Errorf("Expected empty snippet for out-of-bounds line, got %q", snippet)
+	}
+}
+
+func TestScanRoutes_EdgeCases(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	edgeCasesFile := `
+package main
+
+import "github.com/gin-gonic/gin"
+
+type MyHandler struct{}
+func (h *MyHandler) Handle(c *gin.Context) {}
+
+func main() {
+	r := gin.Default()
+
+	// Not enough args
+	r.GET()
+	r.GET(123)
+
+	// SelectorExpr handler
+	h := &MyHandler{}
+	r.GET("/sel", h.Handle)
+
+	// Complex handler
+	r.GET("/complex", func() gin.HandlerFunc {
+		return func(c *gin.Context) {}
+	}())
+
+	// Complex SelectorExpr where X is not Ident
+	r.GET("/complexsel", (&MyHandler{}).Handle)
+
+	// Non-string arg (should be skipped)
+	r.GET(123)
+
+	// Variable arg (not a BasicLit)
+	var path string = "/varpath"
+	r.GET(path, h.Handle)
+
+	// Path without slash
+	r.GET("noslash", h.Handle)
+
+	// Unknown method
+	r.UNKNOWN("/unknown", h.Handle)
+
+	// Ident method that matches one of the expected methods when upper-cased
+	var get = r.GET
+	get("/ident", func(c *gin.Context) {})
+}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "edge.go"), []byte(edgeCasesFile), 0644); err != nil {
+		t.Fatalf("failed to write edge.go: %v", err)
+	}
+
+	routes, err := ScanRoutes(tmpDir)
+	if err != nil {
+		t.Fatalf("ScanRoutes failed: %v", err)
+	}
+
+	expected := map[string]string{
+		"GET /sel":        "h.Handle",
+		"GET /complex":    "(complex)",
+		"GET /complexsel": "(complex).Handle",
+		"GET /ident":      "(anonymous)", // 'get' upper-cased matches "GET" in normalizeMethod
+	}
+
+	found := make(map[string]string)
+	for _, r := range routes {
+		key := r.Method + " " + r.Path
+		found[key] = r.Handler
+	}
+
+	for k, v := range expected {
+		if got, ok := found[k]; !ok {
+			t.Errorf("Missing route: %s", k)
+		} else if got != v {
+			t.Errorf("Route %s: expected handler %s, got %s", k, v, got)
+		}
 	}
 }
