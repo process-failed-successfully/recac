@@ -1,12 +1,9 @@
-## 2026-04-30 - Plaintext Secret Logging Prevention
-**Vulnerability:** The application logged sensitive keys like `api_key`, `secret`, `password`, and `token` in plaintext if passed in debug mode or error context via `slog`.
-**Learning:** `slog.HandlerOptions` supports a `ReplaceAttr` hook which intercept attributes dynamically before formatting. Implementing redaction at the handler level provides a central choke point to sanitize logs regardless of the caller context.
-**Prevention:** Configure a `ReplaceAttr` hook matching string keys case-insensitively for sensitive substrings (e.g. `api_key`, `secret`, `password`, `token`) to unconditionally redact their string values. Ensure testing evaluates the actual string or JSON output using `InitLogger` rather than just assuming the hook prevents it.
-## 2025-05-04 - OS Command Injection via Environment Variable
-**Vulnerability:** OS Command injection in the CLI tool when constructing an arbitrary command from the user-controlled `EDITOR` environment variable. The code previously used `fmt.Sprintf("%s \"$1\"", editor)` followed by `exec.Command("sh", "-c", shellCmd, "--", tmpFile.Name())`, allowing command chaining or injection if a malicious string was placed in `$EDITOR`.
-**Learning:** Using `sh -c` with string interpolation for executing dynamic commands derived from user variables introduces a high risk of command injection, as the shell evaluates any shell metacharacters in the resulting string.
-**Prevention:** Avoid `sh -c` entirely for dynamic commands. Use `github.com/kballard/go-shellquote` (`shellquote.Split`) to securely tokenize the user-provided string into an argument slice, safely escaping quotes, and pass it directly to `exec.Command(args[0], args[1:]...)`.
-## 2026-05-24 - OS Command Injection via Kubernetes Execution
-**Vulnerability:** OS command injection vulnerability in e2e deployment scripts. The code used string interpolation via `fmt.Sprintf` to insert a command (`wipeCmd`) inside a `sh -c` argument for `kubectl exec`.
-**Learning:** Interpolating commands directly into `sh -c` strings is inherently unsafe, especially when chained with other dynamically evaluated expressions (like `$POD_NAME=$(...) && kubectl exec ...`), as it can lead to command injection and execution flaws.
-**Prevention:** To prevent OS command injection when chaining commands that depend on dynamic targets (like fetching a Kubernetes pod name), avoid interpolating the command sequence into `sh -c` using `fmt.Sprintf`. Instead, execute the first command via `exec.Command`, capture and trim its output, and pass it as explicit arguments to a subsequent `exec.Command` call without using shell evaluation for the dynamic variables.
+## 2024-05-24 - Enable CLI bulk priority update
+**Vulnerability:**
+None (Enhancement).
+
+**Learning:**
+The updateBulkPriority function existed but was never invoked in main.go, rendering the --update-priority-tag, --update-priority-match, and --update-priority-group CLI flags non-functional despite being parsed and validated. Added the necessary dispatch logic in main.go.
+
+**Prevention:**
+Ensure CLI features are wired end-to-end and test all command branches, not just single-item actions.

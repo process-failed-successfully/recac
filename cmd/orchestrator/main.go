@@ -1889,10 +1889,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return nil
 	}
 
-	if updatePriorityJob != "" {
+	if priorityFlagsSet > 0 {
 		host := viper.GetString("orchestrator.host")
 		priorityVal := viper.GetInt("orchestrator.priority_val")
-		updatePriority(host, updatePriorityJob, priorityVal)
+
+		if updatePriorityJob != "" {
+			updatePriority(host, updatePriorityJob, priorityVal)
+		} else {
+			updateBulkPriority(host, updatePriorityMatch, updatePriorityTag, updatePriorityGroup, priorityVal)
+		}
 		return nil
 	}
 
