@@ -14,6 +14,7 @@ func TestExportPipelineToYAML_Success(t *testing.T) {
 	requireApproval := true
 	retryDelay := 10 * time.Second
 	retryBackoffMultiplier := 1.5
+	depTimeout := 1 * time.Hour
 	jobs := []JobInfo{
 		{
 			ID: "job-1",
@@ -26,6 +27,7 @@ func TestExportPipelineToYAML_Success(t *testing.T) {
 				Priority:               10,
 				Timeout:                30 * time.Minute,
 				Delay:                  5 * time.Minute,
+				DependencyTimeout:      &depTimeout,
 				ConcurrencyGroup:       "group-1",
 				CancelInProgress:       true,
 				AgentProvider:          "openai",
@@ -64,6 +66,7 @@ func TestExportPipelineToYAML_Success(t *testing.T) {
 	assert.Equal(t, 10, j1.Priority)
 	assert.Equal(t, "30m0s", j1.Timeout)
 	assert.Equal(t, "5m0s", j1.Delay)
+	assert.Equal(t, "1h0m0s", j1.DependencyTimeout)
 	assert.Equal(t, "group-1", j1.ConcurrencyGroup)
 	require.NotNil(t, j1.CancelInProgress)
 	assert.True(t, *j1.CancelInProgress)

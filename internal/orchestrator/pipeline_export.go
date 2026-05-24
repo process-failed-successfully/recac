@@ -21,6 +21,10 @@ func ExportPipelineToYAML(name string, jobs []JobInfo) ([]byte, error) {
 		if job.WorkItem.Delay > 0 {
 			delayStr = job.WorkItem.Delay.String()
 		}
+		dependencyTimeoutStr := ""
+		if job.WorkItem.DependencyTimeout != nil && *job.WorkItem.DependencyTimeout > 0 {
+			dependencyTimeoutStr = job.WorkItem.DependencyTimeout.String()
+		}
 		retryDelayStr := ""
 		if job.WorkItem.RetryDelay != nil && *job.WorkItem.RetryDelay > 0 {
 			retryDelayStr = job.WorkItem.RetryDelay.String()
@@ -67,6 +71,7 @@ func ExportPipelineToYAML(name string, jobs []JobInfo) ([]byte, error) {
 			Priority:         job.WorkItem.Priority,
 			Timeout:          timeoutStr,
 			Delay:            delayStr,
+			DependencyTimeout: dependencyTimeoutStr,
 			ConcurrencyGroup: job.WorkItem.ConcurrencyGroup,
 			CancelInProgress: cancelInProgress,
 			AgentProvider:    job.WorkItem.AgentProvider,
