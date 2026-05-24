@@ -73,6 +73,7 @@ defaults:
   require_approval: true
   retry_delay: 10s
   retry_backoff_multiplier: 1.5
+  dependency_timeout: 1h
   env_vars:
     GLOBAL_VAR: "global_value"
   tags:
@@ -106,6 +107,7 @@ jobs:
     repo_url: https://github.com/org/deploy-repo.git
     cancel_in_progress: true
     concurrency_group: deploy-staging
+    dependency_timeout: 30m
 `)
 
 	items, err := ParsePipelineToWorkItems(yamlData, "", nil, "")
@@ -142,6 +144,8 @@ jobs:
 	assert.Equal(t, 5*time.Second, *buildJob.RetryDelay)
 	require.NotNil(t, buildJob.RetryBackoffMultiplier)
 	assert.Equal(t, 2.0, *buildJob.RetryBackoffMultiplier)
+	require.NotNil(t, buildJob.DependencyTimeout)
+	assert.Equal(t, 1*time.Hour, *buildJob.DependencyTimeout) // From defaults
 	assert.Equal(t, map[string]string{"GLOBAL_VAR": "overridden_value", "LOCAL_VAR": "local_value"}, buildJob.EnvVars)
 	assert.Equal(t, []string{"global_tag", "local_tag"}, buildJob.Tags)
 	assert.Equal(t, "https://example.com/webhook/build", buildJob.WebhookURL)

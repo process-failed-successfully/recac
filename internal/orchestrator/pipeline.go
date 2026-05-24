@@ -37,6 +37,7 @@ type Pipeline struct {
 		CancelInProgress       *bool             `yaml:"cancel_in_progress,omitempty"`
 		WebhookURL       string            `yaml:"webhook_url,omitempty"`
 		ContinueOnError  *bool             `yaml:"continue_on_error,omitempty"`
+		DependencyTimeout      string            `yaml:"dependency_timeout,omitempty"`
 	} `yaml:"defaults"`
 	Jobs map[string]PipelineJob `yaml:"jobs"`
 }
@@ -69,6 +70,7 @@ type PipelineJob struct {
 	RetryBackoffMultiplier *float64            `yaml:"retry_backoff_multiplier,omitempty"`
 	WebhookURL             string              `yaml:"webhook_url,omitempty"`
 	ContinueOnError        *bool               `yaml:"continue_on_error,omitempty"`
+	DependencyTimeout      string              `yaml:"dependency_timeout,omitempty"`
 }
 
 // sanitizeName creates a safe string for IDs.
@@ -247,6 +249,9 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			}
 			if jobDef.Delay == "" {
 				jobDef.Delay = template.Delay
+			}
+			if jobDef.DependencyTimeout == "" {
+				jobDef.DependencyTimeout = template.DependencyTimeout
 			}
 			if jobDef.ConcurrencyGroup == "" {
 				jobDef.ConcurrencyGroup = template.ConcurrencyGroup
@@ -480,6 +485,10 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		if delayStr == "" {
 			delayStr = p.Defaults.Delay
 		}
+		dependencyTimeoutStr := jobDef.DependencyTimeout
+		if dependencyTimeoutStr == "" {
+			dependencyTimeoutStr = p.Defaults.DependencyTimeout
+		}
 		maxRetries := jobDef.MaxRetries
 		if maxRetries == nil && p.Defaults.MaxRetries != nil {
 			maxRetries = p.Defaults.MaxRetries
@@ -546,6 +555,16 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 			if err != nil {
 				return nil, fmt.Errorf("invalid delay format for job '%s': %w", jobKey, err)
 			}
+		}
+
+		// Parse dependency timeout
+		var parsedDependencyTimeout *time.Duration
+		if dependencyTimeoutStr != "" {
+			dt, err := time.ParseDuration(dependencyTimeoutStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid dependency timeout format for job '%s': %w", jobKey, err)
+			}
+			parsedDependencyTimeout = &dt
 		}
 
 		// Parse retry delay
@@ -749,6 +768,7 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 				Tags:                   tags,
 				Timeout:                parsedTimeout,
 				Delay:                  parsedDelay,
+				DependencyTimeout:      parsedDependencyTimeout,
 				ConcurrencyGroup:       concurrencyGroup,
 				CancelInProgress:       cancelInProgress,
 				AgentProvider:          agentProvider,
