@@ -198,3 +198,42 @@ func TestSkipJobDownstream_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 	assert.Nil(t, skippedIDs)
 }
+
+func TestOrchestrator_SkipJobsOlderThan(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	// Add an old job
+	job1 := JobInfo{
+		ID:        "JOB1",
+		Status:    "Pending",
+		StartTime: time.Now().Add(-2 * time.Hour), // 2 hours old
+	}
+	orch.pendingJobs["JOB1"] = job1
+
+	// Add a new job
+	job2 := JobInfo{
+		ID:        "JOB2",
+		Status:    "Pending",
+		StartTime: time.Now().Add(-30 * time.Minute), // 30 minutes old
+	}
+	orch.pendingJobs["JOB2"] = job2
+
+	// Skip jobs older than 1 hour
+	count, err := orch.SkipJobsOlderThan(context.Background(), 1*time.Hour, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	// Verify job1 was skipped
+	_, exists1 := orch.pendingJobs["JOB1"]
+	assert.False(t, exists1)
+
+	// It should be in history
+	assert.Len(t, orch.completedJobs, 1)
+	assert.Equal(t, "Skipped", orch.completedJobs[0].Status)
+	assert.Equal(t, "JOB1", orch.completedJobs[0].ID)
+
+	// Verify job2 was NOT skipped
+	_, exists2 := orch.pendingJobs["JOB2"]
+	assert.True(t, exists2)
+}

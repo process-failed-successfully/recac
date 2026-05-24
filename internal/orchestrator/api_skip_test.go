@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -182,4 +183,55 @@ func TestSkipJobDownstreamAPI_NotFound(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestSkipJobsOlderThanAPI(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+
+	// Add an old job
+	job1 := JobInfo{
+		ID:        "JOB1",
+		Status:    "Pending",
+		StartTime: time.Now().Add(-2 * time.Hour),
+	}
+	orch.pendingJobs["JOB1"] = job1
+
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, nil, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/skip?older_than=1h", nil)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var result map[string]int
+	json.NewDecoder(resp.Body).Decode(&result)
+	assert.Equal(t, 1, result["skipped"])
+
+	// Verify job was skipped
+	orch.mu.Lock()
+	_, exists := orch.pendingJobs["JOB1"]
+	orch.mu.Unlock()
+	assert.False(t, exists)
+}
+
+func TestSkipJobsOlderThanAPI_InvalidDuration(t *testing.T) {
+	mockSpawner := new(MockSpawner)
+	orch := New(&MockPoller{}, mockSpawner, 1*time.Minute)
+	mux := http.NewServeMux()
+	RegisterAPI(mux, orch, nil, context.Background())
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, server.URL+"/jobs/skip?older_than=invalid", nil)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
