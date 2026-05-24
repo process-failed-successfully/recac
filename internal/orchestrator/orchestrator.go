@@ -1684,6 +1684,28 @@ func (o *Orchestrator) SkipJobsByGroup(ctx context.Context, group string, logger
 	return count, nil
 }
 
+// SkipJobsOlderThan marks all pending jobs that have been pending for longer than the specified duration as Skipped.
+func (o *Orchestrator) SkipJobsOlderThan(ctx context.Context, d time.Duration, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	cutoff := time.Now().Add(-d)
+
+	for id, job := range o.pendingJobs {
+		if job.StartTime.Before(cutoff) {
+			delete(o.pendingJobs, id)
+			job.Status = "Skipped"
+			job.EndTime = time.Now()
+			job.Error = "Skipped by age: older than " + d.String()
+			o.addToHistory(job, logger)
+			o.BroadcastEvent("job_skipped", job)
+			count++
+		}
+	}
+	return count, nil
+}
+
 // SkipJobsByMatch marks all pending jobs matching the regex as Skipped.
 func (o *Orchestrator) SkipJobsByMatch(ctx context.Context, match string, logger *slog.Logger) (int, error) {
 	matcher, err := regexp.Compile("(?i)" + match)

@@ -2627,6 +2627,56 @@ func skipJobs(host, match, tag, group string) {
 	fmt.Fprintf(stdout, "Successfully skipped %d jobs.\n", result["skipped"])
 }
 
+func skipJobsOlderThan(host, olderThan string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/skip", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	q.Set("older_than", olderThan)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to skip jobs older than %s: %s\n", olderThan, strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result map[string]int
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	if _, ok := result["skipped"]; !ok {
+		fmt.Fprintf(stdout, "Unexpected response format: missing 'skipped' count\n")
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully skipped %d jobs older than '%s'.\n", result["skipped"], olderThan)
+}
+
 func importJobs(host, path string) {
 	file, err := os.Open(path)
 	if err != nil {
