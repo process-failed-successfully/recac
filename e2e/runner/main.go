@@ -290,8 +290,15 @@ func run() error {
 		log.Println("=== Wiping PostgreSQL Database ===")
 		// We use kubectl exec to run psql inside the postgres pod
 		// We ignore errors if pod doesn't exist yet (first run)
-		wipeCmd := "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\""
-		_ = runCommand("sh", "-c", fmt.Sprintf("POD_NAME=$(kubectl get pods -l app.kubernetes.io/instance=recac,app.kubernetes.io/name=postgresql -n default -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) && [ -n \"$POD_NAME\" ] && kubectl exec $POD_NAME -n default -- sh -c %s", fmt.Sprintf("'%s'", wipeCmd)))
+
+		// Fetch postgres pod name securely
+		podCmd := exec.Command("kubectl", "get", "pods", "-l", "app.kubernetes.io/instance=recac,app.kubernetes.io/name=postgresql", "-n", "default", "-o", "jsonpath={.items[0].metadata.name}")
+		if out, err := podCmd.Output(); err == nil {
+			podName := strings.TrimSpace(string(out))
+			if podName != "" {
+				_ = runCommand("kubectl", "exec", podName, "-n", "default", "--", "sh", "-c", "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\"")
+			}
+		}
 
 		log.Println("=== Deploying Helm Chart ===")
 		lastColon := strings.LastIndex(imageName, ":")
