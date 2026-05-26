@@ -232,6 +232,17 @@ func TestDashboardModel_Keys(t *testing.T) {
 		assert.Equal(t, "cancel downstream", m.pendingAction)
 	})
 
+	t.Run("Skip Downstream Key (ctrl+w)", func(t *testing.T) {
+		// Reset state
+		model.viewState = viewMain
+		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+w")})
+		m, ok := updatedModel.(DashboardModel)
+		assert.True(t, ok)
+		assert.Nil(t, cmd) // Should return nil, waiting for confirmation
+		assert.Equal(t, viewConfirmation, m.viewState)
+		assert.Equal(t, "skip downstream", m.pendingAction)
+	})
+
 	t.Run("Cancel All Key (C)", func(t *testing.T) {
 		// Reset state
 		model.viewState = viewMain
