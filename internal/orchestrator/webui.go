@@ -1157,7 +1157,7 @@ const DashboardHTML = `
                 if (data.explanation && data.explanation.trim() !== '') {
                     content.innerText = data.explanation;
                 } else {
-                    content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No explanation provided.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                    content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No explanation provided.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                 }
             } catch (err) {
                 content.innerText = 'Error: ' + err.message;
@@ -1183,7 +1183,7 @@ const DashboardHTML = `
                 }
                 const graphText = await res.text();
                 if (!graphText.trim()) {
-                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No jobs to display.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back, then press \'s\' to submit a new job.</p></div>';
+                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job (s)</button></div></div>';
                     return;
                 }
 
@@ -1215,7 +1215,7 @@ const DashboardHTML = `
                 }
                 const timelineText = await res.text();
                 if (!timelineText.trim() || timelineText.trim() === "gantt\n    title Job Execution Timeline") {
-                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No jobs to display.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back, then press \'s\' to submit a new job.</p></div>';
+                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job (s)</button></div></div>';
                     return;
                 }
 
@@ -1305,7 +1305,7 @@ const DashboardHTML = `
                 }
                 const jobs = await res.json();
                 if (!jobs || jobs.length === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No failed jobs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No failed jobs found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back (Esc)</button></div></div>';
                     return;
                 }
 
@@ -1382,7 +1382,7 @@ const DashboardHTML = `
                 if (data.changelog && data.changelog.trim() !== '') {
                     contentDiv.innerText = data.changelog;
                 } else {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No changelog generated.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No changelog generated.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                 }
             } catch (err) {
                 console.error(err);
@@ -1417,7 +1417,7 @@ const DashboardHTML = `
                 if (data.postmortem && data.postmortem.trim() !== '') {
                     contentDiv.innerText = data.postmortem;
                 } else {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No postmortem generated.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No postmortem generated.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                 }
             } catch (err) {
                 console.error(err);
@@ -1451,7 +1451,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data || data.total_jobs === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No valid completed jobs with duration found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No valid completed jobs with duration found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back (Esc)</button></div></div>';
                     return;
                 }
 
@@ -1512,7 +1512,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data || data.total_stats.total_jobs === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No valid completed jobs with cost data found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No valid completed jobs with cost data found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back (Esc)</button></div></div>';
                     return;
                 }
 
@@ -1579,7 +1579,7 @@ const DashboardHTML = `
                 }
                 const anomalies = await res.json();
                 if (!anomalies || anomalies.length === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No anomalies found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No anomalies found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back (Esc)</button></div></div>';
                     return;
                 }
 
@@ -1639,7 +1639,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data.agents || data.agents.length === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No agent data found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No agent data found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back (Esc)</button></div></div>';
                     return;
                 }
 
@@ -1685,7 +1685,7 @@ const DashboardHTML = `
                 .then(res => res.json())
                 .then(data => {
                     if (data.total_jobs === 0) {
-                        content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No completed jobs found for reliability analysis.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to go back.</p></div>';
+                        content.innerHTML = '<div style="text-align: center; padding: 2em; color: #666;"><p>No completed jobs found for reliability analysis.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back (Esc)</button></div></div>';
                         return;
                     }
 
@@ -1713,7 +1713,7 @@ const DashboardHTML = `
                         });
                         html += '</table>';
                     } else {
-                        html += '<div style="text-align: center; padding: 2em; color: #666;"><p>No flaky jobs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                        html += '<div style="text-align: center; padding: 2em; color: #666;"><p>No flaky jobs found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                     }
 
                     html += '<h3 style="margin-top: 20px;">Top Failing Jobs (Failed completely)</h3>';
@@ -1728,7 +1728,7 @@ const DashboardHTML = `
                         });
                         html += '</table>';
                     } else {
-                        html += '<div style="text-align: center; padding: 2em; color: #666;"><p>No failing jobs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                        html += '<div style="text-align: center; padding: 2em; color: #666;"><p>No failing jobs found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                     }
 
                     content.innerHTML = html;
@@ -1782,7 +1782,7 @@ const DashboardHTML = `
                 const results = await res.json();
 
                 if (!results || results.length === 0) {
-                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #bbb;"><p>No matching logs found.</p><p style="font-size: 0.9em; margin-top: 10px;">Press \'Esc\' to close.</p></div>';
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #bbb;"><p>No matching logs found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                     return;
                 }
 
