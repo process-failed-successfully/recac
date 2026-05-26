@@ -1105,6 +1105,20 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				m.viewState = viewConfirmation
 				return m, nil
 			}
+		case "ctrl+w":
+			if len(m.selectedJobs) > 0 {
+				m.pendingJobId = "MULTIPLE_ctrl_w"
+				m.pendingAction = "skip downstream multiple"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				m.pendingJobId = getRawID(selected[0])
+				m.pendingAction = "skip downstream"
+				m.viewState = viewConfirmation
+				return m, nil
+			}
 		case "U":
 			if len(m.selectedJobs) > 0 {
 				m.pendingJobId = "MULTIPLE_U"
@@ -1506,6 +1520,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 					switch m.pendingAction {
 					case "skip multiple":
 						cmds = append(cmds, skipJobCmd(m.host, id))
+					case "skip downstream multiple":
+						cmds = append(cmds, skipJobDownstreamCmd(m.host, id))
 					case "cancel multiple":
 						cmds = append(cmds, cancelJob(m.host, id))
 					case "cancel downstream multiple":
@@ -1576,6 +1592,8 @@ func (m DashboardModel) updateConfirmation(msg tea.Msg) (DashboardModel, tea.Cmd
 			var cmd tea.Cmd
 			if m.pendingAction == "skip" {
 				cmd = skipJobCmd(m.host, m.pendingJobId)
+			} else if m.pendingAction == "skip downstream" {
+				cmd = skipJobDownstreamCmd(m.host, m.pendingJobId)
 			} else if m.pendingAction == "cancel" {
 				cmd = cancelJob(m.host, m.pendingJobId)
 			} else if m.pendingAction == "cancel downstream" {
@@ -2362,7 +2380,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+a: agents | ctrl+o: costs | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | y: copy ID | a: approve | I: skip | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+a: agents | ctrl+o: costs | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | y: copy ID | a: approve | I: skip | ctrl+w: skip downstream | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewSummary:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -2552,6 +2570,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = "Are you sure you want to CLEAN ALL?\n(Cancels active jobs, clears pending jobs, and clears history)\n\n(y/Enter: confirm, n/q/Esc: cancel)"
 		} else if m.pendingAction == "skip multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to SKIP %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "skip downstream multiple" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to SKIP %d selected jobs and their downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "cancel multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "cancel downstream multiple" {
@@ -2590,6 +2610,8 @@ func (m DashboardModel) View() string {
 			dialogMsg = fmt.Sprintf("Are you sure you want to HOLD %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
 		} else if m.pendingAction == "unhold multiple" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to UNHOLD %d selected jobs?\n\n(y/Enter: confirm, n/q/Esc: cancel)", len(m.selectedJobs))
+		} else if m.pendingAction == "skip downstream" {
+			dialogMsg = fmt.Sprintf("Are you sure you want to SKIP job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "cancel downstream" {
 			dialogMsg = fmt.Sprintf("Are you sure you want to CANCEL job %s and its downstream dependencies?\n\n(y/Enter: confirm, n/q/Esc: cancel)", m.pendingJobId)
 		} else if m.pendingAction == "retry downstream" {
@@ -3562,6 +3584,25 @@ func skipJobCmd(host, id string) tea.Cmd {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
 		return actionMsg{Message: "Skipped"}
+	}
+}
+
+func skipJobDownstreamCmd(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/skip?downstream=true", nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Skipped (Downstream)"}
 	}
 }
 
