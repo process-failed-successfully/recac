@@ -2004,6 +2004,39 @@ func (o *Orchestrator) ApproveJobsByTag(ctx context.Context, tag string, logger 
 	return count, nil
 }
 
+// ApproveJobsOlderThan approves pending jobs that have been pending approval for longer than the specified duration.
+func (o *Orchestrator) ApproveJobsOlderThan(ctx context.Context, d time.Duration, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	count := 0
+	cutoff := time.Now().Add(-d)
+
+	for id, job := range o.pendingJobs {
+		if job.Status != "Pending Approval" {
+			continue
+		}
+
+		if job.StartTime.Before(cutoff) {
+			job.Status = "Pending"
+			job.Approved = true
+			o.pendingJobs[id] = job
+			count++
+			o.BroadcastEvent("job_approved", job)
+			if logger != nil {
+				logger.Info("Job approved by age", "id", id, "duration", d)
+			}
+		}
+	}
+
+	o.mu.Unlock()
+
+	if count > 0 {
+		// Now that they're approved, evaluate pending jobs
+		o.evaluatePendingJobs(ctx, logger)
+	}
+
+	return count, nil
+}
+
 // ApproveJobsByMatch approves pending jobs whose ID matches the given regular expression and are pending approval.
 func (o *Orchestrator) ApproveJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()

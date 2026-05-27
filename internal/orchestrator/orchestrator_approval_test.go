@@ -194,6 +194,61 @@ func TestOrchestrator_ApproveJobsByGroup(t *testing.T) {
 	assert.True(t, job3.Approved)
 }
 
+func TestOrchestrator_ApproveJobsOlderThan(t *testing.T) {
+	poller := &mockPoller{}
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 0)
+	orch.RequireApproval = true
+
+	j1 := WorkItem{ID: "J1"}
+	orch.SubmitJob(context.Background(), j1, nil)
+
+	j2 := WorkItem{ID: "J2"}
+	orch.SubmitJob(context.Background(), j2, nil)
+
+	j3 := WorkItem{ID: "J3"}
+	orch.SubmitJob(context.Background(), j3, nil)
+
+	// Manually tweak start times
+	orch.mu.Lock()
+	now := time.Now()
+	pj1 := orch.pendingJobs["J1"]
+	pj1.StartTime = now.Add(-2 * time.Hour) // Older
+	orch.pendingJobs["J1"] = pj1
+
+	pj2 := orch.pendingJobs["J2"]
+	pj2.StartTime = now.Add(-30 * time.Minute) // Newer
+	orch.pendingJobs["J2"] = pj2
+
+	pj3 := orch.pendingJobs["J3"]
+	pj3.StartTime = now.Add(-3 * time.Hour) // Older
+	orch.pendingJobs["J3"] = pj3
+	orch.mu.Unlock()
+
+	count, err := orch.ApproveJobsOlderThan(context.Background(), 1*time.Hour, nil)
+	if err != nil {
+		t.Fatalf("Failed to approve jobs by age: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected 2 jobs to be approved, got %d", count)
+	}
+
+	job1, _ := orch.GetJob("J1")
+	if !job1.Approved {
+		t.Errorf("J1 should be approved")
+	}
+
+	job2, _ := orch.GetJob("J2")
+	if job2.Approved {
+		t.Errorf("J2 should NOT be approved")
+	}
+
+	job3, _ := orch.GetJob("J3")
+	if !job3.Approved {
+		t.Errorf("J3 should be approved")
+	}
+}
+
 func TestOrchestrator_ApproveJobsByMatch(t *testing.T) {
 	poller := &mockPoller{}
 	spawner := &mockSpawner{}
