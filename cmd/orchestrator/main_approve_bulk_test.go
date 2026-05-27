@@ -23,7 +23,7 @@ func TestApproveBulkJobs_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		approveBulkJobs("http://\x00invalid", "", "", "")
+		approveBulkJobs("http://\x00invalid", "", "", "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to parse URL")
 	})
@@ -39,7 +39,7 @@ func TestApproveBulkJobs_Errors(t *testing.T) {
 		stdout = &buf
 		exitCode = 0
 
-		approveBulkJobs(server.URL, "", "", "")
+		approveBulkJobs(server.URL, "", "", "", "")
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to decode response")
 	})

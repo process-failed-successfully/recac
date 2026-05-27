@@ -296,7 +296,7 @@ func TestApproveBulkJobs(t *testing.T) {
 			exitFunc = func(int) { exitCalled = true }
 			defer func() { exitFunc = oldExitFunc }()
 
-			approveBulkJobs(serverURL, tt.match, tt.tag, tt.group)
+			approveBulkJobs(serverURL, tt.match, tt.tag, tt.group, "")
 
 			assert.Equal(t, tt.expectExit, exitCalled)
 			assert.Contains(t, buf.String(), tt.expectedOut)

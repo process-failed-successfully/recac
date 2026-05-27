@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestAPI_ApproveJob(t *testing.T) {
@@ -67,9 +68,31 @@ func TestAPI_ApproveBulkJobs(t *testing.T) {
 	orch.SubmitJob(context.Background(), WorkItem{ID: "J1", Tags: []string{"tag1"}}, nil)
 	orch.SubmitJob(context.Background(), WorkItem{ID: "FOO-1"}, nil)
 
-	// Test Approve by Tag
-	req := httptest.NewRequest(http.MethodPost, "/jobs/approve?tag=tag1", nil)
+	// Submit an older job
+	orch.SubmitJob(context.Background(), WorkItem{ID: "OLD-1"}, nil)
+	orch.mu.Lock()
+	oldJob := orch.pendingJobs["OLD-1"]
+	oldJob.StartTime = time.Now().Add(-2 * time.Hour)
+	orch.pendingJobs["OLD-1"] = oldJob
+	orch.mu.Unlock()
+
+	// Test Approve by Older Than
+	req := httptest.NewRequest(http.MethodPost, "/jobs/approve?older_than=1h", nil)
 	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200 OK, got %d", rr.Code)
+	}
+
+	old1, _ := orch.GetJob("OLD-1")
+	if !old1.Approved {
+		t.Errorf("OLD-1 should be approved")
+	}
+
+	// Test Approve by Tag
+	req = httptest.NewRequest(http.MethodPost, "/jobs/approve?tag=tag1", nil)
+	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {

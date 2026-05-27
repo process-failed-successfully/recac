@@ -189,6 +189,7 @@ func main() {
 	pflag.String("approve-tag", "", "Approve all pending jobs with the specified tag")
 	pflag.String("approve-match", "", "Approve all pending jobs matching the given regex")
 	pflag.String("approve-group", "", "Approve all pending jobs within the specified concurrency group")
+	pflag.String("approve-older-than", "", "Approve pending jobs older than the specified duration (e.g. 24h, 30m)")
 	pflag.Bool("approve-interactive", false, "Interactively approve, skip, or cancel jobs that are pending approval")
 	pflag.String("hold-job", "", "Hold a pending job to prevent it from running")
 	pflag.String("unhold-job", "", "Unhold a pending job to allow it to run")
@@ -627,6 +628,7 @@ func main() {
 	viper.BindPFlag("orchestrator.approve_tag", pflag.Lookup("approve-tag"))
 	viper.BindPFlag("orchestrator.approve_match", pflag.Lookup("approve-match"))
 	viper.BindPFlag("orchestrator.approve_group", pflag.Lookup("approve-group"))
+	viper.BindPFlag("orchestrator.approve_older_than", pflag.Lookup("approve-older-than"))
 	viper.BindPFlag("orchestrator.approve_interactive", pflag.Lookup("approve-interactive"))
 	viper.BindPFlag("orchestrator.hold_job", pflag.Lookup("hold-job"))
 	viper.BindPFlag("orchestrator.unhold_job", pflag.Lookup("unhold-job"))
@@ -1690,9 +1692,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	approveMatch := viper.GetString("orchestrator.approve_match")
 	approveTag := viper.GetString("orchestrator.approve_tag")
 	approveGroup := viper.GetString("orchestrator.approve_group")
-	if approveMatch != "" || approveTag != "" || approveGroup != "" {
+	approveOlderThan := viper.GetString("orchestrator.approve_older_than")
+	if approveMatch != "" || approveTag != "" || approveGroup != "" || approveOlderThan != "" {
 		host := viper.GetString("orchestrator.host")
-		approveBulkJobs(host, approveMatch, approveTag, approveGroup)
+		approveBulkJobs(host, approveMatch, approveTag, approveGroup, approveOlderThan)
 		return nil
 	}
 
@@ -4213,7 +4216,7 @@ func approveJob(host, jobID string) {
 	fmt.Fprintf(stdout, "Job %s approved successfully.\n", jobID)
 }
 
-func approveBulkJobs(host, match, tag, group string) {
+func approveBulkJobs(host, match, tag, group, olderThan string) {
 	u, err := url.Parse(fmt.Sprintf("%s/jobs/approve", host))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
@@ -4230,6 +4233,9 @@ func approveBulkJobs(host, match, tag, group string) {
 	}
 	if group != "" {
 		q.Set("group", group)
+	}
+	if olderThan != "" {
+		q.Set("older_than", olderThan)
 	}
 	u.RawQuery = q.Encode()
 

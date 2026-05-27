@@ -2573,18 +2573,26 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
 		group := r.URL.Query().Get("group")
+		olderThanStr := r.URL.Query().Get("older_than")
 
 		var count int
 		var err error
 
-		if tag != "" {
+		if olderThanStr != "" {
+			d, parseErr := time.ParseDuration(olderThanStr)
+			if parseErr != nil {
+				http.Error(w, fmt.Sprintf("invalid duration for older_than: %v", parseErr), http.StatusBadRequest)
+				return
+			}
+			count, err = orch.ApproveJobsOlderThan(r.Context(), d, logger)
+		} else if tag != "" {
 			count, err = orch.ApproveJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.ApproveJobsByMatch(r.Context(), match, logger)
 		} else if group != "" {
 			count, err = orch.ApproveJobsByConcurrencyGroup(r.Context(), group, logger)
 		} else {
-			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk approve", http.StatusBadRequest)
+			http.Error(w, "Either 'older_than', 'tag', 'match', or 'group' query parameter is required for bulk approve", http.StatusBadRequest)
 			return
 		}
 
