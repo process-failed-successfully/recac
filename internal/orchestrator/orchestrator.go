@@ -850,6 +850,33 @@ func (o *Orchestrator) PromoteJob(ctx context.Context, jobID string, logger *slo
 	return newPriority, nil
 }
 
+// DeletePendingJobsOlderThan removes pending jobs that have been pending for longer than the specified duration.
+func (o *Orchestrator) DeletePendingJobsOlderThan(ctx context.Context, d time.Duration, logger *slog.Logger) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	count := 0
+	cutoff := time.Now().Add(-d)
+
+	for id, job := range o.pendingJobs {
+		if job.StartTime.Before(cutoff) {
+			if t_timer, ok := o.delayTimers[id]; ok {
+				t_timer.Stop()
+				delete(o.delayTimers, id)
+			}
+			delete(o.pendingJobs, id)
+			o.BroadcastEvent("job_deleted", job)
+			count++
+		}
+	}
+
+	if logger != nil && count > 0 {
+		logger.Info("Deleted jobs from pending queue older than", "duration", d, "count", count)
+	}
+
+	return count, nil
+}
+
 // DeletePendingJobsByConcurrencyGroup removes pending jobs matching the given concurrency group.
 func (o *Orchestrator) DeletePendingJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()

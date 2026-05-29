@@ -313,6 +313,87 @@ func TestDeletePendingJobsByTag(t *testing.T) {
 	}
 }
 
+func TestDeletePendingJobsOlderThan(t *testing.T) {
+	tests := []struct {
+		name         string
+		olderThan    string
+		method       string
+		path         string
+		responseCode int
+		responseBody string
+		expectExit   bool
+		expectOutput string
+	}{
+		{
+			name:         "Success",
+			olderThan:    "24h",
+			method:       http.MethodDelete,
+			path:         "/jobs/pending?older_than=24h",
+			responseCode: http.StatusOK,
+			responseBody: `{"deleted": 5}`,
+			expectExit:   false,
+			expectOutput: "Successfully deleted 5 pending jobs older than 24h.\n",
+		},
+		{
+			name:         "Server Error",
+			olderThan:    "24h",
+			method:       http.MethodDelete,
+			path:         "/jobs/pending?older_than=24h",
+			responseCode: http.StatusInternalServerError,
+			responseBody: "Internal Server Error",
+			expectExit:   true,
+			expectOutput: "Failed to delete pending jobs older than 24h: Internal Server Error\n",
+		},
+		{
+			name:         "Decode Error",
+			olderThan:    "24h",
+			method:       http.MethodDelete,
+			path:         "/jobs/pending?older_than=24h",
+			responseCode: http.StatusOK,
+			responseBody: `invalid json`,
+			expectExit:   true,
+			expectOutput: "Failed to decode response:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock Server
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method || r.URL.String() != tt.path {
+					t.Errorf("Expected request %s %s, got %s %s", tt.method, tt.path, r.Method, r.URL.String())
+				}
+				w.WriteHeader(tt.responseCode)
+				w.Write([]byte(tt.responseBody))
+			}))
+			defer ts.Close()
+
+			// Mock stdout
+			oldStdout := stdout
+			defer func() { stdout = oldStdout }()
+			var buf bytes.Buffer
+			stdout = &buf
+
+			// Mock exitFunc
+			oldExitFunc := exitFunc
+			defer func() { exitFunc = oldExitFunc }()
+			exitCalled := false
+			exitFunc = func(code int) {
+				exitCalled = true
+			}
+
+			deletePendingJobsOlderThan(ts.URL, tt.olderThan)
+
+			if exitCalled != tt.expectExit {
+				t.Errorf("Expected exitCalled=%v, got %v", tt.expectExit, exitCalled)
+			}
+			if !bytes.Contains(buf.Bytes(), []byte(tt.expectOutput)) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expectOutput, buf.String())
+			}
+		})
+	}
+}
+
 func TestDeletePendingJobsByMatch(t *testing.T) {
 	tests := []struct {
 		name         string

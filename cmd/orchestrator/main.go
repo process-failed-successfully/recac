@@ -172,6 +172,7 @@ func main() {
 	pflag.String("delete-pending-tag", "", "Delete all pending jobs with the specified tag")
 	pflag.String("delete-pending-match", "", "Delete all pending jobs matching the given regex")
 	pflag.String("delete-pending-group", "", "Delete all pending jobs with the specified concurrency group")
+	pflag.String("delete-pending-older-than", "", "Delete all pending jobs older than the specified duration (e.g. 24h, 30m)")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
 	pflag.Bool("downstream", false, "Retry the job and all its downstream dependencies (with --retry-job)")
 	pflag.String("retry-edit-job", "", "Interactively edit and retry a failed job by ID")
@@ -612,6 +613,7 @@ func main() {
 	viper.BindPFlag("orchestrator.delete_pending_tag", pflag.Lookup("delete-pending-tag"))
 	viper.BindPFlag("orchestrator.delete_pending_match", pflag.Lookup("delete-pending-match"))
 	viper.BindPFlag("orchestrator.delete_pending_group", pflag.Lookup("delete-pending-group"))
+	viper.BindPFlag("orchestrator.delete_pending_older_than", pflag.Lookup("delete-pending-older-than"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.downstream", pflag.Lookup("downstream"))
 	viper.BindPFlag("orchestrator.retry_edit_job", pflag.Lookup("retry-edit-job"))
@@ -1579,6 +1581,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if deletePendingGroup := viper.GetString("orchestrator.delete_pending_group"); deletePendingGroup != "" {
 		host := viper.GetString("orchestrator.host")
 		deletePendingJobsByGroup(host, deletePendingGroup)
+		return nil
+	}
+
+	if deletePendingOlderThan := viper.GetString("orchestrator.delete_pending_older_than"); deletePendingOlderThan != "" {
+		host := viper.GetString("orchestrator.host")
+		deletePendingJobsOlderThan(host, deletePendingOlderThan)
 		return nil
 	}
 
@@ -4495,4 +4503,50 @@ func deletePendingJobsByGroup(host, group string) {
 	}
 
 	fmt.Fprintf(stdout, "Successfully deleted %d pending jobs by concurrency group.\n", result.Deleted)
+}
+
+func deletePendingJobsOlderThan(host, olderThan string) {
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/pending", host))
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to parse URL: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	q := u.Query()
+	q.Set("older_than", olderThan)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(stdout, "Failed to delete pending jobs older than %s: %s\n", olderThan, strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
+	}
+
+	var result struct {
+		Deleted int `json:"deleted"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Successfully deleted %d pending jobs older than %s.\n", result.Deleted, olderThan)
 }

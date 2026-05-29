@@ -3242,16 +3242,25 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		tag := r.URL.Query().Get("tag")
 		match := r.URL.Query().Get("match")
 		group := r.URL.Query().Get("group")
+		olderThanStr := r.URL.Query().Get("older_than")
 
-		if tag == "" && match == "" && group == "" {
-			http.Error(w, "Either 'tag', 'match', or 'group' query parameter is required for bulk delete pending jobs", http.StatusBadRequest)
+		if tag == "" && match == "" && group == "" && olderThanStr == "" {
+			http.Error(w, "Either 'tag', 'match', 'group', or 'older_than' query parameter is required for bulk delete pending jobs", http.StatusBadRequest)
 			return
 		}
 
 		var count int
 		var err error
 
-		if tag != "" {
+		if olderThanStr != "" {
+			var d time.Duration
+			d, err = time.ParseDuration(olderThanStr)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid duration for older_than: %v", err), http.StatusBadRequest)
+				return
+			}
+			count, err = orch.DeletePendingJobsOlderThan(r.Context(), d, logger)
+		} else if tag != "" {
 			count, err = orch.DeletePendingJobsByTag(r.Context(), tag, logger)
 		} else if match != "" {
 			count, err = orch.DeletePendingJobsByMatch(r.Context(), match, logger)
