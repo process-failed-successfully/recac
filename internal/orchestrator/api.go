@@ -1477,16 +1477,33 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		match := r.URL.Query().Get("match")
 		status := r.URL.Query().Get("status")
 		group := r.URL.Query().Get("group")
+		olderThanStr := r.URL.Query().Get("older_than")
 
-		if tag == "" && match == "" && status == "" && group == "" {
-			http.Error(w, "Either 'tag', 'match', 'status', or 'group' query parameter is required for bulk archive", http.StatusBadRequest)
+		if tag == "" && match == "" && status == "" && group == "" && olderThanStr == "" {
+			http.Error(w, "Either 'tag', 'match', 'status', 'group', or 'older_than' query parameter is required for bulk archive", http.StatusBadRequest)
 			return
+		}
+
+		var duration time.Duration
+		if olderThanStr != "" {
+			var parseErr error
+			duration, parseErr = time.ParseDuration(olderThanStr)
+			if parseErr != nil {
+				http.Error(w, fmt.Sprintf("invalid duration for older_than: %v", parseErr), http.StatusBadRequest)
+				return
+			}
 		}
 
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
 		var filtered []JobInfo
 
-		if tag != "" {
+		if olderThanStr != "" {
+			for _, job := range jobs {
+				if time.Since(job.StartTime) > duration {
+					filtered = append(filtered, job)
+				}
+			}
+		} else if tag != "" {
 			for _, job := range jobs {
 				hasTag := false
 				for _, t := range job.WorkItem.Tags {
