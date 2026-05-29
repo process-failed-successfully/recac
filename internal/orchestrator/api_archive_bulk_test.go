@@ -244,7 +244,45 @@ orch.mu.Unlock()
 		require.False(t, foundFiles["JOB-IGNORED/job.json"])
 	})
 
-	t.Run("No Tag or Match or Status or Group", func(t *testing.T) {
+	t.Run("Valid Older Than", func(t *testing.T) {
+		// Set a specific start time for testing older_than
+		orch.mu.Lock()
+		activeJob := orch.activeJobs["JOB-ACTIVE"]
+		activeJob.StartTime = time.Now().Add(-2 * time.Hour)
+		orch.activeJobs["JOB-ACTIVE"] = activeJob
+		orch.mu.Unlock()
+
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/archive/bulk?older_than=1h", server.URL))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// Read tar.gz
+		gzReader, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err)
+		defer gzReader.Close()
+
+		tarReader := tar.NewReader(gzReader)
+
+		foundFiles := make(map[string]bool)
+		for {
+			hdr, err := tarReader.Next()
+			if err == io.EOF {
+				break // End of archive
+			}
+			require.NoError(t, err)
+			foundFiles[hdr.Name] = true
+		}
+
+		require.True(t, foundFiles["JOB-ACTIVE/job.json"])
+		require.True(t, foundFiles["JOB-ACTIVE/logs.txt"])
+		// Because the other jobs were set with time.Now(), they shouldn't be included
+		require.False(t, foundFiles["JOB-COMPLETED/job.json"])
+		require.False(t, foundFiles["JOB-IGNORED/job.json"])
+	})
+
+	t.Run("No Tag or Match or Status or Group or Older Than", func(t *testing.T) {
 		resp, err := http.Get(fmt.Sprintf("%s/jobs/archive/bulk", server.URL))
 		require.NoError(t, err)
 		defer resp.Body.Close()
