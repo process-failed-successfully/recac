@@ -1072,6 +1072,31 @@ func TestAPI_DeletePendingByGroup(t *testing.T) {
 		_, err := orch.GetJob("GROUP-JOB-1")
 		assert.Error(t, err)
 	})
+
+	jobWithOlderThan := JobInfo{
+		ID:        "OLDER-THAN-JOB-1",
+		Status:    "Pending",
+		StartTime: time.Now().Add(-2 * time.Hour),
+		WorkItem: WorkItem{
+			ID: "OLDER-THAN-JOB-1",
+		},
+	}
+	orch.mu.Lock()
+	orch.pendingJobs["OLDER-THAN-JOB-1"] = jobWithOlderThan
+	orch.mu.Unlock()
+
+	t.Run("DELETE /jobs/pending?older_than=", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/jobs/pending?older_than=1h", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"deleted": 1`)
+
+		// Verify it was purged
+		_, err := orch.GetJob("OLDER-THAN-JOB-1")
+		assert.Error(t, err)
+	})
 }
 
 func TestAPI_ClearHistory(t *testing.T) {
