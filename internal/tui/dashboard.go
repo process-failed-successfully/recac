@@ -81,6 +81,7 @@ const (
 	viewDeletePendingGroupInput
 	viewDeletePendingTagInput
 	viewDeletePendingMatchInput
+	viewDeletePendingOlderThanInput
 	viewPauseGroupInput
 	viewResumeGroupInput
 	viewSummary
@@ -258,9 +259,10 @@ type DashboardModel struct {
 	maxRetriesInput textinput.Model
 
 	// Delete pending inputs
-	deletePendingGroupInput textinput.Model
-	deletePendingTagInput   textinput.Model
-	deletePendingMatchInput textinput.Model
+	deletePendingGroupInput     textinput.Model
+	deletePendingTagInput       textinput.Model
+	deletePendingMatchInput     textinput.Model
+	deletePendingOlderThanInput textinput.Model
 
 	pauseGroupInput  textinput.Model
 	resumeGroupInput textinput.Model
@@ -711,6 +713,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewDeletePendingMatchInput:
 		m, cmd = m.updateDeletePendingMatchInput(msg)
 		cmds = append(cmds, cmd)
+	case viewDeletePendingOlderThanInput:
+		m, cmd = m.updateDeletePendingOlderThanInput(msg)
+		cmds = append(cmds, cmd)
 	case viewPauseGroupInput:
 		m, cmd = m.updatePauseGroupInput(msg)
 		cmds = append(cmds, cmd)
@@ -929,6 +934,11 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.viewState = viewDeletePendingMatchInput
 			m.deletePendingMatchInput.SetValue("")
 			m.deletePendingMatchInput.Focus()
+			return m, textinput.Blink
+		case "ctrl+b":
+			m.viewState = viewDeletePendingOlderThanInput
+			m.deletePendingOlderThanInput.SetValue("")
+			m.deletePendingOlderThanInput.Focus()
 			return m, textinput.Blink
 		case "b":
 			selected := m.table.SelectedRow()
@@ -2142,6 +2152,30 @@ func (m DashboardModel) updateDeletePendingMatchInput(msg tea.Msg) (DashboardMod
 	return m, cmd
 }
 
+func (m DashboardModel) updateDeletePendingOlderThanInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.viewState = viewMain
+			m.deletePendingOlderThanInput.Blur()
+			return m, nil
+		case "enter":
+			val := strings.TrimSpace(m.deletePendingOlderThanInput.Value())
+			m.viewState = viewMain
+			m.deletePendingOlderThanInput.Blur()
+			if val == "" {
+				m.err = fmt.Errorf("Older than duration cannot be empty")
+				return m, nil
+			}
+			return m, deletePendingBulkCmd(m.host, "older_than", val)
+		}
+	}
+	m.deletePendingOlderThanInput, cmd = m.deletePendingOlderThanInput.Update(msg)
+	return m, cmd
+}
+
 func (m DashboardModel) updateSearchJobsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -2380,7 +2414,7 @@ func (m DashboardModel) View() string {
 			contentView = lipgloss.JoinVertical(lipgloss.Left, filterView, contentView)
 		}
 
-		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v: clear pending (group/tag/match) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+a: agents | ctrl+o: costs | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | y: copy ID | a: approve | I: skip | ctrl+w: skip downstream | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
+		helpView = statusStyle.Render("/: filter | p: pause/resume | d: drain/undrain | f: force poll | F: force complete | P: clear pending | ctrl+g/t/v/b: clear pending (group/tag/match/age) | +/-: scale limit | >/<: priority | N: rename | T/D/E/G/M/Z: update | =: compare | h: history | A: analytics | ctrl+u: summary | L: tags | b/B: blockers/deps | ctrl+p: crit path | ctrl+f: failures | ctrl+a: agents | ctrl+o: costs | ctrl+d: durations | ctrl+r: reliability | t: tree | enter: details | l: logs | ?: explain | o: open repo | y: copy ID | a: approve | I: skip | ctrl+w: skip downstream | c: cancel | C: cancel all | ctrl+x: cancel downstream | H/U: hold/unhold | r: retry | R: retry failed | ctrl+y: retry downstream | x: purge | X: clear history | ctrl+e: clean all | e: edit/clone | s: submit | w: archive | q: quit")
 	case viewSummary:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -2465,6 +2499,21 @@ func (m DashboardModel) View() string {
 			Align(lipgloss.Center, lipgloss.Center).
 			Padding(1, 2)
 		dialogContent := fmt.Sprintf("Delete Pending by Match Regex\n\n%s", m.deletePendingMatchInput.View())
+		containerStyle := lipgloss.NewStyle().
+			Width(m.viewport.Width).
+			Height(m.viewport.Height).
+			Align(lipgloss.Center, lipgloss.Center)
+		contentView = containerStyle.Render(dialogStyle.Render(dialogContent))
+		helpView = statusStyle.Render("enter: confirm | esc: cancel")
+	case viewDeletePendingOlderThanInput:
+		dialogStyle := lipgloss.NewStyle().
+			Width(50).
+			Height(5).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).
+			Align(lipgloss.Center, lipgloss.Center).
+			Padding(1, 2)
+		dialogContent := fmt.Sprintf("Delete Pending Older Than\n\n%s", m.deletePendingOlderThanInput.View())
 		containerStyle := lipgloss.NewStyle().
 			Width(m.viewport.Width).
 			Height(m.viewport.Height).
@@ -4245,6 +4294,11 @@ func NewDashboardModel(host string) DashboardModel {
 	dpmi.Prompt = "Match Regex: "
 	dpmi.Width = 40
 
+	dpoti := textinput.New()
+	dpoti.Placeholder = "e.g., 24h or 30m"
+	dpoti.Prompt = "Older Than: "
+	dpoti.Width = 40
+
 	si := textinput.New()
 	si.Placeholder = "e.g., error|panic"
 	si.Prompt = "Query: "
@@ -4280,11 +4334,12 @@ func NewDashboardModel(host string) DashboardModel {
 		agentProviderInput:      api,
 		agentModelInput:         ami,
 		renameInput:             ri,
-		maxRetriesInput:         mri,
-		deletePendingGroupInput: dpgi,
-		deletePendingTagInput:   dpti,
-		deletePendingMatchInput: dpmi,
-		pauseGroupInput:         pgi,
+		maxRetriesInput:             mri,
+		deletePendingGroupInput:     dpgi,
+		deletePendingTagInput:       dpti,
+		deletePendingMatchInput:     dpmi,
+		deletePendingOlderThanInput: dpoti,
+		pauseGroupInput:             pgi,
 		resumeGroupInput:        rgi,
 		searchInput:             si,
 		searchContextInput:      sci,
