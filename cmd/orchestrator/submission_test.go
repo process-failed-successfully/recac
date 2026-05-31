@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -3607,4 +3608,208 @@ func TestCancelJobsByGroup_InvalidURL(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, "Failed to parse URL")
 	assert.True(t, exitCalled)
+}
+
+func TestWaitForTag(t *testing.T) {
+	tests := []struct {
+		name         string
+		tag          string
+		handler      func(callCount *int32, t *testing.T) http.HandlerFunc
+		expectedErr  string
+		expectedLogs []string
+	}{
+		{
+			name: "TransientErrorsThenSuccess",
+			tag:  "my-tag",
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/jobs", r.URL.Path)
+					assert.Contains(t, r.URL.RawQuery, "state=all")
+					assert.Contains(t, r.URL.RawQuery, "tag=my-tag")
+
+					count := atomic.AddInt32(callCount, 1)
+
+					if count == 1 {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					} else if count == 2 {
+						w.WriteHeader(http.StatusOK)
+						w.Write([]byte(`{invalid json`))
+						return
+					}
+
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]orchestrator.JobInfo{
+						{ID: "JOB-1", Status: "Completed"},
+						{ID: "JOB-2", Status: "Completed"},
+					})
+				}
+			},
+			expectedErr: "",
+			expectedLogs: []string{
+				"Waiting for jobs with tag 'my-tag' to complete...",
+				"All jobs with tag 'my-tag' completed successfully.",
+			},
+		},
+		{
+			name: "NoJobsFound",
+			tag:  "empty-tag",
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]orchestrator.JobInfo{})
+				}
+			},
+			expectedErr: "",
+			expectedLogs: []string{
+				"No jobs found with tag 'empty-tag'.",
+			},
+		},
+		{
+			name: "JobFailed",
+			tag:  "fail-tag",
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]orchestrator.JobInfo{
+						{ID: "JOB-FAIL", Status: "Failed", Error: "some error"},
+					})
+				}
+			},
+			expectedErr: "job JOB-FAIL failed with error: some error",
+		},
+		{
+			name: "JobCanceled",
+			tag:  "cancel-tag",
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]orchestrator.JobInfo{
+						{ID: "JOB-CANC", Status: "Canceled", Error: "user cancelled"},
+					})
+				}
+			},
+			expectedErr: "job JOB-CANC canceled with error: user cancelled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var callCount int32
+			server := httptest.NewServer(tt.handler(&callCount, t))
+			defer server.Close()
+
+			var buf bytes.Buffer
+			err := waitForTag(server.URL, tt.tag, &buf)
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			out := buf.String()
+			for _, log := range tt.expectedLogs {
+				assert.Contains(t, out, log)
+			}
+		})
+	}
+}
+
+func TestWaitForJobs_TableDriven(t *testing.T) {
+	tests := []struct {
+		name         string
+		jobIDs       []string
+		handler      func(callCount *int32, t *testing.T) http.HandlerFunc
+		expectedErr  string
+		expectedLogs []string
+	}{
+		{
+			name:   "TransientErrorsThenSuccess",
+			jobIDs: []string{"JOB-1", "JOB-2"},
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					count := atomic.AddInt32(callCount, 1)
+
+					if count == 1 {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					} else if count == 2 {
+						w.WriteHeader(http.StatusOK)
+						w.Write([]byte(`{invalid json`))
+						return
+					}
+
+					parts := strings.Split(r.URL.Path, "/")
+					jobID := parts[len(parts)-1]
+
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(orchestrator.JobInfo{
+						ID:     jobID,
+						Status: "Completed",
+					})
+				}
+			},
+			expectedErr: "",
+			expectedLogs: []string{
+				"Waiting for 2 jobs to complete...",
+				"Job JOB-1 completed successfully.",
+				"Job JOB-2 completed successfully.",
+			},
+		},
+		{
+			name:   "JobFailed",
+			jobIDs: []string{"JOB-FAIL"},
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(orchestrator.JobInfo{
+						ID:     "JOB-FAIL",
+						Status: "Failed",
+						Error:  "a fatal error",
+					})
+				}
+			},
+			expectedErr: "job JOB-FAIL failed with error: a fatal error",
+		},
+		{
+			name:   "JobCanceled",
+			jobIDs: []string{"JOB-CANC"},
+			handler: func(callCount *int32, t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(orchestrator.JobInfo{
+						ID:     "JOB-CANC",
+						Status: "Canceled",
+						Error:  "cancelled by user",
+					})
+				}
+			},
+			expectedErr: "job JOB-CANC canceled with error: cancelled by user",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var callCount int32
+			server := httptest.NewServer(tt.handler(&callCount, t))
+			defer server.Close()
+
+			var buf bytes.Buffer
+			err := waitForJobs(server.URL, tt.jobIDs, &buf)
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			out := buf.String()
+			for _, log := range tt.expectedLogs {
+				assert.Contains(t, out, log)
+			}
+		})
+	}
 }
