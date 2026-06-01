@@ -76,6 +76,10 @@
         function renderFeatures(features) {
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
+            if (!features || features.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2em; color: #666;">No features or tasks found.</td></tr>';
+                return;
+            }
             features.forEach(f => {
                 const tr = document.createElement('tr');
                 let statusClass = 'status-pending';

@@ -13,3 +13,6 @@
 ## 2026-05-26 - Actionable Empty States
 **Learning:** Empty states in modals with passive text instructions like 'Press Esc to close' force users to guess interactions or rely purely on keyboard shortcuts. Replacing them with explicit, actionable CTA buttons (like `<button onclick="...close...">Close (Esc)</button>` or `<button>+ Submit Job (s)</button>`) makes the UI immediately discoverable and accessible, especially for mouse users or those unfamiliar with the app's shortcuts.
 **Action:** When designing or refactoring empty states, always prioritize actionable buttons that directly trigger the suggested resolution or close action over passive text instructions.
+## 2026-05-27 - Explicit Empty States in Data Tables
+**Learning:** In the Orchestrator web UI (`internal/web/static/index.html`), dynamically rendered data tables (like `#features-table`) lacked explicit empty states when the underlying data array was empty. This left users with a confusing blank table.
+**Action:** Always implement an explicit empty state (e.g., a full-width table row displaying a 'No data found' message) when iterating over data arrays to render table rows, ensuring users are not left guessing whether data is loading or missing.
