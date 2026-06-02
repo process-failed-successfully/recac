@@ -296,7 +296,12 @@ func run() error {
 		if out, err := podCmd.Output(); err == nil {
 			podName := strings.TrimSpace(string(out))
 			if podName != "" {
-				_ = runCommand("kubectl", "exec", podName, "-n", "default", "--", "sh", "-c", "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\"")
+				pgPassword := os.Getenv("POSTGRES_PASSWORD")
+				if pgPassword == "" {
+					pgPassword = "changeit" // Default matching helm values
+				}
+				// Use the env utility inside the container to set PGPASSWORD and prevent command injection
+				_ = runCommand("kubectl", "exec", podName, "-n", "default", "--", "env", "PGPASSWORD="+pgPassword, "psql", "-U", "recac", "-d", "recac", "-c", "TRUNCATE observations, signals, project_features, file_locks;")
 			}
 		}
 
