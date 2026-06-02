@@ -16,3 +16,6 @@
 ## 2026-05-27 - Explicit Empty States in Data Tables
 **Learning:** In the Orchestrator web UI (`internal/web/static/index.html`), dynamically rendered data tables (like `#features-table`) lacked explicit empty states when the underlying data array was empty. This left users with a confusing blank table.
 **Action:** Always implement an explicit empty state (e.g., a full-width table row displaying a 'No data found' message) when iterating over data arrays to render table rows, ensuring users are not left guessing whether data is loading or missing.
+## 2026-06-02 - Consistent ID Copy Button Across UI
+**Learning:** In the Orchestrator web UI, the dashboard's "Features & Tasks" table was rendering IDs as plain text, while the main jobs view implemented an inline copy button with visual feedback ("Copied!"). This inconsistency created a disjointed experience and required users to manually highlight text in one place while relying on a one-click action in another.
+**Action:** When introducing micro-UX interactions like inline-copy buttons, apply them universally across all data tables displaying similar types of unique identifiers to ensure a cohesive and predictable user experience.

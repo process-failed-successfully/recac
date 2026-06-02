@@ -88,7 +88,21 @@
                 else if (f.status === 'failed') statusClass = 'status-failed';
 
                 const tdId = document.createElement('td');
-                tdId.textContent = f.id;
+                const idBtn = document.createElement('button');
+                idBtn.type = 'button';
+                idBtn.setAttribute('aria-label', 'Copy ID ' + f.id);
+                idBtn.title = 'Click to copy ID';
+                idBtn.style.cssText = 'background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;';
+                idBtn.textContent = f.id;
+                idBtn.onclick = function() {
+                    navigator.clipboard.writeText(f.id);
+                    if (this.innerText !== 'Copied!') {
+                        const originalText = this.innerText;
+                        this.innerText = 'Copied!';
+                        setTimeout(() => this.innerText = originalText, 1500);
+                    }
+                };
+                tdId.appendChild(idBtn);
                 tr.appendChild(tdId);
 
                 const tdDesc = document.createElement('td');
