@@ -19,3 +19,7 @@
 ## 2026-06-02 - Consistent ID Copy Button Across UI
 **Learning:** In the Orchestrator web UI, the dashboard's "Features & Tasks" table was rendering IDs as plain text, while the main jobs view implemented an inline copy button with visual feedback ("Copied!"). This inconsistency created a disjointed experience and required users to manually highlight text in one place while relying on a one-click action in another.
 **Action:** When introducing micro-UX interactions like inline-copy buttons, apply them universally across all data tables displaying similar types of unique identifiers to ensure a cohesive and predictable user experience.
+
+## 2024-05-18 - Accessible Loading and Error States in Dynamic Tables
+**Learning:** When fetching data for dynamic tables, `<tbody>` empty or loading states must be explicitly handled, otherwise screen reader users face confusing blank tables or sudden layout shifts. Wrapping `<tbody>` with `aria-live="polite"` helps announce when data finally populates or fails, and keeping inline styles out of `<tbody>` elements improves maintainability and satisfies memory constraints.
+**Action:** Always provide explicit HTML structure (like an initial `<td colspan="...">Loading...</td>` row) for dynamic tables, add `aria-live="polite"` to the table body, and use CSS classes instead of inline styles for rendering both empty messages and error states.
