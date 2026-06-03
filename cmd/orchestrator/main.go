@@ -151,6 +151,7 @@ func main() {
 	pflag.String("compare-jobs", "", "Compare two jobs by ID (comma-separated, e.g. job1,job2)")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("cancel-all", false, "Cancel all currently running jobs")
+	pflag.Bool("cancel-interactive", false, "Interactively cancel active or pending jobs")
 	pflag.String("cancel-tag", "", "Cancel all active and pending jobs with the specified tag")
 	pflag.String("cancel-status", "", "Cancel all active and pending jobs with the specified status")
 	pflag.String("cancel-match", "", "Cancel all active and pending jobs matching the given regex")
@@ -592,6 +593,7 @@ func main() {
 	viper.BindPFlag("orchestrator.compare_jobs", pflag.Lookup("compare-jobs"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.cancel_all", pflag.Lookup("cancel-all"))
+	viper.BindPFlag("orchestrator.cancel_interactive", pflag.Lookup("cancel-interactive"))
 	viper.BindPFlag("orchestrator.cancel_tag", pflag.Lookup("cancel-tag"))
 	viper.BindPFlag("orchestrator.cancel_status", pflag.Lookup("cancel-status"))
 	viper.BindPFlag("orchestrator.cancel_match", pflag.Lookup("cancel-match"))
@@ -1447,6 +1449,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.cancel_all") {
 		host := viper.GetString("orchestrator.host")
 		cancelAllJobs(host)
+		return nil
+	}
+
+	if viper.GetBool("orchestrator.cancel_interactive") {
+		host := viper.GetString("orchestrator.host")
+		cancelInteractive(host)
 		return nil
 	}
 
