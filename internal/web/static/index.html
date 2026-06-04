@@ -20,6 +20,9 @@
         #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: hidden; }
         .empty-message { text-align: center; padding: 2em; color: #666; }
         .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; }
+        .copy-btn { background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; }
+        .copy-btn:hover { color: #0056b3; }
+        .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
@@ -96,7 +99,7 @@
                 idBtn.type = 'button';
                 idBtn.setAttribute('aria-label', 'Copy ID ' + f.id);
                 idBtn.title = 'Click to copy ID';
-                idBtn.style.cssText = 'background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;';
+                idBtn.className = 'copy-btn';
                 idBtn.textContent = f.id;
                 idBtn.onclick = function() {
                     navigator.clipboard.writeText(f.id);
