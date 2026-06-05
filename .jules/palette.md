@@ -26,3 +26,7 @@
 ## 2026-06-04 - Avoid Inline Styles on Interactive Elements
 **Learning:** In the Orchestrator web UI, inline styles (`style="background: none;..."` or `el.style.cssText`) were used on the interactive "Copy ID" buttons. This approach makes it impossible to apply pseudo-classes like `:hover` and `:focus-visible`, which are essential for accessibility, providing clear visual feedback for mouse users and explicit focus indicators for keyboard navigation.
 **Action:** When building or refactoring interactive components in web UIs, always avoid using inline styles. Instead, define semantic CSS classes in the global `<style>` block or external stylesheets to ensure pseudo-classes and full accessibility states can be properly implemented.
+
+## 2026-06-05 - Replace passive error states with actionable buttons
+**Learning:** Passive error messages like "Please try refreshing" put the burden on the user and feel disconnected from the app state. Adding a simple retry button next to an error state creates a much smoother experience, especially in single-page or dashboard applications where a full page reload might be jarring or unnecessary.
+**Action:** Always pair error states with a relevant call-to-action (like "Try Again", "Reload", or "Go Back") that programmatically triggers the recovery action, and ensure these buttons have clear focus and hover states for accessibility.
