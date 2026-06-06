@@ -23,6 +23,9 @@
         .copy-btn { background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; }
         .copy-btn:hover { color: #0056b3; }
         .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
+        .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+        .action-btn:hover { background: #0056b3; }
+        .action-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
@@ -62,6 +65,10 @@
 
         async function loadData() {
             try {
+                document.getElementById('graph').removeAttribute('data-processed');
+                document.getElementById('graph').innerHTML = "<!-- Graph will be loaded here -->\n                graph TD;\n                  A[Loading...]";
+                document.querySelector('#features-table tbody').innerHTML = '<tr><td colspan="4" class="empty-message">Loading features...</td></tr>';
+
                 // Fetch Features
                 const featuresResp = await fetch('/api/features');
                 const features = await featuresResp.json();
@@ -74,9 +81,9 @@
 
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('graph').innerHTML = "Error loading data. Is the server running?";
+                document.getElementById('graph').innerHTML = 'Error loading data. Is the server running?<br><button type="button" class="action-btn" onclick="loadData()">Retry</button>';
                 const tbody = document.querySelector('#features-table tbody');
-                tbody.innerHTML = '<tr><td colspan="4" class="error-message">Error loading features. Please try refreshing.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="error-message">Error loading features. <br><button type="button" class="action-btn" onclick="loadData()">Retry</button></td></tr>';
             }
         }
 
