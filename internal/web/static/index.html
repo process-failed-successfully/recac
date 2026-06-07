@@ -81,7 +81,7 @@
 
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('graph').innerHTML = 'Error loading data. Is the server running?<br><button type="button" class="action-btn" onclick="loadData()">Retry</button>';
+                document.getElementById('graph').innerHTML = '<div class="error-message">Error loading data. Is the server running?<br><button type="button" class="action-btn" onclick="loadData()">Retry</button></div>';
                 const tbody = document.querySelector('#features-table tbody');
                 tbody.innerHTML = '<tr><td colspan="4" class="error-message">Error loading features. <br><button type="button" class="action-btn" onclick="loadData()">Retry</button></td></tr>';
             }
@@ -91,7 +91,7 @@
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
             if (!features || features.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-message">No features or tasks found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-message">No features or tasks found.<br><br><button type="button" class="action-btn" onclick="loadData()">Refresh</button></td></tr>';
                 return;
             }
             features.forEach(f => {
@@ -140,6 +140,10 @@
 
         async function renderGraph(graphDef) {
             const element = document.getElementById('graph');
+            if (!graphDef || graphDef.trim() === '') {
+                 element.innerHTML = '<div class="empty-message">No graph data available.<br><br><button type="button" class="action-btn" onclick="loadData()">Refresh</button></div>';
+                 return;
+            }
             // Check if graphDef is valid mermaid syntax
             if (!graphDef.trim().startsWith('graph')) {
                  element.innerHTML = '';
