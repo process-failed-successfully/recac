@@ -84,3 +84,6 @@
 ## 2025-05-21 - [Optimize strings.ToLower with strings.EqualFold]
 **Learning:** Using `strings.ToLower` for case-insensitive string comparisons in interactive CLI paths creates unnecessary intermediate memory allocations.
 **Action:** Replaced `strings.ToLower(input) == "value"` checks with `strings.EqualFold(input, "value")` to perform case-insensitive string comparisons without allocating new memory, making the code more idiomatic and performant.
+## 2025-06-08 - [Optimize substring searching with utils.ContainsFold]
+**Learning:** Compiling a regular expression like `regexp.Compile("(?i)" + match)` just to do a case-insensitive substring search in a loop involves unnecessary overhead, and the execution with `MatchString` allocates and does more work.
+**Action:** Replace `regexp.Compile("(?i)" + match)` and `matcher.MatchString(str)` with the zero-allocation `utils.ContainsFold(str, match)` when checking for simple substring inclusion.
