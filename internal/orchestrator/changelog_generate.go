@@ -3,9 +3,10 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
+
+	"recac/internal/utils"
 
 	"github.com/spf13/viper"
 )
@@ -15,15 +16,6 @@ func GenerateChangelog(ctx context.Context, orch *Orchestrator, tag, match, prov
 	// Filter jobs
 	var filtered []JobInfo
 	jobs := orch.GetCompletedJobs()
-
-	var matcher *regexp.Regexp
-	if match != "" {
-		m, err := regexp.Compile("(?i)" + match)
-		if err != nil {
-			return "", fmt.Errorf("invalid match regex: %v", err)
-		}
-		matcher = m
-	}
 
 	for _, job := range jobs {
 		if job.Status != "Completed" {
@@ -44,8 +36,8 @@ func GenerateChangelog(ctx context.Context, orch *Orchestrator, tag, match, prov
 			}
 		}
 
-		if matcher != nil {
-			if !matcher.MatchString(job.Summary) && !matcher.MatchString(job.Error) {
+		if match != "" {
+			if !utils.ContainsFold(job.Summary, match) && !utils.ContainsFold(job.Error, match) {
 				continue
 			}
 		}

@@ -4,26 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
+
+	"recac/internal/utils"
 )
 
 // GeneratePostmortem generates a markdown postmortem report from failed jobs.
 func GeneratePostmortem(ctx context.Context, orch *Orchestrator, tag, match, provider, model, apiKey string) (string, error) {
-	var matcher *regexp.Regexp
-	var err error
-	if match != "" {
-		matcher, err = regexp.Compile("(?i)" + match)
-		if err != nil {
-			return "", fmt.Errorf("invalid match regex: %w", err)
-		}
-	}
-
 	orch.mu.RLock()
 	var failedJobs []JobInfo
 	for _, job := range orch.completedJobs {
 		if job.Status == "Failed" || job.Status == "error" {
-			if matcher != nil && !matcher.MatchString(job.Summary) && !matcher.MatchString(job.Error) {
+			if match != "" && !utils.ContainsFold(job.Summary, match) && !utils.ContainsFold(job.Error, match) {
 				continue
 			}
 

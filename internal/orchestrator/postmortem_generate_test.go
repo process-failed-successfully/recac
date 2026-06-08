@@ -184,12 +184,4 @@ func TestGeneratePostmortem_Filters(t *testing.T) {
 	assert.Equal(t, "Report", res)
 }
 
-func TestGeneratePostmortem_InvalidRegex(t *testing.T) {
-	mockSpawner := new(MockSpawner)
-	orch := New(&MockPoller{}, mockSpawner, 1*time.Second)
-	ctx := context.Background()
-	_, err := GeneratePostmortem(ctx, orch, "", "[invalid", "mock", "mock-model", "test-key")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid match regex")
-}
+// TestGeneratePostmortem_InvalidRegex is removed since regex matching was replaced by utils.ContainsFold.
