@@ -24,14 +24,20 @@
         .copy-btn:hover { color: #0056b3; }
         .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
         .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; }
-        .action-btn:hover { background: #0056b3; }
+        .action-btn:hover:not(:disabled) { background: #0056b3; }
         .action-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; }
+        .action-btn:disabled { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Recac Project Dashboard</h1>
+        <div class="header">
+            <h1>Recac Project Dashboard</h1>
+            <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh</button>
+        </div>
 
         <div class="section">
             <h2>Task Dependency Graph</h2>
@@ -64,6 +70,12 @@
         mermaid.initialize({ startOnLoad: false });
 
         async function loadData() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Refreshing...';
+                refreshBtn.setAttribute('aria-busy', 'true');
+            }
             try {
                 document.getElementById('graph').removeAttribute('data-processed');
                 document.getElementById('graph').innerHTML = "<!-- Graph will be loaded here -->\n                graph TD;\n                  A[Loading...]";
@@ -84,8 +96,23 @@
                 document.getElementById('graph').innerHTML = '<div class="error-message">Error loading data. Is the server running?<br><button type="button" class="action-btn" onclick="loadData()">Retry</button></div>';
                 const tbody = document.querySelector('#features-table tbody');
                 tbody.innerHTML = '<tr><td colspan="4" class="error-message">Error loading features. <br><button type="button" class="action-btn" onclick="loadData()">Retry</button></td></tr>';
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = 'Refresh';
+                    refreshBtn.removeAttribute('aria-busy');
+                }
             }
         }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (refreshBtn && !refreshBtn.disabled) {
+                    refreshBtn.click();
+                }
+            }
+        });
 
         function renderFeatures(features) {
             const tbody = document.querySelector('#features-table tbody');
