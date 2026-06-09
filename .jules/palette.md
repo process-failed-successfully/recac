@@ -36,3 +36,6 @@
 ## 2024-06-08 - Global Action Refresh Button and Shortcuts
 **Learning:** For async operations attached to global actions like "Refresh Dashboard", preventing duplicate submissions and clearly conveying the loading state (`aria-busy="true"`, disabled styling, "Refreshing..." text) is essential for screen readers and impatient users. Implementing simple global keyboard shortcuts (like 'r' for refresh) enhances power-user experience but requires checking that the focus is not inside form inputs to avoid unintended triggers.
 **Action:** Always provide explicit disabled and `aria-busy` states for global async action buttons, and safely scope keyboard shortcuts by verifying `e.target.tagName` excludes 'INPUT', 'TEXTAREA', and 'SELECT'.
+## 2026-06-09 - Adding Spinners for Async Operations
+**Learning:** Users lack confidence when actionable buttons like 'Refresh' provide only text changes without visual motion during async operations, making the app feel frozen.
+**Action:** Always include a visual animation like a rotating spinner alongside accessible ARIA states for async buttons and table loading rows.
