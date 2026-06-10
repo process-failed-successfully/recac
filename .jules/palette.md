@@ -39,3 +39,6 @@
 ## 2026-06-09 - Adding Spinners for Async Operations
 **Learning:** Users lack confidence when actionable buttons like 'Refresh' provide only text changes without visual motion during async operations, making the app feel frozen.
 **Action:** Always include a visual animation like a rotating spinner alongside accessible ARIA states for async buttons and table loading rows.
+## 2026-06-11 - Synchronize Visual Updates with ARIA Labels
+**Learning:** Visual state changes on interactive elements (like a "Copy" button changing its text to "Copied!") are not naturally announced to screen reader users if an overriding, static `aria-label` exists on the element. In these scenarios, updating only the `innerText` provides visual feedback but fails accessibility.
+**Action:** Always ensure that when dynamic text state changes occur on interactive elements using `aria-label`, the `aria-label` is synchronously updated and eventually reverted along with the visual text (e.g. updating the label to "Copied ID").
