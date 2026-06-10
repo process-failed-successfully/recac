@@ -47,7 +47,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-    <div class="container">
+    <main class="container">
         <div class="header">
             <h1>Recac Project Dashboard</h1>
             <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh</button>
@@ -65,10 +65,10 @@
             <table id="features-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Priority</th>
+                        <th scope="col">ID</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Priority</th>
                     </tr>
                 </thead>
                 <tbody aria-live="polite">
@@ -76,7 +76,7 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </main>
 
     <script>
         mermaid.initialize({ startOnLoad: false });
@@ -152,7 +152,11 @@
                     if (this.innerText !== 'Copied!') {
                         const originalText = this.innerText;
                         this.innerText = 'Copied!';
-                        setTimeout(() => this.innerText = originalText, 1500);
+                        this.setAttribute('aria-label', 'Copied ID ' + f.id);
+                        setTimeout(() => {
+                            this.innerText = originalText;
+                            this.setAttribute('aria-label', 'Copy ID ' + f.id);
+                        }, 1500);
                     }
                 };
                 tdId.appendChild(idBtn);
