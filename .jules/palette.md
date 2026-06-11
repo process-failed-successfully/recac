@@ -42,3 +42,6 @@
 ## 2026-06-11 - Synchronize Visual Updates with ARIA Labels
 **Learning:** Visual state changes on interactive elements (like a "Copy" button changing its text to "Copied!") are not naturally announced to screen reader users if an overriding, static `aria-label` exists on the element. In these scenarios, updating only the `innerText` provides visual feedback but fails accessibility.
 **Action:** Always ensure that when dynamic text state changes occur on interactive elements using `aria-label`, the `aria-label` is synchronously updated and eventually reverted along with the visual text (e.g. updating the label to "Copied ID").
+## 2026-06-12 - Humanizing Machine Enums in the UI
+**Learning:** Raw API enums (like `in_progress` or `needs_review`) render poorly in user interfaces and feel unpolished. Users expect standard text styling (capitalization and spaces). Displaying machine representations directly exposes implementation details and hurts the UX quality.
+**Action:** Always format raw API enum strings in status badges or data tables by replacing underscores with spaces via JS string replacement (`.replace(/_/g, ' ')`) and applying CSS `text-transform: capitalize;` to ensure human-readable content.
