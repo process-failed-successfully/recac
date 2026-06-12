@@ -28,4 +28,4 @@ echo "$PACKAGES"
 
 # Run tests for selected packages
 # We use echo to pass packages as arguments to go test
-echo "$PACKAGES" | xargs go test -buildvcs=false -v
+echo "$PACKAGES" | xargs -r go test -buildvcs=false -v
