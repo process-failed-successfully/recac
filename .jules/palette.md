@@ -45,3 +45,7 @@
 ## 2026-06-12 - Humanizing Machine Enums in the UI
 **Learning:** Raw API enums (like `in_progress` or `needs_review`) render poorly in user interfaces and feel unpolished. Users expect standard text styling (capitalization and spaces). Displaying machine representations directly exposes implementation details and hurts the UX quality.
 **Action:** Always format raw API enum strings in status badges or data tables by replacing underscores with spaces via JS string replacement (`.replace(/_/g, ' ')`) and applying CSS `text-transform: capitalize;` to ensure human-readable content.
+
+## 2026-06-13 - Format Metadata Enums with Badges
+**Learning:** Rendering enum-like metadata (such as "Priority") as plain text within data tables reduces readability and scannability, making it harder for users to quickly parse the information compared to explicit status columns.
+**Action:** Always format API enums (like priority levels) using consistent neutral badges (`status-badge status-pending` for example) and replace underscores with spaces (`.replace(/_/g, ' ')`). Additionally, always provide an explicit text fallback (like 'unassigned') for empty values instead of rendering blank table cells.

@@ -175,7 +175,10 @@
                 tr.appendChild(tdStatus);
 
                 const tdPriority = document.createElement('td');
-                tdPriority.textContent = f.priority;
+                const spanPriority = document.createElement('span');
+                spanPriority.className = 'status-badge status-pending';
+                spanPriority.textContent = (f.priority || 'unassigned').replace(/_/g, ' ');
+                tdPriority.appendChild(spanPriority);
                 tr.appendChild(tdPriority);
 
                 tbody.appendChild(tr);
