@@ -14,14 +14,15 @@
         .status-inprogress { background: #cce5ff; color: #004085; }
         .status-pending { background: #e2e3e5; color: #383d41; }
         .status-failed { background: #f8d7da; color: #721c24; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; transition: background-color 0.15s ease-in-out; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        tbody tr { transition: background-color 0.15s ease-in-out; }
         tbody tr:hover { background-color: #f1f3f5; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; }
         #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: hidden; }
         .empty-message { text-align: center; padding: 2em; color: #666; }
         .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; }
-        .copy-btn { background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; }
+        .copy-btn { background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; transition: color 0.15s ease-in-out; }
         .copy-btn:hover { color: #0056b3; }
         .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
         .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out; }
@@ -88,6 +89,7 @@
                 refreshBtn.disabled = true;
                 refreshBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Refreshing...';
                 refreshBtn.setAttribute('aria-busy', 'true');
+                refreshBtn.setAttribute('aria-label', 'Refreshing Dashboard');
             }
             try {
                 document.getElementById('graph').removeAttribute('data-processed');
@@ -114,6 +116,7 @@
                     refreshBtn.disabled = false;
                     refreshBtn.textContent = 'Refresh';
                     refreshBtn.removeAttribute('aria-busy');
+                    refreshBtn.setAttribute('aria-label', 'Refresh Dashboard');
                 }
             }
         }
@@ -154,9 +157,11 @@
                         const originalText = this.innerText;
                         this.innerText = 'Copied!';
                         this.setAttribute('aria-label', 'Copied ID ' + f.id);
+                        this.title = 'Copied!';
                         setTimeout(() => {
                             this.innerText = originalText;
                             this.setAttribute('aria-label', 'Copy ID ' + f.id);
+                            this.title = 'Click to copy ID';
                         }, 1500);
                     }
                 };

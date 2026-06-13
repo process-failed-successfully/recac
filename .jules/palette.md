@@ -49,3 +49,7 @@
 ## 2026-06-13 - Format Metadata Enums with Badges
 **Learning:** Rendering enum-like metadata (such as "Priority") as plain text within data tables reduces readability and scannability, making it harder for users to quickly parse the information compared to explicit status columns.
 **Action:** Always format API enums (like priority levels) using consistent neutral badges (`status-badge status-pending` for example) and replace underscores with spaces (`.replace(/_/g, ' ')`). Additionally, always provide an explicit text fallback (like 'unassigned') for empty values instead of rendering blank table cells.
+
+## 2024-05-19 - Dynamic Text State Accessibility
+**Learning:** When using JavaScript to change the inner text of a button (e.g., to "Refreshing..." or "Copied!"), if the button has a static `aria-label`, the screen reader continues to announce the static label, hiding the dynamic state change from visually impaired users.
+**Action:** When updating dynamic text state on interactive elements, always synchronously update and revert the element's `aria-label` (and `title` for tooltip synchronization) to match the dynamic text to guarantee screen reader announcements.
