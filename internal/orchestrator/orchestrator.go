@@ -2091,6 +2091,10 @@ func (o *Orchestrator) ApproveJobsByConcurrencyGroup(ctx context.Context, group 
 		logger.Info("Approved jobs by concurrency group", "group", group, "count", count)
 	}
 
+	if count > 0 {
+		o.evaluatePendingJobs(ctx, logger)
+	}
+
 	return count, nil
 }
 
