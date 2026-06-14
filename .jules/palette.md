@@ -49,3 +49,6 @@
 ## 2026-06-13 - Format Metadata Enums with Badges
 **Learning:** Rendering enum-like metadata (such as "Priority") as plain text within data tables reduces readability and scannability, making it harder for users to quickly parse the information compared to explicit status columns.
 **Action:** Always format API enums (like priority levels) using consistent neutral badges (`status-badge status-pending` for example) and replace underscores with spaces (`.replace(/_/g, ' ')`). Additionally, always provide an explicit text fallback (like 'unassigned') for empty values instead of rendering blank table cells.
+## 2026-06-14 - Smooth Transitions on Table Rows
+**Learning:** In the Orchestrator web UI, applying CSS 'transition' directly to the 'table' element does not properly animate background color changes on 'tbody tr:hover'. The transition needs to be applied directly to the target element undergoing the state change.
+**Action:** When applying CSS transitions for hover effects on table rows, apply the 'transition' property directly to the row elements (e.g., 'tbody tr') rather than the parent 'table' element to ensure smooth visual animations.
