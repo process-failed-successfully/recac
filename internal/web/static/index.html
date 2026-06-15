@@ -89,6 +89,8 @@
                 refreshBtn.disabled = true;
                 refreshBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Refreshing...';
                 refreshBtn.setAttribute('aria-busy', 'true');
+                refreshBtn.setAttribute('aria-label', 'Refreshing Dashboard');
+                refreshBtn.title = 'Refreshing Dashboard';
             }
             try {
                 document.getElementById('graph').removeAttribute('data-processed');
@@ -115,6 +117,8 @@
                     refreshBtn.disabled = false;
                     refreshBtn.textContent = 'Refresh';
                     refreshBtn.removeAttribute('aria-busy');
+                    refreshBtn.setAttribute('aria-label', 'Refresh Dashboard');
+                    refreshBtn.title = 'Refresh Dashboard (Shortcut: \'r\')';
                 }
             }
         }
@@ -155,9 +159,11 @@
                         const originalText = this.innerText;
                         this.innerText = 'Copied!';
                         this.setAttribute('aria-label', 'Copied ID ' + f.id);
+                        this.title = 'Copied ID';
                         setTimeout(() => {
                             this.innerText = originalText;
                             this.setAttribute('aria-label', 'Copy ID ' + f.id);
+                            this.title = 'Click to copy ID';
                         }, 1500);
                     }
                 };
