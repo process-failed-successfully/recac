@@ -52,3 +52,6 @@
 ## 2026-06-14 - Smooth Transitions on Table Rows
 **Learning:** In the Orchestrator web UI, applying CSS 'transition' directly to the 'table' element does not properly animate background color changes on 'tbody tr:hover'. The transition needs to be applied directly to the target element undergoing the state change.
 **Action:** When applying CSS transitions for hover effects on table rows, apply the 'transition' property directly to the row elements (e.g., 'tbody tr') rather than the parent 'table' element to ensure smooth visual animations.
+## 2026-06-17 - Accessible Refresh Timestamps
+**Learning:** In the Orchestrator web UI, when implementing global async data refresh actions (like clicking a Refresh button), relying solely on the loading spinner and button state changes can leave users unsure when the data was last updated, and fails to provide a clear completion announcement for screen readers.
+**Action:** Always pair global refresh actions with an adjacent 'Last updated: [Time]' element wrapped in an `aria-live="polite"` region. This visually confirms data freshness and provides an accessible completion announcement.

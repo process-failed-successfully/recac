@@ -31,6 +31,8 @@
         .action-btn:disabled { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header h1 { margin: 0; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .last-updated { font-size: 13px; color: #666; font-style: italic; }
         .spinner {
             display: inline-block;
             width: 1em;
@@ -52,7 +54,10 @@
     <main class="container">
         <div class="header">
             <h1>Recac Project Dashboard</h1>
-            <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh</button>
+            <div class="header-actions">
+                <span id="last-updated" class="last-updated" aria-live="polite"></span>
+                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh</button>
+            </div>
         </div>
 
         <div class="section">
@@ -107,6 +112,8 @@
                 const graphData = await graphResp.text();
                 renderGraph(graphData);
 
+                const now = new Date();
+                document.getElementById('last-updated').textContent = 'Last updated: ' + now.toLocaleTimeString();
             } catch (e) {
                 console.error("Error loading data:", e);
                 document.getElementById('graph').innerHTML = '<div class="error-message">Error loading data. Is the server running?<br><button type="button" class="action-btn" onclick="loadData()">Retry</button></div>';
