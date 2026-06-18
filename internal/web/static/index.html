@@ -26,9 +26,9 @@
         .copy-btn:hover { color: #0056b3; }
         .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
         .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out; }
-        .action-btn:hover:not(:disabled) { background: #0056b3; }
+        .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #0056b3; }
         .action-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; }
-        .action-btn:disabled { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
+        .action-btn:disabled, .action-btn[aria-disabled="true"] { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header h1 { margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
@@ -90,8 +90,18 @@
 
         async function loadData() {
             const refreshBtn = document.getElementById('refresh-btn');
+
+            // Prevent concurrent API requests
+            if (refreshBtn && refreshBtn.getAttribute('aria-disabled') === 'true') return;
+
+            // Rescue focus if it's inside an area about to be destroyed
+            const active = document.activeElement;
+            if (active && (document.getElementById('graph').contains(active) || document.getElementById('features-table').contains(active))) {
+                if (refreshBtn) refreshBtn.focus();
+            }
+
             if (refreshBtn) {
-                refreshBtn.disabled = true;
+                refreshBtn.setAttribute('aria-disabled', 'true');
                 refreshBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Refreshing...';
                 refreshBtn.setAttribute('aria-busy', 'true');
                 refreshBtn.setAttribute('aria-label', 'Refreshing Dashboard');
@@ -121,7 +131,7 @@
                 tbody.innerHTML = '<tr><td colspan="4" class="error-message">Error loading features. <br><button type="button" class="action-btn" onclick="loadData()">Retry</button></td></tr>';
             } finally {
                 if (refreshBtn) {
-                    refreshBtn.disabled = false;
+                    refreshBtn.removeAttribute('aria-disabled');
                     refreshBtn.textContent = 'Refresh';
                     refreshBtn.removeAttribute('aria-busy');
                     refreshBtn.setAttribute('aria-label', 'Refresh Dashboard');
@@ -133,7 +143,7 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'r' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
                 const refreshBtn = document.getElementById('refresh-btn');
-                if (refreshBtn && !refreshBtn.disabled) {
+                if (refreshBtn && !refreshBtn.hasAttribute('aria-disabled')) {
                     refreshBtn.click();
                 }
             }
