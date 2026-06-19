@@ -47,6 +47,16 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        @media (prefers-reduced-motion: reduce) {
+            .spinner {
+                animation: none;
+                border-right-color: currentColor;
+                opacity: 0.7;
+            }
+            tbody tr, .copy-btn, .action-btn {
+                transition: none !important;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
