@@ -25,6 +25,8 @@
         .copy-btn { background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; transition: color 0.15s ease-in-out; }
         .copy-btn:hover { color: #0056b3; }
         .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
+        .copy-btn.copy-success { color: #28a745; text-decoration: none; }
+        .copy-btn.copy-failed { color: #dc3545; text-decoration: none; }
         .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out; }
         .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #0056b3; }
         .action-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; }
@@ -180,19 +182,28 @@
                 idBtn.title = 'Click to copy ID';
                 idBtn.className = 'copy-btn';
                 idBtn.textContent = f.id;
-                idBtn.onclick = function() {
-                    navigator.clipboard.writeText(f.id);
-                    if (this.innerText !== 'Copied!') {
-                        const originalText = this.innerText;
+                idBtn.onclick = async function() {
+                    if (this.innerText === 'Copied!' || this.innerText === 'Failed!') return;
+                    const originalText = this.innerText;
+                    try {
+                        await navigator.clipboard.writeText(f.id);
                         this.innerText = 'Copied!';
+                        this.classList.add('copy-success');
                         this.setAttribute('aria-label', 'Copied ID ' + f.id);
                         this.title = 'Copied ID';
-                        setTimeout(() => {
-                            this.innerText = originalText;
-                            this.setAttribute('aria-label', 'Copy ID ' + f.id);
-                            this.title = 'Click to copy ID';
-                        }, 1500);
+                    } catch (err) {
+                        console.error('Failed to copy ID: ', err);
+                        this.innerText = 'Failed!';
+                        this.classList.add('copy-failed');
+                        this.setAttribute('aria-label', 'Failed to copy ID ' + f.id);
+                        this.title = 'Failed to copy ID';
                     }
+                    setTimeout(() => {
+                        this.innerText = originalText;
+                        this.classList.remove('copy-success', 'copy-failed');
+                        this.setAttribute('aria-label', 'Copy ID ' + f.id);
+                        this.title = 'Click to copy ID';
+                    }, 1500);
                 };
                 tdId.appendChild(idBtn);
                 tr.appendChild(tdId);

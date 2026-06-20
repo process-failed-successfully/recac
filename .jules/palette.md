@@ -61,3 +61,6 @@
 ## 2026-06-21 - Respecting OS Reduced Motion Settings
 **Learning:** Adding animations (like `.spinner`) and CSS transitions for interactive elements without honoring the user's OS-level accessibility settings (e.g. `prefers-reduced-motion`) can cause severe issues for motion-sensitive users. This often results in nausea or dizziness for users who rely on reduced motion for safe internet browsing.
 **Action:** Always include a `@media (prefers-reduced-motion: reduce)` block in the global CSS to disable infinite CSS animations (like spinners) and neutralize transition effects (like `:hover` transitions) on UI elements for affected users.
+## 2026-06-25 - Handle Asynchronous Clipboard Rejections
+**Learning:** In the Orchestrator web UI, calling `navigator.clipboard.writeText()` without `await`ing it or handling potential rejections leads to a broken UX. Browsers will reject the promise if the user denies clipboard permission or if the app is not running in a secure context, resulting in a silent failure where the UI claims "Copied!" but nothing was actually copied.
+**Action:** Always `await` clipboard operations and wrap them in a `try...catch` block. When copying fails, update the UI to provide explicit visual failure feedback (e.g., changing text to "Failed!" and updating `aria-label`/`title`) so users aren't left confused.
