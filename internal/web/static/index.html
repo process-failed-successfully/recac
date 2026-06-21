@@ -27,10 +27,12 @@
         .copy-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; border-radius: 2px; }
         .copy-btn.copy-success { color: #28a745; text-decoration: none; }
         .copy-btn.copy-failed { color: #dc3545; text-decoration: none; }
-        .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out; }
+        .action-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out; }
         .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #0056b3; }
         .action-btn:focus-visible { outline: 2px solid #0056b3; outline-offset: 2px; }
         .action-btn:disabled, .action-btn[aria-disabled="true"] { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
+        .empty-message .action-btn, .error-message .action-btn { margin-top: 16px; }
+        .table-responsive { width: 100%; overflow-x: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header h1 { margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
@@ -64,37 +66,39 @@
 </head>
 <body>
     <main class="container">
-        <div class="header">
+        <header class="header">
             <h1>Recac Project Dashboard</h1>
             <div class="header-actions">
                 <span id="last-updated" class="last-updated" aria-live="polite"></span>
                 <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh</button>
             </div>
-        </div>
+        </header>
 
-        <div class="section">
-            <h2>Task Dependency Graph</h2>
+        <section class="section" aria-labelledby="graph-heading">
+            <h2 id="graph-heading">Task Dependency Graph</h2>
             <div id="graph" class="mermaid">
                 <div class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading graph...</div>
             </div>
-        </div>
+        </section>
 
-        <div class="section">
-            <h2>Features & Tasks</h2>
-            <table id="features-table">
-                <thead>
-                    <tr>
-                        <th scope="col">ID</th>
-                        <th scope="col">Description</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Priority</th>
-                    </tr>
-                </thead>
-                <tbody aria-live="polite">
-                    <tr><td colspan="4" class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading features...</td></tr>
-                </tbody>
-            </table>
-        </div>
+        <section class="section" aria-labelledby="table-heading">
+            <h2 id="table-heading">Features & Tasks</h2>
+            <div class="table-responsive">
+                <table id="features-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Priority</th>
+                        </tr>
+                    </thead>
+                    <tbody aria-live="polite">
+                        <tr><td colspan="4" class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading features...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
     <script>
