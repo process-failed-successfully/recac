@@ -32,11 +32,12 @@ func TestOrchestrator_PauseResumeConcurrencyGroup(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	mockSpawner := new(MockSpawnerForPause)
 
-	// Since job1 and job2 are in group1 which is paused, they should not be spawned.
-	// Only job3 should be spawned.
+	// job3 is not in a paused group, so it should be spawned initially.
+	// We use WaitUntil to let us sync the test after evaluating pending jobs.
+	ch := make(chan struct{}, 3)
 	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
 		return item.ID == "job3"
-	})).Return(nil)
+	})).Run(func(args mock.Arguments) { ch <- struct{}{} }).Return(nil).Once()
 
 	o := New(nil, mockSpawner, time.Minute)
 
@@ -57,6 +58,7 @@ func TestOrchestrator_PauseResumeConcurrencyGroup(t *testing.T) {
 	assert.True(t, o.pausedGroups["group1"])
 
 	o.evaluatePendingJobs(ctx, logger)
+	<-ch // Wait for job3 to spawn
 
 	// job1 and job2 should still be pending
 	o.mu.RLock()
@@ -75,11 +77,12 @@ func TestOrchestrator_PauseResumeConcurrencyGroup(t *testing.T) {
 
 	mockSpawner.On("Spawn", mock.Anything, mock.MatchedBy(func(item WorkItem) bool {
 		return item.ID == "job1" || item.ID == "job2"
-	})).Return(nil).Twice()
+	})).Run(func(args mock.Arguments) { ch <- struct{}{} }).Return(nil).Twice()
 
 	o.evaluatePendingJobs(ctx, logger)
 
-	time.Sleep(100 * time.Millisecond) // Give time for goroutines to process
+	<-ch // wait for job1 to spawn
+	<-ch // wait for job2 to spawn
 
 	o.mu.RLock()
 	_, ok1 = o.pendingJobs["job1"]
