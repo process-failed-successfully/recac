@@ -41,6 +41,20 @@
         .header h1 { margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         .last-updated { font-size: 13px; color: #666; font-style: italic; }
+        .shortcut-hint {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 6px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            font-family: monospace;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            vertical-align: middle;
+        }
+        @media (max-width: 768px) {
+            .shortcut-hint { display: none; }
+        }
         .spinner {
             display: inline-block;
             width: 1em;
@@ -74,7 +88,7 @@
             <h1>Recac Project Dashboard</h1>
             <div class="header-actions">
                 <span id="last-updated" class="last-updated" aria-live="polite"></span>
-                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh</button>
+                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
             </div>
         </header>
 
@@ -152,7 +166,7 @@
             } finally {
                 if (refreshBtn) {
                     refreshBtn.removeAttribute('aria-disabled');
-                    refreshBtn.textContent = 'Refresh';
+                    refreshBtn.innerHTML = 'Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd>';
                     refreshBtn.removeAttribute('aria-busy');
                     refreshBtn.setAttribute('aria-label', 'Refresh Dashboard');
                     refreshBtn.title = 'Refresh Dashboard (Shortcut: \'r\')';
