@@ -25,8 +25,10 @@
         .col-priority { width: 15%; }
         #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: auto; }
         #graph:focus-visible { outline: 2px solid #004085; outline-offset: -2px; }
-        .empty-message { text-align: center; padding: 2em; color: #666; }
-        .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; }
+        .empty-message { text-align: center; padding: 3em 2em; color: #666; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+        .state-icon { font-size: 2.5em; margin-bottom: 8px; opacity: 0.6; }
+        .state-hint { font-size: 0.9em; color: #888; max-width: 400px; margin: 0 auto; line-height: 1.4; }
+        .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
         .copy-btn { background: none; border: none; padding: 0; color: #0056b3; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; transition: color 0.15s ease-in-out; }
         .copy-btn:hover { color: #004085; }
         .copy-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; border-radius: 2px; }
@@ -189,7 +191,14 @@
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
             if (!features || features.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-message">No features or tasks found.<br><br><button type="button" class="action-btn" onclick="loadData()">Refresh</button></td></tr>';
+                tbody.innerHTML = `<tr><td colspan="4">
+                    <div class="empty-message">
+                        <span class="state-icon" aria-hidden="true">📋</span>
+                        <strong>No features or tasks found</strong>
+                        <span class="state-hint">Create a Jira ticket with the appropriate label to see tasks here.</span>
+                        <button type="button" class="action-btn" onclick="loadData()">Refresh Dashboard</button>
+                    </div>
+                </td></tr>`;
                 return;
             }
             features.forEach(f => {
@@ -257,7 +266,12 @@
         async function renderGraph(graphDef) {
             const element = document.getElementById('graph');
             if (!graphDef || graphDef.trim() === '') {
-                 element.innerHTML = '<div class="empty-message">No graph data available.<br><br><button type="button" class="action-btn" onclick="loadData()">Refresh</button></div>';
+                 element.innerHTML = `<div class="empty-message">
+                    <span class="state-icon" aria-hidden="true">📊</span>
+                    <strong>No dependency graph available</strong>
+                    <span class="state-hint">Once features are created, their relationships will be visualized here.</span>
+                    <button type="button" class="action-btn" onclick="loadData()">Refresh Graph</button>
+                 </div>`;
                  return;
             }
             // Check if graphDef is valid mermaid syntax
