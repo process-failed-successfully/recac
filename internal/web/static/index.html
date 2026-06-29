@@ -27,8 +27,9 @@
         #graph:focus-visible { outline: 2px solid #004085; outline-offset: -2px; }
         .empty-message { text-align: center; padding: 3em 2em; color: #666; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
         .state-icon { font-size: 2.5em; margin-bottom: 8px; opacity: 0.6; }
-        .state-hint { font-size: 0.9em; color: #888; max-width: 400px; margin: 0 auto; line-height: 1.4; }
+        .state-hint { font-size: 0.9em; color: #555; max-width: 400px; margin: 0 auto; line-height: 1.4; }
         .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+        .error-message .state-hint { color: inherit; opacity: 0.9; }
         .copy-btn { background: none; border: none; padding: 0; color: #0056b3; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; transition: color 0.15s ease-in-out; }
         .copy-btn:hover { color: #004085; }
         .copy-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; border-radius: 2px; }
@@ -164,9 +165,21 @@
                 document.getElementById('last-updated').textContent = 'Last updated: ' + now.toLocaleTimeString();
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('graph').innerHTML = '<div class="error-message">Error loading data. Is the server running?<br><button type="button" class="action-btn" onclick="loadData()">Retry</button></div>';
+                document.getElementById('graph').innerHTML = `<div class="error-message">
+                    <span class="state-icon" aria-hidden="true">⚠️</span>
+                    <strong>Error loading data</strong>
+                    <span class="state-hint">Is the server running?</span>
+                    <button type="button" class="action-btn" onclick="loadData()">Retry</button>
+                </div>`;
                 const tbody = document.querySelector('#features-table tbody');
-                tbody.innerHTML = '<tr><td colspan="4" class="error-message">Error loading features. <br><button type="button" class="action-btn" onclick="loadData()">Retry</button></td></tr>';
+                tbody.innerHTML = `<tr><td colspan="4" style="padding: 0;">
+                    <div class="error-message" style="margin: 0; border-radius: 0;">
+                        <span class="state-icon" aria-hidden="true">⚠️</span>
+                        <strong>Error loading features</strong>
+                        <span class="state-hint">Failed to fetch task data.</span>
+                        <button type="button" class="action-btn" onclick="loadData()">Retry</button>
+                    </div>
+                </td></tr>`;
             } finally {
                 if (refreshBtn) {
                     refreshBtn.removeAttribute('aria-disabled');
