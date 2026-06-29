@@ -41,6 +41,16 @@ func NewServer(store db.Store, port int, projectID string) *Server {
 	}
 }
 
+// securityHeaders is a middleware that adds essential HTTP security headers
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Handler returns the HTTP handler for the server
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -53,7 +63,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/features", s.handleFeatures)
 	mux.HandleFunc("/api/graph", s.handleGraph)
 
-	return mux
+	return securityHeaders(mux)
 }
 
 // Start starts the HTTP server
