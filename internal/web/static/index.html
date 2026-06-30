@@ -46,6 +46,11 @@
         .header h1 { margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         .last-updated { font-size: 13px; color: #666; font-style: italic; }
+        .is-updating {
+            opacity: 0.6;
+            pointer-events: none;
+            transition: opacity 0.15s ease-in-out;
+        }
         .shortcut-hint {
             display: inline-block;
             margin-left: 8px;
@@ -80,7 +85,7 @@
                 border-right-color: currentColor;
                 opacity: 0.7;
             }
-            tbody tr, .copy-btn, .action-btn {
+            tbody tr, .copy-btn, .action-btn, .is-updating {
                 transition: none !important;
             }
         }
@@ -147,9 +152,23 @@
                 refreshBtn.title = 'Refreshing Dashboard';
             }
             try {
-                document.getElementById('graph').removeAttribute('data-processed');
-                document.getElementById('graph').innerHTML = '<div class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading graph...</div>';
-                document.querySelector('#features-table tbody').innerHTML = '<tr><td colspan="4" class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading features...</td></tr>';
+                const graphEl = document.getElementById('graph');
+                const tbody = document.querySelector('#features-table tbody');
+
+                // If it's already empty or has an error, show the spinner immediately
+                if (graphEl.querySelector('.empty-message') || graphEl.querySelector('.error-message') || graphEl.children.length === 0) {
+                    graphEl.innerHTML = '<div class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading graph...</div>';
+                } else {
+                    graphEl.classList.add('is-updating');
+                }
+
+                if (tbody.querySelector('.empty-message') || tbody.querySelector('.error-message') || tbody.children.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading features...</td></tr>';
+                } else {
+                    tbody.classList.add('is-updating');
+                }
+
+                graphEl.removeAttribute('data-processed');
 
                 // Fetch Features
                 const featuresResp = await fetch('/api/features');
@@ -181,6 +200,9 @@
                     </div>
                 </td></tr>`;
             } finally {
+                document.getElementById('graph').classList.remove('is-updating');
+                document.querySelector('#features-table tbody').classList.remove('is-updating');
+
                 if (refreshBtn) {
                     refreshBtn.removeAttribute('aria-disabled');
                     refreshBtn.innerHTML = 'Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd>';
