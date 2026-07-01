@@ -214,7 +214,7 @@
         }
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'r' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+            if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
                 const refreshBtn = document.getElementById('refresh-btn');
                 if (refreshBtn && !refreshBtn.hasAttribute('aria-disabled')) {
                     refreshBtn.click();
@@ -277,7 +277,11 @@
                 tr.appendChild(tdId);
 
                 const tdDesc = document.createElement('td');
-                tdDesc.textContent = f.description;
+                if (!f.description || f.description.trim() === '') {
+                    tdDesc.innerHTML = '<span class="state-hint">No description provided</span>';
+                } else {
+                    tdDesc.textContent = f.description;
+                }
                 tr.appendChild(tdDesc);
 
                 const tdStatus = document.createElement('td');
