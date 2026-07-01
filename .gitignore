@@ -105,6 +105,8 @@ test_state.json
 .gemini/*.local.md
 
 # Test artifacts
+test_out.txt
+test_out_*.txt
 test_output.txt
 test_output_cmd.txt
 test_spec
