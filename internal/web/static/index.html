@@ -41,6 +41,8 @@
         .action-btn:disabled, .action-btn[aria-disabled="true"] { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
         .empty-message .action-btn, .error-message .action-btn { margin-top: 16px; }
         .table-responsive { width: 100%; overflow-x: auto; }
+        .table-message-cell { padding: 0 !important; }
+        .table-message-block { margin: 0; border-radius: 0; }
         .table-responsive:focus-visible { outline: 2px solid #004085; outline-offset: -2px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header h1 { margin: 0; }
@@ -122,7 +124,7 @@
                         </tr>
                     </thead>
                     <tbody aria-live="polite">
-                        <tr><td colspan="4" class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading features...</td></tr>
+                        <tr><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -163,7 +165,7 @@
                 }
 
                 if (tbody.querySelector('.empty-message') || tbody.querySelector('.error-message') || tbody.children.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading features...</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>';
                 } else {
                     tbody.classList.add('is-updating');
                 }
@@ -191,8 +193,8 @@
                     <button type="button" class="action-btn" onclick="loadData()">Retry</button>
                 </div>`;
                 const tbody = document.querySelector('#features-table tbody');
-                tbody.innerHTML = `<tr><td colspan="4" style="padding: 0;">
-                    <div class="error-message" style="margin: 0; border-radius: 0;">
+                tbody.innerHTML = `<tr><td colspan="4" class="table-message-cell">
+                    <div class="error-message table-message-block">
                         <span class="state-icon" aria-hidden="true">⚠️</span>
                         <strong>Error loading features</strong>
                         <span class="state-hint">Failed to fetch task data.</span>
@@ -226,8 +228,8 @@
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
             if (!features || features.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4">
-                    <div class="empty-message">
+                tbody.innerHTML = `<tr><td colspan="4" class="table-message-cell">
+                    <div class="empty-message table-message-block">
                         <span class="state-icon" aria-hidden="true">📋</span>
                         <strong>No features or tasks found</strong>
                         <span class="state-hint">Create a Jira ticket with the appropriate label to see tasks here.</span>
