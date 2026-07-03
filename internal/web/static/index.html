@@ -16,7 +16,7 @@
         .status-failed { background: #f8d7da; color: #721c24; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
         tbody tr { transition: background-color 0.15s ease-in-out; }
-        tbody tr:hover { background-color: #f1f3f5; }
+        tbody tr:not(.message-row):hover { background-color: #f1f3f5; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; overflow-wrap: break-word; }
         th { background-color: #f8f9fa; }
         .col-id { width: 15%; }
@@ -124,7 +124,7 @@
                         </tr>
                     </thead>
                     <tbody aria-live="polite">
-                        <tr><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>
+                        <tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -165,7 +165,7 @@
                 }
 
                 if (tbody.querySelector('.empty-message') || tbody.querySelector('.error-message') || tbody.children.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>';
+                    tbody.innerHTML = '<tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>';
                 } else {
                     tbody.classList.add('is-updating');
                 }
@@ -190,15 +190,15 @@
                     <span class="state-icon" aria-hidden="true">⚠️</span>
                     <strong>Error loading data</strong>
                     <span class="state-hint">Is the server running?</span>
-                    <button type="button" class="action-btn" onclick="loadData()">Retry</button>
+                    <button type="button" class="action-btn" onclick="loadData()" aria-label="Retry loading graph">Retry</button>
                 </div>`;
                 const tbody = document.querySelector('#features-table tbody');
-                tbody.innerHTML = `<tr><td colspan="4" class="table-message-cell">
+                tbody.innerHTML = `<tr class="message-row"><td colspan="4" class="table-message-cell">
                     <div class="error-message table-message-block">
                         <span class="state-icon" aria-hidden="true">⚠️</span>
                         <strong>Error loading features</strong>
                         <span class="state-hint">Failed to fetch task data.</span>
-                        <button type="button" class="action-btn" onclick="loadData()">Retry</button>
+                        <button type="button" class="action-btn" onclick="loadData()" aria-label="Retry loading features">Retry</button>
                     </div>
                 </td></tr>`;
             } finally {
@@ -228,7 +228,7 @@
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
             if (!features || features.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="table-message-cell">
+                tbody.innerHTML = `<tr class="message-row"><td colspan="4" class="table-message-cell">
                     <div class="empty-message table-message-block">
                         <span class="state-icon" aria-hidden="true">📋</span>
                         <strong>No features or tasks found</strong>
