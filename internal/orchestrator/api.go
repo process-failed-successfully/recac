@@ -229,7 +229,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		if statusFilter != "" {
-			var filtered []JobInfo
+			filtered := make([]JobInfo, 0, len(jobs))
 			for _, job := range jobs {
 				if strings.EqualFold(job.Status, statusFilter) {
 					filtered = append(filtered, job)
@@ -239,7 +239,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		if tagFilter != "" {
-			var filtered []JobInfo
+			filtered := make([]JobInfo, 0, len(jobs))
 			for _, job := range jobs {
 				hasTag := false
 				for _, tag := range job.WorkItem.Tags {
@@ -257,7 +257,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 
 		priorityFilter := r.URL.Query().Get("priority")
 		if priorityFilter != "" {
-			var filtered []JobInfo
+			filtered := make([]JobInfo, 0, len(jobs))
 			var priority int
 			if p, err := strconv.Atoi(priorityFilter); err == nil {
 				priority = p
@@ -280,7 +280,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 				http.Error(w, fmt.Sprintf("invalid match regex: %v", err), http.StatusBadRequest)
 				return
 			}
-			var filtered []JobInfo
+			filtered := make([]JobInfo, 0, len(jobs))
 			for _, job := range jobs {
 				if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 					filtered = append(filtered, job)
@@ -562,7 +562,7 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 
 		jobs := append(orch.GetPendingJobs(), orch.GetActiveJobs()...)
 		jobs = append(jobs, orch.GetCompletedJobs()...)
-		var filtered []JobInfo
+		filtered := make([]JobInfo, 0, len(jobs))
 
 		for _, job := range jobs {
 			if statusFilter != "" && !strings.EqualFold(job.Status, statusFilter) {
@@ -618,7 +618,7 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 		statusFilter := r.URL.Query().Get("status")
 
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
-		var filtered []JobInfo
+		filtered := make([]JobInfo, 0, len(jobs))
 
 		// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive comparisons
 		for _, job := range jobs {
@@ -1239,7 +1239,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
-		var filtered []JobInfo
+		filtered := make([]JobInfo, 0, len(jobs))
 
 		if tag != "" {
 			for _, job := range jobs {
@@ -1495,7 +1495,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
-		var filtered []JobInfo
+		filtered := make([]JobInfo, 0, len(jobs))
 
 		if olderThanStr != "" {
 			for _, job := range jobs {
@@ -2837,7 +2837,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 
 		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
-		var filtered []JobInfo
+		filtered := make([]JobInfo, 0, len(jobs))
 
 		if tag != "" {
 			for _, job := range jobs {
