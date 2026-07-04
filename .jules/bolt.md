@@ -87,3 +87,6 @@
 ## 2025-06-08 - [Optimize substring searching with utils.ContainsFold]
 **Learning:** Compiling a regular expression like `regexp.Compile("(?i)" + match)` just to do a case-insensitive substring search in a loop involves unnecessary overhead, and the execution with `MatchString` allocates and does more work.
 **Action:** Replace `regexp.Compile("(?i)" + match)` and `matcher.MatchString(str)` with the zero-allocation `utils.ContainsFold(str, match)` when checking for simple substring inclusion.
+## 2026-07-04 - [Slice Capacity Allocation in API Filtering]
+**Learning:** Pre-allocating slice capacity with `make([]JobInfo, 0, len(jobs))` when filtering large arrays (instead of `var filtered []JobInfo`) significantly reduces memory allocations and improves performance in tight loops, especially where the worst-case size is known.
+**Action:** Always use pre-allocated slices for filtered arrays where the upper bound size is equal to the source array.
