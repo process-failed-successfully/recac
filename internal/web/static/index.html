@@ -45,7 +45,7 @@
         .table-message-cell { padding: 0 !important; }
         .table-message-block { margin: 0; border-radius: 0; }
         .table-responsive:focus-visible { outline: 2px solid #004085; outline-offset: -2px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
         .header h1 { margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         .last-updated { font-size: 13px; color: #666; font-style: italic; }
@@ -172,6 +172,9 @@
                 }
 
                 graphEl.removeAttribute('data-processed');
+                graphEl.setAttribute('aria-busy', 'true');
+                const tbodyToUpdate = document.querySelector('#features-table tbody');
+                if (tbodyToUpdate) tbodyToUpdate.setAttribute('aria-busy', 'true');
 
                 // Fetch Features
                 const featuresResp = await fetch('/api/features');
@@ -187,7 +190,7 @@
                 document.getElementById('last-updated').textContent = 'Last updated: ' + now.toLocaleTimeString();
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('graph').innerHTML = `<div class="error-message">
+                document.getElementById('graph').innerHTML = `<div class="error-message" role="alert">
                     <span class="state-icon" aria-hidden="true">⚠️</span>
                     <strong>Error loading data</strong>
                     <span class="state-hint">Is the server running?</span>
@@ -195,7 +198,7 @@
                 </div>`;
                 const tbody = document.querySelector('#features-table tbody');
                 tbody.innerHTML = `<tr class="message-row"><td colspan="4" class="table-message-cell">
-                    <div class="error-message table-message-block">
+                    <div class="error-message table-message-block" role="alert">
                         <span class="state-icon" aria-hidden="true">⚠️</span>
                         <strong>Error loading features</strong>
                         <span class="state-hint">Failed to fetch task data.</span>
@@ -203,8 +206,12 @@
                     </div>
                 </td></tr>`;
             } finally {
-                document.getElementById('graph').classList.remove('is-updating');
-                document.querySelector('#features-table tbody').classList.remove('is-updating');
+                const graphEl = document.getElementById('graph');
+                const tbody = document.querySelector('#features-table tbody');
+                graphEl.classList.remove('is-updating');
+                graphEl.removeAttribute('aria-busy');
+                tbody.classList.remove('is-updating');
+                tbody.removeAttribute('aria-busy');
 
                 if (refreshBtn) {
                     refreshBtn.removeAttribute('aria-disabled');
