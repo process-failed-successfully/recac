@@ -17,7 +17,7 @@
         .status-failed { background: #f8d7da; color: #721c24; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
         tbody tr { transition: background-color 0.15s ease-in-out; }
-        tbody tr:not(.message-row):hover { background-color: #f1f3f5; }
+        tbody tr:not(.message-row):hover, tbody tr:not(.message-row):focus-within { background-color: #f1f3f5; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; overflow-wrap: break-word; }
         th { background-color: #f8f9fa; }
         .col-id { width: 15%; }
@@ -31,15 +31,17 @@
         .state-hint { font-size: 0.9em; color: #555; max-width: 400px; margin: 0 auto; line-height: 1.4; }
         .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
         .error-message .state-hint { color: inherit; opacity: 0.9; }
-        .copy-btn { background: none; border: none; padding: 0; color: #0056b3; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease-in-out; }
+        .copy-btn { background: none; border: none; padding: 0; color: #0056b3; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease-in-out, transform 0.15s ease-in-out; }
+        .copy-btn:active { transform: scale(0.97); }
         .copy-btn:hover, .copy-btn:focus-visible { text-decoration: underline; color: #004085; }
         .copy-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; border-radius: 2px; text-decoration: underline; }
         .copy-btn.copy-success { color: #155724; text-decoration: none; }
         .copy-btn.copy-failed { color: #721c24; text-decoration: none; }
-        .action-btn { background: #0056b3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out; }
+        .action-btn { background: #0056b3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out, transform 0.15s ease-in-out; }
         .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #004085; }
         .action-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; }
         .action-btn:disabled, .action-btn[aria-disabled="true"] { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
+        .action-btn:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.97); }
         .empty-message .action-btn, .error-message .action-btn { margin-top: 16px; }
         .table-responsive { width: 100%; overflow-x: auto; }
         .table-message-cell { padding: 0 !important; }
@@ -90,6 +92,9 @@
             }
             tbody tr, .copy-btn, .action-btn, .is-updating {
                 transition: none !important;
+            }
+            .action-btn:active:not(:disabled):not([aria-disabled="true"]), .copy-btn:active {
+                transform: none;
             }
         }
     </style>
