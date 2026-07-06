@@ -14,8 +14,9 @@ import (
 // GenerateChangelog analyzes completed jobs and generates a Markdown changelog using an AI agent.
 func GenerateChangelog(ctx context.Context, orch *Orchestrator, tag, match, provider, model, apiKey string) (string, error) {
 	// Filter jobs
-	var filtered []JobInfo
 	jobs := orch.GetCompletedJobs()
+	// ⚡ Bolt: Pre-allocate slice capacity to reduce memory allocations during filtering
+	filtered := make([]JobInfo, 0, len(jobs))
 
 	for _, job := range jobs {
 		if job.Status != "Completed" {

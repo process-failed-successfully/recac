@@ -90,3 +90,4 @@
 ## 2026-07-04 - [Slice Capacity Allocation in API Filtering]
 **Learning:** Pre-allocating slice capacity with `make([]JobInfo, 0, len(jobs))` when filtering large arrays (instead of `var filtered []JobInfo`) significantly reduces memory allocations and improves performance in tight loops, especially where the worst-case size is known.
 **Action:** Always use pre-allocated slices for filtered arrays where the upper bound size is equal to the source array.
+## 2026-07-06 - Pre-allocating slice capacity in filtering loops\n**Learning:** Pre-allocating slice capacity with `make([]Type, 0, len(source))` when filtering large arrays (instead of `var filtered []Type`) significantly reduces memory allocations and improves performance in tight loops, especially where the worst-case size is known.\n**Action:** Always use pre-allocated slices for filtered arrays where the upper bound size is equal to the source array.

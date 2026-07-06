@@ -642,7 +642,8 @@ func ParsePipelineToWorkItemsWithRunID(yamlData []byte, targetJob string, vars m
 		generate(0, make(map[string]string))
 
 		// Filter out combinations that match any exclusion rule
-		var filteredCombinations []map[string]string
+		// ⚡ Bolt: Pre-allocate slice capacity to reduce memory allocations during filtering
+		filteredCombinations := make([]map[string]string, 0, len(combinations))
 		for _, combo := range combinations {
 			exclude := false
 			for _, rule := range jobDef.Exclude {

@@ -2255,9 +2255,11 @@ func (m *DashboardModel) updateFilteredLogs() {
 	}
 
 	filterText := m.logFilterInput.Value()
-	var filtered []string
-
 	lines := strings.Split(m.logs, "\n")
+
+	// ⚡ Bolt: Pre-allocate slice capacity to reduce memory allocations during filtering
+	filtered := make([]string, 0, len(lines))
+
 	for _, line := range lines {
 		if utils.ContainsFold(line, filterText) {
 			filtered = append(filtered, line)
