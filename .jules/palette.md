@@ -109,3 +109,7 @@
 ## 2026-08-01 - Spatial Focus Context in Data Tables
 **Learning:** While `tr:hover` styles provide excellent spatial context for mouse users scanning wide data tables, keyboard-only users who tab into interactive table cells (like a "Copy ID" button) lack this row-level visual context, making it hard to align the focused element with its corresponding data columns.
 **Action:** Always pair `tr:hover` effects with `:focus-within` (e.g., `tbody tr:not(.message-row):hover, tbody tr:not(.message-row):focus-within`) so the entire row highlights when a user tabs into any interactive element within it.
+
+## 2024-07-07 - Skip to Content Link
+**Learning:** Single-page applications or dashboards with multiple sections (like headers, actions, and data tables) can be tedious to navigate for keyboard-only users who must tab through all header elements before reaching the primary content.
+**Action:** Always provide a "Skip to main content" link at the very beginning of the `<body>` element. Ensure it is visually hidden by default but appears prominently when it receives keyboard focus (`:focus-visible`). Target a structural landmark (like `<main id="main-content" tabindex="-1">`) so keyboard focus is properly managed and outline is removed on the target element.
