@@ -113,3 +113,7 @@
 ## 2024-07-07 - Skip to Content Link
 **Learning:** Single-page applications or dashboards with multiple sections (like headers, actions, and data tables) can be tedious to navigate for keyboard-only users who must tab through all header elements before reaching the primary content.
 **Action:** Always provide a "Skip to main content" link at the very beginning of the `<body>` element. Ensure it is visually hidden by default but appears prominently when it receives keyboard focus (`:focus-visible`). Target a structural landmark (like `<main id="main-content" tabindex="-1">`) so keyboard focus is properly managed and outline is removed on the target element.
+
+## 2026-08-01 - Improving Context in Tables via Inline Badges
+**Learning:** Hiding essential secondary metadata (like `Category`) inside background data stores simply because it doesn't warrant its own dedicated, wide table column robs users of crucial grouping context. Creating new, very thin columns for every single enum value breaks `table-layout: fixed` constraints.
+**Action:** When working with fixed-layout data tables, surface secondary grouping or tag metadata (like `category`) as visually distinct, inline badges (e.g., `.category-badge`) directly within larger primary text columns (like `Description`). Always prepend them and ensure they are appropriately styled (e.g., uppercase, tighter tracking) to separate them from the raw text content.

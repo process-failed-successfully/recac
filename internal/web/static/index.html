@@ -54,6 +54,7 @@
         .copy-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; border-radius: 2px; text-decoration: underline; }
         .copy-btn.copy-success { color: #155724; text-decoration: none; }
         .copy-btn.copy-failed { color: #721c24; text-decoration: none; }
+        .category-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: #e9ecef; color: #495057; margin-right: 8px; vertical-align: middle; }
         .action-btn { background: #0056b3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out, transform 0.15s ease-in-out; }
         .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #004085; }
         .action-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; }
@@ -319,10 +320,21 @@
                 tr.appendChild(tdId);
 
                 const tdDesc = document.createElement('td');
+
+                if (f.category && f.category.trim() !== '') {
+                    const spanCategory = document.createElement('span');
+                    spanCategory.className = 'category-badge';
+                    spanCategory.textContent = f.category;
+                    tdDesc.appendChild(spanCategory);
+                }
+
                 if (!f.description || f.description.trim() === '') {
-                    tdDesc.innerHTML = '<span class="state-hint">No description provided</span>';
+                    const spanDesc = document.createElement('span');
+                    spanDesc.className = 'state-hint';
+                    spanDesc.textContent = 'No description provided';
+                    tdDesc.appendChild(spanDesc);
                 } else {
-                    tdDesc.textContent = f.description;
+                    tdDesc.appendChild(document.createTextNode(f.description));
                 }
                 tr.appendChild(tdDesc);
 
