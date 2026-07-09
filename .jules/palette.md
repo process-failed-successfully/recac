@@ -117,3 +117,6 @@
 ## 2026-08-01 - Improving Context in Tables via Inline Badges
 **Learning:** Hiding essential secondary metadata (like `Category`) inside background data stores simply because it doesn't warrant its own dedicated, wide table column robs users of crucial grouping context. Creating new, very thin columns for every single enum value breaks `table-layout: fixed` constraints.
 **Action:** When working with fixed-layout data tables, surface secondary grouping or tag metadata (like `category`) as visually distinct, inline badges (e.g., `.category-badge`) directly within larger primary text columns (like `Description`). Always prepend them and ensure they are appropriately styled (e.g., uppercase, tighter tracking) to separate them from the raw text content.
+## 2026-07-09 - Scannability of Status Badges
+**Learning:** Relying on color alone for status badges can make a UI difficult to parse at a glance and poses accessibility issues for colorblind users. Adding distinct, semantic icons significantly improves cognitive scannability and WCAG 1.4.1 compliance.
+**Action:** Always pair color-coded status badges with distinct visual shapes (e.g., emojis or icons wrapped in `<span aria-hidden="true">`) to ensure information is conveyed through both color and shape.
