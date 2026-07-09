@@ -4,8 +4,6 @@ import (
 	archive_tar "archive/tar"
 	"bufio"
 	"bytes"
-	"path/filepath"
-	"os"
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
@@ -19,6 +17,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -223,7 +223,11 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		case "pending":
 			jobs = orch.GetPendingJobs()
 		case "all":
-			jobs = append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			completedJobs := orch.GetCompletedJobs()
+			jobs = make([]JobInfo, 0, len(activeJobs)+len(completedJobs))
+			jobs = append(jobs, activeJobs...)
+			jobs = append(jobs, completedJobs...)
 		default:
 			jobs = orch.GetActiveJobs()
 		}
@@ -317,7 +321,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 	mux.HandleFunc("GET /jobs/analyze/costs", handleAnalyzeCosts(orch, logger))
 	mux.HandleFunc("GET /jobs/analyze/anomalies", handleAnalyzeAnomalies(orch, logger))
 	mux.HandleFunc("GET /jobs/analyze/agents", handleAnalyzeAgents(orch, logger))
-mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
+	mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 
 	mux.HandleFunc("GET /jobs/analyze/durations", func(w http.ResponseWriter, r *http.Request) {
 		limitStr := r.URL.Query().Get("limit")
@@ -560,8 +564,13 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 		tagFilter := r.URL.Query().Get("tag")
 		statusFilter := r.URL.Query().Get("status")
 
-		jobs := append(orch.GetPendingJobs(), orch.GetActiveJobs()...)
-		jobs = append(jobs, orch.GetCompletedJobs()...)
+		pendingJobs := orch.GetPendingJobs()
+		activeJobs := orch.GetActiveJobs()
+		completedJobs := orch.GetCompletedJobs()
+		jobs := make([]JobInfo, 0, len(pendingJobs)+len(activeJobs)+len(completedJobs))
+		jobs = append(jobs, pendingJobs...)
+		jobs = append(jobs, activeJobs...)
+		jobs = append(jobs, completedJobs...)
 		filtered := make([]JobInfo, 0, len(jobs))
 
 		for _, job := range jobs {
@@ -617,7 +626,11 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 		tagFilter := r.URL.Query().Get("tag")
 		statusFilter := r.URL.Query().Get("status")
 
-		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		activeJobs := orch.GetActiveJobs()
+		completedJobs := orch.GetCompletedJobs()
+		jobs := make([]JobInfo, 0, len(activeJobs)+len(completedJobs))
+		jobs = append(jobs, activeJobs...)
+		jobs = append(jobs, completedJobs...)
 		filtered := make([]JobInfo, 0, len(jobs))
 
 		// ⚡ Bolt: Use strings.EqualFold for zero-allocation case-insensitive comparisons
@@ -784,8 +797,13 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 		case "pending":
 			jobs = orch.GetPendingJobs()
 		default: // default active+pending+completed for timeline
-			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
-			jobs = append(jobs, orch.GetCompletedJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			pendingJobs := orch.GetPendingJobs()
+			completedJobs := orch.GetCompletedJobs()
+			jobs = make([]JobInfo, 0, len(activeJobs)+len(pendingJobs)+len(completedJobs))
+			jobs = append(jobs, activeJobs...)
+			jobs = append(jobs, pendingJobs...)
+			jobs = append(jobs, completedJobs...)
 		}
 
 		timelineStr := ExportTimelineToMermaid(jobs)
@@ -811,8 +829,13 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 		case "pending":
 			jobs = orch.GetPendingJobs()
 		default: // default active+pending+completed for graph
-			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
-			jobs = append(jobs, orch.GetCompletedJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			pendingJobs := orch.GetPendingJobs()
+			completedJobs := orch.GetCompletedJobs()
+			jobs = make([]JobInfo, 0, len(activeJobs)+len(pendingJobs)+len(completedJobs))
+			jobs = append(jobs, activeJobs...)
+			jobs = append(jobs, pendingJobs...)
+			jobs = append(jobs, completedJobs...)
 		}
 
 		var graphStr string
@@ -847,10 +870,19 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 		case "completed":
 			jobs = orch.GetCompletedJobs()
 		case "all":
-			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
-			jobs = append(jobs, orch.GetCompletedJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			pendingJobs := orch.GetPendingJobs()
+			completedJobs := orch.GetCompletedJobs()
+			jobs = make([]JobInfo, 0, len(activeJobs)+len(pendingJobs)+len(completedJobs))
+			jobs = append(jobs, activeJobs...)
+			jobs = append(jobs, pendingJobs...)
+			jobs = append(jobs, completedJobs...)
 		default: // default active+pending
-			jobs = append(orch.GetActiveJobs(), orch.GetPendingJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			pendingJobs := orch.GetPendingJobs()
+			jobs = make([]JobInfo, 0, len(activeJobs)+len(pendingJobs))
+			jobs = append(jobs, activeJobs...)
+			jobs = append(jobs, pendingJobs...)
 		}
 
 		yamlData, err := ExportPipelineToYAML(name, jobs)
@@ -872,7 +904,11 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 
 		var jobs []JobInfo
 		if stateFilter == "active" || stateFilter == "all" {
-			jobs = append(jobs, orch.GetActiveJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			if len(jobs) == 0 {
+				jobs = make([]JobInfo, 0, len(activeJobs))
+			}
+			jobs = append(jobs, activeJobs...)
 		}
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
 			completedJobs := orch.GetCompletedJobs()
@@ -906,7 +942,11 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 
 		var jobs []JobInfo
 		if stateFilter == "active" || stateFilter == "all" {
-			jobs = append(jobs, orch.GetActiveJobs()...)
+			activeJobs := orch.GetActiveJobs()
+			if len(jobs) == 0 {
+				jobs = make([]JobInfo, 0, len(activeJobs))
+			}
+			jobs = append(jobs, activeJobs...)
 		}
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
 			completedJobs := orch.GetCompletedJobs()
@@ -988,7 +1028,11 @@ mux.HandleFunc("GET /jobs/analyze/tags", handleAnalyzeTags(orch, logger))
 
 	mux.HandleFunc("GET /jobs/export", func(w http.ResponseWriter, r *http.Request) {
 		format := r.URL.Query().Get("format")
-		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		activeJobs := orch.GetActiveJobs()
+		completedJobs := orch.GetCompletedJobs()
+		jobs := make([]JobInfo, 0, len(activeJobs)+len(completedJobs))
+		jobs = append(jobs, activeJobs...)
+		jobs = append(jobs, completedJobs...)
 
 		if format == "junit" {
 			xmlStr, err := ExportJobsToJUnitXML(jobs)
@@ -1238,7 +1282,11 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			return
 		}
 
-		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		activeJobs := orch.GetActiveJobs()
+		completedJobs := orch.GetCompletedJobs()
+		jobs := make([]JobInfo, 0, len(activeJobs)+len(completedJobs))
+		jobs = append(jobs, activeJobs...)
+		jobs = append(jobs, completedJobs...)
 		filtered := make([]JobInfo, 0, len(jobs))
 
 		if tag != "" {
@@ -1494,7 +1542,11 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 		}
 
-		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		activeJobs := orch.GetActiveJobs()
+		completedJobs := orch.GetCompletedJobs()
+		jobs := make([]JobInfo, 0, len(activeJobs)+len(completedJobs))
+		jobs = append(jobs, activeJobs...)
+		jobs = append(jobs, completedJobs...)
 		filtered := make([]JobInfo, 0, len(jobs))
 
 		if olderThanStr != "" {
@@ -2045,7 +2097,6 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		respData, _ := json.Marshal(req)
 		w.Write(respData)
 	})
-
 
 	mux.HandleFunc("PUT /jobs/{id}/tags/add", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -2836,7 +2887,11 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 			}
 		}
 
-		jobs := append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+		activeJobs := orch.GetActiveJobs()
+		completedJobs := orch.GetCompletedJobs()
+		jobs := make([]JobInfo, 0, len(activeJobs)+len(completedJobs))
+		jobs = append(jobs, activeJobs...)
+		jobs = append(jobs, completedJobs...)
 		filtered := make([]JobInfo, 0, len(jobs))
 
 		if tag != "" {
