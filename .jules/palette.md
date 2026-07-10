@@ -120,3 +120,7 @@
 ## 2026-07-09 - Scannability of Status Badges
 **Learning:** Relying on color alone for status badges can make a UI difficult to parse at a glance and poses accessibility issues for colorblind users. Adding distinct, semantic icons significantly improves cognitive scannability and WCAG 1.4.1 compliance.
 **Action:** Always pair color-coded status badges with distinct visual shapes (e.g., emojis or icons wrapped in `<span aria-hidden="true">`) to ensure information is conveyed through both color and shape.
+
+## 2026-08-01 - Screen Reader and Tooltip Context for Inline Badges
+**Learning:** Adding secondary metadata as visually distinct inline badges (like `.category-badge` inside a Description column) improves visual scannability but creates accessibility gaps if implemented only visually. Screen readers will blend the badge text directly into the subsequent description text without context (e.g., reading "BACKEND User login" instead of "Category: Backend, User login"), and mouse users lose explicit context for what the badge represents if it's not clear from the text alone.
+**Action:** When creating inline tag or metadata badges, always provide explicit context for assistive technologies by prepending visually hidden structural text (e.g., `<span class="sr-only">Category: </span>`). Additionally, always add a descriptive `title` attribute to the badge element to provide tooltip context for mouse users.

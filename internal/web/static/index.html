@@ -23,6 +23,17 @@
             outline-offset: -2px;
         }
         #main-content:focus { outline: none; }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h1, h2 { color: #333; }
@@ -326,7 +337,12 @@
                 if (f.category && f.category.trim() !== '') {
                     const spanCategory = document.createElement('span');
                     spanCategory.className = 'category-badge';
-                    spanCategory.textContent = f.category;
+                    spanCategory.title = 'Category: ' + f.category;
+                    const srSpan = document.createElement('span');
+                    srSpan.className = 'sr-only';
+                    srSpan.textContent = 'Category: ';
+                    spanCategory.appendChild(srSpan);
+                    spanCategory.appendChild(document.createTextNode(f.category));
                     tdDesc.appendChild(spanCategory);
                 }
 
