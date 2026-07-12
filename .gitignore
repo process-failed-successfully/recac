@@ -118,3 +118,5 @@ internal/orchestrator/test-orch-delay
 .recac.db-wal
 internal/tui/*.tar.gz
 cmd/orchestrator/orchestrator
+.recac.db-shm
+*.tar.gz
