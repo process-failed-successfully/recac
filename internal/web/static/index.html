@@ -140,6 +140,17 @@
             </div>
         </header>
 
+        <noscript>
+            <style>
+                .section, .header-actions { display: none !important; }
+            </style>
+            <div class="error-message" role="alert" style="margin-bottom: 20px;">
+                <span class="state-icon" aria-hidden="true">⚠️</span>
+                <strong>JavaScript is required</strong>
+                <span class="state-hint">Please enable JavaScript to view and interact with the Recac Dashboard.</span>
+            </div>
+        </noscript>
+
         <section class="section" aria-labelledby="graph-heading">
             <h2 id="graph-heading">Task Dependency Graph</h2>
             <div id="graph" class="mermaid" tabindex="0" role="region" aria-label="Task Dependency Graph">
