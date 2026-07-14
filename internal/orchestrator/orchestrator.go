@@ -932,7 +932,7 @@ func (o *Orchestrator) ClearPendingJobs(ctx context.Context, logger *slog.Logger
 // CancelJobsByStatus cancels all running and pending jobs that match the specified status (case-insensitive).
 func (o *Orchestrator) CancelJobsByStatus(ctx context.Context, status string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.activeJobs {
 		if strings.EqualFold(job.Status, status) {
@@ -966,7 +966,7 @@ func (o *Orchestrator) CancelJobsByStatus(ctx context.Context, status string, lo
 // CancelJobsByConcurrencyGroup cancels all running and pending jobs that belong to the specified concurrency group.
 func (o *Orchestrator) CancelJobsByConcurrencyGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.activeJobs {
 		if job.WorkItem.ConcurrencyGroup == group {
@@ -1005,7 +1005,7 @@ func (o *Orchestrator) CancelJobsByMatch(ctx context.Context, match string, logg
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.activeJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
@@ -1039,7 +1039,7 @@ func (o *Orchestrator) CancelJobsByMatch(ctx context.Context, match string, logg
 // CancelJobsOlderThan cancels all running and pending jobs that have been active/pending for longer than the specified duration.
 func (o *Orchestrator) CancelJobsOlderThan(ctx context.Context, d time.Duration, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 	cutoff := time.Now().Add(-d)
 
 	for id, job := range o.activeJobs {
@@ -1074,7 +1074,7 @@ func (o *Orchestrator) CancelJobsOlderThan(ctx context.Context, d time.Duration,
 // CancelJobsByTag cancels all running and pending jobs that have the specified tag.
 func (o *Orchestrator) CancelJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.activeJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -1173,7 +1173,7 @@ func (o *Orchestrator) FailJob(ctx context.Context, jobID string, logger *slog.L
 // FailJobsByTag forcefully fails jobs matching the given tag.
 func (o *Orchestrator) FailJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.RLock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	// We gather IDs to avoid locking while calling FailJob
 	for id, job := range o.pendingJobs {
@@ -1211,7 +1211,7 @@ func (o *Orchestrator) FailJobsByTag(ctx context.Context, tag string, logger *sl
 // FailJobsByMatch forcefully fails jobs matching the given regex.
 func (o *Orchestrator) FailJobsByGroup(ctx context.Context, group string, logger *slog.Logger) (int, error) {
 	o.mu.RLock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		if job.WorkItem.ConcurrencyGroup == group {
@@ -1248,7 +1248,7 @@ func (o *Orchestrator) FailJobsByMatch(ctx context.Context, match string, logger
 	}
 
 	o.mu.RLock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
@@ -1363,7 +1363,7 @@ func (o *Orchestrator) ForceCompleteJob(ctx context.Context, jobID string, logge
 // ForceCompleteJobsByTag force completes jobs matching the given tag.
 func (o *Orchestrator) ForceCompleteJobsByTag(ctx context.Context, tag string, logger *slog.Logger) (int, error) {
 	o.mu.RLock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	// We gather IDs to avoid locking while calling ForceCompleteJob
 	for id, job := range o.pendingJobs {
@@ -1416,7 +1416,7 @@ func (o *Orchestrator) ForceCompleteJobsByMatch(ctx context.Context, match strin
 	}
 
 	o.mu.RLock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
@@ -1455,7 +1455,7 @@ func (o *Orchestrator) ForceCompleteJobsByMatch(ctx context.Context, match strin
 func (o *Orchestrator) CancelAllJobs(ctx context.Context) (int, error) {
 	// Get all active and pending job IDs first to avoid holding the lock during cancellation
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 	for id := range o.activeJobs {
 		jobIDs = append(jobIDs, id)
 	}
@@ -2194,7 +2194,7 @@ func (o *Orchestrator) UpdateJobDependencies(ctx context.Context, jobID string, 
 // UpdateJobsDependenciesByTag updates the dependencies of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsDependenciesByTag(ctx context.Context, tag string, dependsOn []string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -2224,7 +2224,7 @@ func (o *Orchestrator) UpdateJobsDependenciesByMatch(ctx context.Context, match 
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			jobIDs = append(jobIDs, id)
@@ -2284,7 +2284,7 @@ func (o *Orchestrator) UpdateJobEnv(ctx context.Context, jobID string, envVars m
 // UpdateJobsEnvByTag updates the environment variables of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsEnvByTag(ctx context.Context, tag string, envVars map[string]string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -2316,7 +2316,7 @@ func (o *Orchestrator) UpdateJobsEnvByMatch(ctx context.Context, match string, e
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			jobIDs = append(jobIDs, id)
@@ -2471,7 +2471,7 @@ func (o *Orchestrator) UpdateJobTags(ctx context.Context, jobID string, tags []s
 // UpdateJobsTagsByTag updates the tags of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsTagsByTag(ctx context.Context, tag string, tags []string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -2501,7 +2501,7 @@ func (o *Orchestrator) UpdateJobsTagsByMatch(ctx context.Context, match string, 
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			jobIDs = append(jobIDs, id)
@@ -2611,7 +2611,7 @@ func (o *Orchestrator) UpdateJobMaxRetries(ctx context.Context, jobID string, ma
 // UpdateJobsMaxRetriesByTag updates the maximum retries of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsMaxRetriesByTag(ctx context.Context, tag string, maxRetries int, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -2641,7 +2641,7 @@ func (o *Orchestrator) UpdateJobsMaxRetriesByMatch(ctx context.Context, match st
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			jobIDs = append(jobIDs, id)
@@ -2663,7 +2663,7 @@ func (o *Orchestrator) UpdateJobsMaxRetriesByMatch(ctx context.Context, match st
 // UpdateJobsTimeoutByTag updates the timeout of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsTimeoutByTag(ctx context.Context, tag string, newTimeout time.Duration, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -2693,7 +2693,7 @@ func (o *Orchestrator) UpdateJobsTimeoutByMatch(ctx context.Context, match strin
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			jobIDs = append(jobIDs, id)
@@ -5579,7 +5579,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 // UpdateJobsAgentByTag updates the agent provider and model of pending jobs that match the given tag.
 func (o *Orchestrator) UpdateJobsAgentByTag(ctx context.Context, tag string, agentProvider string, agentModel string, logger *slog.Logger) (int, error) {
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 
 	for id, job := range o.pendingJobs {
 		for _, t := range job.WorkItem.Tags {
@@ -5609,7 +5609,7 @@ func (o *Orchestrator) UpdateJobsAgentByMatch(ctx context.Context, match string,
 	}
 
 	o.mu.Lock()
-	var jobIDs []string
+	jobIDs := make([]string, 0, len(o.pendingJobs))
 	for id, job := range o.pendingJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			jobIDs = append(jobIDs, id)

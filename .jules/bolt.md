@@ -94,3 +94,6 @@
 ## 2026-07-09 - Pre-allocation conditional hoisting regression
 **Learning:** When refactoring Go code to pre-allocate slice capacity for performance (e.g., `make([]Type, 0, len(a)+len(b))`), ensure that expensive data fetching functions or getter methods (like `GetActiveJobs()`) are not inadvertently hoisted out of conditional blocks, as executing them unconditionally introduces severe performance regressions.
 **Action:** Always scope slice source data gathering within the conditional block they belong to.
+## 2026-07-14 - Pre-allocate Slice Capacity in Filter Iterations over Maps
+**Learning:** Initializing zero-capacity slices (`var jobIDs []string`) and subsequently appending to them inside loops that iterate over large internal data structures like `o.activeJobs` and `o.pendingJobs` in the orchestrator causes continuous memory reallocation overhead.
+**Action:** When gathering items from maps or slices where the upper bound count is definitively known (e.g., filtering `activeJobs` or `pendingJobs`), always pre-allocate the slice capacity to the total count (`make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))`). This avoids dynamic resizing during append operations and provides a measurable performance boost.
