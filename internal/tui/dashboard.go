@@ -4886,7 +4886,7 @@ func renderTree(jobs []orchestrator.JobInfo) string {
 		}
 	}
 
-	var rootJobs []string
+	rootJobs := make([]string, 0, len(jobs))
 	for _, job := range jobs {
 		if len(job.WorkItem.DependsOn) == 0 {
 			rootJobs = append(rootJobs, job.ID)

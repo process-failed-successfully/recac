@@ -97,3 +97,6 @@
 ## 2026-07-14 - Pre-allocate Slice Capacity in Filter Iterations over Maps
 **Learning:** Initializing zero-capacity slices (`var jobIDs []string`) and subsequently appending to them inside loops that iterate over large internal data structures like `o.activeJobs` and `o.pendingJobs` in the orchestrator causes continuous memory reallocation overhead.
 **Action:** When gathering items from maps or slices where the upper bound count is definitively known (e.g., filtering `activeJobs` or `pendingJobs`), always pre-allocate the slice capacity to the total count (`make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))`). This avoids dynamic resizing during append operations and provides a measurable performance boost.
+## 2026-07-15 - Pre-allocating slice capacity before appending loops
+**Learning:** Found additional cases where zero-value slices (`var slice []Type`) were initialized and subsequently appended to in loops iterating over known sized data structures (`allJobs`, `activeJobs`+`pendingJobs`, `jobs`).
+**Action:** Always prefer initializing slices with `make([]Type, 0, exactCapacity)` when iterating over other slices or data structures where the length is determinable, avoiding continuous dynamic memory reallocation overhead.

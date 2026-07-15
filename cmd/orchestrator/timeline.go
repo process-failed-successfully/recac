@@ -48,7 +48,7 @@ func printTimeline(host string, limit int) {
 	}
 
 	// Filter out jobs that haven't started
-	var jobs []orchestrator.JobInfo
+	jobs := make([]orchestrator.JobInfo, 0, len(allJobs))
 	for _, j := range allJobs {
 		if !j.StartTime.IsZero() {
 			jobs = append(jobs, j)
