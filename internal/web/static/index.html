@@ -47,7 +47,7 @@
         tbody tr { transition: background-color 0.15s ease-in-out; }
         tbody tr:not(.message-row):hover, tbody tr:not(.message-row):focus-within { background-color: #f1f3f5; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; overflow-wrap: break-word; }
-        th { background-color: #f8f9fa; }
+        thead th { background-color: #f8f9fa; }
         .col-id { width: 15%; }
         .col-desc { width: 55%; }
         .col-status { width: 15%; }
@@ -170,7 +170,7 @@
                             <th scope="col" class="col-priority">Priority</th>
                         </tr>
                     </thead>
-                    <tbody aria-live="polite">
+                    <tbody>
                         <tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>
                     </tbody>
                 </table>
@@ -301,7 +301,8 @@
                 else if (f.status === 'in_progress') statusClass = 'status-inprogress';
                 else if (f.status === 'failed') statusClass = 'status-failed';
 
-                const tdId = document.createElement('td');
+                const tdId = document.createElement('th');
+                tdId.scope = 'row';
                 const idBtn = document.createElement('button');
                 idBtn.type = 'button';
                 idBtn.setAttribute('aria-label', 'Copy ID ' + f.id);
