@@ -56,7 +56,7 @@ func cancelInteractive(host string) {
 		return
 	}
 
-	var cancellableJobs []orchestrator.JobInfo
+	cancellableJobs := make([]orchestrator.JobInfo, 0, len(activeJobs)+len(pendingJobs))
 	cancellableJobs = append(cancellableJobs, activeJobs...)
 	cancellableJobs = append(cancellableJobs, pendingJobs...)
 
