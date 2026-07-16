@@ -21,10 +21,10 @@
 
 The project is now divided into specialized components. Please refer to the specific documentation for each:
 
-- [**Orchestrator**](file:///home/luke/repos/recac/cmd/orchestrator/README.md): How to manage the task pool and agent spawning.
-- [**RECAC Agent**](file:///home/luke/repos/recac/cmd/agent/README.md): How the autonomous coding logic works and how to run it manually.
-- [**E2E Testing**](file:///home/luke/repos/recac/e2e/README.md): Documentation for the scenario-based testing framework.
-- [**Helm/K8s**](file:///home/luke/repos/recac/deploy/helm/recac/README.md): Guide for deploying to Kubernetes.
+- [**Orchestrator**](docs/orchestrator/README.md): How to manage the task pool and agent spawning.
+- [**RECAC Agent**](docs/agent/README.md): How the autonomous coding logic works and how to run it manually.
+- [**E2E Testing**](docs/e2e/README.md): Documentation for the scenario-based testing framework.
+- [**Helm/K8s**](docs/helm/README.md): Guide for deploying to Kubernetes.
 
 ## Quick Start
 
@@ -175,7 +175,7 @@ The recommended way to deploy `recac` in production is via the provided Helm cha
     ```
 
 3.  **Configuration**:
-    See [deploy/helm/recac/README.md](deploy/helm/recac/README.md) for a full list of configuration options, including:
+    See [docs/helm/README.md](docs/helm/README.md) for a full list of configuration options, including:
     - `config.maxIterations`: Limit agent loops (default: 20).
     - `config.managerFrequency`: How often the "Manager" AI reviews code (default: 5).
     - `persistence.enabled`: Enable persistent storage for agent workspaces.
