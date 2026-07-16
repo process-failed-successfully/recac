@@ -9,3 +9,7 @@
 ## 2026-07-15 - Data Table Accessibility: Row Headers and aria-live
 **Learning:** Using `aria-live="polite"` on a large container like a dynamically refreshing `tbody` causes excessive screen reader verbosity. Furthermore, dynamically populated table data cells can be made significantly more navigable horizontally by turning the first cell into `<th scope="row">` instead of `<td>`, provided its visual styling (like `background-color`) is appropriately adjusted to match `td` styles rather than default header styles.
 **Action:** When working on dynamic data tables, avoid placing `aria-live` on the table body itself. Instead, rely on smaller, targeted status messages (like a "Last updated" text). Additionally, always convert the primary column cell (e.g., ID or Name) into a row header (`<th scope="row">`) to improve table structural navigation for assistive technology users.
+
+## 2026-07-16 - [Exposing Keyboard Shortcuts to Screen Readers]
+**Learning:** Found that visual keyboard shortcut hints (like `<kbd>R</kbd>`) were hidden from screen readers using `aria-hidden="true"` to prevent redundant/confusing reading ("Refresh R"). However, this left screen reader users completely unaware that a global keyboard shortcut existed for the action.
+**Action:** When implementing visual keyboard shortcuts, always pair the visually hidden `<kbd>` tags with the `aria-keyshortcuts` attribute on the interactive element (e.g., `aria-keyshortcuts="r"`) so that assistive technologies can semantically announce the available shortcut.
