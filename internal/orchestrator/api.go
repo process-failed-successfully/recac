@@ -1094,9 +1094,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		provider := r.URL.Query().Get("provider")
 		model := r.URL.Query().Get("model")
 
-		apiKey := viper.GetString("api_key")
+		apiKey := viper.GetString("secrets.api_key")
 		if apiKey == "" {
-			apiKey = viper.GetString("secrets.api_key")
+			apiKey = viper.GetString("api_key")
 		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
@@ -1123,9 +1123,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		provider := r.URL.Query().Get("provider")
 		model := r.URL.Query().Get("model")
 
-		apiKey := viper.GetString("api_key")
+		apiKey := viper.GetString("secrets.api_key")
 		if apiKey == "" {
-			apiKey = viper.GetString("secrets.api_key")
+			apiKey = viper.GetString("api_key")
 		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
@@ -1163,9 +1163,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		provider := r.URL.Query().Get("provider")
 		model := r.URL.Query().Get("model")
 
-		apiKey := viper.GetString("api_key")
+		apiKey := viper.GetString("secrets.api_key")
 		if apiKey == "" {
-			apiKey = viper.GetString("secrets.api_key")
+			apiKey = viper.GetString("api_key")
 		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
@@ -1211,9 +1211,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
 		}
 
-		apiKey := viper.GetString("api_key")
+		apiKey := viper.GetString("secrets.api_key")
 		if apiKey == "" {
-			apiKey = viper.GetString("secrets.api_key")
+			apiKey = viper.GetString("api_key")
 		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
@@ -1265,9 +1265,9 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		provider := r.URL.Query().Get("provider")
 		model := r.URL.Query().Get("model")
 
-		apiKey := viper.GetString("api_key")
+		apiKey := viper.GetString("secrets.api_key")
 		if apiKey == "" {
-			apiKey = viper.GetString("secrets.api_key")
+			apiKey = viper.GetString("api_key")
 		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
