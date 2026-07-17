@@ -159,7 +159,7 @@
         </section>
 
         <section class="section" aria-labelledby="table-heading">
-            <h2 id="table-heading">Features & Tasks</h2>
+            <h2 id="table-heading">Features & Tasks <span id="task-count" class="category-badge" title="Total Tasks: 0"><span class="sr-only">Total Tasks: </span>0</span></h2>
             <div class="table-responsive" tabindex="0" role="region" aria-label="Features and Tasks Data">
                 <table id="features-table" aria-labelledby="table-heading">
                     <thead>
@@ -283,6 +283,14 @@
         function renderFeatures(features) {
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
+
+            const taskCountEl = document.getElementById('task-count');
+            if (taskCountEl) {
+                const count = features ? features.length : 0;
+                taskCountEl.innerHTML = '<span class="sr-only">Total Tasks: </span>' + count;
+                taskCountEl.title = 'Total Tasks: ' + count;
+            }
+
             if (!features || features.length === 0) {
                 tbody.innerHTML = `<tr class="message-row"><td colspan="4" class="table-message-cell">
                     <div class="empty-message table-message-block">
