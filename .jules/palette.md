@@ -13,3 +13,7 @@
 ## 2026-07-16 - [Exposing Keyboard Shortcuts to Screen Readers]
 **Learning:** Found that visual keyboard shortcut hints (like `<kbd>R</kbd>`) were hidden from screen readers using `aria-hidden="true"` to prevent redundant/confusing reading ("Refresh R"). However, this left screen reader users completely unaware that a global keyboard shortcut existed for the action.
 **Action:** When implementing visual keyboard shortcuts, always pair the visually hidden `<kbd>` tags with the `aria-keyshortcuts` attribute on the interactive element (e.g., `aria-keyshortcuts="r"`) so that assistive technologies can semantically announce the available shortcut.
+
+## 2026-07-17 - Data Table UX: List Counts
+**Learning:** Found that long data lists or dynamic tables without visible item counts make it difficult for users to quickly gauge system state or workload size without scrolling.
+**Action:** When working on dynamic data lists or tables, add an inline item count badge to the container's primary heading using visually distinct styling (e.g. `.category-badge`), and ensure it remains accessible by including an `sr-only` prefix (e.g., "Total Tasks: ") and a `title` attribute for native hover tooltips.
