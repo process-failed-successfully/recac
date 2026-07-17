@@ -69,7 +69,8 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 
 	// 4. Poll
 	t.Log("Polling for work...")
-	items, err := poller.Poll(ctx)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	items, err := poller.Poll(ctx, logger)
 	if err != nil {
 		t.Fatalf("Poll failed: %v", err)
 	}
@@ -83,10 +84,10 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 		t.Errorf("Expected item ID %s, got %s", key, item.ID)
 	}
 
-	// 5. Claim
+	// 5. Claim (mocked transition for Poller)
 	t.Log("Claiming work...")
-	if err := poller.Claim(ctx, item); err != nil {
-		t.Fatalf("Claim failed: %v", err)
+	if err := poller.UpdateStatus(ctx, item, "In Progress", ""); err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
 	}
 
 	// 6. Verify Status Change (In Progress)
