@@ -130,6 +130,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
+    <div id="a11y-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <main id="main-content" class="container" tabindex="-1">
         <header class="header">
@@ -333,6 +334,8 @@
                         this.classList.add('copy-success');
                         this.setAttribute('aria-label', 'Copied ID ' + f.id);
                         this.title = 'Copied ID';
+                        const announcer = document.getElementById('a11y-announcer');
+                        if (announcer) announcer.textContent = 'Copied ID ' + f.id;
                     } catch (err) {
                         console.error('Failed to copy ID: ', err);
                         iconSpan.textContent = '❌';
@@ -340,6 +343,8 @@
                         this.classList.add('copy-failed');
                         this.setAttribute('aria-label', 'Failed to copy ID ' + f.id);
                         this.title = 'Failed to copy ID';
+                        const announcer = document.getElementById('a11y-announcer');
+                        if (announcer) announcer.textContent = 'Failed to copy ID ' + f.id;
                     }
                     setTimeout(() => {
                         iconSpan.textContent = '📋';
@@ -347,6 +352,8 @@
                         this.classList.remove('copy-success', 'copy-failed');
                         this.setAttribute('aria-label', 'Copy ID ' + f.id);
                         this.title = 'Click to copy ID';
+                        const announcer = document.getElementById('a11y-announcer');
+                        if (announcer) announcer.textContent = '';
                     }, 1500);
                 };
                 tdId.appendChild(idBtn);

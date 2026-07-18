@@ -17,3 +17,7 @@
 ## 2026-07-17 - Data Table UX: List Counts
 **Learning:** Found that long data lists or dynamic tables without visible item counts make it difficult for users to quickly gauge system state or workload size without scrolling.
 **Action:** When working on dynamic data lists or tables, add an inline item count badge to the container's primary heading using visually distinct styling (e.g. `.category-badge`), and ensure it remains accessible by including an `sr-only` prefix (e.g., "Total Tasks: ") and a `title` attribute for native hover tooltips.
+
+## 2026-07-18 - [Transient Action Accessibility]
+**Learning:** Found that simply changing the `aria-label` of an element after it is focused (like a Copy button changing to 'Copied') does not reliably trigger screen readers to announce the new text, leaving users unaware of the success or failure of transient actions.
+**Action:** Implemented a dedicated `aria-live="polite"` announcer region (`<div id="a11y-announcer" class="sr-only">`) to explicitly push transient success/error messages to screen readers when asynchronous actions (like copying to clipboard) complete, clearing it after a timeout.
