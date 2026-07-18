@@ -912,6 +912,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
 			completedJobs := orch.GetCompletedJobs()
+			if len(jobs) == 0 {
+				jobs = make([]JobInfo, 0, len(completedJobs))
+			}
 			for _, job := range completedJobs {
 				if stateFilter == "failed" && !strings.EqualFold(job.Status, "failed") {
 					continue
@@ -950,6 +953,9 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
 			completedJobs := orch.GetCompletedJobs()
+			if len(jobs) == 0 {
+				jobs = make([]JobInfo, 0, len(completedJobs))
+			}
 			for _, job := range completedJobs {
 				if stateFilter == "failed" && !strings.EqualFold(job.Status, "failed") {
 					continue

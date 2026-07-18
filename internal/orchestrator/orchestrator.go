@@ -4022,6 +4022,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	var jobsToCancel []string
 	var groupActive bool
 	if item.ConcurrencyGroup != "" && retryCount == 0 && !bypassApproval {
+		jobsToCancel = make([]string, 0, len(o.activeJobs))
 		for id, activeJob := range o.activeJobs {
 			if activeJob.WorkItem.ConcurrencyGroup == item.ConcurrencyGroup && id != item.ID {
 				if item.CancelInProgress {
@@ -5181,7 +5182,8 @@ func (o *Orchestrator) PurgeJobsByStatus(status string, logger *slog.Logger) (in
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
-	var newCompleted []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic memory reallocation in tight loop
+	newCompleted := make([]JobInfo, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		if strings.EqualFold(job.Status, status) {
 			purgedIDs[job.ID] = true
@@ -5231,7 +5233,8 @@ func (o *Orchestrator) PurgeJobsByMatch(match string, logger *slog.Logger) (int,
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
-	var newCompleted []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic memory reallocation in tight loop
+	newCompleted := make([]JobInfo, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		if matcher.MatchString(job.Summary) || matcher.MatchString(job.Error) {
 			purgedIDs[job.ID] = true
@@ -5276,7 +5279,8 @@ func (o *Orchestrator) PurgeJobsByTag(tag string, logger *slog.Logger) (int, err
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
-	var newCompleted []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic memory reallocation in tight loop
+	newCompleted := make([]JobInfo, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		hasTag := false
 		for _, t := range job.WorkItem.Tags {
@@ -5340,7 +5344,8 @@ func (o *Orchestrator) PurgeJobsByGroup(group string, logger *slog.Logger) (int,
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
-	var newCompleted []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic memory reallocation in tight loop
+	newCompleted := make([]JobInfo, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		if strings.EqualFold(job.WorkItem.ConcurrencyGroup, group) {
 			purgedIDs[job.ID] = true
@@ -5390,7 +5395,8 @@ func (o *Orchestrator) PurgeJobsOlderThan(d time.Duration, logger *slog.Logger) 
 	purgedIDs := make(map[string]bool)
 
 	// 1. Purge from memory
-	var newCompleted []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic memory reallocation in tight loop
+	newCompleted := make([]JobInfo, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		cmpTime := job.EndTime
 		if cmpTime.IsZero() {
@@ -5702,7 +5708,8 @@ func (o *Orchestrator) CancelJobDownstream(ctx context.Context, jobID string, lo
 	// Find all transitive downstream jobs using BFS
 	visited := make(map[string]bool)
 	queue := []string{jobID}
-	var jobsToCancel []string
+	// Note: We don't know the exact capacity, but we can make a small initial capacity to avoid a few reallocs
+	jobsToCancel := make([]string, 0, 8)
 
 	for len(queue) > 0 {
 		curr := queue[0]

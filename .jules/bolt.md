@@ -100,3 +100,7 @@
 ## 2026-07-15 - Pre-allocating slice capacity before appending loops
 **Learning:** Found additional cases where zero-value slices (`var slice []Type`) were initialized and subsequently appended to in loops iterating over known sized data structures (`allJobs`, `activeJobs`+`pendingJobs`, `jobs`).
 **Action:** Always prefer initializing slices with `make([]Type, 0, exactCapacity)` when iterating over other slices or data structures where the length is determinable, avoiding continuous dynamic memory reallocation overhead.
+
+## 2026-07-20 - Pre-allocating slice capacity before appending loops (Orchestrator APIs & Core loops)
+**Learning:** Identified further instances in the orchestrator core logic (e.g. `PurgeJobsByStatus`, job cancellation BFS traversal, and HTTP API filtering in `api.go`) where zero-capacity slices were repeatedly appended to inside loops, causing unnecessary reallocation overhead for commonly fetched list of jobs.
+**Action:** When filtering or collecting items from `completedJobs` or `activeJobs`, always pre-allocate the slice using `make([]Type, 0, len(source))` to eliminate dynamic resizing during iterations.
