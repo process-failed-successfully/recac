@@ -21,3 +21,7 @@
 ## 2026-07-18 - [Transient Action Accessibility]
 **Learning:** Found that simply changing the `aria-label` of an element after it is focused (like a Copy button changing to 'Copied') does not reliably trigger screen readers to announce the new text, leaving users unaware of the success or failure of transient actions.
 **Action:** Implemented a dedicated `aria-live="polite"` announcer region (`<div id="a11y-announcer" class="sr-only">`) to explicitly push transient success/error messages to screen readers when asynchronous actions (like copying to clipboard) complete, clearing it after a timeout.
+
+## 2026-07-19 - [Off-page Visibility via Document Title]
+**Learning:** Found that users who monitor dashboards in background tabs miss critical system updates or error states because there is no off-page visibility. Relying purely on in-page notifications assumes the user always has the tab focused.
+**Action:** When designing dashboards that poll or refresh data, dynamically update the `document.title` to reflect the active workload (e.g., prefixing with a task count `(5) Dashboard`) or critical error states (e.g., `⚠️ Error - Dashboard`), ensuring users can monitor the tab at a glance.

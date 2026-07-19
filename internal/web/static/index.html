@@ -239,6 +239,7 @@
                 lastUpdatedEl.title = now.toLocaleString();
             } catch (e) {
                 console.error("Error loading data:", e);
+                document.title = '⚠️ Error - Recac Dashboard';
                 document.getElementById('graph').innerHTML = `<div class="error-message" role="alert">
                     <span class="state-icon" aria-hidden="true">⚠️</span>
                     <strong>Error loading data</strong>
@@ -290,6 +291,12 @@
                 const count = features ? features.length : 0;
                 taskCountEl.innerHTML = '<span class="sr-only">Total Tasks: </span>' + count;
                 taskCountEl.title = 'Total Tasks: ' + count;
+
+                if (count > 0) {
+                    document.title = `(${count}) Recac Dashboard`;
+                } else {
+                    document.title = 'Recac Dashboard';
+                }
             }
 
             if (!features || features.length === 0) {
