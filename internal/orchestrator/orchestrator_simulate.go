@@ -126,12 +126,14 @@ func (o *Orchestrator) Simulate(logger *slog.Logger) SimulationReport {
 	completedJobs := make([]JobInfo, len(o.completedJobs))
 	copy(completedJobs, o.completedJobs)
 
-	var activeJobs []JobInfo
+	// Bolt optimization: Pre-allocate slice capacity to avoid dynamic memory reallocations during append
+	activeJobs := make([]JobInfo, 0, len(o.activeJobs))
 	for _, job := range o.activeJobs {
 		activeJobs = append(activeJobs, job)
 	}
 
-	var pendingJobs []JobInfo
+	// Bolt optimization: Pre-allocate slice capacity to avoid dynamic memory reallocations during append
+	pendingJobs := make([]JobInfo, 0, len(o.pendingJobs))
 	for _, job := range o.pendingJobs {
 		pendingJobs = append(pendingJobs, job)
 	}
