@@ -25,3 +25,7 @@
 ## 2026-07-19 - [Off-page Visibility via Document Title]
 **Learning:** Found that users who monitor dashboards in background tabs miss critical system updates or error states because there is no off-page visibility. Relying purely on in-page notifications assumes the user always has the tab focused.
 **Action:** When designing dashboards that poll or refresh data, dynamically update the `document.title` to reflect the active workload (e.g., prefixing with a task count `(5) Dashboard`) or critical error states (e.g., `⚠️ Error - Dashboard`), ensuring users can monitor the tab at a glance.
+
+## 2026-07-20 - Responsive Data Table Legibility
+**Learning:** Found that combining `table-layout: fixed` with responsive wrappers (`overflow-x: auto`) causes the table to crush content vertically on narrow viewports rather than triggering the intended horizontal scroll, unless the table element itself has a minimum width.
+**Action:** When implementing responsive data tables, always set a `min-width` (e.g., `600px`) on the table element to guarantee structural legibility and force the wrapper to overflow horizontally on smaller devices.
