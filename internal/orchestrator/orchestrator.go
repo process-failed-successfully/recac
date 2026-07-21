@@ -378,7 +378,8 @@ func (o *Orchestrator) GetJobBlockers(id string) ([]JobInfo, error) {
 		return nil, nil // No dependencies, no blockers
 	}
 
-	var blockers []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic reallocation
+	blockers := make([]JobInfo, 0, len(targetJob.WorkItem.DependsOn))
 	for _, depID := range targetJob.WorkItem.DependsOn {
 		depJob, depFound := o.getJobLocked(depID)
 		if !depFound {
@@ -3588,7 +3589,8 @@ func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *
 	}
 
 	o.mu.RLock()
-	var toHeal []JobInfo
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic reallocation
+	toHeal := make([]JobInfo, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		if job.Status == "Failed" || job.Status == "error" {
 			if matcher != nil && !matcher.MatchString(job.Summary) && !matcher.MatchString(job.Error) {
@@ -3677,7 +3679,8 @@ func (o *Orchestrator) RetryFailedJobs(ctx context.Context, match string, tag st
 	}
 
 	o.mu.RLock()
-	var toRetry []WorkItem
+	// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic reallocation
+	toRetry := make([]WorkItem, 0, len(o.completedJobs))
 	for _, job := range o.completedJobs {
 		if job.Status == "Failed" {
 			if matcher != nil && !matcher.MatchString(job.Error) {
