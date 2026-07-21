@@ -333,7 +333,8 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		jobs := orch.GetCompletedJobs()
-		var validJobs []JobInfo
+		// ⚡ Bolt: Pre-allocate slice capacity to prevent dynamic reallocation
+		validJobs := make([]JobInfo, 0, len(jobs))
 		for _, job := range jobs {
 			if !job.StartTime.IsZero() && !job.EndTime.IsZero() {
 				dur := job.EndTime.Sub(job.StartTime)
