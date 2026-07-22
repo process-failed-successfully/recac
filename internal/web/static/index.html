@@ -65,7 +65,7 @@
         .copy-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; border-radius: 2px; text-decoration: underline; }
         .copy-btn.copy-success { color: #155724; text-decoration: none; }
         .copy-btn.copy-failed { color: #721c24; text-decoration: none; }
-        .category-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: #e9ecef; color: #495057; margin-right: 8px; vertical-align: middle; }
+        .category-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: #e9ecef; color: #495057; margin-right: 8px; vertical-align: middle; cursor: help; }
         .action-btn { background: #0056b3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out, transform 0.15s ease-in-out; }
         .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #004085; }
         .action-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; }
@@ -79,7 +79,7 @@
         .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
         .header h1 { margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
-        .last-updated { font-size: 13px; color: #666; font-style: italic; }
+        .last-updated { font-size: 13px; color: #666; font-style: italic; cursor: help; text-decoration: underline dotted; }
         .is-updating {
             opacity: 0.6;
             pointer-events: none;
@@ -137,7 +137,7 @@
             <h1>Recac Project Dashboard</h1>
             <div class="header-actions">
                 <span id="last-updated" class="last-updated" aria-live="polite"></span>
-                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')" aria-keyshortcuts="r">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
+                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')" aria-keyshortcuts="r" aria-controls="graph features-table">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
             </div>
         </header>
 
@@ -341,6 +341,7 @@
                         this.classList.add('copy-success');
                         this.setAttribute('aria-label', 'Copied ID ' + f.id);
                         this.title = 'Copied ID';
+                        this.setAttribute('aria-disabled', 'true');
                         const announcer = document.getElementById('a11y-announcer');
                         if (announcer) announcer.textContent = 'Copied ID ' + f.id;
                     } catch (err) {
@@ -350,6 +351,7 @@
                         this.classList.add('copy-failed');
                         this.setAttribute('aria-label', 'Failed to copy ID ' + f.id);
                         this.title = 'Failed to copy ID';
+                        this.setAttribute('aria-disabled', 'true');
                         const announcer = document.getElementById('a11y-announcer');
                         if (announcer) announcer.textContent = 'Failed to copy ID ' + f.id;
                     }
@@ -358,6 +360,7 @@
                         this.lastChild.textContent = ' ' + f.id;
                         this.classList.remove('copy-success', 'copy-failed');
                         this.setAttribute('aria-label', 'Copy ID ' + f.id);
+                        this.removeAttribute('aria-disabled');
                         this.title = 'Click to copy ID';
                         const announcer = document.getElementById('a11y-announcer');
                         if (announcer) announcer.textContent = '';

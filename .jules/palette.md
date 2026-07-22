@@ -29,3 +29,7 @@
 ## 2026-07-20 - Responsive Data Table Legibility
 **Learning:** Found that combining `table-layout: fixed` with responsive wrappers (`overflow-x: auto`) causes the table to crush content vertically on narrow viewports rather than triggering the intended horizontal scroll, unless the table element itself has a minimum width.
 **Action:** When implementing responsive data tables, always set a `min-width` (e.g., `600px`) on the table element to guarantee structural legibility and force the wrapper to overflow horizontally on smaller devices.
+
+## 2026-07-22 - [Visual Affordances & Semantic Linking]
+**Learning:** Found that elements with native hover tooltips (like title tags on badges or shortened dates) lack visual discoverability, and that asynchronous action buttons (like refresh) that dynamically update multiple DOM regions lack semantic connections for screen readers to understand the impact of their action. Additionally, transient actions like 'Copy' buttons aren't marked as disabled while they display their temporary success/error state, which could confuse assistive technologies if the user tries to activate it while locked.
+**Action:** Add `cursor: help` and styling like dotted underlines to text with `title` tooltips to visually signal interactivity. Use `aria-controls` on action buttons to semantically link them to the regions they update, and explicitly set `aria-disabled="true"` on transient action buttons during their locked UI state.
