@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // Scanner defines the interface for security scanning
@@ -62,19 +63,23 @@ func NewRegexScanner() *RegexScanner {
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
-
-	// Pre-calculate newline indices for O(log L) line number lookup
-	// This avoids rescanning the string for every match which was O(N*M)
 	var newlines []int
-	for i := 0; i < len(content); i++ {
-		if content[i] == '\n' {
-			newlines = append(newlines, i)
-		}
-	}
 
 	for name, pattern := range s.patterns {
 		matches := pattern.FindAllStringIndex(content, -1)
 		for _, match := range matches {
+			// ⚡ Bolt: Lazily calculate newlines only if a security issue is found
+			if newlines == nil {
+				// Pre-calculate newline indices for O(log L) line number lookup
+				// ⚡ Bolt: Pre-allocate capacity using strings.Count to prevent allocations
+				newlines = make([]int, 0, strings.Count(content, "\n"))
+				for i := 0; i < len(content); i++ {
+					if content[i] == '\n' {
+						newlines = append(newlines, i)
+					}
+				}
+			}
+
 			start := match[0]
 			// Binary search to find how many newlines are before the start index
 			// sort.SearchInts returns the smallest index i such that newlines[i] >= start
