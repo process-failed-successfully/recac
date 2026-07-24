@@ -107,3 +107,7 @@
 ## 2026-07-23 - Lazy evaluation of line number newlines
 **Learning:** In Go, when parsing or scanning content (like in `internal/security/scanner.go`), eagerly pre-calculating string offsets (such as finding all newline indices for line number mapping) creates massive CPU overhead and memory allocations even when no matches are found. The typical 'fast path' is zero matches.
 **Action:** Defer expensive O(N) pre-calculations until a match is actually found. This lazy evaluation optimizes the common case (no vulnerabilities found) and completely avoids unnecessary string traversals and memory allocations. When you do initialize, pre-allocate slice capacity using `strings.Count`.
+
+## 2025-03-05 - Avoid strings.ToUpper before switch statements
+**Learning:** Using `strings.ToUpper(name)` before a switch statement on a string causes an unnecessary heap allocation and a full string traversal. This is especially impactful in hot paths like syntax or text processing.
+**Action:** Replace `strings.ToUpper` + `switch` with a zero-allocation `switch len(name)` followed by `strings.EqualFold()` checks inside the cases. This avoids any allocations and performs early returns on length mismatch.

@@ -136,13 +136,42 @@ func ScanRoutes(root string) ([]Route, error) {
 	return routes, err
 }
 
+// ⚡ Bolt: Replaced allocation-heavy strings.ToUpper with zero-allocation len switch and strings.EqualFold
 func normalizeMethod(name string) string {
-	name = strings.ToUpper(name)
-	switch name {
-	case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS":
-		return name
-	case "HANDLEFUNC", "HANDLE":
-		return "ANY" // or "ALL"
+	switch len(name) {
+	case 3:
+		if strings.EqualFold(name, "GET") {
+			return "GET"
+		}
+		if strings.EqualFold(name, "PUT") {
+			return "PUT"
+		}
+	case 4:
+		if strings.EqualFold(name, "POST") {
+			return "POST"
+		}
+		if strings.EqualFold(name, "HEAD") {
+			return "HEAD"
+		}
+	case 5:
+		if strings.EqualFold(name, "PATCH") {
+			return "PATCH"
+		}
+	case 6:
+		if strings.EqualFold(name, "DELETE") {
+			return "DELETE"
+		}
+		if strings.EqualFold(name, "HANDLE") {
+			return "ANY" // or "ALL"
+		}
+	case 7:
+		if strings.EqualFold(name, "OPTIONS") {
+			return "OPTIONS"
+		}
+	case 10:
+		if strings.EqualFold(name, "HANDLEFUNC") {
+			return "ANY" // or "ALL"
+		}
 	}
 	return ""
 }
