@@ -215,7 +215,10 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 		apiKey := viper.GetString("agents.qa.api_key")
 		if apiKey == "" {
 			// Fallback to global API key
-			apiKey = viper.GetString("api_key")
+			apiKey = viper.GetString("secrets.api_key")
+			if apiKey == "" {
+				apiKey = viper.GetString("api_key")
+			}
 			if apiKey == "" {
 				// Try provider-specific env vars
 				if provider == "openrouter" {
@@ -317,7 +320,10 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 		}
 		apiKey := viper.GetString("agents.manager.api_key")
 		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
+			apiKey = viper.GetString("secrets.api_key")
+			if apiKey == "" {
+				apiKey = viper.GetString("api_key")
+			}
 			if apiKey == "" {
 				// Try provider-specific env vars
 				if provider == "openrouter" {
