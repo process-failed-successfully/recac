@@ -59,13 +59,13 @@
         .state-hint { font-size: 0.9em; color: #555; max-width: 400px; margin: 0 auto; line-height: 1.4; }
         .error-message { text-align: center; padding: 2em; color: #721c24; background-color: #f8d7da; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
         .error-message .state-hint { color: inherit; opacity: 0.9; }
-        .copy-btn { background: none; border: none; padding: 0; color: #0056b3; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease-in-out, transform 0.15s ease-in-out; }
+        .copy-btn { background: none; border: none; padding: 0; color: #0056b3; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease-in-out, transform 0.15s ease-in-out; white-space: nowrap; }
         .copy-btn:active { transform: scale(0.97); }
         .copy-btn:hover, .copy-btn:focus-visible { text-decoration: underline; color: #004085; }
         .copy-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; border-radius: 2px; text-decoration: underline; }
         .copy-btn.copy-success { color: #155724; text-decoration: none; }
         .copy-btn.copy-failed { color: #721c24; text-decoration: none; }
-        .category-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: #e9ecef; color: #495057; margin-right: 8px; vertical-align: middle; cursor: help; }
+        .category-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: #e9ecef; color: #495057; margin-right: 8px; vertical-align: middle; cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
         .action-btn { background: #0056b3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out, transform 0.15s ease-in-out; }
         .action-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: #004085; }
         .action-btn:focus-visible { outline: 2px solid #004085; outline-offset: 2px; }

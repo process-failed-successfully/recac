@@ -37,3 +37,7 @@
 ## 2026-07-24 - [Responsive Mobile Layouts for Data Tables]
 **Learning:** Found that on narrow viewports, the default body and container padding consumes too much horizontal space, making data-dense tables difficult to read. Furthermore, horizontally aligned header content and action buttons become cramped, resulting in poor touch targets.
 **Action:** When implementing responsive mobile layouts (e.g., `@media (max-width: 768px)`), explicitly reduce `body` and container padding to maximize usable width. Additionally, vertically stack header content (`flex-direction: column; align-items: flex-start`) and spread action button groups across the full width (`width: 100%; justify-content: space-between`) to improve touch accessibility and create better touch targets.
+
+## 2026-07-25 - [Text Wrapping on Inline Icon Buttons]
+**Learning:** Found that inline action buttons containing icons and text (like a 'Copy ID' button) can awkwardly line-break between the icon and the text when confined within narrow table cells, making the button appear disjointed.
+**Action:** When creating inline action buttons (`display: inline-flex`), always add `white-space: nowrap;` to ensure the icon and text remain grouped together as a single visual unit, even when space is constrained.
