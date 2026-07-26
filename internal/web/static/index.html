@@ -140,7 +140,7 @@
         <header class="header">
             <h1>Recac Project Dashboard</h1>
             <div class="header-actions">
-                <span id="last-updated" class="last-updated" aria-live="polite"></span>
+                <time id="last-updated" class="last-updated" aria-live="polite"></time>
                 <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')" aria-keyshortcuts="r" aria-controls="graph features-table">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
             </div>
         </header>
@@ -241,6 +241,7 @@
                 const lastUpdatedEl = document.getElementById('last-updated');
                 lastUpdatedEl.textContent = 'Last updated: ' + now.toLocaleTimeString();
                 lastUpdatedEl.title = now.toLocaleString();
+                lastUpdatedEl.setAttribute('datetime', now.toISOString());
             } catch (e) {
                 console.error("Error loading data:", e);
                 document.title = '⚠️ Error - Recac Dashboard';

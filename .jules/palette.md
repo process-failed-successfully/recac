@@ -41,3 +41,7 @@
 ## 2026-07-25 - [Text Wrapping on Inline Icon Buttons]
 **Learning:** Found that inline action buttons containing icons and text (like a 'Copy ID' button) can awkwardly line-break between the icon and the text when confined within narrow table cells, making the button appear disjointed.
 **Action:** When creating inline action buttons (`display: inline-flex`), always add `white-space: nowrap;` to ensure the icon and text remain grouped together as a single visual unit, even when space is constrained.
+
+## 2026-07-26 - [Semantic HTML for Dynamic Timestamps]
+**Learning:** Found that using standard non-semantic `<span>` elements for dynamic timestamps (e.g. `Last updated`) loses contextual meaning for assistive technologies, which rely on explicit time data formats (like ISO strings) rather than potentially localized plain text.
+**Action:** When inserting timestamps into the DOM, use the semantic `<time>` element and dynamically assign its `datetime` attribute via `toISOString()` to provide a machine-readable, unambiguous date-time format for screen readers and other assistive tools.
