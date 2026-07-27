@@ -45,3 +45,7 @@
 ## 2026-07-26 - [Semantic HTML for Dynamic Timestamps]
 **Learning:** Found that using standard non-semantic `<span>` elements for dynamic timestamps (e.g. `Last updated`) loses contextual meaning for assistive technologies, which rely on explicit time data formats (like ISO strings) rather than potentially localized plain text.
 **Action:** When inserting timestamps into the DOM, use the semantic `<time>` element and dynamically assign its `datetime` attribute via `toISOString()` to provide a machine-readable, unambiguous date-time format for screen readers and other assistive tools.
+
+## 2024-07-27 - [Priority Badge Visual Affordance]
+**Learning:** Using semantic visual shapes (like emojis wrapped in `<span aria-hidden="true">`) alongside color and text for enum-like data badges (such as priority) significantly improves readability and scannability, and helps ensure WCAG 1.4.1 compliance (use of color) for users with color vision deficiencies.
+**Action:** Always pair color-coded status text with distinct, semantic visual shapes when building data badges, ensuring they are properly hidden from screen readers to avoid redundant announcements.
