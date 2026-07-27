@@ -417,7 +417,22 @@
                 const tdPriority = document.createElement('td');
                 const spanPriority = document.createElement('span');
                 spanPriority.className = 'status-badge status-pending';
-                spanPriority.textContent = f.priority ? String(f.priority).replace(/_/g, ' ') : 'unassigned';
+
+                const priorityIconSpan = document.createElement('span');
+                priorityIconSpan.setAttribute('aria-hidden', 'true');
+                let priorityText = f.priority ? String(f.priority).toLowerCase() : 'unassigned';
+                if (priorityText === 'high' || priorityText === 'critical') {
+                    priorityIconSpan.textContent = '🔴';
+                } else if (priorityText === 'medium') {
+                    priorityIconSpan.textContent = '🟡';
+                } else if (priorityText === 'low') {
+                    priorityIconSpan.textContent = '🟢';
+                } else {
+                    priorityIconSpan.textContent = '⚪';
+                }
+
+                spanPriority.appendChild(priorityIconSpan);
+                spanPriority.appendChild(document.createTextNode(' ' + (f.priority ? String(f.priority).replace(/_/g, ' ') : 'unassigned')));
                 tdPriority.appendChild(spanPriority);
                 tr.appendChild(tdPriority);
 
