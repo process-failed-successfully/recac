@@ -49,3 +49,7 @@
 ## 2024-07-27 - [Priority Badge Visual Affordance]
 **Learning:** Using semantic visual shapes (like emojis wrapped in `<span aria-hidden="true">`) alongside color and text for enum-like data badges (such as priority) significantly improves readability and scannability, and helps ensure WCAG 1.4.1 compliance (use of color) for users with color vision deficiencies.
 **Action:** Always pair color-coded status text with distinct, semantic visual shapes when building data badges, ensuring they are properly hidden from screen readers to avoid redundant announcements.
+
+## 2026-07-28 - [Transient Button Affordances]
+**Learning:** Found that when buttons have a transient locked state applied via `aria-disabled="true"` (like a 'Copied' state), keeping the default `cursor: pointer` or allowing the `:active` scale transform creates false interactivity cues, making users think the locked button can still be clicked.
+**Action:** Always explicitly disable interactive cursors (e.g., `cursor: default`) and restrict active state CSS transforms (e.g., `:active:not([aria-disabled="true"])`) on transient UI buttons when they are in their temporary `aria-disabled="true"` state to avoid confusing users.
