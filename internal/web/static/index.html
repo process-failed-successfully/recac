@@ -38,7 +38,7 @@
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h1, h2 { color: #333; }
         .section { margin-bottom: 30px; }
-        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; text-transform: capitalize; }
+        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; text-transform: capitalize; cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
         .status-done { background: #d4edda; color: #155724; }
         .status-inprogress { background: #cce5ff; color: #004085; }
         .status-pending { background: #e2e3e5; color: #383d41; }
@@ -402,6 +402,12 @@
                 const tdStatus = document.createElement('td');
                 const spanStatus = document.createElement('span');
                 spanStatus.className = `status-badge ${statusClass}`;
+                spanStatus.title = 'Status: ' + f.status.replace(/_/g, ' ');
+
+                const srStatusSpan = document.createElement('span');
+                srStatusSpan.className = 'sr-only';
+                srStatusSpan.textContent = 'Status: ';
+                spanStatus.appendChild(srStatusSpan);
 
                 const statusIconSpan = document.createElement('span');
                 statusIconSpan.setAttribute('aria-hidden', 'true');
@@ -418,6 +424,12 @@
                 const tdPriority = document.createElement('td');
                 const spanPriority = document.createElement('span');
                 spanPriority.className = 'status-badge status-pending';
+                spanPriority.title = 'Priority: ' + (f.priority ? String(f.priority).replace(/_/g, ' ') : 'unassigned');
+
+                const srPrioritySpan = document.createElement('span');
+                srPrioritySpan.className = 'sr-only';
+                srPrioritySpan.textContent = 'Priority: ';
+                spanPriority.appendChild(srPrioritySpan);
 
                 const priorityIconSpan = document.createElement('span');
                 priorityIconSpan.setAttribute('aria-hidden', 'true');

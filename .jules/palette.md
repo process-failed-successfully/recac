@@ -53,3 +53,7 @@
 ## 2026-07-28 - [Transient Button Affordances]
 **Learning:** Found that when buttons have a transient locked state applied via `aria-disabled="true"` (like a 'Copied' state), keeping the default `cursor: pointer` or allowing the `:active` scale transform creates false interactivity cues, making users think the locked button can still be clicked.
 **Action:** Always explicitly disable interactive cursors (e.g., `cursor: default`) and restrict active state CSS transforms (e.g., `:active:not([aria-disabled="true"])`) on transient UI buttons when they are in their temporary `aria-disabled="true"` state to avoid confusing users.
+
+## 2026-07-29 - [Standardizing Enum Badge Accessibility]
+**Learning:** Found that while custom metadata badges (like `Category`) provided proper contextual structure (`title` attribute + `.sr-only` prefix) for screen readers and mouse users, the primary enum-like data badges (Status and Priority) did not. This inconsistency left screen reader users without column context when navigating cells (hearing just "High" instead of "Priority: High"), and lacked visual affordances for native tooltips.
+**Action:** When building or standardizing data tables with enum-like inline badges, ensure all badges feature explicit visual affordances (`cursor: help`, `text-decoration: underline dotted`) indicating their interactivity, and always inject visually hidden structural text (e.g., `<span class="sr-only">Priority: </span>`) coupled with a native `title` attribute for comprehensive context.
