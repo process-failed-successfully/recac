@@ -61,3 +61,7 @@
 ## 2024-07-30 - Micro-UX improvements for alignment and consistency
 **Learning:** Default row header (`th`) styling in data lists can contrast jarringly with standard data cells if not overridden, and flex gap is a more robust way to align icons and text in buttons/badges than margin utilities which can cause awkward wrapping or spacing issues.
 **Action:** When styling data tables where the first column is a `th` for accessibility, explicitly set `font-weight: normal` on `tbody th` to match visual expectations. Also, utilize `display: inline-flex; align-items: center; gap: Xpx` along with `white-space: nowrap` for components containing text and icons instead of relying on legacy margins.
+
+## 2026-07-31 - Priority Badge Colors
+**Learning:** The priority column previously applied a universal `.status-pending` gray background class to all badges, relying solely on text and semantic emoji icons to distinguish priority levels. This lacked visual hierarchy and made scanning the table difficult.
+**Action:** When working with enum-like data badges that indicate severity or urgency (like Priority), ensure that they dynamically apply specific, WCAG AA compliant color classes (e.g., `.priority-high`, `.priority-medium`, `.priority-low`) corresponding to their underlying value, so that visual color cues complement the semantic icons.
