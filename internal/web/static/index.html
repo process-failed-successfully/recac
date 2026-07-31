@@ -43,6 +43,9 @@
         .status-inprogress { background: #cce5ff; color: #004085; }
         .status-pending { background: #e2e3e5; color: #383d41; }
         .status-failed { background: #f8d7da; color: #721c24; }
+        .priority-high { background: #f8d7da; color: #721c24; }
+        .priority-medium { background: #fff3cd; color: #856404; }
+        .priority-low { background: #d4edda; color: #155724; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; min-width: 600px; }
         tbody tr { transition: background-color 0.15s ease-in-out; }
         tbody tr:not(.message-row):hover, tbody tr:not(.message-row):focus-within { background-color: #f1f3f5; }
@@ -422,7 +425,18 @@
 
                 const tdPriority = document.createElement('td');
                 const spanPriority = document.createElement('span');
-                spanPriority.className = 'status-badge status-pending';
+
+                let priorityText = f.priority ? String(f.priority).toLowerCase() : 'unassigned';
+                let priorityClass = 'status-pending';
+                if (priorityText === 'high' || priorityText === 'critical') {
+                    priorityClass = 'priority-high';
+                } else if (priorityText === 'medium') {
+                    priorityClass = 'priority-medium';
+                } else if (priorityText === 'low') {
+                    priorityClass = 'priority-low';
+                }
+
+                spanPriority.className = `status-badge ${priorityClass}`;
                 spanPriority.title = 'Priority: ' + (f.priority ? String(f.priority).replace(/_/g, ' ') : 'unassigned');
 
                 const srPrioritySpan = document.createElement('span');
@@ -432,7 +446,6 @@
 
                 const priorityIconSpan = document.createElement('span');
                 priorityIconSpan.setAttribute('aria-hidden', 'true');
-                let priorityText = f.priority ? String(f.priority).toLowerCase() : 'unassigned';
                 if (priorityText === 'high' || priorityText === 'critical') {
                     priorityIconSpan.textContent = '🔴';
                 } else if (priorityText === 'medium') {
