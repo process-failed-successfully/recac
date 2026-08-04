@@ -65,3 +65,7 @@
 ## 2026-07-31 - Priority Badge Colors
 **Learning:** The priority column previously applied a universal `.status-pending` gray background class to all badges, relying solely on text and semantic emoji icons to distinguish priority levels. This lacked visual hierarchy and made scanning the table difficult.
 **Action:** When working with enum-like data badges that indicate severity or urgency (like Priority), ensure that they dynamically apply specific, WCAG AA compliant color classes (e.g., `.priority-high`, `.priority-medium`, `.priority-low`) corresponding to their underlying value, so that visual color cues complement the semantic icons.
+
+## 2026-08-01 - [Continuous Loading Feedback]
+**Learning:** Found that using static opacity (e.g., `opacity: 0.6`) to indicate a background data refresh state leaves users unsure if the application is actively processing or just frozen/broken.
+**Action:** Implemented a continuous `@keyframes pulse-opacity` animation for the `.is-updating` class to provide dynamic feedback during async operations, ensuring it falls back to static opacity for users with reduced motion preferences.
