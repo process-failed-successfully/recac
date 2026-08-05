@@ -65,3 +65,7 @@
 ## 2026-07-31 - Priority Badge Colors
 **Learning:** The priority column previously applied a universal `.status-pending` gray background class to all badges, relying solely on text and semantic emoji icons to distinguish priority levels. This lacked visual hierarchy and made scanning the table difficult.
 **Action:** When working with enum-like data badges that indicate severity or urgency (like Priority), ensure that they dynamically apply specific, WCAG AA compliant color classes (e.g., `.priority-high`, `.priority-medium`, `.priority-low`) corresponding to their underlying value, so that visual color cues complement the semantic icons.
+
+## 2024-08-05 - Loading State Animation Feedback
+**Learning:** In the Orchestrator web UI, when indicating background data refreshes (e.g., via an `.is-updating` class), static opacity provides insufficient dynamic feedback, making users unsure if the app is still processing. A continuous pulsing animation offers better visual assurance.
+**Action:** When implementing updating or loading states, use `@keyframes` for continuous animation (like pulsing) rather than static styling. Crucially, always pair this with a static fallback inside a `@media (prefers-reduced-motion: reduce)` block to respect OS accessibility settings.
