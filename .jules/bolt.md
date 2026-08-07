@@ -111,3 +111,6 @@
 ## 2025-03-05 - Avoid strings.ToUpper before switch statements
 **Learning:** Using `strings.ToUpper(name)` before a switch statement on a string causes an unnecessary heap allocation and a full string traversal. This is especially impactful in hot paths like syntax or text processing.
 **Action:** Replace `strings.ToUpper` + `switch` with a zero-allocation `switch len(name)` followed by `strings.EqualFold()` checks inside the cases. This avoids any allocations and performs early returns on length mismatch.
+## 2026-08-01 - Avoid strings.ToUpper in parsing Dockerfiles
+**Learning:** Using `strings.ToUpper(parts[0])` in `parseDockerfile` creates an unnecessary heap allocation and a full string traversal for every parsed instruction. This is impactful because Dockerfile parsing is a repeated operation during analysis and case-insensitive matching could be done better.
+**Action:** Replace `strings.ToUpper` with zero-allocation `strings.EqualFold()` checks inside the rules checks. This avoids all case conversion string allocations during parsing.

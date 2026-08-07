@@ -32,7 +32,7 @@ func AnalyzeDockerfile(content string) ([]DockerFinding, error) {
 		checkWorkDir(instr, &findings)
 		checkSecretsEnv(instr, &findings)
 
-		if instr.Command == "USER" {
+		if strings.EqualFold(instr.Command, "USER") {
 			hasUser = true
 		}
 
@@ -78,7 +78,7 @@ func parseDockerfile(content string) []dockerInstruction {
 
 		parts := strings.Fields(fullCommand)
 		if len(parts) > 0 {
-			cmd := strings.ToUpper(parts[0])
+			cmd := parts[0]
 			args := ""
 			if len(parts) > 1 {
 				args = strings.TrimSpace(fullCommand[len(parts[0]):])
@@ -94,7 +94,7 @@ func parseDockerfile(content string) []dockerInstruction {
 }
 
 func checkLatestTag(instr dockerInstruction, findings *[]DockerFinding) {
-	if instr.Command == "FROM" {
+	if strings.EqualFold(instr.Command, "FROM") {
 		if !strings.Contains(instr.Args, ":") || strings.HasSuffix(instr.Args, ":latest") {
 			*findings = append(*findings, DockerFinding{
 				Line:     instr.Line,
@@ -108,7 +108,7 @@ func checkLatestTag(instr dockerInstruction, findings *[]DockerFinding) {
 }
 
 func checkAptGetUpgrade(instr dockerInstruction, findings *[]DockerFinding) {
-	if instr.Command == "RUN" {
+	if strings.EqualFold(instr.Command, "RUN") {
 		if strings.Contains(instr.Args, "apt-get upgrade") || strings.Contains(instr.Args, "apt upgrade") {
 			*findings = append(*findings, DockerFinding{
 				Line:     instr.Line,
@@ -122,7 +122,7 @@ func checkAptGetUpgrade(instr dockerInstruction, findings *[]DockerFinding) {
 }
 
 func checkWorkDir(instr dockerInstruction, findings *[]DockerFinding) {
-	if instr.Command == "RUN" {
+	if strings.EqualFold(instr.Command, "RUN") {
 		trimmed := strings.TrimSpace(instr.Args)
 		if strings.HasPrefix(trimmed, "cd ") && (strings.Contains(trimmed, " && ") || strings.Contains(trimmed, ";")) {
 			// This is a heuristic. Simple "cd" without chaining is useless anyway in Docker.
@@ -138,7 +138,7 @@ func checkWorkDir(instr dockerInstruction, findings *[]DockerFinding) {
 }
 
 func checkSecretsEnv(instr dockerInstruction, findings *[]DockerFinding) {
-	if instr.Command == "ENV" {
+	if strings.EqualFold(instr.Command, "ENV") {
 		// ENV MY_PASSWORD=...
 		// ⚡ Bolt: Replaced regex with zero-allocation utils.ContainsFold for massive performance improvement
 		if utils.ContainsFold(instr.Args, "PASSWORD") ||
@@ -157,7 +157,7 @@ func checkSecretsEnv(instr dockerInstruction, findings *[]DockerFinding) {
 }
 
 func checkCombineRun(prev, curr dockerInstruction, findings *[]DockerFinding) {
-	if prev.Command == "RUN" && curr.Command == "RUN" {
+	if strings.EqualFold(prev.Command, "RUN") && strings.EqualFold(curr.Command, "RUN") {
 		*findings = append(*findings, DockerFinding{
 			Line:     curr.Line,
 			Rule:     "combine_run",
