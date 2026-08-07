@@ -247,12 +247,12 @@ func TestSession_Signals(t *testing.T) {
 		t.Error("Expected signal to be cleared")
 	}
 
-	// Test checkCompletion
-	if session.checkCompletion() {
+	// Test checkCompletion via hasSignal
+	if session.hasSignal("COMPLETED") {
 		t.Error("Expected not completed")
 	}
 	session.createSignal("COMPLETED")
-	if !session.checkCompletion() {
+	if !session.hasSignal("COMPLETED") {
 		t.Error("Expected completed")
 	}
 }

@@ -54,7 +54,7 @@ func (o *Orchestrator) AnalyzeAnomalies(logger *slog.Logger) ([]AnomalyReport, e
 			duration = job.EndTime.Sub(job.StartTime).Seconds()
 		}
 
-		cost, _ := job.Metrics["total_cost"]
+		cost := job.Metrics["total_cost"]
 
 		stats, ok := statsByModel[job.WorkItem.AgentModel]
 		if !ok {
@@ -129,7 +129,7 @@ func (o *Orchestrator) AnalyzeAnomalies(logger *slog.Logger) ([]AnomalyReport, e
 		if !job.EndTime.IsZero() {
 			duration = job.EndTime.Sub(job.StartTime).Seconds()
 		}
-		cost, _ := job.Metrics["total_cost"]
+		cost := job.Metrics["total_cost"]
 
 		durDev := 0.0
 		costDev := 0.0

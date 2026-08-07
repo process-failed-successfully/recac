@@ -202,9 +202,7 @@ func printJobTree(host string, jobID string) {
 		relevantJobs[curr] = true
 
 		if job, exists := jobMap[curr]; exists {
-			for _, dep := range job.WorkItem.DependsOn {
-				queue = append(queue, dep)
-			}
+			queue = append(queue, job.WorkItem.DependsOn...)
 		}
 	}
 
@@ -222,9 +220,7 @@ func printJobTree(host string, jobID string) {
 		relevantJobs[curr] = true
 
 		if children, exists := childrenMap[curr]; exists {
-			for _, child := range children {
-				queue = append(queue, child)
-			}
+			queue = append(queue, children...)
 		}
 	}
 

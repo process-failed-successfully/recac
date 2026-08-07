@@ -94,7 +94,7 @@ func explainPipelineJob(filePath string, target string, vars map[string]string) 
 
 	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Pipeline Explanation: %s", filePath)))
 	if target != "" {
-		fmt.Fprintln(stdout, fmt.Sprintf("Target: %s (and its dependencies)", target))
+		fmt.Fprintf(stdout, "Target: %s (and its dependencies)\n", target)
 	}
 	fmt.Fprintln(stdout, "")
 
