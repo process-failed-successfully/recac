@@ -69,3 +69,7 @@
 ## 2024-08-05 - Loading State Animation Feedback
 **Learning:** In the Orchestrator web UI, when indicating background data refreshes (e.g., via an `.is-updating` class), static opacity provides insufficient dynamic feedback, making users unsure if the app is still processing. A continuous pulsing animation offers better visual assurance.
 **Action:** When implementing updating or loading states, use `@keyframes` for continuous animation (like pulsing) rather than static styling. Crucially, always pair this with a static fallback inside a `@media (prefers-reduced-motion: reduce)` block to respect OS accessibility settings.
+
+## 2026-08-07 - [Keyboard Shortcut Hints]
+**Learning:** Found that visual keyboard shortcut hints (like `<kbd>S</kbd>`) were missing from the primary action buttons (like "+ Submit Job") in the Orchestrator web UI, even though the `aria-keyshortcuts` attribute was already present. This made the shortcuts undiscoverable to sighted users. Also found that some empty-state text used `#666` on a light background, which failed WCAG 2.1 AA contrast ratio requirements.
+**Action:** Added visual `<kbd>` tags with `aria-hidden="true"` and a custom `.shortcut-hint` CSS class to the buttons, ensuring they are hidden on mobile devices. Updated empty-state text color from `#666` to `#555` to improve accessibility compliance.
