@@ -96,9 +96,7 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	var env []string
 	// Inherit current environment but override with envMap
 	currentEnv := os.Environ()
-	for _, e := range currentEnv {
-		env = append(env, e)
-	}
+	env = append(env, currentEnv...)
 	for k, v := range envMap {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}

@@ -4069,7 +4069,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	}
 
 	if !item.RunAfter.IsZero() && time.Now().Before(item.RunAfter) {
-		delay := item.RunAfter.Sub(time.Now())
+		delay := time.Until(item.RunAfter)
 
 		job := JobInfo{
 			ID:         item.ID,
@@ -4696,7 +4696,7 @@ func (o *Orchestrator) evaluatePendingJobs(ctx context.Context, logger *slog.Log
 				o.pendingJobs[id] = jobInfo
 
 				if logger != nil {
-					logger.Info("Job dependencies met, applying delay", "id", item.ID, "delay", item.RunAfter.Sub(time.Now()))
+					logger.Info("Job dependencies met, applying delay", "id", item.ID, "delay", time.Until(item.RunAfter))
 				}
 
 				// Re-evaluate when the delay expires

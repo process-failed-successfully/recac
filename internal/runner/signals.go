@@ -6,10 +6,6 @@ import (
 	"path/filepath"
 )
 
-// checkCompletion checks if the project is marked as completed.
-func (s *Session) checkCompletion() bool {
-	return s.hasSignal("COMPLETED")
-}
 
 // hasSignal checks if a signal exists in the DB or filesystem (legacy).
 func (s *Session) hasSignal(name string) bool {
