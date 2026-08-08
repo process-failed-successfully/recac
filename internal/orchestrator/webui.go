@@ -70,6 +70,33 @@ const DashboardHTML = `
         @media (max-width: 768px) {
             .shortcut-hint { display: none; }
         }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+            margin-left: 10px;
+            vertical-align: middle;
+            cursor: help;
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+        }
     </style>
 </head>
 <body>
@@ -366,7 +393,7 @@ const DashboardHTML = `
 
         <div class="card" style="margin-top: 20px;">
             <div class="controls" style="align-items: flex-end;">
-                <h2 style="margin-bottom: 0;">Jobs</h2>
+                <h2 style="margin-bottom: 0; display: inline-flex; align-items: center;">Jobs <span class="sr-only">Total Tasks: </span><span id="jobs-count-badge" class="category-badge" title="Total Tasks: 0">0</span></h2>
                 <form id="jobs-filter-form" style="display: flex; gap: 10px; align-items: flex-end; margin: 0;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="job-state-filter" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">State Filter</label>
@@ -956,7 +983,14 @@ const DashboardHTML = `
                     );
                 }
 
+
                 const tbody = document.querySelector('#jobs-table tbody');
+                const countBadge = document.getElementById('jobs-count-badge');
+                if (countBadge) {
+                    countBadge.innerText = jobs.length;
+                    countBadge.title = 'Total Tasks: ' + jobs.length;
+                }
+
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
