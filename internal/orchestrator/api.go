@@ -163,13 +163,14 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		fmt.Fprintf(w, "# TYPE recac_active_jobs gauge\n")
 
 		activeCount := 0
-		for _, job := range orch.GetActiveJobs() {
+		activeJobs := orch.GetActiveJobs()
+		for _, job := range activeJobs {
 			if job.Status == "Running" || job.Status == "Started" {
 				activeCount++
 			}
 		}
-		if activeCount == 0 && (len(orch.GetActiveJobs())-status.PendingJobs) > 0 {
-			activeCount = len(orch.GetActiveJobs()) - status.PendingJobs
+		if activeCount == 0 && (len(activeJobs)-status.PendingJobs) > 0 {
+			activeCount = len(activeJobs) - status.PendingJobs
 		}
 
 		fmt.Fprintf(w, "recac_active_jobs %d\n", activeCount)
