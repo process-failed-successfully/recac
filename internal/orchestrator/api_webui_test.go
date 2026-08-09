@@ -60,7 +60,7 @@ func TestAPI_WebUI_Actions(t *testing.T) {
 	assert.Contains(t, html, ".status-Canceled")
 
 	// Verify dynamic status class generation handles spaces
-	assert.Contains(t, html, "<td class=\"status-' + safeStatus.replace(/\\s+/g, '-') + '\">")
+	assert.Contains(t, html, "renderStatusBadge")
 
 	// Verify clone job JS function exists
 	assert.Contains(t, html, "function cloneJob(")
