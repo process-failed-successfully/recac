@@ -114,3 +114,6 @@
 ## 2026-08-01 - Avoid strings.ToUpper in parsing Dockerfiles
 **Learning:** Using `strings.ToUpper(parts[0])` in `parseDockerfile` creates an unnecessary heap allocation and a full string traversal for every parsed instruction. This is impactful because Dockerfile parsing is a repeated operation during analysis and case-insensitive matching could be done better.
 **Action:** Replace `strings.ToUpper` with zero-allocation `strings.EqualFold()` checks inside the rules checks. This avoids all case conversion string allocations during parsing.
+## 2026-08-09 - Avoid Redundant Expensive Getter Calls
+**Learning:** Found an instance in `internal/orchestrator/api.go`'s `/metrics` handler where `orch.GetActiveJobs()` was called multiple times within a tight block (once in a loop, twice in a subsequent conditional). Because `GetActiveJobs()` acquires a mutex read lock and pre-allocates and populates a new slice on every call, doing this redundantly causes unnecessary lock contention and memory garbage.
+**Action:** Always hoist expensive getter methods that acquire locks and allocate slices outside of loops and conditionals when the underlying state is not expected to change during that block, reusing the initial result variable.
