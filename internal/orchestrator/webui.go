@@ -452,6 +452,28 @@ const DashboardHTML = `
             );
         };
 
+        const renderStatusBadge = (status) => {
+            if (!status) return '';
+            const safeStatus = escapeHTML(status);
+            const lowerStatus = status.toLowerCase();
+            let icon = '';
+
+            if (lowerStatus === 'completed') {
+                icon = '✅';
+            } else if (lowerStatus === 'failed' || lowerStatus === 'error') {
+                icon = '❌';
+            } else if (lowerStatus === 'running' || lowerStatus === 'active' || lowerStatus === 'spawning') {
+                icon = '🔄';
+            } else if (lowerStatus === 'pending' || lowerStatus === 'pending approval') {
+                icon = '⏳';
+            } else if (lowerStatus === 'canceled') {
+                icon = '⏹️';
+            }
+
+            const iconHtml = icon ? '<span aria-hidden="true">' + icon + '</span>' : '';
+            return '<span class="status-' + safeStatus.replace(/\s+/g, '-') + '" style="display: inline-flex; align-items: center; gap: 4px;">' + iconHtml + safeStatus + '</span>';
+        };
+
         async function fetchStatus() {
             try {
                 const res = await fetch('/status');
@@ -1058,7 +1080,7 @@ const DashboardHTML = `
                     let row = '<tr>' +
                         '<td><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="navigator.clipboard.writeText(\'' + safeId + '\'); if(this.innerText !== \'Copied!\'){ const originalText = this.innerText; this.innerText = \'Copied!\'; setTimeout(() => this.innerText = originalText, 1500); }">' + safeId + '</button></td>' +
                         '<td>' + safeSummary + '</td>' +
-                        '<td class="status-' + safeStatus.replace(/\s+/g, '-') + '">' + safeStatus + '</td>' +
+                        '<td>' + renderStatusBadge(j.status) + '</td>' +
                         '<td>' + formatDate(j.start_time) + '</td>' +
                         '<td>' + duration + actionButtons + '</td>' +
                     '</tr>';
@@ -1528,7 +1550,7 @@ const DashboardHTML = `
                         const start = new Date(job.start_time).getTime();
                         const end = new Date(job.end_time).getTime();
                         const duration = ((end - start) / 1000).toFixed(2);
-                        html += '<tr><td>' + escapeHTML(job.id) + '</td><td>' + escapeHTML(job.summary) + '</td><td class="status-' + escapeHTML(job.status).replace(/\s+/g, '-') + '">' + escapeHTML(job.status) + '</td><td>' + duration + '</td></tr>';
+                        html += '<tr><td>' + escapeHTML(job.id) + '</td><td>' + escapeHTML(job.summary) + '</td><td>' + renderStatusBadge(job.status) + '</td><td>' + duration + '</td></tr>';
                     });
                     html += '</tbody></table>';
                 }
@@ -1650,7 +1672,7 @@ const DashboardHTML = `
                     html += '<tr>' +
                         '<td>' + escapeHTML(a.job_id) + '</td>' +
                         '<td>' + escapeHTML(a.model) + '</td>' +
-                        '<td class="status-' + escapeHTML(a.status).replace(/\s+/g, '-') + '">' + escapeHTML(a.status) + '</td>' +
+                        '<td>' + renderStatusBadge(a.status) + '</td>' +
                         '<td>' + durationSeconds + '</td>' +
                         '<td>$' + (a.cost || 0).toFixed(4) + '</td>' +
                         '<td>' + durDevStr + '</td>' +
