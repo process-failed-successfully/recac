@@ -4025,7 +4025,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	var jobsToCancel []string
 	var groupActive bool
 	if item.ConcurrencyGroup != "" && retryCount == 0 && !bypassApproval {
-		jobsToCancel = make([]string, 0, len(o.activeJobs))
+		jobsToCancel = make([]string, 0, len(o.activeJobs)+len(o.pendingJobs))
 		for id, activeJob := range o.activeJobs {
 			if activeJob.WorkItem.ConcurrencyGroup == item.ConcurrencyGroup && id != item.ID {
 				if item.CancelInProgress {
