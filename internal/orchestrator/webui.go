@@ -436,7 +436,8 @@ const DashboardHTML = `
 
         const formatDate = (ds) => {
             if (!ds || ds === "0001-01-01T00:00:00Z") return "N/A";
-            return new Date(ds).toLocaleString();
+            const date = new Date(ds);
+            return '<time datetime="' + date.toISOString() + '">' + date.toLocaleString() + '</time>';
         };
 
         const escapeHTML = (str) => {
@@ -471,7 +472,9 @@ const DashboardHTML = `
             }
 
             const iconHtml = icon ? '<span aria-hidden="true">' + icon + '</span>' : '';
-            return '<span class="status-' + safeStatus.replace(/\s+/g, '-') + '" style="display: inline-flex; align-items: center; gap: 4px;">' + iconHtml + safeStatus + '</span>';
+            const srText = '<span class="sr-only">Status: </span>';
+            const statusClass = 'status-' + safeStatus.replace(/\s+/g, '-');
+            return '<span class="' + statusClass + '" title="Status: ' + safeStatus + '" style="display: inline-flex; align-items: center; gap: 4px; cursor: help; text-decoration: underline dotted; text-underline-offset: 2px;">' + srText + iconHtml + safeStatus + '</span>';
         };
 
         async function fetchStatus() {
