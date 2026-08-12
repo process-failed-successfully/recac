@@ -407,7 +407,7 @@ const DashboardHTML = `
                         <label for="job-search" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">Search Jobs</label>
                         <input type="text" id="job-search" placeholder="ID or Summary (Press '/')..." aria-label="Search jobs" aria-keyshortcuts="/" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                     </div>
-                    <button type="submit" aria-label="Refresh jobs list" id="refresh-jobs" aria-keyshortcuts="r" title="Shortcut: 'r'" style="margin-bottom: 1px; height: 31px;">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
+                    <button type="submit" aria-label="Refresh jobs list" id="refresh-jobs" aria-controls="jobs-container status-content analytics-content" aria-keyshortcuts="r" title="Shortcut: 'r'" style="margin-bottom: 1px; height: 31px;">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
                 </form>
             </div>
             <div id="jobs-container" tabindex="0">
@@ -439,6 +439,26 @@ const DashboardHTML = `
             const date = new Date(ds);
             return '<time datetime="' + date.toISOString() + '">' + date.toLocaleString() + '</time>';
         };
+
+
+        function copyJobId(btn, id) {
+            if (btn.getAttribute('aria-disabled') === 'true') return;
+            navigator.clipboard.writeText(id);
+            const originalText = btn.innerText;
+            btn.innerText = 'Copied!';
+            btn.setAttribute('aria-disabled', 'true');
+            btn.style.cursor = 'default';
+            const announcer = document.getElementById('a11y-announcer');
+            if (announcer) {
+                announcer.innerText = 'Copied job ID to clipboard';
+                setTimeout(() => announcer.innerText = '', 3000);
+            }
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.removeAttribute('aria-disabled');
+                btn.style.cursor = 'pointer';
+            }, 1500);
+        }
 
         const escapeHTML = (str) => {
             if (typeof str !== 'string') return str;
@@ -1010,6 +1030,10 @@ const DashboardHTML = `
 
 
                 const tbody = document.querySelector('#jobs-table tbody');
+                if (!state) { // Only update if we're on the default (active) view
+                    document.title = '(' + jobs.length + ') Orchestrator Dashboard';
+                }
+
                 const countBadge = document.getElementById('jobs-count-badge');
                 if (countBadge) {
                     countBadge.innerText = jobs.length;
@@ -1081,7 +1105,7 @@ const DashboardHTML = `
                     actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
-                        '<td><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="navigator.clipboard.writeText(\'' + safeId + '\'); if(this.innerText !== \'Copied!\'){ const originalText = this.innerText; this.innerText = \'Copied!\'; setTimeout(() => this.innerText = originalText, 1500); }">' + safeId + '</button></td>' +
+                        '<td><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="copyJobId(this, \'' + safeId + '\')">' + safeId + '</button></td>' +
                         '<td>' + safeSummary + '</td>' +
                         '<td>' + renderStatusBadge(j.status) + '</td>' +
                         '<td>' + formatDate(j.start_time) + '</td>' +
@@ -1986,6 +2010,7 @@ const DashboardHTML = `
             }
         });
     </script>
+    <div id="a11y-announcer" class="sr-only" aria-live="polite"></div>
 </body>
 </html>
 `
