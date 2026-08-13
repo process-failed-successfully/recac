@@ -79,3 +79,7 @@
 ## 2026-08-12 - Transient Action Announcements & Semantic Controls
 **Learning:** Extracted inline clipboard handlers into cleaner functions and verified the need to push transient success messages (e.g. "Copied!") using a dedicated `aria-live` announcer instead of changing button labels. Additionally, established that action buttons which update remote DOM regions should explicitly use `aria-controls` to describe those relationships semantically.
 **Action:** When adding transient copy functions, set `aria-disabled="true"`, use a dedicated `aria-live` announcer region for feedback, and always bind target update areas to their controlling buttons via `aria-controls`.
+
+## 2026-08-13 - [Responsive Mobile Layout Improvements]
+**Learning:** In the Orchestrator web UI, the default body and container padding consumed too much horizontal space on narrow viewports, making data-dense tables difficult to read. Furthermore, horizontally aligned header content and action buttons became cramped, resulting in poor touch targets.
+**Action:** When implementing responsive mobile layouts (e.g., `@media (max-width: 768px)`), explicitly reduce `body` and container padding to maximize usable width. Additionally, vertically stack header content (`flex-direction: column; align-items: flex-start`) and spread action button groups across the full width (`width: 100%; justify-content: space-between`) to improve touch accessibility and create better touch targets.

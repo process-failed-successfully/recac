@@ -69,6 +69,10 @@ const DashboardHTML = `
         }
         @media (max-width: 768px) {
             .shortcut-hint { display: none; }
+            body { padding: 0; }
+            .container { padding: 10px; }
+            header { flex-direction: column; align-items: flex-start; }
+            .actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
         }
 
         .sr-only {
