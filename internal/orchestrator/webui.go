@@ -104,6 +104,14 @@ const DashboardHTML = `
     </style>
 </head>
 <body>
+    <noscript>
+        <style>
+            .container, #connection-status { display: none !important; }
+        </style>
+        <div style="padding: 20px; background: #fee2e2; color: #991b1b; text-align: center; border-bottom: 1px solid #f87171;">
+            <strong>JavaScript Required:</strong> The Orchestrator Dashboard is a dynamic application that requires JavaScript to function. Please enable JavaScript in your browser settings.
+        </div>
+    </noscript>
     <header>
         <h1>Orchestrator Dashboard</h1>
         <div id="connection-status" aria-live="polite">Connecting...</div>
