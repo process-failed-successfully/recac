@@ -83,3 +83,7 @@
 ## 2026-08-13 - [Responsive Mobile Layout Improvements]
 **Learning:** In the Orchestrator web UI, the default body and container padding consumed too much horizontal space on narrow viewports, making data-dense tables difficult to read. Furthermore, horizontally aligned header content and action buttons became cramped, resulting in poor touch targets.
 **Action:** When implementing responsive mobile layouts (e.g., `@media (max-width: 768px)`), explicitly reduce `body` and container padding to maximize usable width. Additionally, vertically stack header content (`flex-direction: column; align-items: flex-start`) and spread action button groups across the full width (`width: 100%; justify-content: space-between`) to improve touch accessibility and create better touch targets.
+
+## 2026-08-14 - [Graceful Degradation for Non-JS Users]
+**Learning:** In purely JS-driven interfaces like the Orchestrator web UI, users with JavaScript disabled are presented with broken layouts and infinite loading states (e.g., "Connecting..." or "Loading jobs..."). This fails to provide graceful degradation and violates WCAG 1.1.1 fallback content principles.
+**Action:** Always implement a `<noscript>` block in JS-driven applications. This block should contain a structured error state explaining the requirement for JavaScript and use a scoped `<style>` to explicitly hide interactive containers and elements with infinite loading states (e.g., setting `display: none !important`).
