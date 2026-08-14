@@ -904,19 +904,24 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			stateFilter = "all"
 		}
 
-		var jobs []JobInfo
+		var activeJobs, completedJobs []JobInfo
+		var totalLen int
+
 		if stateFilter == "active" || stateFilter == "all" {
-			activeJobs := orch.GetActiveJobs()
-			if len(jobs) == 0 {
-				jobs = make([]JobInfo, 0, len(activeJobs))
-			}
+			activeJobs = orch.GetActiveJobs()
+			totalLen += len(activeJobs)
+		}
+		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
+			completedJobs = orch.GetCompletedJobs()
+			totalLen += len(completedJobs)
+		}
+
+		jobs := make([]JobInfo, 0, totalLen)
+
+		if stateFilter == "active" || stateFilter == "all" {
 			jobs = append(jobs, activeJobs...)
 		}
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
-			completedJobs := orch.GetCompletedJobs()
-			if len(jobs) == 0 {
-				jobs = make([]JobInfo, 0, len(completedJobs))
-			}
 			for _, job := range completedJobs {
 				if stateFilter == "failed" && !strings.EqualFold(job.Status, "failed") {
 					continue
@@ -945,19 +950,24 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			stateFilter = "all"
 		}
 
-		var jobs []JobInfo
+		var activeJobs, completedJobs []JobInfo
+		var totalLen int
+
 		if stateFilter == "active" || stateFilter == "all" {
-			activeJobs := orch.GetActiveJobs()
-			if len(jobs) == 0 {
-				jobs = make([]JobInfo, 0, len(activeJobs))
-			}
+			activeJobs = orch.GetActiveJobs()
+			totalLen += len(activeJobs)
+		}
+		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
+			completedJobs = orch.GetCompletedJobs()
+			totalLen += len(completedJobs)
+		}
+
+		jobs := make([]JobInfo, 0, totalLen)
+
+		if stateFilter == "active" || stateFilter == "all" {
 			jobs = append(jobs, activeJobs...)
 		}
 		if stateFilter == "completed" || stateFilter == "failed" || stateFilter == "all" {
-			completedJobs := orch.GetCompletedJobs()
-			if len(jobs) == 0 {
-				jobs = make([]JobInfo, 0, len(completedJobs))
-			}
 			for _, job := range completedJobs {
 				if stateFilter == "failed" && !strings.EqualFold(job.Status, "failed") {
 					continue
