@@ -71,9 +71,6 @@ func GenerateChangelog(ctx context.Context, orch *Orchestrator, tag, match, prov
 	// Get agent configuration
 	if apiKey == "" {
 		apiKey = viper.GetString("secrets.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-		}
 	}
 	if provider == "" {
 		provider = viper.GetString("orchestrator.agent_provider")

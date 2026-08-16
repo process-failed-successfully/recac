@@ -100,13 +100,10 @@ func checkAIProvider() string {
 
 	apiKey := viper.GetString("secrets.api_key")
 	if apiKey == "" {
-		apiKey = viper.GetString("api_key")
+		// Try common secret locations
+		apiKey = viper.GetString("secrets.openrouterApiKey")
 		if apiKey == "" {
-			// Try common secret locations
-			apiKey = viper.GetString("secrets.openrouterApiKey")
-			if apiKey == "" {
-				apiKey = viper.GetString("secrets.apiKey")
-			}
+			apiKey = viper.GetString("secrets.apiKey")
 		}
 	}
 
