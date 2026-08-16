@@ -57,9 +57,6 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 
 	apiKey := viper.GetString("secrets.api_key")
 	if apiKey == "" {
-		apiKey = viper.GetString("api_key")
-	}
-	if apiKey == "" {
 		apiKey = os.Getenv("API_KEY")
 		if apiKey == "" {
 			switch provider {

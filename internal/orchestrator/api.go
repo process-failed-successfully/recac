@@ -1113,9 +1113,6 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		model := r.URL.Query().Get("model")
 
 		apiKey := viper.GetString("secrets.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
 		}
@@ -1142,9 +1139,6 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		model := r.URL.Query().Get("model")
 
 		apiKey := viper.GetString("secrets.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
 		}
@@ -1182,9 +1176,6 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		model := r.URL.Query().Get("model")
 
 		apiKey := viper.GetString("secrets.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
 		}
@@ -1230,9 +1221,6 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 		}
 
 		apiKey := viper.GetString("secrets.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
 		}
@@ -1284,9 +1272,6 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		model := r.URL.Query().Get("model")
 
 		apiKey := viper.GetString("secrets.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-		}
 		if provider == "" {
 			provider = viper.GetString("orchestrator.agent_provider")
 		}
