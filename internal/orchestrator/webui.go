@@ -544,10 +544,12 @@ const DashboardHTML = `
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
                 document.getElementById('connection-status').style.color = '#198754';
+                document.title = data.active_spawns > 0 ? '(' + data.active_spawns + ') Dashboard' : 'Orchestrator Dashboard';
             } catch (err) {
                 console.error('Error fetching status:', err);
                 document.getElementById('connection-status').innerText = 'Disconnected';
                 document.getElementById('connection-status').style.color = '#d32f2f';
+                document.title = '(Error) Dashboard';
             }
         }
 

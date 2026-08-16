@@ -87,3 +87,7 @@
 ## 2026-08-14 - [Graceful Degradation for Non-JS Users]
 **Learning:** In purely JS-driven interfaces like the Orchestrator web UI, users with JavaScript disabled are presented with broken layouts and infinite loading states (e.g., "Connecting..." or "Loading jobs..."). This fails to provide graceful degradation and violates WCAG 1.1.1 fallback content principles.
 **Action:** Always implement a `<noscript>` block in JS-driven applications. This block should contain a structured error state explaining the requirement for JavaScript and use a scoped `<style>` to explicitly hide interactive containers and elements with infinite loading states (e.g., setting `display: none !important`).
+
+## 2026-08-16 - [Dynamic Document Title for Background Refreshes]
+**Learning:** Found that when the Orchestrator dashboard refreshes in the background, users have no visibility into the active workload unless they switch back to the tab. This degrades the experience of monitoring long-running tasks.
+**Action:** Dynamically update the `document.title` during background data refreshes to reflect the active workload (e.g., prefixing with a task count like `(5) Dashboard`) or critical error states, ensuring users have off-page visibility when monitoring background tabs.
