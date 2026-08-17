@@ -1119,7 +1119,7 @@ const DashboardHTML = `
                     actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
-                        '<td><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="copyJobId(this, \'' + safeId + '\')">' + safeId + '</button></td>' +
+                        '<th scope="row" style="background-color: inherit; font-weight: normal;"><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="copyJobId(this, \'' + safeId + '\')">' + safeId + '</button></th>' +
                         '<td>' + safeSummary + '</td>' +
                         '<td>' + renderStatusBadge(j.status) + '</td>' +
                         '<td>' + formatDate(j.start_time) + '</td>' +

@@ -91,3 +91,7 @@
 ## 2026-08-16 - [Dynamic Document Title for Background Refreshes]
 **Learning:** Found that when the Orchestrator dashboard refreshes in the background, users have no visibility into the active workload unless they switch back to the tab. This degrades the experience of monitoring long-running tasks.
 **Action:** Dynamically update the `document.title` during background data refreshes to reflect the active workload (e.g., prefixing with a task count like `(5) Dashboard`) or critical error states, ensuring users have off-page visibility when monitoring background tabs.
+
+## 2026-08-17 - Dynamic Data Table Row Headers
+**Learning:** In dynamic data tables, converting the primary column cell (e.g., ID or Name) into a row header (`<th scope="row">`) significantly improves horizontal navigation for screen reader users.
+**Action:** Always implement `<th scope="row">` for the primary identifier in data tables, ensuring its CSS styling is adjusted to match standard data cells rather than default headers.
