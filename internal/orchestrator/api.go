@@ -3738,7 +3738,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 	})
 
 	mux.HandleFunc("POST /webhook/jira", func(w http.ResponseWriter, r *http.Request) {
-		secret := viper.GetString("orchestrator.jira_webhook_secret")
+		secret := viper.GetString("secrets.orchestrator.jira_webhook_secret")
+		if secret == "" {
+			secret = viper.GetString("orchestrator.jira_webhook_secret")
+		}
 		if secret != "" {
 			reqSecret := r.URL.Query().Get("secret")
 			if reqSecret == "" {
@@ -3865,7 +3868,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		// Restore body for any subsequent reading if necessary
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		secret := viper.GetString("orchestrator.github_webhook_secret")
+		secret := viper.GetString("secrets.orchestrator.github_webhook_secret")
+		if secret == "" {
+			secret = viper.GetString("orchestrator.github_webhook_secret")
+		}
 		if secret != "" {
 			signature := r.Header.Get("X-Hub-Signature-256")
 			if signature == "" {
@@ -3965,7 +3971,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		secret := viper.GetString("orchestrator.linear_webhook_secret")
+		secret := viper.GetString("secrets.orchestrator.linear_webhook_secret")
+		if secret == "" {
+			secret = viper.GetString("orchestrator.linear_webhook_secret")
+		}
 		if secret != "" {
 			signature := r.Header.Get("Linear-Signature")
 			if signature == "" {
@@ -4061,7 +4070,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		// Restore body for any subsequent reading if necessary
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		secret := viper.GetString("orchestrator.trello_webhook_secret")
+		secret := viper.GetString("secrets.orchestrator.trello_webhook_secret")
+		if secret == "" {
+			secret = viper.GetString("orchestrator.trello_webhook_secret")
+		}
 		if secret != "" {
 			// Trello uses X-Trello-Webhook which is base64(hmac_sha1(request_body + callback_url, secret))
 			// However, since we might not reliably know the callback_url in a reverse proxy setup,
@@ -4179,7 +4191,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		}
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		secret := viper.GetString("orchestrator.generic_webhook_secret")
+		secret := viper.GetString("secrets.orchestrator.generic_webhook_secret")
+		if secret == "" {
+			secret = viper.GetString("orchestrator.generic_webhook_secret")
+		}
 		if secret != "" {
 			signature := r.Header.Get("X-Webhook-Signature")
 			if signature == "" {
@@ -4240,7 +4255,10 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		// Restore body for any subsequent reading if necessary
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		secret := viper.GetString("orchestrator.gitlab_webhook_secret")
+		secret := viper.GetString("secrets.orchestrator.gitlab_webhook_secret")
+		if secret == "" {
+			secret = viper.GetString("orchestrator.gitlab_webhook_secret")
+		}
 		if secret != "" {
 			token := r.Header.Get("X-Gitlab-Token")
 			if token == "" {

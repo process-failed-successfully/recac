@@ -135,7 +135,10 @@ func (m *Manager) initWebhook() {
 	if url == "" {
 		url = os.Getenv("RECAC_WEBHOOK_URL")
 	}
-	secret := viper.GetString("notifications.webhook.secret")
+	secret := viper.GetString("secrets.notifications.webhook.secret")
+	if secret == "" {
+		secret = viper.GetString("notifications.webhook.secret")
+	}
 	if secret == "" {
 		secret = os.Getenv("RECAC_WEBHOOK_SECRET")
 	}

@@ -212,7 +212,10 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 				}
 			}
 		}
-		apiKey := viper.GetString("agents.qa.api_key")
+		apiKey := viper.GetString("secrets.agents.qa.api_key")
+		if apiKey == "" {
+			apiKey = viper.GetString("agents.qa.api_key")
+		}
 		if apiKey == "" {
 			// Fallback to global API key
 			apiKey = viper.GetString("secrets.api_key")
@@ -315,7 +318,10 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 				}
 			}
 		}
-		apiKey := viper.GetString("agents.manager.api_key")
+		apiKey := viper.GetString("secrets.agents.manager.api_key")
+		if apiKey == "" {
+			apiKey = viper.GetString("agents.manager.api_key")
+		}
 		if apiKey == "" {
 			apiKey = viper.GetString("secrets.api_key")
 			if apiKey == "" {

@@ -16,7 +16,10 @@ import (
 var GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
 	baseURL := viper.GetString("jira.url")
 	username := viper.GetString("jira.username")
-	apiToken := viper.GetString("jira.api_token")
+	apiToken := viper.GetString("secrets.jira.api_token")
+	if apiToken == "" {
+		apiToken = viper.GetString("jira.api_token")
+	}
 
 	// Fallback to environment variables
 	if baseURL == "" {
