@@ -95,3 +95,7 @@
 ## 2026-08-17 - Dynamic Data Table Row Headers
 **Learning:** In dynamic data tables, converting the primary column cell (e.g., ID or Name) into a row header (`<th scope="row">`) significantly improves horizontal navigation for screen reader users.
 **Action:** Always implement `<th scope="row">` for the primary identifier in data tables, ensuring its CSS styling is adjusted to match standard data cells rather than default headers.
+
+## 2026-08-21 - [Responsive Data Tables]
+**Learning:** In the Orchestrator web UI, when implementing responsive data tables using an `overflow-x: auto` wrapper and `table-layout: fixed`, applying a `min-width` (e.g., `600px`) to the `table` element itself is essential. This prevents columns from crushing unreadably on narrow viewports and correctly triggers the wrapper's horizontal scroll.
+**Action:** When creating data tables, always apply a `min-width` and `table-layout: fixed` to the `table` element itself to ensure columns don't crush unreadably on narrow viewports and to correctly trigger the wrapper's horizontal scroll.
