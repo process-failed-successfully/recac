@@ -22,7 +22,7 @@ const DashboardHTML = `
         .metric { display: flex; justify-content: space-between; margin-bottom: 10px; }
         .metric .label { font-weight: bold; color: #555; }
         .metric .value { font-family: monospace; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table { width: 100%; min-width: 600px; table-layout: fixed; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f8f8; }
         tbody tr:hover { background-color: #f1f1f1; transition: background-color 0.15s ease-in-out; }
