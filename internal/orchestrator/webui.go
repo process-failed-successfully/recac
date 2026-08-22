@@ -1579,7 +1579,7 @@ const DashboardHTML = `
                     html += '<h3 style="margin-top: 20px;">Average Duration by Tag</h3>';
                     html += '<table><thead><tr><th>Tag</th><th>Count</th><th>Mean Duration (s)</th></tr></thead><tbody>';
                     data.tag_stats.forEach(ts => {
-                        html += '<tr><td>' + escapeHTML(ts.tag) + '</td><td>' + ts.count + '</td><td>' + (ts.mean_duration_ms / 1000).toFixed(2) + '</td></tr>';
+                        html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(ts.tag) + '</th><td>' + ts.count + '</td><td>' + (ts.mean_duration_ms / 1000).toFixed(2) + '</td></tr>';
                     });
                     html += '</tbody></table>';
                 }
@@ -1591,7 +1591,7 @@ const DashboardHTML = `
                         const start = new Date(job.start_time).getTime();
                         const end = new Date(job.end_time).getTime();
                         const duration = ((end - start) / 1000).toFixed(2);
-                        html += '<tr><td>' + escapeHTML(job.id) + '</td><td>' + escapeHTML(job.summary) + '</td><td>' + renderStatusBadge(job.status) + '</td><td>' + duration + '</td></tr>';
+                        html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(job.id) + '</th><td>' + escapeHTML(job.summary) + '</td><td>' + renderStatusBadge(job.status) + '</td><td>' + duration + '</td></tr>';
                     });
                     html += '</tbody></table>';
                 }
@@ -1638,7 +1638,7 @@ const DashboardHTML = `
                     html += '<h3 style="margin-top: 20px;">Cost by Model</h3>';
                     html += '<table><thead><tr><th>Model</th><th>Count</th><th>Cost ($)</th><th>Tokens (Prompt)</th><th>Tokens (Completion)</th></tr></thead><tbody>';
                     data.model_stats.forEach(ms => {
-                        html += '<tr><td>' + escapeHTML(ms.model) + '</td><td>' + ms.jobs_count + '</td><td>' + ms.cost.toFixed(4) + '</td><td>' + ms.tokens_prompt + '</td><td>' + ms.tokens_completion + '</td></tr>';
+                        html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(ms.model) + '</th><td>' + ms.jobs_count + '</td><td>' + ms.cost.toFixed(4) + '</td><td>' + ms.tokens_prompt + '</td><td>' + ms.tokens_completion + '</td></tr>';
                     });
                     html += '</tbody></table>';
                 }
@@ -1647,7 +1647,7 @@ const DashboardHTML = `
                     html += '<h3 style="margin-top: 20px;">Cost by Tag</h3>';
                     html += '<table><thead><tr><th>Tag</th><th>Count</th><th>Cost ($)</th><th>Tokens (Prompt)</th><th>Tokens (Completion)</th></tr></thead><tbody>';
                     data.tag_stats.forEach(ts => {
-                        html += '<tr><td>' + escapeHTML(ts.tag) + '</td><td>' + ts.jobs_count + '</td><td>' + ts.cost.toFixed(4) + '</td><td>' + ts.tokens_prompt + '</td><td>' + ts.tokens_completion + '</td></tr>';
+                        html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(ts.tag) + '</th><td>' + ts.jobs_count + '</td><td>' + ts.cost.toFixed(4) + '</td><td>' + ts.tokens_prompt + '</td><td>' + ts.tokens_completion + '</td></tr>';
                     });
                     html += '</tbody></table>';
                 }
@@ -1658,7 +1658,7 @@ const DashboardHTML = `
                     data.top_expensive_jobs.forEach(job => {
                         const cost = job.metrics && job.metrics.cost_usd ? job.metrics.cost_usd.toFixed(4) : "0.0000";
                         const model = job.agent_model || "unknown";
-                        html += '<tr><td>' + escapeHTML(job.id) + '</td><td>' + escapeHTML(job.summary) + '</td><td>' + escapeHTML(model) + '</td><td>' + cost + '</td></tr>';
+                        html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(job.id) + '</th><td>' + escapeHTML(job.summary) + '</td><td>' + escapeHTML(model) + '</td><td>' + cost + '</td></tr>';
                     });
                     html += '</tbody></table>';
                 }
@@ -1711,7 +1711,7 @@ const DashboardHTML = `
                     let durationSeconds = (a.duration / 1000000000).toFixed(2) + 's';
 
                     html += '<tr>' +
-                        '<td>' + escapeHTML(a.job_id) + '</td>' +
+                        '<th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(a.job_id) + '</th>' +
                         '<td>' + escapeHTML(a.model) + '</td>' +
                         '<td>' + renderStatusBadge(a.status) + '</td>' +
                         '<td>' + durationSeconds + '</td>' +
@@ -1761,7 +1761,7 @@ const DashboardHTML = `
                     let successPct = (a.success_rate * 100).toFixed(1) + '%';
                     let avgDur = (a.average_duration / 1000000000).toFixed(2) + 's';
                     html += '<tr>' +
-                        '<td>' + escapeHTML(a.agent_provider) + '</td>' +
+                        '<th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(a.agent_provider) + '</th>' +
                         '<td>' + escapeHTML(a.agent_model) + '</td>' +
                         '<td>' + a.total_jobs + ' (' + a.successful_jobs + ' ok / ' + a.failed_jobs + ' fail)</td>' +
                         '<td>' + successPct + '</td>' +
@@ -1815,7 +1815,7 @@ const DashboardHTML = `
                         html += '<tr><th style="border: 1px solid #ccc; padding: 8px;">Summary</th><th style="border: 1px solid #ccc; padding: 8px;">Occurrences</th><th style="border: 1px solid #ccc; padding: 8px;">Total Retries</th><th style="border: 1px solid #ccc; padding: 8px;">Avg Retries</th></tr>';
                         data.top_flaky_jobs.forEach(stat => {
                             html += '<tr>' +
-                                '<td style="border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</td>' +
+                                '<th scope="row" style="background-color: inherit; font-weight: normal; border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</th>' +
                                 '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.occurrences + '</td>' +
                                 '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.total_retries + '</td>' +
                                 '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.avg_retries.toFixed(2) + '</td>' +
@@ -1832,7 +1832,7 @@ const DashboardHTML = `
                         html += '<tr><th style="border: 1px solid #ccc; padding: 8px;">Summary</th><th style="border: 1px solid #ccc; padding: 8px;">Occurrences</th></tr>';
                         data.top_failing_jobs.forEach(stat => {
                             html += '<tr>' +
-                                '<td style="border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</td>' +
+                                '<th scope="row" style="background-color: inherit; font-weight: normal; border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</th>' +
                                 '<td style="border: 1px solid #ccc; padding: 8px;">' + stat.occurrences + '</td>' +
                             '</tr>';
                         });
