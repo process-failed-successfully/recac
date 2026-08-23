@@ -99,3 +99,7 @@
 ## 2026-08-21 - [Responsive Data Tables]
 **Learning:** In the Orchestrator web UI, when implementing responsive data tables using an `overflow-x: auto` wrapper and `table-layout: fixed`, applying a `min-width` (e.g., `600px`) to the `table` element itself is essential. This prevents columns from crushing unreadably on narrow viewports and correctly triggers the wrapper's horizontal scroll.
 **Action:** When creating data tables, always apply a `min-width` and `table-layout: fixed` to the `table` element itself to ensure columns don't crush unreadably on narrow viewports and to correctly trigger the wrapper's horizontal scroll.
+
+## 2024-05-23 - Interactive Affordances in Web UI
+**Learning:** Native `title` tooltips on text or badges lack obvious visual cues, leading users to miss them. Similarly, buttons without tactile feedback (like an `:active` depressed state) feel less responsive, especially for fast clickers, and missing locked state prevention (`:not([disabled]):not([aria-disabled="true"])`) can lead to confusing false interactivity.
+**Action:** Always pair `title` tooltips with clear visual affordances like `cursor: help` and a dotted underline. For buttons, implement a subtle `transform: translateY(1px)` on `:active`, but always ensure it strictly respects both native `disabled` and `aria-disabled="true"` attributes to prevent false tactile feedback on locked elements.
