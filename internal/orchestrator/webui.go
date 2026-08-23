@@ -34,6 +34,7 @@ const DashboardHTML = `
         .actions { margin-top: 20px; display: flex; gap: 10px; }
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
         button:hover { background: #0056b3; }
+        button:active:not([disabled]):not([aria-disabled="true"]) { transform: translateY(1px); }
         button:disabled { opacity: 0.65; cursor: not-allowed; }
         button:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
@@ -1456,7 +1457,7 @@ const DashboardHTML = `
                     html += '<tr>';
                     html += '<td style="vertical-align: top;">' + g.count + '</td>';
                     html += '<td style="vertical-align: top;">' + escapeHTML(g.summary) + '</td>';
-                    html += '<td style="vertical-align: top;"><span title="' + escapeHTML(g.jobIDs.join(', ')) + '">' + escapeHTML(displayIDs) + '</span></td>';
+                    html += '<td style="vertical-align: top;"><span title="' + escapeHTML(g.jobIDs.join(', ')) + '" style="cursor: help; text-decoration: underline dotted; text-underline-offset: 2px;">' + escapeHTML(displayIDs) + '</span></td>';
                     html += '</tr>';
                 });
 
