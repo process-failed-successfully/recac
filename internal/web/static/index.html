@@ -121,11 +121,15 @@
             animation: spin 0.75s linear infinite;
             vertical-align: middle;
         }
+        .icon-spin {
+            display: inline-block;
+            animation: spin 2s linear infinite;
+        }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         @media (prefers-reduced-motion: reduce) {
-            .spinner {
+            .spinner, .icon-spin {
                 animation: none;
                 border-right-color: currentColor;
                 opacity: 0.7;
@@ -421,10 +425,16 @@
 
                 const statusIconSpan = document.createElement('span');
                 statusIconSpan.setAttribute('aria-hidden', 'true');
-                if (f.status === 'done') statusIconSpan.textContent = '✅';
-                else if (f.status === 'in_progress') statusIconSpan.textContent = '🔄';
-                else if (f.status === 'failed') statusIconSpan.textContent = '❌';
-                else statusIconSpan.textContent = '🕒';
+                if (f.status === 'done') {
+                    statusIconSpan.textContent = '✅';
+                } else if (f.status === 'in_progress') {
+                    statusIconSpan.textContent = '🔄';
+                    statusIconSpan.classList.add('icon-spin');
+                } else if (f.status === 'failed') {
+                    statusIconSpan.textContent = '❌';
+                } else {
+                    statusIconSpan.textContent = '🕒';
+                }
 
                 spanStatus.appendChild(statusIconSpan);
                 spanStatus.appendChild(document.createTextNode(f.status.replace(/_/g, ' ')));

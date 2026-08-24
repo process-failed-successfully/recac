@@ -103,3 +103,7 @@
 ## 2024-05-23 - Interactive Affordances in Web UI
 **Learning:** Native `title` tooltips on text or badges lack obvious visual cues, leading users to miss them. Similarly, buttons without tactile feedback (like an `:active` depressed state) feel less responsive, especially for fast clickers, and missing locked state prevention (`:not([disabled]):not([aria-disabled="true"])`) can lead to confusing false interactivity.
 **Action:** Always pair `title` tooltips with clear visual affordances like `cursor: help` and a dotted underline. For buttons, implement a subtle `transform: translateY(1px)` on `:active`, but always ensure it strictly respects both native `disabled` and `aria-disabled="true"` attributes to prevent false tactile feedback on locked elements.
+
+## 2026-08-24 - Active Feedback for In-Progress States
+**Learning:** In the Orchestrator web UI, static icons for active states (like 'in_progress') lack sufficient visual feedback to assure users that a background task is actually running. A continuous spinning animation on the semantic icon provides clear, immediate feedback.
+**Action:** When providing visual feedback for actively running or 'in-progress' status states, apply a continuous spinning animation (`@keyframes spin`) to the semantic icon (e.g., 🔄). Always ensure a fallback is included inside a `@media (prefers-reduced-motion: reduce)` block to disable the animation for users with accessibility needs.
