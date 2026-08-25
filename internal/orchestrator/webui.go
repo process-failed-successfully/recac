@@ -36,6 +36,7 @@ const DashboardHTML = `
         button:hover { background: #0056b3; }
         button:active:not([disabled]):not([aria-disabled="true"]) { transform: translateY(1px); }
         button:disabled { opacity: 0.65; cursor: not-allowed; }
+        button[aria-disabled="true"] { opacity: 0.65; cursor: default; }
         button:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; }

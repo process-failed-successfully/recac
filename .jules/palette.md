@@ -107,3 +107,6 @@
 ## 2026-08-24 - Active Feedback for In-Progress States
 **Learning:** In the Orchestrator web UI, static icons for active states (like 'in_progress') lack sufficient visual feedback to assure users that a background task is actually running. A continuous spinning animation on the semantic icon provides clear, immediate feedback.
 **Action:** When providing visual feedback for actively running or 'in-progress' status states, apply a continuous spinning animation (`@keyframes spin`) to the semantic icon (e.g., 🔄). Always ensure a fallback is included inside a `@media (prefers-reduced-motion: reduce)` block to disable the animation for users with accessibility needs.
+## 2026-08-26 - [Transient Button Locked State Cursor]
+**Learning:** Found that when buttons have a transient locked state applied via `aria-disabled="true"` (like a 'Copied' state), keeping the default `cursor: pointer` creates false interactivity cues, making users think the locked button can still be clicked. While the active transform was previously restricted, the cursor remained a pointer.
+**Action:** Always explicitly disable interactive cursors (e.g., `cursor: default`) on transient UI buttons when they are in their temporary `aria-disabled="true"` state to avoid confusing users.
