@@ -1182,6 +1182,11 @@ const DashboardHTML = `
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             try {
                 await fetchJobs();
+                const announcer = document.getElementById('a11y-announcer');
+                if (announcer) {
+                    announcer.innerText = 'Jobs list refreshed';
+                    setTimeout(() => announcer.innerText = '', 3000);
+                }
             } finally {
                 btn.disabled = false;
                 btn.innerText = originalText;
