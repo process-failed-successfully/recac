@@ -3012,7 +3012,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		poller = orchestrator.NewFilePoller(workFile)
 		logger.Info("Using filesystem poller", "file", workFile)
 	case "github":
-		token := viper.GetString("orchestrator.github_token")
+		token := viper.GetString("secrets.orchestrator.github_token")
+		if token == "" {
+			token = viper.GetString("orchestrator.github_token")
+		}
 		owner := viper.GetString("orchestrator.github_owner")
 		repo := viper.GetString("orchestrator.github_repo")
 		ghLabel := viper.GetString("orchestrator.github_label")
@@ -3026,7 +3029,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
 	case "linear":
-		token := viper.GetString("orchestrator.linear_token")
+		token := viper.GetString("secrets.orchestrator.linear_token")
+		if token == "" {
+			token = viper.GetString("orchestrator.linear_token")
+		}
 		team := viper.GetString("orchestrator.linear_team")
 		lnLabel := viper.GetString("orchestrator.linear_label")
 		if lnLabel == "" {
@@ -3039,7 +3045,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		poller = orchestrator.NewLinearPoller(token, team, lnLabel)
 		logger.Info("Using Linear poller", "team", team, "label", lnLabel)
 	case "gitlab":
-		token := viper.GetString("orchestrator.gitlab_token")
+		token := viper.GetString("secrets.orchestrator.gitlab_token")
+		if token == "" {
+			token = viper.GetString("orchestrator.gitlab_token")
+		}
 		project := viper.GetString("orchestrator.gitlab_project")
 		url := viper.GetString("orchestrator.gitlab_url")
 		glLabel := viper.GetString("orchestrator.gitlab_label")
@@ -3053,8 +3062,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		poller = orchestrator.NewGitLabPoller(url, token, project, glLabel)
 		logger.Info("Using GitLab poller", "project", project, "label", glLabel)
 	case "trello":
-		key := viper.GetString("orchestrator.trello_key")
-		token := viper.GetString("orchestrator.trello_token")
+		key := viper.GetString("secrets.orchestrator.trello_key")
+		if key == "" {
+			key = viper.GetString("orchestrator.trello_key")
+		}
+		token := viper.GetString("secrets.orchestrator.trello_token")
+		if token == "" {
+			token = viper.GetString("orchestrator.trello_token")
+		}
 		board := viper.GetString("orchestrator.trello_board")
 		list := viper.GetString("orchestrator.trello_list")
 
@@ -3064,7 +3079,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		poller = orchestrator.NewTrelloPoller(key, token, board, list)
 		logger.Info("Using Trello poller", "board", board, "list", list)
 	case "asana":
-		token := viper.GetString("orchestrator.asana_token")
+		token := viper.GetString("secrets.orchestrator.asana_token")
+		if token == "" {
+			token = viper.GetString("orchestrator.asana_token")
+		}
 		project := viper.GetString("orchestrator.asana_project")
 
 		if token == "" || project == "" {
@@ -3073,7 +3091,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		poller = orchestrator.NewAsanaPoller(token, project)
 		logger.Info("Using Asana poller", "project", project)
 	case "notion":
-		token := viper.GetString("orchestrator.notion_token")
+		token := viper.GetString("secrets.orchestrator.notion_token")
+		if token == "" {
+			token = viper.GetString("orchestrator.notion_token")
+		}
 		dbID := viper.GetString("orchestrator.notion_database_id")
 		ntLabel := viper.GetString("orchestrator.notion_label")
 		if ntLabel == "" {
