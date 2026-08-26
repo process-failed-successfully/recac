@@ -110,3 +110,6 @@
 ## 2026-08-26 - [Transient Button Locked State Cursor]
 **Learning:** Found that when buttons have a transient locked state applied via `aria-disabled="true"` (like a 'Copied' state), keeping the default `cursor: pointer` creates false interactivity cues, making users think the locked button can still be clicked. While the active transform was previously restricted, the cursor remained a pointer.
 **Action:** Always explicitly disable interactive cursors (e.g., `cursor: default`) on transient UI buttons when they are in their temporary `aria-disabled="true"` state to avoid confusing users.
+## 2026-08-26 - [Preserving Button HTML in Temporary States]
+**Learning:** In the Orchestrator web UI, when temporarily modifying button text for loading states (like the Refresh button), using `btn.innerText` to store and restore the original content strips out nested HTML elements (such as `<kbd>` shortcut hints). This causes visual and accessibility regressions when the button returns to its normal state.
+**Action:** When saving and restoring a button's content during a temporary loading state, always use `btn.innerHTML` instead of `innerText` to ensure that any nested semantic HTML structure is preserved upon restoration.
