@@ -22,6 +22,8 @@ jobs:
       image: ${{ steps.image-tag.outputs.image }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       - name: Generate Image Tag
         id: image-tag
@@ -81,8 +83,12 @@ jobs:
       total_shards: ${{ steps.set-matrix.outputs.total_shards }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       - name: Set up Go
         uses: actions/setup-go@v5
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           go-version-file: go.mod
       - name: Calculate Matrix
@@ -108,6 +114,8 @@ jobs:
       # options: --volume /var/run/docker.sock:/var/run/docker.sock # Lint generally doesn't need docker
     steps:
       - uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       - name: Cache Go Modules
         uses: actions/cache@v4
@@ -137,9 +145,13 @@ jobs:
         shard: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       - name: Set up Go
         uses: actions/setup-go@v5
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           go-version-file: go.mod
 
@@ -160,6 +172,8 @@ jobs:
     container: ${{ needs.prepare-test-image.outputs.image }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       - name: Cache Go Modules
         uses: actions/cache@v4
@@ -187,6 +201,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -235,6 +251,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       - name: Free Disk Space
         run: |
@@ -248,6 +266,8 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v5
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           go-version: "1.25"
 
