@@ -458,7 +458,7 @@ const DashboardHTML = `
         function copyJobId(btn, id) {
             if (btn.getAttribute('aria-disabled') === 'true') return;
             navigator.clipboard.writeText(id);
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.innerText = 'Copied!';
             btn.setAttribute('aria-disabled', 'true');
             btn.style.cursor = 'default';
@@ -468,7 +468,7 @@ const DashboardHTML = `
                 setTimeout(() => announcer.innerText = '', 3000);
             }
             setTimeout(() => {
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
                 btn.removeAttribute('aria-disabled');
                 btn.style.cursor = 'pointer';
             }, 1500);
@@ -580,7 +580,7 @@ const DashboardHTML = `
         }
 
         async function retryFailedJobs(btn) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             if(!confirm('Are you sure you want to retry all failed jobs?')) return;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
@@ -589,19 +589,19 @@ const DashboardHTML = `
                 if(res.ok) {
                     setTimeout(() => {
                         btn.disabled = false;
-                        btn.innerText = originalText;
+                        btn.innerHTML = originalHTML;
                         fetchStatus();
                         fetchJobs();
                     }, 1000);
                 } else {
                     alert('Action failed: ' + await res.text());
                     btn.disabled = false;
-                    btn.innerText = originalText;
+                    btn.innerHTML = originalHTML;
                 }
             } catch(e) {
                 alert('Request error: ' + e);
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -609,7 +609,7 @@ const DashboardHTML = `
             if ((action === 'purge' || action === 'cancel' || action === 'skip') && !confirm('Are you sure you want to ' + action + ' job ' + id + '?')) {
                 return;
             }
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             let method = 'POST';
@@ -634,7 +634,7 @@ const DashboardHTML = `
             } else if (action === 'cancel') {
                 if(!confirm('Are you sure you want to cancel job ' + id + '?')) {
                     btn.disabled = false;
-                    btn.innerText = originalText;
+                    btn.innerHTML = originalHTML;
                     return;
                 }
                 url = '/jobs/' + encodeURIComponent(id);
@@ -642,7 +642,7 @@ const DashboardHTML = `
             } else if (action === 'purge') {
                 if(!confirm('Are you sure you want to purge job ' + id + '?')) {
                     btn.disabled = false;
-                    btn.innerText = originalText;
+                    btn.innerHTML = originalHTML;
                     return;
                 }
                 url = '/history/' + encodeURIComponent(id);
@@ -661,7 +661,7 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -1135,7 +1135,7 @@ const DashboardHTML = `
         }
 
         async function postAction(btn, endpoint) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             try {
@@ -1149,12 +1149,12 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
         async function deleteAction(btn, endpoint) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             if(!confirm('Are you sure you want to perform this delete action?')) return;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
@@ -1170,14 +1170,14 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
         document.getElementById('jobs-filter-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = document.getElementById('refresh-jobs');
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Wait...';
             try {
@@ -1189,7 +1189,7 @@ const DashboardHTML = `
                 }
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         });
         document.getElementById('job-state-filter').addEventListener('change', fetchJobs);
@@ -1350,7 +1350,7 @@ const DashboardHTML = `
         }
 
         async function exportTrace(btn) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Exporting...';
             try {
@@ -1374,12 +1374,12 @@ const DashboardHTML = `
                 alert('Error exporting trace: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
         async function exportPipeline(btn) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Exporting...';
             try {
@@ -1403,7 +1403,7 @@ const DashboardHTML = `
                 alert('Error exporting pipeline: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -1476,7 +1476,7 @@ const DashboardHTML = `
         }
 
         async function generateChangelog(btn) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Generating...';
 
@@ -1506,12 +1506,12 @@ const DashboardHTML = `
                 contentDiv.innerHTML = '<span style="color:#d32f2f">Error generating changelog: ' + err.message + '</span>';
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
         async function generatePostmortem(btn) {
-            const originalText = btn.innerText;
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Generating...';
 
@@ -1541,7 +1541,7 @@ const DashboardHTML = `
                 contentDiv.innerHTML = '<span style="color:#d32f2f">Error generating postmortem: ' + err.message + '</span>';
             } finally {
                 btn.disabled = false;
-                btn.innerText = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
 
