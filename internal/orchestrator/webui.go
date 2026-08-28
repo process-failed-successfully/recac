@@ -56,6 +56,8 @@ const DashboardHTML = `
         select:focus-visible, input:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         #logs-output { background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-y: auto; height: 400px; margin: 0; }
         .modal-large { width: 90%; max-width: 1000px; }
+        .icon-spin { animation: spin 2s linear infinite; display: inline-block; }
+        @media (prefers-reduced-motion: reduce) { .icon-spin { animation: none; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin-right: 5px; vertical-align: middle; }
         [tabindex="0"]:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
@@ -498,7 +500,7 @@ const DashboardHTML = `
             } else if (lowerStatus === 'failed' || lowerStatus === 'error') {
                 icon = '❌';
             } else if (lowerStatus === 'running' || lowerStatus === 'active' || lowerStatus === 'spawning') {
-                icon = '🔄';
+                icon = '<span class="icon-spin">🔄</span>';
             } else if (lowerStatus === 'pending' || lowerStatus === 'pending approval') {
                 icon = '⏳';
             } else if (lowerStatus === 'canceled') {
