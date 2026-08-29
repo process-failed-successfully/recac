@@ -459,7 +459,7 @@ const DashboardHTML = `
             if (btn.getAttribute('aria-disabled') === 'true') return;
             navigator.clipboard.writeText(id);
             const originalHTML = btn.innerHTML;
-            btn.innerText = 'Copied!';
+            btn.innerHTML = 'Copied!';
             btn.setAttribute('aria-disabled', 'true');
             btn.style.cursor = 'default';
             const announcer = document.getElementById('a11y-announcer');
@@ -779,6 +779,7 @@ const DashboardHTML = `
 
         async function submitEnvVars() {
             const btn = document.getElementById("btn-submit-env");
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = "<span class=\"spinner\" aria-hidden=\"true\"></span> Saving...";
 
@@ -818,7 +819,7 @@ const DashboardHTML = `
                 alert("Request failed: " + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Save Environment Variables";
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -838,6 +839,7 @@ const DashboardHTML = `
 
         async function submitEditDeps() {
             const btn = document.getElementById('btn-submit-deps');
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Saving...';
 
@@ -862,7 +864,7 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Save Dependencies';
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -874,6 +876,7 @@ const DashboardHTML = `
             }
 
             const btn = document.getElementById('btn-dry-run');
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Running...';
 
@@ -910,13 +913,14 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Dry Run';
+                btn.innerHTML = originalHTML;
             }
         }
 
         async function submitPipeline() {
             const yaml = document.getElementById('pipeline-yaml').value.trim();
             const btn = document.getElementById('btn-submit-pipeline');
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Submitting...';
 
@@ -939,7 +943,7 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Submit Pipeline';
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -948,6 +952,7 @@ const DashboardHTML = `
             const repo = document.getElementById('job-repo').value.trim();
 
             const btn = document.getElementById('btn-submit-adhoc');
+            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Submitting...';
 
@@ -1020,7 +1025,7 @@ const DashboardHTML = `
                 alert('Request failed: ' + e);
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Submit Job';
+                btn.innerHTML = originalHTML;
             }
         }
 
@@ -1875,6 +1880,7 @@ const DashboardHTML = `
             const contextLines = document.getElementById('search-logs-context').value;
             const resultsDiv = document.getElementById('search-logs-results');
             const btn = document.getElementById('btn-search-logs');
+            const originalHTML = btn.innerHTML;
 
             resultsDiv.style.display = 'block';
             resultsDiv.innerHTML = 'Searching...';
@@ -1946,7 +1952,7 @@ const DashboardHTML = `
                 resultsDiv.innerHTML = '<span style="color:#d32f2f">Error performing search: ' + err.message + '</span>';
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Search';
+                btn.innerHTML = originalHTML;
             }
         }
 
