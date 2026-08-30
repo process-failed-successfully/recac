@@ -113,3 +113,6 @@
 ## 2026-08-26 - [Preserving Button HTML in Temporary States]
 **Learning:** In the Orchestrator web UI, when temporarily modifying button text for loading states (like the Refresh button), using `btn.innerText` to store and restore the original content strips out nested HTML elements (such as `<kbd>` shortcut hints). This causes visual and accessibility regressions when the button returns to its normal state.
 **Action:** When saving and restoring a button's content during a temporary loading state, always use `btn.innerHTML` instead of `innerText` to ensure that any nested semantic HTML structure is preserved upon restoration.
+## 2026-08-30 - Active Feedback for In-Progress States
+**Learning:** In the Orchestrator web UI, static icons for active states (like 'in_progress') lack sufficient visual feedback to assure users that a background task is actually running. A continuous spinning animation on the semantic icon provides clear, immediate feedback.
+**Action:** When providing visual feedback for actively running or 'in-progress' status states, apply a continuous spinning animation (`@keyframes spin`) to the semantic icon (e.g., 🔄). Always ensure a fallback is included inside a `@media (prefers-reduced-motion: reduce)` block to disable the animation for users with accessibility needs.

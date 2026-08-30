@@ -58,6 +58,10 @@ const DashboardHTML = `
         .modal-large { width: 90%; max-width: 1000px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin-right: 5px; vertical-align: middle; }
+        .spin-icon { display: inline-block; animation: spin 1s linear infinite; }
+        @media (prefers-reduced-motion: reduce) {
+            .spin-icon { animation: none !important; }
+        }
         [tabindex="0"]:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         .shortcut-hint {
             display: inline-block;
@@ -505,7 +509,8 @@ const DashboardHTML = `
                 icon = '⏹️';
             }
 
-            const iconHtml = icon ? '<span aria-hidden="true">' + icon + '</span>' : '';
+            const isSpinning = lowerStatus === 'running' || lowerStatus === 'active' || lowerStatus === 'spawning';
+            const iconHtml = icon ? '<span aria-hidden="true"' + (isSpinning ? ' class="spin-icon"' : '') + '>' + icon + '</span>' : '';
             const srText = '<span class="sr-only">Status: </span>';
             const statusClass = 'status-' + safeStatus.replace(/\s+/g, '-');
             return '<span class="' + statusClass + '" title="Status: ' + safeStatus + '" style="display: inline-flex; align-items: center; gap: 4px; cursor: help; text-decoration: underline dotted; text-underline-offset: 2px;">' + srText + iconHtml + safeStatus + '</span>';
