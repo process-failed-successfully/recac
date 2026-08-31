@@ -127,21 +127,21 @@ const DashboardHTML = `
             <div class="actions" id="global-actions" style="margin-top: 0;">
                 <!-- Buttons will be injected here if supported -->
             </div>
-            <div>
-                <button type="button" onclick="generateChangelog(this)" aria-label="Generate Changelog" style="background-color: #17a2b8; margin-right: 10px;">Generate Changelog</button>
-                <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; margin-right: 10px;">Generate Postmortem</button>
-                <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; margin-right: 10px;">Analyze Failures</button>
-                <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; margin-right: 10px;">Analyze Durations</button>
-                <button type="button" onclick="openAnalyzeCostsModal()" aria-label="Analyze Costs" style="background-color: #28a745; margin-right: 10px;">Analyze Costs</button>
-                <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c; margin-right: 10px;">Analyze Anomalies</button>
-                <button type="button" onclick="openAnalyzeAgentsModal()" aria-label="Analyze Agents" style="background-color: #17a2b8; margin-right: 10px;">Analyze Agents</button>
-                <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff; margin-right: 10px;">Analyze Reliability</button>
-                <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; margin-right: 10px;">Search Logs</button>
-                <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; margin-right: 10px;">View Graph</button>
-                <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; margin-right: 10px;">View Timeline</button>
-                <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d; margin-right: 10px;">Export Trace</button>
-                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d; margin-right: 10px;">Export Pipeline</button>
-                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8; margin-right: 10px;">+ Submit Pipeline</button>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <button type="button" onclick="generateChangelog(this)" aria-label="Generate Changelog" style="background-color: #17a2b8">Generate Changelog</button>
+                <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545">Generate Postmortem</button>
+                <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545">Analyze Failures</button>
+                <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1">Analyze Durations</button>
+                <button type="button" onclick="openAnalyzeCostsModal()" aria-label="Analyze Costs" style="background-color: #28a745">Analyze Costs</button>
+                <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c">Analyze Anomalies</button>
+                <button type="button" onclick="openAnalyzeAgentsModal()" aria-label="Analyze Agents" style="background-color: #17a2b8">Analyze Agents</button>
+                <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff">Analyze Reliability</button>
+                <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d">Search Logs</button>
+                <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1">View Graph</button>
+                <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14">View Timeline</button>
+                <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d">Export Trace</button>
+                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d">Export Pipeline</button>
+                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8">+ Submit Pipeline</button>
                 <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'; setTimeout(() => document.getElementById('job-summary').focus(), 10);" aria-keyshortcuts="s" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button>
             </div>
         </div>
