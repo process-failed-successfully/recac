@@ -116,3 +116,7 @@
 ## 2026-08-30 - Active Feedback for In-Progress States
 **Learning:** In the Orchestrator web UI, static icons for active states (like 'in_progress') lack sufficient visual feedback to assure users that a background task is actually running. A continuous spinning animation on the semantic icon provides clear, immediate feedback.
 **Action:** When providing visual feedback for actively running or 'in-progress' status states, apply a continuous spinning animation (`@keyframes spin`) to the semantic icon (e.g., 🔄). Always ensure a fallback is included inside a `@media (prefers-reduced-motion: reduce)` block to disable the animation for users with accessibility needs.
+
+## 2026-08-31 - [Responsive Layout for Action Groups]
+**Learning:** In the Orchestrator web UI, globally aligned inline action buttons using `margin-right: 10px` fail to wrap cleanly on mobile viewports, resulting in elements touching vertically due to missing margin-bottoms.
+**Action:** When creating groupings of global action buttons, replace inline margin utilities with a wrapping container utilizing `display: flex; flex-wrap: wrap; gap: 10px;` to ensure robust, responsive spacing across all screen sizes.
