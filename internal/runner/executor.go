@@ -209,13 +209,19 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	if s.UseLocalAgent {
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
-		// Propagate Environment + Inject Project ID
-		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
-		// Debug: Log key env vars for troubleshooting
-		s.Logger.Info("[DEBUG] Local exec env vars",
-			"RECAC_PROJECT_ID", s.Project,
-			"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
-			"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
+
+		// Build a safe environment whitelist
+		allowedEnvVars := []string{"PATH", "HOME", "USER", "LANG"}
+		var safeEnv []string
+		for _, key := range allowedEnvVars {
+			if val, exists := os.LookupEnv(key); exists {
+				safeEnv = append(safeEnv, fmt.Sprintf("%s=%s", key, val))
+			}
+		}
+
+		// Propagate Safe Environment + Inject Project ID
+		cmd.Env = append(safeEnv, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+
 		cmd.Dir = s.Workspace // Run in workspace
 		// Capture Combined Output
 		var outBuf bytes.Buffer
