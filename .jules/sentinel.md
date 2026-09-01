@@ -15,3 +15,7 @@
 **Vulnerability:** Orchestrator environment variables (e.g., `RECAC_DB_URL`, secrets, etc.) were being propagated to locally executed LLM-generated bash scripts via `cmd.Env = append(os.Environ(), ...)` in `internal/runner/executor.go`.
 **Learning:** This violates the principle of least privilege, exposing potentially sensitive backend configurations to untrusted, dynamically generated scripts running locally.
 **Prevention:** Instead of passing the entire parent environment (`os.Environ()`), construct an explicit whitelist of safe environment variables (e.g., `PATH`, `HOME`, `USER`, `LANG`) and pass only those to the spawned process.
+## 2026-09-01 - Prevent host environment variable leakage to agent process
+**Vulnerability:** Orchestrator leaked all host environment variables (including webhooks and internal secrets) to the untrusted agent process via `os.Environ()` in `ProcessSpawner`.
+**Learning:** When spawning subprocesses, explicitly pass only a sanitized whitelist of base environment variables instead of inheriting everything, as the agent process executes untrusted code.
+**Prevention:** Use a whitelist-based approach for base environment variables (`PATH`, `HOME`, `USER`) instead of appending `os.Environ()` to prevent accidental secret leakage.
