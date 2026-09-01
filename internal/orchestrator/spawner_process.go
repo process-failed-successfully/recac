@@ -94,9 +94,13 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	envMap := collectAgentEnvVars(item, s.AgentProvider, s.AgentModel)
 	envMap["RECAC_HOST_WORKSPACE_PATH"] = tempDir
 	var env []string
-	// Inherit current environment but override with envMap
-	currentEnv := os.Environ()
-	env = append(env, currentEnv...)
+	// Only inherit a safe whitelist of environment variables to prevent leaking orchestrator secrets
+	allowedEnvVars := []string{"PATH", "HOME", "USER", "LANG"}
+	for _, key := range allowedEnvVars {
+		if val, exists := os.LookupEnv(key); exists {
+			env = append(env, fmt.Sprintf("%s=%s", key, val))
+		}
+	}
 	for k, v := range envMap {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
