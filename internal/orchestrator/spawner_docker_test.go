@@ -262,6 +262,39 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	mockSM.AssertNotCalled(t, "SaveSession")
 }
 
+func TestDockerSpawner_Spawn_NilPoller_NoPanic(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Spawner with nil poller
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", "Always", mockSM, 30, 5, 10)
+	spawner.GitClient = mockGit
+
+	item := WorkItem{ID: "TICKET-NIL-POLLER", RepoURL: "https://github.com/test/repo"}
+	ctx := context.Background()
+
+	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
+	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "", mock.Anything).Return("cid-123", nil)
+
+	// Simulate wait returning an error (agent failed)
+	mockDocker.On("WaitContainer", ctx, "cid-123").Return(int(1), errors.New("agent error"))
+	mockDocker.On("ContainerLogs", ctx, "cid-123").Return(io.NopCloser(strings.NewReader("log content")), nil)
+
+	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	mockSM.On("LoadSession", item.ID).Return(&runner.SessionState{}, nil)
+
+	// Get SHA mock
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("end-sha", nil)
+
+	// This should not panic
+	err := spawner.Spawn(ctx, item)
+	assert.NoError(t, err)
+
+	mockSM.AssertExpectations(t)
+}
+
 func TestDockerSpawner_ShellInjection(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	client := new(MockDockerClient)
