@@ -120,3 +120,6 @@
 ## 2026-08-31 - [Responsive Layout for Action Groups]
 **Learning:** In the Orchestrator web UI, globally aligned inline action buttons using `margin-right: 10px` fail to wrap cleanly on mobile viewports, resulting in elements touching vertically due to missing margin-bottoms.
 **Action:** When creating groupings of global action buttons, replace inline margin utilities with a wrapping container utilizing `display: flex; flex-wrap: wrap; gap: 10px;` to ensure robust, responsive spacing across all screen sizes.
+## 2026-09-01 - [Action Buttons Responsive Spacing in Tables]
+**Learning:** In the Orchestrator web UI's dynamic data tables, inline action buttons within the "Duration / Actions" column were separated using `margin-left: 10px`. This approach is brittle on mobile devices because when the table cells shrink, the buttons wrap onto new lines without vertical spacing, causing them to overlap vertically and create poor touch targets.
+**Action:** When aligning groups of inline action buttons within table cells, remove single-direction margins (like `margin-left`). Instead, wrap the buttons (along with any preceding text) in a container with `display: flex; flex-wrap: wrap; gap: 10px; align-items: center;`. This ensures the buttons wrap cleanly on narrow viewports with consistent vertical and horizontal spacing.
