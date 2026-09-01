@@ -1095,47 +1095,47 @@ const DashboardHTML = `
                     const lowerStatus = (j.status || '').toLowerCase();
 
                     if (lowerStatus === 'pending approval') {
-                        actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
+                        actionButtons += '<button type="button" aria-label="Approve job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'approve\', \'' + escapeHTML(j.id) + '\')">Approve</button>';
                     } else if (lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" aria-label="Skip job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'skip\', \'' + escapeHTML(j.id) + '\')">Skip</button>';
-                        actionButtons += '<button type="button" aria-label="Demote job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'demote\', \'' + escapeHTML(j.id) + '\')">Demote</button>';
-                        actionButtons += '<button type="button" aria-label="Promote job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'promote\', \'' + escapeHTML(j.id) + '\')">Promote</button>';
+                        actionButtons += '<button type="button" aria-label="Skip job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'skip\', \'' + escapeHTML(j.id) + '\')">Skip</button>';
+                        actionButtons += '<button type="button" aria-label="Demote job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'demote\', \'' + escapeHTML(j.id) + '\')">Demote</button>';
+                        actionButtons += '<button type="button" aria-label="Promote job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'promote\', \'' + escapeHTML(j.id) + '\')">Promote</button>';
                         if (j.work_item && j.work_item.hold) {
-                            actionButtons += '<button type="button" aria-label="Unhold job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'unhold\', \'' + escapeHTML(j.id) + '\')">Unhold</button>';
+                            actionButtons += '<button type="button" aria-label="Unhold job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'unhold\', \'' + escapeHTML(j.id) + '\')">Unhold</button>';
                         } else {
-                            actionButtons += '<button type="button" aria-label="Hold job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'hold\', \'' + escapeHTML(j.id) + '\')">Hold</button>';
+                            actionButtons += '<button type="button" aria-label="Hold job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'hold\', \'' + escapeHTML(j.id) + '\')">Hold</button>';
                         }
                     } else if (lowerStatus === 'failed') {
-                        actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
-                        actionButtons += '<button type="button" aria-label="Heal job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="doJobAction(this, \'heal\', \'' + escapeHTML(j.id) + '\')">Heal</button>';
+                        actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
+                        actionButtons += '<button type="button" aria-label="Heal job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="doJobAction(this, \'heal\', \'' + escapeHTML(j.id) + '\')">Heal</button>';
                     }
 
                     if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" aria-label="Cancel job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
+                        actionButtons += '<button type="button" aria-label="Cancel job ' + escapeHTML(j.id) + '" class="danger" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'cancel\', \'' + escapeHTML(j.id) + '\')">Cancel</button>';
                     }
 
                     if (lowerStatus === 'completed' || lowerStatus === 'failed' || lowerStatus === 'canceled' || lowerStatus === 'error') {
-                        actionButtons += '<button type="button" aria-label="Purge job ' + escapeHTML(j.id) + '" class="danger" style="margin-left:10px; padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
+                        actionButtons += '<button type="button" aria-label="Purge job ' + escapeHTML(j.id) + '" class="danger" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'purge\', \'' + escapeHTML(j.id) + '\')">Purge</button>';
                     }
 
                     if (lowerStatus === 'failed' || lowerStatus === 'error') {
-                        actionButtons += '<button type="button" aria-label="Explain job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="explainJob(\'' + escapeHTML(j.id) + '\')">Explain</button>';
+                        actionButtons += '<button type="button" aria-label="Explain job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="explainJob(\'' + escapeHTML(j.id) + '\')">Explain</button>';
                     }
 
-                    actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
+                    actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
                     if (lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" aria-label="Set dependencies for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
+                        actionButtons += '<button type="button" aria-label="Set dependencies for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
                     }
-                    actionButtons += '<button type="button" aria-label="Edit Env Vars for job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="editEnvVars(\'' + safeJobJson + '\')">Env Vars</button>';
-                    actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="margin-left:10px; padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
+                    actionButtons += '<button type="button" aria-label="Edit Env Vars for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="editEnvVars(\'' + safeJobJson + '\')">Env Vars</button>';
+                    actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
                         '<th scope="row" style="background-color: inherit; font-weight: normal;"><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="copyJobId(this, \'' + safeId + '\')">' + safeId + '</button></th>' +
                         '<td>' + safeSummary + '</td>' +
                         '<td>' + renderStatusBadge(j.status) + '</td>' +
                         '<td>' + formatDate(j.start_time) + '</td>' +
-                        '<td>' + duration + actionButtons + '</td>' +
+                        '<td><div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;"><span>' + duration + '</span>' + actionButtons + '</div></td>' +
                     '</tr>';
                     tbody.innerHTML += row;
                 });
