@@ -10,21 +10,32 @@ func DetectRepetitiveLine(lines []string, threshold int) (bool, int) {
 		return false, -1
 	}
 
-	for i := 0; i <= len(lines)-threshold; i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
+	count := 0
+	lastLine := strings.TrimSpace(lines[0])
+	if lastLine != "" {
+		count = 1
+	}
+
+	for i := 1; i < len(lines); i++ {
+		currentLine := strings.TrimSpace(lines[i])
+
+		// Reset count if current line is empty (sequence must be non-empty lines)
+		if currentLine == "" {
+			count = 0
+			lastLine = ""
 			continue
 		}
 
-		repeated := true
-		for j := 1; j < threshold; j++ {
-			if strings.TrimSpace(lines[i+j]) != line {
-				repeated = false
-				break
+		if currentLine == lastLine {
+			count++
+			if count >= threshold {
+				// We found 'threshold' repetitions ending at index i.
+				// The start index is i - threshold + 1
+				return true, i - threshold + 1
 			}
-		}
-		if repeated {
-			return true, i
+		} else {
+			count = 1
+			lastLine = currentLine
 		}
 	}
 	return false, -1
