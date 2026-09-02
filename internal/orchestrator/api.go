@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"recac/internal/utils"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -1214,11 +1215,7 @@ func RegisterAPI(mux *http.ServeMux, orch *Orchestrator, logger *slog.Logger, ba
 			logStream.Close()
 		}
 
-		logLines := strings.Split(logsText, "\n")
-		if len(logLines) > 1000 {
-			logLines = logLines[len(logLines)-1000:]
-			logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
-		}
+		logsText = utils.TruncateLines(logsText, 1000)
 
 		apiKey := viper.GetString("secrets.api_key")
 		if provider == "" {
@@ -1346,11 +1343,7 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 					logStream.Close()
 				}
 
-				logLines := strings.Split(logsText, "\n")
-				if len(logLines) > 1000 {
-					logLines = logLines[len(logLines)-1000:]
-					logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
-				}
+				logsText = utils.TruncateLines(logsText, 1000)
 
 				prompt := fmt.Sprintf(`You are an expert software engineer and debugger analyzing a failed or problematic job in an autonomous coding orchestrator.
 

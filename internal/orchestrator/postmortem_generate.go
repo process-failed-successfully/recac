@@ -62,11 +62,7 @@ func GeneratePostmortem(ctx context.Context, orch *Orchestrator, tag, match, pro
 			logStream.Close()
 		}
 
-		logLines := strings.Split(logsText, "\n")
-		if len(logLines) > 100 {
-			logLines = logLines[len(logLines)-100:]
-			logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
-		}
+		logsText = utils.TruncateLines(logsText, 100)
 
 		sb.WriteString(fmt.Sprintf("Logs:\n```\n%s\n```\n", logsText))
 	}

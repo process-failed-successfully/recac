@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"recac/internal/utils"
 	"time"
 )
 
@@ -3544,11 +3545,7 @@ func (o *Orchestrator) HealJob(ctx context.Context, jobID string, logger *slog.L
 		logger.Warn("Failed to fetch logs for healing", "id", toHeal.ID, "error", err)
 	}
 
-	logLines := strings.Split(logsText, "\n")
-	if len(logLines) > 500 {
-		logLines = logLines[len(logLines)-500:]
-		logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
-	}
+	logsText = utils.TruncateLines(logsText, 500)
 
 	newItem := toHeal.WorkItem
 	newItem.ID = fmt.Sprintf("%s-healed", toHeal.ID)
@@ -3635,11 +3632,7 @@ func (o *Orchestrator) HealJobs(ctx context.Context, match, tag string, logger *
 			logger.Warn("Failed to fetch logs for healing", "id", job.ID, "error", err)
 		}
 
-		logLines := strings.Split(logsText, "\n")
-		if len(logLines) > 500 {
-			logLines = logLines[len(logLines)-500:]
-			logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
-		}
+		logsText = utils.TruncateLines(logsText, 500)
 
 		newItem := job.WorkItem
 		newItem.ID = fmt.Sprintf("%s-healed", job.ID)
@@ -4435,11 +4428,7 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 							logsText = string(logBytes)
 							logsReader.Close()
 						}
-						logLines := strings.Split(logsText, "\n")
-						if len(logLines) > 500 {
-							logLines = logLines[len(logLines)-500:]
-							logsText = "... [Logs Truncated] ...\n" + strings.Join(logLines, "\n")
-						}
+						logsText = utils.TruncateLines(logsText, 500)
 						failureContext := fmt.Sprintf("\n\n---\nAuto-Heal Attempt %d:\nError: %s\nLogs:\n```\n%s\n```\n", job.RetryCount, spawnErr.Error(), logsText)
 						job.WorkItem.Description += failureContext
 						if logger != nil {
