@@ -60,3 +60,28 @@ func TestHasPrefixFold(t *testing.T) {
 		})
 	}
 }
+
+func TestTruncateLines(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		maxLines int
+		want     string
+	}{
+		{"less than max", "1\n2\n3", 5, "1\n2\n3"},
+		{"exact max", "1\n2\n3", 3, "1\n2\n3"},
+		{"more than max", "1\n2\n3\n4\n5", 3, "... [Logs Truncated] ...\n3\n4\n5"},
+		{"trailing newline", "1\n2\n3\n4\n5\n", 3, "... [Logs Truncated] ...\n4\n5\n"},
+		{"empty string", "", 3, ""},
+		{"zero lines", "1\n2\n3", 0, "... [Logs Truncated] ...\n"},
+		{"negative lines", "1\n2\n3", -1, "... [Logs Truncated] ...\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TruncateLines(tt.text, tt.maxLines); got != tt.want {
+				t.Errorf("TruncateLines() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

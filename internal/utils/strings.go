@@ -67,3 +67,23 @@ func HasPrefixFold(s, prefix string) bool {
 	}
 	return true
 }
+
+// TruncateLines checks if the text has more than maxLines lines.
+// If it does, it truncates the text to keep only the last maxLines lines
+// and prepends "... [Logs Truncated] ...\n" to the result.
+// It avoids allocating intermediate slices and arrays that strings.Split uses.
+func TruncateLines(text string, maxLines int) string {
+	if maxLines <= 0 {
+		return "... [Logs Truncated] ...\n"
+	}
+	count := 0
+	for i := len(text) - 1; i >= 0; i-- {
+		if text[i] == '\n' {
+			count++
+			if count == maxLines {
+				return "... [Logs Truncated] ...\n" + text[i+1:]
+			}
+		}
+	}
+	return text
+}
