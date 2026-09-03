@@ -636,13 +636,19 @@ func (sm *SessionManager) GetSessionLogContent(name string, lines int) (string, 
 		return logStr, nil
 	}
 
-	logLines := strings.Split(strings.TrimSpace(logStr), "\n")
-	if len(logLines) <= lines {
-		return logStr, nil
+	// ⚡ Bolt: Fast path: find the Nth newline from the end without allocating slices
+	trimmed := strings.TrimSpace(logStr)
+	count := 0
+	for i := len(trimmed) - 1; i >= 0; i-- {
+		if trimmed[i] == '\n' {
+			count++
+			if count == lines {
+				return trimmed[i+1:], nil
+			}
+		}
 	}
 
-	start := len(logLines) - lines
-	return strings.Join(logLines[start:], "\n"), nil
+	return trimmed, nil
 }
 
 // ErrSessionRunning is returned when an operation cannot be performed on a running session without force.
