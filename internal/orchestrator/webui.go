@@ -31,7 +31,7 @@ const DashboardHTML = `
         .status-Running, .status-Active, .status-Spawning { color: #0d6efd; font-weight: bold; }
         .status-Pending, .status-Pending-Approval { color: #b45309; font-weight: bold; }
         .status-Canceled { color: #6c757d; font-weight: bold; }
-        .actions { margin-top: 20px; display: flex; gap: 10px; }
+        .actions { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
         button:hover { background: #0056b3; }
         button:active:not([disabled]):not([aria-disabled="true"]) { transform: translateY(1px); }
