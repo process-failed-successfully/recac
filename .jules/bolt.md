@@ -130,3 +130,7 @@
 ## 2026-09-02 - Optimize large log string truncation
 **Learning:** In Go, when truncating large strings (such as logs) to keep only the last N lines, using `strings.Split` followed by slicing and `strings.Join` creates excessive memory allocations and overhead, especially for long log outputs.
 **Action:** Always optimize performance by avoiding `strings.Split`. Instead, iterate backward through the string to count newlines and extract the substring directly, eliminating intermediate slice allocations.
+
+## 2026-09-03 - Avoid allocating string slices for log truncation
+**Learning:** `strings.Split(str, "\n")` allocates an entire slice of strings for the entire file content, even if we only need the last N lines.
+**Action:** When truncating large strings (such as logs) to keep only the last N lines, avoid using `strings.Split` followed by slicing and `strings.Join`. Instead, optimize performance by iterating backward through the string to count newlines and extracting the substring directly.
