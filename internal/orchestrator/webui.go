@@ -1910,7 +1910,7 @@ const DashboardHTML = `
                 const results = await res.json();
 
                 if (!results || results.length === 0) {
-                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #bbb;"><p>No matching logs found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No matching logs found.</p><div style="margin-top: 15px;"><button type="button" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close (Esc)</button></div></div>';
                     return;
                 }
 
