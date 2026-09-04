@@ -134,3 +134,6 @@
 ## 2026-09-03 - Avoid allocating string slices for log truncation
 **Learning:** `strings.Split(str, "\n")` allocates an entire slice of strings for the entire file content, even if we only need the last N lines.
 **Action:** When truncating large strings (such as logs) to keep only the last N lines, avoid using `strings.Split` followed by slicing and `strings.Join`. Instead, optimize performance by iterating backward through the string to count newlines and extracting the substring directly.
+## 2026-09-04 - Optimize string splitting in dashboard log filtering
+**Learning:** Using `strings.Split` and `strings.Join` for filtering large log strings creates unnecessary string slice allocations and overhead. The previous optimization to pre-allocate capacity didn't remove the split/join overhead.
+**Action:** Avoid `strings.Split` for log filtering. Instead, iterate through the string manually using `strings.IndexByte` to find newlines, check each line, and build the filtered output with `strings.Builder`.
