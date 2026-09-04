@@ -2255,18 +2255,34 @@ func (m *DashboardModel) updateFilteredLogs() {
 	}
 
 	filterText := m.logFilterInput.Value()
-	lines := strings.Split(m.logs, "\n")
 
-	// ⚡ Bolt: Pre-allocate slice capacity to reduce memory allocations during filtering
-	filtered := make([]string, 0, len(lines))
-
-	for _, line := range lines {
-		if utils.ContainsFold(line, filterText) {
-			filtered = append(filtered, line)
+	// ⚡ Bolt: Avoid strings.Split and strings.Join overhead
+	// Iterate through string manually to find lines and build result
+	var sb strings.Builder
+	start := 0
+	for start < len(m.logs) {
+		end := strings.IndexByte(m.logs[start:], '\n')
+		var line string
+		if end == -1 {
+			line = m.logs[start:]
+		} else {
+			line = m.logs[start : start+end]
 		}
+
+		if utils.ContainsFold(line, filterText) {
+			if sb.Len() > 0 {
+				sb.WriteByte('\n')
+			}
+			sb.WriteString(line)
+		}
+
+		if end == -1 {
+			break
+		}
+		start += end + 1
 	}
 
-	m.viewport.SetContent(strings.Join(filtered, "\n"))
+	m.viewport.SetContent(sb.String())
 	m.viewport.GotoBottom()
 }
 
