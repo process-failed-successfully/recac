@@ -137,3 +137,7 @@
 ## 2026-09-04 - Optimize string splitting in dashboard log filtering
 **Learning:** Using `strings.Split` and `strings.Join` for filtering large log strings creates unnecessary string slice allocations and overhead. The previous optimization to pre-allocate capacity didn't remove the split/join overhead.
 **Action:** Avoid `strings.Split` for log filtering. Instead, iterate through the string manually using `strings.IndexByte` to find newlines, check each line, and build the filtered output with `strings.Builder`.
+
+## 2026-09-10 - Avoid strings.Split and strings.SplitN in parsing loops
+**Learning:** Using `strings.SplitN` and `strings.Split` for parsing simple structured logs (like git logs) inside tight loops creates significant string slice allocation overhead.
+**Action:** Use `strings.IndexByte` manually to slice the required strings directly from the parent string, avoiding intermediate array allocations altogether.
