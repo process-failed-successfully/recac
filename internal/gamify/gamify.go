@@ -59,13 +59,21 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 		}
 
 		if strings.HasPrefix(line, "COMMIT|") {
-			parts := strings.SplitN(line, "|", 5)
-			if len(parts) < 5 {
-				continue
-			}
-			author := parts[2]
-			dateStr := parts[3]
-			msg := parts[4]
+			p1 := strings.IndexByte(line, '|')
+			if p1 == -1 { continue }
+			p2 := strings.IndexByte(line[p1+1:], '|')
+			if p2 == -1 { continue }
+			p2 += p1 + 1
+			p3 := strings.IndexByte(line[p2+1:], '|')
+			if p3 == -1 { continue }
+			p3 += p2 + 1
+			p4 := strings.IndexByte(line[p3+1:], '|')
+			if p4 == -1 { continue }
+			p4 += p3 + 1
+
+			author := line[p2+1 : p3]
+			dateStr := line[p3+1 : p4]
+			msg := line[p4+1:]
 
 			// Parse date (Git ISO format: 2006-01-02 15:04:05 -0700)
 			// Go's time.Parse might need adjustment or use specific layout
@@ -107,19 +115,30 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 			// Numstat line: "added	deleted	path"
 			// 10	5	src/main.go
 			// Note: git log --numstat uses tabs as delimiters
-			parts := strings.Split(line, "\t")
-			if len(parts) < 3 {
-				// Fallback to Fields if split by tab fails (e.g. copied/pasted logs with spaces)
-				parts = strings.Fields(line)
-				if len(parts) < 3 {
-					continue
+			var addedStr, deletedStr, path string
+			firstTab := strings.IndexByte(line, '\t')
+			if firstTab != -1 {
+				secondTab := strings.IndexByte(line[firstTab+1:], '\t')
+				if secondTab != -1 {
+					secondTab += firstTab + 1
+					addedStr = line[:firstTab]
+					deletedStr = line[firstTab+1 : secondTab]
+					path = line[secondTab+1:]
+				} else {
+					parts := strings.Fields(line)
+					if len(parts) < 3 { continue }
+					addedStr, deletedStr, path = parts[0], parts[1], parts[2]
 				}
+			} else {
+				parts := strings.Fields(line)
+				if len(parts) < 3 { continue }
+				addedStr, deletedStr, path = parts[0], parts[1], parts[2]
 			}
 
 			// Binary files have "-"
-			added, _ := strconv.Atoi(strings.TrimSpace(parts[0]))
-			deleted, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
-			path := strings.TrimSpace(parts[2])
+			added, _ := strconv.Atoi(strings.TrimSpace(addedStr))
+			deleted, _ := strconv.Atoi(strings.TrimSpace(deletedStr))
+			path = strings.TrimSpace(path)
 
 			if currentPlayer != nil {
 				currentPlayer.LinesAdded += added
