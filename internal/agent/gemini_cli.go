@@ -58,7 +58,7 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	if c.workDir != "" {
 		cmd.Dir = c.workDir
 	}
-	cmd.Env = os.Environ()
+	cmd.Env = getSafeEnv()
 	// Ensure stdout is captured in text mode
 	// Python side does: cmd = ["gemini", "--output-format", "text", "--approval-mode", "yolo"]
 
@@ -120,6 +120,8 @@ func (c *GeminiCLIClient) SendStream(ctx context.Context, prompt string, onChunk
 type MockGeminiCLIClient struct {
 	Response string
 }
+
+
 
 func (m *MockGeminiCLIClient) Send(ctx context.Context, prompt string) (string, error) {
 	return m.Response, nil

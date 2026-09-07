@@ -180,7 +180,7 @@ func (sm *SessionManager) StartSession(name, goal string, command []string, work
 	cmd.Stdout = logFd
 	cmd.Stderr = logFd
 	cmd.Dir = workspace
-	cmd.Env = os.Environ() // Preserve environment
+	cmd.Env = getSafeEnv() // Preserve environment
 
 	// Start process in new session (detached from terminal)
 	// Note: Setsid may not work in all environments (e.g., Docker containers without proper capabilities)
@@ -655,6 +655,25 @@ func (sm *SessionManager) GetSessionLogContent(name string, lines int) (string, 
 var ErrSessionRunning = fmt.Errorf("session is running")
 
 // RemoveSession deletes a session's state and log files from disk.
+
+// getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
+func getSafeEnv() []string {
+	var env []string
+	allowed := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) > 0 {
+			for _, a := range allowed {
+				if parts[0] == a {
+					env = append(env, e)
+					break
+				}
+			}
+		}
+	}
+	return env
+}
+
 func (sm *SessionManager) RemoveSession(name string, force bool) error {
 	session, err := sm.LoadSession(name)
 	if err != nil {
