@@ -3764,25 +3764,26 @@ func EvaluateIfCondition(cond string, env map[string]string) (bool, error) {
 	})
 	cond = strings.TrimSpace(cond)
 
+	// ⚡ Bolt: Avoid strings.SplitN allocation by using Index and string slicing
 	// Check for ==
-	if parts := strings.SplitN(cond, "==", 2); len(parts) == 2 {
-		lhs := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
-		rhs := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
+	if idx := strings.Index(cond, "=="); idx != -1 {
+		lhs := strings.Trim(strings.TrimSpace(cond[:idx]), "'\"")
+		rhs := strings.Trim(strings.TrimSpace(cond[idx+2:]), "'\"")
 		return lhs == rhs, nil
 	}
 
 	// Check for !=
-	if parts := strings.SplitN(cond, "!=", 2); len(parts) == 2 {
-		lhs := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
-		rhs := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
+	if idx := strings.Index(cond, "!="); idx != -1 {
+		lhs := strings.Trim(strings.TrimSpace(cond[:idx]), "'\"")
+		rhs := strings.Trim(strings.TrimSpace(cond[idx+2:]), "'\"")
 		return lhs != rhs, nil
 	}
 
 	// Numeric comparisons
 	for _, op := range []string{">=", "<=", ">", "<"} {
-		if parts := strings.SplitN(cond, op, 2); len(parts) == 2 {
-			lhsStr := strings.Trim(strings.TrimSpace(parts[0]), "'\"")
-			rhsStr := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
+		if idx := strings.Index(cond, op); idx != -1 {
+			lhsStr := strings.Trim(strings.TrimSpace(cond[:idx]), "'\"")
+			rhsStr := strings.Trim(strings.TrimSpace(cond[idx+len(op):]), "'\"")
 
 			lhs, err1 := strconv.ParseFloat(lhsStr, 64)
 			rhs, err2 := strconv.ParseFloat(rhsStr, 64)

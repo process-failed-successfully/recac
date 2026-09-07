@@ -3490,9 +3490,9 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		vars := make(map[string]string)
 		if r.URL.Query().Has("var") {
 			for _, v := range r.URL.Query()["var"] {
-				parts := strings.SplitN(v, "=", 2)
-				if len(parts) == 2 {
-					vars[parts[0]] = parts[1]
+				// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+				if idx := strings.IndexByte(v, '='); idx != -1 {
+					vars[v[:idx]] = v[idx+1:]
 				}
 			}
 		}
@@ -3544,9 +3544,9 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		vars := make(map[string]string)
 		if r.URL.Query().Has("var") {
 			for _, v := range r.URL.Query()["var"] {
-				parts := strings.SplitN(v, "=", 2)
-				if len(parts) == 2 {
-					vars[parts[0]] = parts[1]
+				// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+				if idx := strings.IndexByte(v, '='); idx != -1 {
+					vars[v[:idx]] = v[idx+1:]
 				}
 			}
 		}
@@ -3599,9 +3599,9 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 		vars := make(map[string]string)
 		if r.URL.Query().Has("var") {
 			for _, v := range r.URL.Query()["var"] {
-				parts := strings.SplitN(v, "=", 2)
-				if len(parts) == 2 {
-					vars[parts[0]] = parts[1]
+				// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+				if idx := strings.IndexByte(v, '='); idx != -1 {
+					vars[v[:idx]] = v[idx+1:]
 				}
 			}
 		}
