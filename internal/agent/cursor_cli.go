@@ -69,7 +69,7 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 
 	// Filter environment variables similar to Python implementation if needed,
 	// but for now we'll pass all and ensuring NO_OPEN_BROWSER=1
-	env := os.Environ()
+	env := getSafeEnv()
 	env = append(env, "NO_OPEN_BROWSER=1")
 	cmd.Env = env
 
@@ -105,6 +105,25 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 }
 
 // SendStream fallback for Cursor CLI (calls Send and emits once)
+
+// getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
+func getSafeEnv() []string {
+	var env []string
+	allowed := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) > 0 {
+			for _, a := range allowed {
+				if parts[0] == a {
+					env = append(env, e)
+					break
+				}
+			}
+		}
+	}
+	return env
+}
+
 func (c *CursorCLIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	resp, err := c.Send(ctx, prompt)
 	if err == nil && onChunk != nil {
