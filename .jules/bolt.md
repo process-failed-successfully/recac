@@ -141,3 +141,7 @@
 ## 2026-09-10 - Avoid strings.Split and strings.SplitN in parsing loops
 **Learning:** Using `strings.SplitN` and `strings.Split` for parsing simple structured logs (like git logs) inside tight loops creates significant string slice allocation overhead.
 **Action:** Use `strings.IndexByte` manually to slice the required strings directly from the parent string, avoiding intermediate array allocations altogether.
+
+## 2026-09-12 - Avoid strings.SplitN in tight key-value parsing loops
+**Learning:** Using `strings.SplitN(v, "=", 2)` to parse key-value pairs (like query variables or environment inputs) creates an unnecessary string slice allocation overhead. This overhead adds up when done inside request handlers or filtering logic.
+**Action:** Replace `strings.SplitN` with `strings.IndexByte(v, '=')` and direct string slicing (`v[:idx]`, `v[idx+1:]`) to completely avoid array allocations.

@@ -1880,9 +1880,9 @@ func (m DashboardModel) updateEnvInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				for _, p := range parts {
 					trimmed := strings.TrimSpace(p)
 					if trimmed != "" {
-						kv := strings.SplitN(trimmed, "=", 2)
-						if len(kv) == 2 {
-							env[kv[0]] = kv[1]
+						// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+						if idx := strings.IndexByte(trimmed, '='); idx != -1 {
+							env[trimmed[:idx]] = trimmed[idx+1:]
 						}
 					}
 				}
