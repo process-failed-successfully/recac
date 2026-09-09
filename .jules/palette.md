@@ -123,3 +123,7 @@
 ## 2026-09-01 - [Action Buttons Responsive Spacing in Tables]
 **Learning:** In the Orchestrator web UI's dynamic data tables, inline action buttons within the "Duration / Actions" column were separated using `margin-left: 10px`. This approach is brittle on mobile devices because when the table cells shrink, the buttons wrap onto new lines without vertical spacing, causing them to overlap vertically and create poor touch targets.
 **Action:** When aligning groups of inline action buttons within table cells, remove single-direction margins (like `margin-left`). Instead, wrap the buttons (along with any preceding text) in a container with `display: flex; flex-wrap: wrap; gap: 10px; align-items: center;`. This ensures the buttons wrap cleanly on narrow viewports with consistent vertical and horizontal spacing.
+
+## 2026-09-09 - [Keyboard Shortcut Hints in Empty States]
+**Learning:** Found that keyboard shortcut hints in empty state text inside modals were still using plain text `(Esc)` instead of the standard `<kbd aria-hidden="true" class="shortcut-hint">`. This breaks visual consistency with primary button shortcut hints and reduces scannability.
+**Action:** When adding keyboard shortcut hints to secondary or empty state buttons (like 'Close' or 'Go Back'), always wrap the shortcut key in a `<kbd aria-hidden="true" class="shortcut-hint">`. This ensures visual consistency and improves scannability.
