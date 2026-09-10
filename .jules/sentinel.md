@@ -19,3 +19,7 @@
 **Vulnerability:** Orchestrator leaked all host environment variables (including webhooks and internal secrets) to the untrusted agent process via `os.Environ()` in `ProcessSpawner`.
 **Learning:** When spawning subprocesses, explicitly pass only a sanitized whitelist of base environment variables instead of inheriting everything, as the agent process executes untrusted code.
 **Prevention:** Use a whitelist-based approach for base environment variables (`PATH`, `HOME`, `USER`) instead of appending `os.Environ()` to prevent accidental secret leakage.
+## 2026-09-02 - Secure Git environment inheritance without breaking functionality
+**Vulnerability:** The Git client passed all environment variables to subprocesses via `os.Environ()`, leaking secrets.
+**Learning:** Naively restricting `cmd.Env` to just `PATH` and `HOME` breaks Git functionality (SSH, proxies, GPG).
+**Prevention:** When securing environment variables for system subprocesses (e.g., `git` via `exec.Command`) to prevent secret leakage, do not use an overly restrictive exact-match whitelist. Use an allowlist of necessary prefixes (e.g., `GIT_`, `SSH_`, `HTTP_PROXY`, `XDG_`) to ensure defense-in-depth without causing regressions.

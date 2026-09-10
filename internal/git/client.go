@@ -57,7 +57,7 @@ func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string)
 		cmd.Dir = dir
 	}
 	// Enforce no prompting
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+	cmd.Env = append(getSafeEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
 	cmd.Stdout = &maskingWriter{w: io.MultiWriter(os.Stdout, &outBuf)}
 	cmd.Stderr = &maskingWriter{w: io.MultiWriter(os.Stderr, &errBuf)}
 
@@ -277,7 +277,7 @@ func (c *Client) Run(directory string, args ...string) (string, error) {
 		cmd.Dir = directory
 	}
 	// Enforce no prompting
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+	cmd.Env = append(getSafeEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
 	cmd.Stdout = &maskingWriter{w: &outBuf} // Only capture for return, no tee to stdout/stderr unless debug
 	cmd.Stderr = &maskingWriter{w: &errBuf}
 
@@ -669,4 +669,40 @@ func (c *Client) LatestTag(dir string) (string, error) {
 		return "", nil
 	}
 	return strings.TrimSpace(out.String()), nil
+}
+
+// getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
+func getSafeEnv() []string {
+	var env []string
+	allowedPrefixes := []string{
+		"GIT_", "SSH_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+		"GNUPGHOME", "GPG_TTY", "XDG_", "LC_", "LANG",
+	}
+	allowedExact := []string{"PATH", "HOME", "USER", "TERM", "TMPDIR"}
+
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) > 0 {
+			key := parts[0]
+			allow := false
+			for _, a := range allowedExact {
+				if key == a {
+					allow = true
+					break
+				}
+			}
+			if !allow {
+				for _, p := range allowedPrefixes {
+					if strings.HasPrefix(key, p) {
+						allow = true
+						break
+					}
+				}
+			}
+			if allow {
+				env = append(env, e)
+			}
+		}
+	}
+	return env
 }
