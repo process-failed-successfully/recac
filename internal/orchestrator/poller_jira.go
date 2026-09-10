@@ -165,11 +165,21 @@ func extractRequiredFeatures(text string) []db.Feature {
 	// Then captures lines starting with "- " or "* " until a blank line or new section
 	var features []db.Feature
 
-	lines := strings.Split(text, "\n")
 	inSection := false
 
 	// Optimized: uses package-level regex
-	for _, line := range lines {
+	remaining := text
+	for {
+		var line string
+		idx := strings.IndexByte(remaining, '\n')
+		if idx == -1 {
+			line = remaining
+			remaining = ""
+		} else {
+			line = remaining[:idx]
+			remaining = remaining[idx+1:]
+		}
+
 		line = strings.TrimSpace(line)
 
 		// ⚡ Bolt: Fast-path zero-allocation check replacing featuresHeaderRegex
@@ -230,6 +240,10 @@ func extractRequiredFeatures(text string) []db.Feature {
 				}
 				features = append(features, f)
 			}
+		}
+
+		if idx == -1 {
+			break
 		}
 	}
 	return features
