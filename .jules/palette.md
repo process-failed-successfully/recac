@@ -127,3 +127,6 @@
 ## 2026-09-09 - [Keyboard Shortcut Hints in Empty States]
 **Learning:** Found that keyboard shortcut hints in empty state text inside modals were still using plain text `(Esc)` instead of the standard `<kbd aria-hidden="true" class="shortcut-hint">`. This breaks visual consistency with primary button shortcut hints and reduces scannability.
 **Action:** When adding keyboard shortcut hints to secondary or empty state buttons (like 'Close' or 'Go Back'), always wrap the shortcut key in a `<kbd aria-hidden="true" class="shortcut-hint">`. This ensures visual consistency and improves scannability.
+## 2026-10-25 - [Accessibility for Empty State Actions]
+**Learning:** Empty states in dynamic UI modals often generate inline action buttons (like "Close" or "Go Back") without proper ARIA labels. Because these buttons are dynamically rendered strings in JavaScript rather than static HTML components, they are easily overlooked in static accessibility sweeps.
+**Action:** When creating empty states for dynamically loaded data (like analytics or logs), always ensure any inline action buttons explicitly declare an `aria-label` attribute (e.g., `aria-label="Close modal"` or `aria-label="Go back"`) to provide clear context for screen reader users navigating these fallback states.
