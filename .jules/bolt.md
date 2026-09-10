@@ -145,3 +145,6 @@
 ## 2026-09-12 - Avoid strings.SplitN in tight key-value parsing loops
 **Learning:** Using `strings.SplitN(v, "=", 2)` to parse key-value pairs (like query variables or environment inputs) creates an unnecessary string slice allocation overhead. This overhead adds up when done inside request handlers or filtering logic.
 **Action:** Replace `strings.SplitN` with `strings.IndexByte(v, '=')` and direct string slicing (`v[:idx]`, `v[idx+1:]`) to completely avoid array allocations.
+## 2024-05-24 - [Avoid strings.Split in Jira Poller]
+**Learning:** strings.Split allocates an intermediate slice which is costly in high-throughput parsing.
+**Action:** Use strings.IndexByte and iterative slicing in Go for multi-line extraction.
