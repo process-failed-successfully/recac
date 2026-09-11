@@ -148,3 +148,6 @@
 ## 2024-05-24 - [Avoid strings.Split in Jira Poller]
 **Learning:** strings.Split allocates an intermediate slice which is costly in high-throughput parsing.
 **Action:** Use strings.IndexByte and iterative slicing in Go for multi-line extraction.
+## 2026-09-11 - Avoid strings.Split in Jira ticket dependency parsing
+**Learning:** Using `strings.Split` to extract substrings (like the issue key before " (Status)") inside tight loops allocates unnecessary intermediate string slices, adding up to measurable heap allocation overhead when processing many Jira tickets and their blockers.
+**Action:** Replace `strings.Split` with `strings.Index` and direct string slicing. This avoids slice allocation entirely while maintaining identical logic.
