@@ -131,10 +131,13 @@ func BuildGraphFromIssues(issues []map[string]interface{}, getBlockers func(map[
 		rawBlockers := getBlockers(issue)
 		for _, rb := range rawBlockers {
 			// Parse "KEY (Status)"
-			parts := strings.Split(rb, " (")
-			if len(parts) > 0 {
-				blockerKey := parts[0]
+			// ⚡ Bolt: Avoid strings.Split allocation by using Index and string slicing
+			blockerKey := rb
+			if idx := strings.Index(rb, " ("); idx != -1 {
+				blockerKey = rb[:idx]
+			}
 
+			if blockerKey != "" {
 				// Only consider blockers that are in our scope (issues list)
 				if _, exists := issueMap[blockerKey]; exists {
 					// Ignore self-references
