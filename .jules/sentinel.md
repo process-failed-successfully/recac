@@ -23,3 +23,7 @@
 **Vulnerability:** The Git client passed all environment variables to subprocesses via `os.Environ()`, leaking secrets.
 **Learning:** Naively restricting `cmd.Env` to just `PATH` and `HOME` breaks Git functionality (SSH, proxies, GPG).
 **Prevention:** When securing environment variables for system subprocesses (e.g., `git` via `exec.Command`) to prevent secret leakage, do not use an overly restrictive exact-match whitelist. Use an allowlist of necessary prefixes (e.g., `GIT_`, `SSH_`, `HTTP_PROXY`, `XDG_`) to ensure defense-in-depth without causing regressions.
+## 2026-09-02 - Secure environment inheritance for agent subprocesses
+**Vulnerability:** Naively restricting `cmd.Env` to a minimal exact-match allowlist (like `PATH`, `HOME`, `USER`) for locally spawned agent processes, execution scripts, and CLI tools caused severe functional regressions for legitimate build tools and integrations (e.g., missing `GOPATH`, `NODE_ENV`, proxy settings).
+**Learning:** Overly restrictive environment filtering breaks necessary build and runtime tools, while passing the entire `os.Environ()` leaks secrets. A balanced approach is required.
+**Prevention:** When securing environment variables for user-defined subprocesses, CLI tools, or agents (e.g., in `SessionManager`, `ProcessSpawner`, `executor.go`), use an allowlist of necessary prefixes (`GO`, `NODE_`, `PYTHON`, `DOCKER_`, `XDG_`, `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `GIT_`, `SSH_`) alongside core exact matches to ensure defense-in-depth without causing functional regressions.
