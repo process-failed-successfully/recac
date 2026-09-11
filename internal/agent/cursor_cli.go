@@ -109,15 +109,30 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 // getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
 func getSafeEnv() []string {
 	var env []string
-	allowed := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
+	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
+	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
+
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
 		if len(parts) > 0 {
-			for _, a := range allowed {
-				if parts[0] == a {
-					env = append(env, e)
+			key := parts[0]
+			allow := false
+			for _, a := range allowedExact {
+				if key == a {
+					allow = true
 					break
 				}
+			}
+			if !allow {
+				for _, p := range allowedPrefixes {
+					if strings.HasPrefix(key, p) {
+						allow = true
+						break
+					}
+				}
+			}
+			if allow {
+				env = append(env, e)
 			}
 		}
 	}

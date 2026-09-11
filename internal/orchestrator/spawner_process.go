@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -95,10 +96,31 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	envMap["RECAC_HOST_WORKSPACE_PATH"] = tempDir
 	var env []string
 	// Only inherit a safe whitelist of environment variables to prevent leaking orchestrator secrets
-	allowedEnvVars := []string{"PATH", "HOME", "USER", "LANG"}
-	for _, key := range allowedEnvVars {
-		if val, exists := os.LookupEnv(key); exists {
-			env = append(env, fmt.Sprintf("%s=%s", key, val))
+	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
+	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
+
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) > 0 {
+			key := parts[0]
+			allow := false
+			for _, a := range allowedExact {
+				if key == a {
+					allow = true
+					break
+				}
+			}
+			if !allow {
+				for _, p := range allowedPrefixes {
+					if strings.HasPrefix(key, p) {
+						allow = true
+						break
+					}
+				}
+			}
+			if allow {
+				env = append(env, e)
+			}
 		}
 	}
 	for k, v := range envMap {

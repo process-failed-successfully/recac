@@ -211,11 +211,32 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 
 		// Build a safe environment whitelist
-		allowedEnvVars := []string{"PATH", "HOME", "USER", "LANG"}
+		allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
+		allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
 		var safeEnv []string
-		for _, key := range allowedEnvVars {
-			if val, exists := os.LookupEnv(key); exists {
-				safeEnv = append(safeEnv, fmt.Sprintf("%s=%s", key, val))
+
+		for _, e := range os.Environ() {
+			parts := strings.SplitN(e, "=", 2)
+			if len(parts) > 0 {
+				key := parts[0]
+				allow := false
+				for _, a := range allowedExact {
+					if key == a {
+						allow = true
+						break
+					}
+				}
+				if !allow {
+					for _, p := range allowedPrefixes {
+						if strings.HasPrefix(key, p) {
+							allow = true
+							break
+						}
+					}
+				}
+				if allow {
+					safeEnv = append(safeEnv, e)
+				}
 			}
 		}
 
