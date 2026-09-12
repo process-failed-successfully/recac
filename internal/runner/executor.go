@@ -216,9 +216,9 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		var safeEnv []string
 
 		for _, e := range os.Environ() {
-			parts := strings.SplitN(e, "=", 2)
-			if len(parts) > 0 {
-				key := parts[0]
+			idx := strings.IndexByte(e, '=')
+			if idx != -1 {
+				key := e[:idx]
 				allow := false
 				for _, a := range allowedExact {
 					if key == a {

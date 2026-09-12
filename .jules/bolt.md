@@ -151,3 +151,6 @@
 ## 2026-09-11 - Avoid strings.Split in Jira ticket dependency parsing
 **Learning:** Using `strings.Split` to extract substrings (like the issue key before " (Status)") inside tight loops allocates unnecessary intermediate string slices, adding up to measurable heap allocation overhead when processing many Jira tickets and their blockers.
 **Action:** Replace `strings.Split` with `strings.Index` and direct string slicing. This avoids slice allocation entirely while maintaining identical logic.
+## 2026-09-12 - Avoid strings.SplitN in tight key-value parsing loops
+**Learning:** Using `strings.SplitN(v, "=", 2)` to parse key-value pairs (like query variables or environment inputs) creates an unnecessary string slice allocation overhead. This overhead adds up when done inside request handlers or filtering logic.
+**Action:** Replace `strings.SplitN` with `strings.IndexByte(v, =)` and direct string slicing (`v[:idx]`, `v[idx+1:]`) to completely avoid array allocations.
