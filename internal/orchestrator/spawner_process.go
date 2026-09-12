@@ -100,9 +100,9 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
 
 	for _, e := range os.Environ() {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) > 0 {
-			key := parts[0]
+		idx := strings.IndexByte(e, '=')
+		if idx != -1 {
+			key := e[:idx]
 			allow := false
 			for _, a := range allowedExact {
 				if key == a {
