@@ -154,3 +154,6 @@
 ## 2026-09-12 - Avoid strings.SplitN in tight key-value parsing loops
 **Learning:** Using `strings.SplitN(v, "=", 2)` to parse key-value pairs (like query variables or environment inputs) creates an unnecessary string slice allocation overhead. This overhead adds up when done inside request handlers or filtering logic.
 **Action:** Replace `strings.SplitN` with `strings.IndexByte(v, =)` and direct string slicing (`v[:idx]`, `v[idx+1:]`) to completely avoid array allocations.
+## 2026-09-13 - Avoid strings.Split for path base extraction
+**Learning:** Using `strings.Split(path, "/")` to extract the last segment of a path creates unnecessary intermediate string slice allocations. This adds up when parsing many paths, such as imports in the syntax analysis.
+**Action:** Replace `strings.Split(path, "/")[len(parts)-1]` with `strings.LastIndexByte(path, '/')` and direct string slicing. This avoids slice allocation entirely while maintaining identical logic.

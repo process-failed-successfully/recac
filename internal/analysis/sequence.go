@@ -65,8 +65,12 @@ func GenerateSequence(root string, entryPoint string, maxDepth int) (string, err
 			if imp.Name != nil {
 				alias = imp.Name.Name
 			} else {
-				parts := strings.Split(pathVal, "/")
-				alias = parts[len(parts)-1]
+				// ⚡ Bolt: Use LastIndexByte to avoid slice allocation overhead from Split
+				if idx := strings.LastIndexByte(pathVal, '/'); idx != -1 {
+					alias = pathVal[idx+1:]
+				} else {
+					alias = pathVal
+				}
 			}
 			imports[alias] = pathVal
 		}

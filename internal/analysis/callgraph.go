@@ -91,8 +91,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				alias = imp.Name.Name
 			} else {
 				// Default alias is last part of path
-				parts := strings.Split(pathVal, "/")
-				alias = parts[len(parts)-1]
+				// ⚡ Bolt: Use LastIndexByte to avoid slice allocation overhead from Split
+				if idx := strings.LastIndexByte(pathVal, '/'); idx != -1 {
+					alias = pathVal[idx+1:]
+				} else {
+					alias = pathVal
+				}
 			}
 			imports[alias] = pathVal
 		}
