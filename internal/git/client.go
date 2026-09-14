@@ -147,9 +147,8 @@ func (c *Client) CreatePR(dir, title, body, base string) (string, error) {
 
 	// Output is usually the URL (and potentially some other text, but usually just URL on last line).
 	output := strings.TrimSpace(out.String())
-	lines := strings.Split(output, "\n")
-	if len(lines) > 0 {
-		return lines[len(lines)-1], nil // URL is typically the last line
+	if idx := strings.LastIndexByte(output, '\n'); idx != -1 {
+		return output[idx+1:], nil // URL is typically the last line
 	}
 
 	return output, nil
