@@ -157,3 +157,6 @@
 ## 2026-09-13 - Avoid strings.Split for path base extraction
 **Learning:** Using `strings.Split(path, "/")` to extract the last segment of a path creates unnecessary intermediate string slice allocations. This adds up when parsing many paths, such as imports in the syntax analysis.
 **Action:** Replace `strings.Split(path, "/")[len(parts)-1]` with `strings.LastIndexByte(path, '/')` and direct string slicing. This avoids slice allocation entirely while maintaining identical logic.
+## 2026-09-14 - Avoid strings.Split when extracting the last line of output
+**Learning:** strings.Split allocates an intermediate slice which is costly in high-throughput operations. Finding the last line of a string using strings.Split creates an unnecessary slice of strings.
+**Action:** Use strings.LastIndexByte and direct string slicing to extract the last line without allocating slices.
