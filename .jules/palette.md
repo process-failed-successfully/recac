@@ -130,3 +130,6 @@
 ## 2026-10-25 - [Accessibility for Empty State Actions]
 **Learning:** Empty states in dynamic UI modals often generate inline action buttons (like "Close" or "Go Back") without proper ARIA labels. Because these buttons are dynamically rendered strings in JavaScript rather than static HTML components, they are easily overlooked in static accessibility sweeps.
 **Action:** When creating empty states for dynamically loaded data (like analytics or logs), always ensure any inline action buttons explicitly declare an `aria-label` attribute (e.g., `aria-label="Close modal"` or `aria-label="Go back"`) to provide clear context for screen reader users navigating these fallback states.
+## 2026-10-26 - [Button Icon & Text Alignment]
+**Learning:** When buttons contain both text and an icon (such as a loading spinner or keyboard shortcut hint), they can look misaligned or awkwardly wrapped when placed inside standard inline blocks without explicit flexbox centering and spacing controls.
+**Action:** When styling components containing both text and icons (like `.action-btn` or `.spinner` within buttons), prefer using `display: inline-flex; align-items: center; justify-content: center;` combined with a `gap` property (e.g., `gap: 6px`) over legacy margin utilities (`margin-left`/`margin-right`) to ensure robust spacing and prevent awkward text/icon wrapping.
