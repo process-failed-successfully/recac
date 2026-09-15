@@ -69,9 +69,9 @@ func buildJobInteractive(host string, wait bool) {
 		if envLine == "" {
 			break
 		}
-		parts := strings.SplitN(envLine, "=", 2)
-		if len(parts) == 2 {
-			envVars[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+		if idx := strings.IndexByte(envLine, '='); idx != -1 {
+			envVars[strings.TrimSpace(envLine[:idx])] = strings.TrimSpace(envLine[idx+1:])
 		} else {
 			fmt.Fprintln(stdout, "Invalid format. Please use KEY=VALUE.")
 		}

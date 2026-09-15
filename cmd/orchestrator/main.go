@@ -487,7 +487,9 @@ func main() {
 			cfgFile = os.Args[i+1]
 			break
 		} else if strings.HasPrefix(arg, "--config=") || strings.HasPrefix(arg, "-c=") {
-			cfgFile = strings.SplitN(arg, "=", 2)[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			idx := strings.IndexByte(arg, '=')
+			cfgFile = arg[idx+1:]
 			break
 		}
 	}
@@ -1000,9 +1002,9 @@ func loadPipelineVars(varList []string, varFile string) (map[string]string, erro
 	}
 
 	for _, v := range varList {
-		parts := strings.SplitN(v, "=", 2)
-		if len(parts) == 2 {
-			vars[parts[0]] = parts[1]
+		// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+		if idx := strings.IndexByte(v, '='); idx != -1 {
+			vars[v[:idx]] = v[idx+1:]
 		}
 	}
 
@@ -1607,9 +1609,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		envMap := make(map[string]string)
 		for _, pair := range envPairs {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				envMap[parts[0]] = parts[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			if idx := strings.IndexByte(pair, '='); idx != -1 {
+				envMap[pair[:idx]] = pair[idx+1:]
 			} else {
 				logger.Warn("Invalid environment variable format", "input", pair)
 			}
@@ -1636,9 +1638,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		envMap := make(map[string]string)
 		for _, pair := range envPairs {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				envMap[parts[0]] = parts[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			if idx := strings.IndexByte(pair, '='); idx != -1 {
+				envMap[pair[:idx]] = pair[idx+1:]
 			} else {
 				logger.Warn("Invalid environment variable format", "input", pair)
 			}
@@ -1671,9 +1673,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		envMap := make(map[string]string)
 		for _, pair := range envPairs {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				envMap[parts[0]] = parts[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			if idx := strings.IndexByte(pair, '='); idx != -1 {
+				envMap[pair[:idx]] = pair[idx+1:]
 			} else {
 				logger.Warn("Invalid environment variable format", "input", pair)
 			}
@@ -2249,9 +2251,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		envMap := make(map[string]string)
 		for _, pair := range setEnvSlice {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				envMap[parts[0]] = parts[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			if idx := strings.IndexByte(pair, '='); idx != -1 {
+				envMap[pair[:idx]] = pair[idx+1:]
 			} else {
 				logger.Warn("Invalid environment variable format", "input", pair)
 			}
@@ -2272,9 +2274,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		envMap := make(map[string]string)
 		for _, pair := range setEnvSlice {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				envMap[parts[0]] = parts[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			if idx := strings.IndexByte(pair, '='); idx != -1 {
+				envMap[pair[:idx]] = pair[idx+1:]
 			} else {
 				logger.Warn("Invalid environment variable format", "input", pair)
 			}
@@ -2684,9 +2686,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 		envMap := make(map[string]string)
 		for _, pair := range envPairs {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				envMap[parts[0]] = parts[1]
+			// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+			if idx := strings.IndexByte(pair, '='); idx != -1 {
+				envMap[pair[:idx]] = pair[idx+1:]
 			} else {
 				logger.Warn("Invalid environment variable format", "input", pair)
 			}
@@ -2746,13 +2748,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		if matrixInline := viper.GetStringSlice("orchestrator.submit_matrix_inline"); len(matrixInline) > 0 {
 			matrixMap := make(map[string][]string)
 			for _, item := range matrixInline {
-				parts := strings.SplitN(item, "=", 2)
-				if len(parts) == 2 {
-					vals := strings.Split(parts[1], ",")
+				// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+				if idx := strings.IndexByte(item, '='); idx != -1 {
+					vals := strings.Split(item[idx+1:], ",")
 					for i := range vals {
 						vals[i] = strings.TrimSpace(vals[i])
 					}
-					matrixMap[strings.TrimSpace(parts[0])] = vals
+					matrixMap[strings.TrimSpace(item[:idx])] = vals
 				} else {
 					logger.Warn("Invalid inline matrix format", "input", item)
 				}
