@@ -32,7 +32,7 @@ const DashboardHTML = `
         .status-Pending, .status-Pending-Approval { color: #b45309; font-weight: bold; }
         .status-Canceled { color: #6c757d; font-weight: bold; }
         .actions { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
-        button { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
+        button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; transition: all 0.2s ease; }
         button:hover { background: #0056b3; }
         button:active:not([disabled]):not([aria-disabled="true"]) { transform: translateY(1px); }
         button:disabled { opacity: 0.65; cursor: not-allowed; }
@@ -57,7 +57,7 @@ const DashboardHTML = `
         #logs-output { background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-y: auto; height: 400px; margin: 0; }
         .modal-large { width: 90%; max-width: 1000px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin-right: 5px; vertical-align: middle; }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
         .spin-icon { display: inline-block; animation: spin 1s linear infinite; }
         @media (prefers-reduced-motion: reduce) {
             .spin-icon { animation: none !important; }
