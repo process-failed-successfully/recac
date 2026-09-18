@@ -1069,7 +1069,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit a new job from empty state" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit a new job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
                     return;
                 }
 
