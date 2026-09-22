@@ -80,10 +80,9 @@ func (p *GitLabPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIte
 			// Try to get web_url and construct the repo URL
 			if webURL, ok := issue["web_url"].(string); ok {
 				// e.g. https://gitlab.com/owner/repo/-/issues/1
-				parts := strings.Split(webURL, "/-/issues")
-				if len(parts) > 0 {
-					repoURL = parts[0]
-				}
+				// ⚡ Bolt: Avoid strings.Split allocation by using strings.Cut
+				before, _, _ := strings.Cut(webURL, "/-/issues")
+				repoURL = before
 			}
 		}
 
