@@ -356,7 +356,7 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 		// Check for path traversal (starts with ..)
 		// Clean the rel to prevent bypassing via mixed slashes
 		rel = filepath.Clean(rel)
-		if !filepath.IsLocal(rel) || rel == "." {
+		if strings.HasPrefix(rel, "../") || rel == ".." {
 			s.Logger.Warn("security violation: attempted path traversal in cleaner agent", "attempted_path", line, "resolved_path", filePath)
 			errors++
 			continue
