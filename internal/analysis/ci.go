@@ -142,9 +142,8 @@ func checkStepPinning(step *yaml.Node, findings *[]CIFinding) {
 			}
 
 			// Check for mutable tags (@latest, @master, @main, @v1, etc.)
-			parts := strings.Split(action, "@")
-			if len(parts) > 1 {
-				ref := parts[1]
+			// ⚡ Bolt: Avoid strings.Split allocation by using strings.Cut
+			if _, ref, found := strings.Cut(action, "@"); found {
 				isSHA := len(ref) >= 40 // Simple heuristic for SHA
 
 				if ref == "latest" || ref == "master" || ref == "main" || strings.HasPrefix(ref, "v") {
