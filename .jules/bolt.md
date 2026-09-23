@@ -160,3 +160,6 @@
 ## 2026-09-14 - Avoid strings.Split when extracting the last line of output
 **Learning:** strings.Split allocates an intermediate slice which is costly in high-throughput operations. Finding the last line of a string using strings.Split creates an unnecessary slice of strings.
 **Action:** Use strings.LastIndexByte and direct string slicing to extract the last line without allocating slices.
+## 2026-09-15 - Avoid strings.Split in Dockerfile parsing loop
+**Learning:** Using `strings.Split(content, "\n")` to parse a Dockerfile creates an unnecessary allocation of the entire file into a string slice.
+**Action:** Replace `strings.Split` with manual iteration using `strings.IndexByte` and fast string slicing for parsing each line and command args to avoid all allocations.
