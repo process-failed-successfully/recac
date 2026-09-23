@@ -56,40 +56,77 @@ func AnalyzeDockerfile(content string) ([]DockerFinding, error) {
 }
 
 func parseDockerfile(content string) []dockerInstruction {
-	lines := strings.Split(content, "\n")
 	var instructions []dockerInstruction
+	var currentLine int = 1
+	var inContinuation bool
+	var currentCommand string
+	var currentArgs string
+	var startLine int
 
-	for i := 0; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		// Skip comments and empty lines
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+	for len(content) > 0 {
+		idx := strings.IndexByte(content, '\n')
+		var line string
+		if idx == -1 {
+			line = content
+			content = ""
+		} else {
+			line = content[:idx]
+			content = content[idx+1:]
 		}
 
-		currentLine := i + 1
-		fullCommand := line
+		trimmed := strings.TrimSpace(line)
 
-		// Handle line continuations
-		for strings.HasSuffix(fullCommand, "\\") && i+1 < len(lines) {
-			fullCommand = strings.TrimSuffix(fullCommand, "\\")
-			i++
-			fullCommand += strings.TrimSpace(lines[i])
-		}
-
-		parts := strings.Fields(fullCommand)
-		if len(parts) > 0 {
-			cmd := parts[0]
-			args := ""
-			if len(parts) > 1 {
-				args = strings.TrimSpace(fullCommand[len(parts[0]):])
+		if !inContinuation {
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				currentLine++
+				continue
 			}
-			instructions = append(instructions, dockerInstruction{
-				Command: cmd,
-				Args:    args,
-				Line:    currentLine,
-			})
+			startLine = currentLine
 		}
+
+		hasContinuation := strings.HasSuffix(trimmed, "\\")
+		if hasContinuation {
+			trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, "\\"))
+		}
+
+		if !inContinuation {
+			// Start of a new command
+			// Use fast field splitting
+			spaceIdx := strings.IndexAny(trimmed, " \t")
+
+			if spaceIdx != -1 {
+				currentCommand = trimmed[:spaceIdx]
+				currentArgs = strings.TrimSpace(trimmed[spaceIdx+1:])
+			} else {
+				currentCommand = trimmed
+				currentArgs = ""
+			}
+		} else {
+			// Continuation of previous command
+			if len(currentArgs) > 0 {
+				currentArgs += " "
+			}
+			currentArgs += trimmed
+		}
+
+		if hasContinuation {
+			inContinuation = true
+		} else {
+			inContinuation = false
+			if currentCommand != "" {
+				instructions = append(instructions, dockerInstruction{
+					Command: currentCommand,
+					Args:    currentArgs,
+					Line:    startLine,
+				})
+			}
+			currentCommand = ""
+			currentArgs = ""
+		}
+
+		currentLine++
 	}
+
 	return instructions
 }
 
