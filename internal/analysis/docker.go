@@ -56,37 +56,62 @@ func AnalyzeDockerfile(content string) ([]DockerFinding, error) {
 }
 
 func parseDockerfile(content string) []dockerInstruction {
-	lines := strings.Split(content, "\n")
 	var instructions []dockerInstruction
+	currentLine := 1
 
-	for i := 0; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		// Skip comments and empty lines
+	for len(content) > 0 {
+		idx := strings.IndexByte(content, '\n')
+		var line string
+		if idx == -1 {
+			line = content
+			content = ""
+		} else {
+			line = content[:idx]
+			content = content[idx+1:]
+		}
+
+		line = strings.TrimSpace(line)
+
 		if line == "" || strings.HasPrefix(line, "#") {
+			currentLine++
 			continue
 		}
 
-		currentLine := i + 1
+		startLine := currentLine
 		fullCommand := line
+		currentLine++
 
 		// Handle line continuations
-		for strings.HasSuffix(fullCommand, "\\") && i+1 < len(lines) {
+		for strings.HasSuffix(fullCommand, "\\") && len(content) > 0 {
 			fullCommand = strings.TrimSuffix(fullCommand, "\\")
-			i++
-			fullCommand += strings.TrimSpace(lines[i])
+			idx2 := strings.IndexByte(content, '\n')
+			var nextLine string
+			if idx2 == -1 {
+				nextLine = content
+				content = ""
+			} else {
+				nextLine = content[:idx2]
+				content = content[idx2+1:]
+			}
+			fullCommand += strings.TrimSpace(nextLine)
+			currentLine++
 		}
 
-		parts := strings.Fields(fullCommand)
-		if len(parts) > 0 {
-			cmd := parts[0]
-			args := ""
-			if len(parts) > 1 {
-				args = strings.TrimSpace(fullCommand[len(parts[0]):])
-			}
+		// ⚡ Bolt: Avoid strings.Fields allocation by finding the first space/tab
+		spaceIdx := strings.IndexAny(fullCommand, " \t")
+		if spaceIdx != -1 {
+			cmd := fullCommand[:spaceIdx]
+			args := strings.TrimSpace(fullCommand[spaceIdx+1:])
 			instructions = append(instructions, dockerInstruction{
 				Command: cmd,
 				Args:    args,
-				Line:    currentLine,
+				Line:    startLine,
+			})
+		} else {
+			instructions = append(instructions, dockerInstruction{
+				Command: fullCommand,
+				Args:    "",
+				Line:    startLine,
 			})
 		}
 	}
