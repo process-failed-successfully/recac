@@ -160,3 +160,6 @@
 ## 2026-09-14 - Avoid strings.Split when extracting the last line of output
 **Learning:** strings.Split allocates an intermediate slice which is costly in high-throughput operations. Finding the last line of a string using strings.Split creates an unnecessary slice of strings.
 **Action:** Use strings.LastIndexByte and direct string slicing to extract the last line without allocating slices.
+## 2026-09-15 - Avoid strings.Split and strings.Fields in line-by-line parsing
+**Learning:** Using `strings.Split(content, "\n")` allocates an entire slice of strings, which is unnecessary when iterating through lines of a large text block like a Dockerfile. `strings.Fields` also creates intermediate string slices.
+**Action:** Replace `strings.Split` with an iterative search using `strings.IndexByte(content, '\n')` and slicing. Use `strings.IndexAny(fullCommand, " \t")` to extract command and args without creating intermediate fields slice, significantly boosting performance.
