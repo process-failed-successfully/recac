@@ -508,12 +508,24 @@ func (s *Session) Start(ctx context.Context) error {
 
 	// Collect Env Vars to propagate to container
 	var env []string
-	prefixes := []string{"GIT_", "JIRA_", "RECAC_", "OPENROUTER_", "OPENAI_", "ANTHROPIC_", "GEMINI_"}
+	prefixes := []string{"GIT_", "JIRA_", "OPENROUTER_", "OPENAI_", "ANTHROPIC_", "GEMINI_"}
+	exactMatches := []string{"RECAC_PROVIDER", "RECAC_PROJECT_ID", "RECAC_MODEL"}
 	for _, e := range os.Environ() {
 		for _, p := range prefixes {
 			if strings.HasPrefix(e, p) {
 				env = append(env, e)
 				break
+			}
+		}
+
+		idx := strings.IndexByte(e, '=')
+		if idx != -1 {
+			key := e[:idx]
+			for _, exact := range exactMatches {
+				if key == exact {
+					env = append(env, e)
+					break
+				}
 			}
 		}
 	}
