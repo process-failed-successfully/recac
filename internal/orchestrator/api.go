@@ -3742,7 +3742,9 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 				return
 			}
 			// Use constant-time comparison to prevent timing attacks
-			if !hmac.Equal([]byte(reqSecret), []byte(secret)) {
+			reqSecretHash := sha256.Sum256([]byte(reqSecret))
+			secretHash := sha256.Sum256([]byte(secret))
+			if !hmac.Equal(reqSecretHash[:], secretHash[:]) {
 				http.Error(w, "Invalid secret query parameter", http.StatusUnauthorized)
 				return
 			}
@@ -4259,7 +4261,9 @@ Analyze why the job failed or had issues, explain the root cause clearly, and su
 				return
 			}
 			// Use constant-time comparison to prevent timing attacks
-			if !hmac.Equal([]byte(token), []byte(secret)) {
+			tokenHash := sha256.Sum256([]byte(token))
+			secretHash := sha256.Sum256([]byte(secret))
+			if !hmac.Equal(tokenHash[:], secretHash[:]) {
 				http.Error(w, "Invalid X-Gitlab-Token header", http.StatusUnauthorized)
 				return
 			}
