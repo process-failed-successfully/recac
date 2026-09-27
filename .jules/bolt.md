@@ -163,3 +163,6 @@
 ## 2026-09-15 - Avoid strings.Split and strings.Fields in line-by-line parsing
 **Learning:** Using `strings.Split(content, "\n")` allocates an entire slice of strings, which is unnecessary when iterating through lines of a large text block like a Dockerfile. `strings.Fields` also creates intermediate string slices.
 **Action:** Replace `strings.Split` with an iterative search using `strings.IndexByte(content, '\n')` and slicing. Use `strings.IndexAny(fullCommand, " \t")` to extract command and args without creating intermediate fields slice, significantly boosting performance.
+## 2026-09-17 - Avoid strings.Split and strings.Join overhead in repetition detection
+**Learning:** Using `strings.Split(response, "\n")` and `strings.Join` inside repetition detection functions allocates huge dynamic slices and arrays for long text, causing measurable heap allocation and garbage collection overhead.
+**Action:** Replace `strings.Split` with an iterative `strings.IndexByte` line slicing without allocating a huge array dynamically, and replace `strings.Join` with a helper method `extractTruncatedLines` which just returns a prefix of the original string by counting newlines.
