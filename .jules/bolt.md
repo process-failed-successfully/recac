@@ -166,3 +166,6 @@
 ## 2026-09-17 - Avoid strings.Split and strings.Join overhead in repetition detection
 **Learning:** Using `strings.Split(response, "\n")` and `strings.Join` inside repetition detection functions allocates huge dynamic slices and arrays for long text, causing measurable heap allocation and garbage collection overhead.
 **Action:** Replace `strings.Split` with an iterative `strings.IndexByte` line slicing without allocating a huge array dynamically, and replace `strings.Join` with a helper method `extractTruncatedLines` which just returns a prefix of the original string by counting newlines.
+## 2026-10-01 - Avoid strings.Split overhead in TUI comma-separated inputs
+**Learning:** `strings.Split` in tight UI updates allocates intermediate strings unnecessarily, followed by redundant iteration loops with `strings.TrimSpace`.
+**Action:** Created `utils.ParseCommaSeparated` avoiding full slices allocation using `strings.Count` and `strings.IndexByte`, optimizing parsing multi-element inputs in TUI environments.

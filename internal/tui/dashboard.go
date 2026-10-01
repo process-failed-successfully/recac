@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/atotto/clipboard"
 	"recac/internal/orchestrator"
+
+	"github.com/atotto/clipboard"
 
 	"recac/internal/utils"
 
@@ -1680,27 +1681,9 @@ func (m DashboardModel) updateSubmit(msg tea.Msg) (DashboardModel, tea.Cmd) {
 				cancelInProgress = true
 			}
 
-			var dependsOn []string
-			if dependsOnStr != "" {
-				parts := strings.Split(dependsOnStr, ",")
-				for _, p := range parts {
-					trimmed := strings.TrimSpace(p)
-					if trimmed != "" {
-						dependsOn = append(dependsOn, trimmed)
-					}
-				}
-			}
+			dependsOn := utils.ParseCommaSeparated(dependsOnStr)
 
-			var tags []string
-			if tagsStr != "" {
-				parts := strings.Split(tagsStr, ",")
-				for _, p := range parts {
-					trimmed := strings.TrimSpace(p)
-					if trimmed != "" {
-						tags = append(tags, trimmed)
-					}
-				}
-			}
+			tags := utils.ParseCommaSeparated(tagsStr)
 
 			var maxRetries *int
 			if maxRetriesStr != "" {
@@ -1829,16 +1812,7 @@ func (m DashboardModel) updateDepsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.depsInput.Blur()
 			m.pendingJobId = ""
 
-			var deps []string
-			if val != "" {
-				parts := strings.Split(val, ",")
-				for _, p := range parts {
-					trimmed := strings.TrimSpace(p)
-					if trimmed != "" {
-						deps = append(deps, trimmed)
-					}
-				}
-			}
+			deps := utils.ParseCommaSeparated(val)
 
 			if id == "MULTIPLE_deps" && len(m.selectedJobs) > 0 {
 				var cmds []tea.Cmd
@@ -1876,14 +1850,11 @@ func (m DashboardModel) updateEnvInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 
 			env := make(map[string]string)
 			if val != "" {
-				parts := strings.Split(val, ",")
-				for _, p := range parts {
-					trimmed := strings.TrimSpace(p)
-					if trimmed != "" {
-						// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
-						if idx := strings.IndexByte(trimmed, '='); idx != -1 {
-							env[trimmed[:idx]] = trimmed[idx+1:]
-						}
+				parts := utils.ParseCommaSeparated(val)
+				for _, trimmed := range parts {
+					// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
+					if idx := strings.IndexByte(trimmed, '='); idx != -1 {
+						env[trimmed[:idx]] = trimmed[idx+1:]
 					}
 				}
 			}
@@ -1997,16 +1968,7 @@ func (m DashboardModel) updateTagsInput(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			m.tagsInput.Blur()
 			m.pendingJobId = ""
 
-			var tags []string
-			if val != "" {
-				parts := strings.Split(val, ",")
-				for _, p := range parts {
-					trimmed := strings.TrimSpace(p)
-					if trimmed != "" {
-						tags = append(tags, trimmed)
-					}
-				}
-			}
+			tags := utils.ParseCommaSeparated(val)
 
 			if id == "MULTIPLE_tags" && len(m.selectedJobs) > 0 {
 				var cmds []tea.Cmd
@@ -4337,32 +4299,32 @@ func NewDashboardModel(host string) DashboardModel {
 	lfi.Width = 40
 
 	return DashboardModel{
-		host:                    host,
-		table:                   t,
-		viewport:                vp,
-		viewState:               viewMain,
-		inputs:                  inputs,
-		textarea:                ta,
-		filterInput:             fi,
-		isFiltering:             false,
-		timeoutInput:            ti,
-		depsInput:               di,
-		envInput:                ei,
-		tagsInput:               gi,
-		agentProviderInput:      api,
-		agentModelInput:         ami,
-		renameInput:             ri,
+		host:                        host,
+		table:                       t,
+		viewport:                    vp,
+		viewState:                   viewMain,
+		inputs:                      inputs,
+		textarea:                    ta,
+		filterInput:                 fi,
+		isFiltering:                 false,
+		timeoutInput:                ti,
+		depsInput:                   di,
+		envInput:                    ei,
+		tagsInput:                   gi,
+		agentProviderInput:          api,
+		agentModelInput:             ami,
+		renameInput:                 ri,
 		maxRetriesInput:             mri,
 		deletePendingGroupInput:     dpgi,
 		deletePendingTagInput:       dpti,
 		deletePendingMatchInput:     dpmi,
 		deletePendingOlderThanInput: dpoti,
 		pauseGroupInput:             pgi,
-		resumeGroupInput:        rgi,
-		searchInput:             si,
-		searchContextInput:      sci,
-		logFilterInput:          lfi,
-		selectedJobs:            make(map[string]bool),
+		resumeGroupInput:            rgi,
+		searchInput:                 si,
+		searchContextInput:          sci,
+		logFilterInput:              lfi,
+		selectedJobs:                make(map[string]bool),
 	}
 }
 
