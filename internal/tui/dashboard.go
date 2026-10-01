@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/atotto/clipboard"
 	"recac/internal/orchestrator"
 
+	"github.com/atotto/clipboard"
 
+	"recac/internal/utils"
 
 	"github.com/charmbracelet/glamour"
 
@@ -25,8 +26,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"recac/internal/utils"
-
 )
 
 var (
@@ -4300,32 +4299,32 @@ func NewDashboardModel(host string) DashboardModel {
 	lfi.Width = 40
 
 	return DashboardModel{
-		host:                    host,
-		table:                   t,
-		viewport:                vp,
-		viewState:               viewMain,
-		inputs:                  inputs,
-		textarea:                ta,
-		filterInput:             fi,
-		isFiltering:             false,
-		timeoutInput:            ti,
-		depsInput:               di,
-		envInput:                ei,
-		tagsInput:               gi,
-		agentProviderInput:      api,
-		agentModelInput:         ami,
-		renameInput:             ri,
+		host:                        host,
+		table:                       t,
+		viewport:                    vp,
+		viewState:                   viewMain,
+		inputs:                      inputs,
+		textarea:                    ta,
+		filterInput:                 fi,
+		isFiltering:                 false,
+		timeoutInput:                ti,
+		depsInput:                   di,
+		envInput:                    ei,
+		tagsInput:                   gi,
+		agentProviderInput:          api,
+		agentModelInput:             ami,
+		renameInput:                 ri,
 		maxRetriesInput:             mri,
 		deletePendingGroupInput:     dpgi,
 		deletePendingTagInput:       dpti,
 		deletePendingMatchInput:     dpmi,
 		deletePendingOlderThanInput: dpoti,
 		pauseGroupInput:             pgi,
-		resumeGroupInput:        rgi,
-		searchInput:             si,
-		searchContextInput:      sci,
-		logFilterInput:          lfi,
-		selectedJobs:            make(map[string]bool),
+		resumeGroupInput:            rgi,
+		searchInput:                 si,
+		searchContextInput:          sci,
+		logFilterInput:              lfi,
+		selectedJobs:                make(map[string]bool),
 	}
 }
 

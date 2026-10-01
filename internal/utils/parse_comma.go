@@ -38,5 +38,8 @@ func ParseCommaSeparated(s string) []string {
 		s = s[idx+1:]
 	}
 
+	if len(res) == 0 {
+		return nil
+	}
 	return res
 }

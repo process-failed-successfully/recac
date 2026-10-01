@@ -24,9 +24,6 @@ func TestParseCommaSeparated(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ParseCommaSeparated(tt.input)
 			if !reflect.DeepEqual(result, tt.expected) {
-				if len(result) == 0 && len(tt.expected) == 0 {
-					return
-				}
 				t.Errorf("ParseCommaSeparated() = %v, want %v", result, tt.expected)
 			}
 		})
