@@ -169,3 +169,7 @@
 ## 2026-10-01 - Avoid strings.Split overhead in TUI comma-separated inputs
 **Learning:** `strings.Split` in tight UI updates allocates intermediate strings unnecessarily, followed by redundant iteration loops with `strings.TrimSpace`.
 **Action:** Created `utils.ParseCommaSeparated` avoiding full slices allocation using `strings.Count` and `strings.IndexByte`, optimizing parsing multi-element inputs in TUI environments.
+
+## 2026-10-02 - Avoid strings.Fields and Join for whitespace normalization
+**Learning:** Using `strings.Join(strings.Fields(str), " ")` to collapse multiple consecutive whitespaces into a single space creates severe memory allocation overhead on hot paths, as it dynamically allocates a string slice and a new string for every parsed word.
+**Action:** Replace `strings.Join(strings.Fields(s), " ")` with a custom helper function (`utils.NormalizeWhitespace(s)`) that utilizes a pre-allocated `strings.Builder` and direct byte iteration to skip slice allocations completely.

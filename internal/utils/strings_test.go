@@ -61,6 +61,31 @@ func TestHasPrefixFold(t *testing.T) {
 	}
 }
 
+func TestNormalizeWhitespace(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{"empty string", "", ""},
+		{"no spaces", "hello", "hello"},
+		{"single spaces", "hello world", "hello world"},
+		{"multiple spaces", "hello   world", "hello world"},
+		{"mixed whitespace", "hello \t\n\r\v\f world", "hello world"},
+		{"leading spaces", "   hello world", "hello world"},
+		{"trailing spaces", "hello world   ", "hello world"},
+		{"only whitespace", " \t\n ", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NormalizeWhitespace(tt.s); got != tt.want {
+				t.Errorf("NormalizeWhitespace(%q) = %q, want %q", tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestTruncateLines(t *testing.T) {
 	tests := []struct {
 		name     string

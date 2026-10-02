@@ -140,7 +140,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 				// 1. Normalize: remove common comment/bullet chars (#, *, -, whitespace)
 				// ⚡ Bolt: Replaced multiple strings.ReplaceAll calls with strings.NewReplacer for efficiency
 				cleanStr := blockerCleanerReplacer.Replace(trimmed)
-				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
+				cleanStr = utils.NormalizeWhitespace(cleanStr) // Normalize internal whitespace
 
 				isFalsePositive := utils.ContainsFold(cleanStr, "no blockers") ||
 					utils.HasPrefixFold(cleanStr, "none") ||

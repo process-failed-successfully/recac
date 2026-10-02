@@ -9,6 +9,8 @@ import (
 	"go/token"
 	"path/filepath"
 	"strings"
+
+	"recac/internal/utils"
 )
 
 // FileLoader is a function that retrieves file content.
@@ -122,6 +124,6 @@ func nodeToString(fset *token.FileSet, node interface{}) string {
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, node)
 	// normalize spaces to avoid formatting noise
-	s := strings.Join(strings.Fields(buf.String()), " ")
+	s := utils.NormalizeWhitespace(buf.String())
 	return s
 }
