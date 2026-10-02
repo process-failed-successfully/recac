@@ -1,5 +1,7 @@
 package utils
 
+import "strings"
+
 // ContainsFold reports whether substr is within s, using a case-insensitive
 // match that does not allocate new strings.
 func ContainsFold(s, substr string) bool {
@@ -66,6 +68,28 @@ func HasPrefixFold(s, prefix string) bool {
 		}
 	}
 	return true
+}
+
+// NormalizeWhitespace replaces multiple consecutive whitespaces (spaces, tabs, newlines, etc.)
+// with a single space.
+// ⚡ Bolt: It avoids strings.Join(strings.Fields(s), " ") which allocates multiple slices.
+func NormalizeWhitespace(s string) string {
+	var builder strings.Builder
+	builder.Grow(len(s))
+	inSpace := true // start true to trim leading space
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f' {
+			inSpace = true
+		} else {
+			if inSpace && builder.Len() > 0 {
+				builder.WriteByte(' ')
+			}
+			builder.WriteByte(c)
+			inSpace = false
+		}
+	}
+	return builder.String()
 }
 
 // TruncateLines checks if the text has more than maxLines lines.
