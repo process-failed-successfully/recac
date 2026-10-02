@@ -31,3 +31,8 @@
 **Vulnerability:** The Jira and GitLab webhook endpoints in `internal/orchestrator/api.go` compared the provided secret against the expected secret using `hmac.Equal([]byte(provided), []byte(expected))`.
 **Learning:** While `hmac.Equal` performs a constant-time comparison on the content, it immediately returns `false` if the byte slice lengths differ. This fast-path length check allows an attacker to guess the exact length of the expected secret by measuring response times, exposing a timing attack vulnerability.
 **Prevention:** When using `hmac.Equal` or `subtle.ConstantTimeCompare` to compare secrets, always hash both the provided and expected secrets first (e.g., using `sha256.Sum256`) and compare the resulting hashes. This ensures both inputs are exactly the same length (e.g., 32 bytes for SHA-256), completely masking the secret's length and forcing a full constant-time comparison every time.
+
+## 2026-10-15 - Prevent environment variable leakage in workspace initialization scripts
+**Vulnerability:** Orchestrator environment variables (e.g., secrets, database URLs) were being unintentionally propagated to the `init.sh` workspace setup script during local agent execution in `internal/runner/helpers.go` because `cmd.Env` was left unset, defaulting to `os.Environ()`.
+**Learning:** Asynchronous initialization scripts (like `init.sh`) run within the context of the workspace and can contain untrusted code. Inheriting the full orchestrator environment exposes sensitive credentials to these scripts.
+**Prevention:** Always explicitly define `cmd.Env` using a secure whitelist (e.g., `getSafeEnv()`) when spawning background tasks or initialization scripts in the workspace, even if they aren't the primary LLM-generated execution blocks.

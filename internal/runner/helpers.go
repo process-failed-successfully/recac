@@ -131,6 +131,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 			// Local Execution
 			cmd := exec.CommandContext(asyncCtx, "/bin/sh", "-c", "./init.sh")
 			cmd.Dir = s.Workspace
+			cmd.Env = getSafeEnv()
 			var outBuf bytes.Buffer
 			cmd.Stdout = &outBuf
 			cmd.Stderr = &outBuf
