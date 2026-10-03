@@ -1069,7 +1069,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit a new job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit Job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
                     return;
                 }
 
@@ -1310,7 +1310,7 @@ const DashboardHTML = `
                 }
                 const graphText = await res.text();
                 if (!graphText.trim()) {
-                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit a new job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
+                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
                     return;
                 }
 
@@ -1342,7 +1342,7 @@ const DashboardHTML = `
                 }
                 const timelineText = await res.text();
                 if (!timelineText.trim() || timelineText.trim() === "gantt\n    title Job Execution Timeline") {
-                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit a new job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
+                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
                     return;
                 }
 
@@ -1432,7 +1432,7 @@ const DashboardHTML = `
                 }
                 const jobs = await res.json();
                 if (!jobs || jobs.length === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No failed jobs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No failed jobs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go Back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     return;
                 }
 
@@ -1578,7 +1578,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data || data.total_jobs === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No valid completed jobs with duration found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No valid completed jobs with duration found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go Back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     return;
                 }
 
@@ -1639,7 +1639,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data || data.total_stats.total_jobs === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No valid completed jobs with cost data found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No valid completed jobs with cost data found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go Back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     return;
                 }
 
@@ -1706,7 +1706,7 @@ const DashboardHTML = `
                 }
                 const anomalies = await res.json();
                 if (!anomalies || anomalies.length === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No anomalies found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No anomalies found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go Back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     return;
                 }
 
@@ -1766,7 +1766,7 @@ const DashboardHTML = `
                 }
                 const data = await res.json();
                 if (!data.agents || data.agents.length === 0) {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No agent data found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No agent data found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go Back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     return;
                 }
 
@@ -1812,7 +1812,7 @@ const DashboardHTML = `
                 .then(res => res.json())
                 .then(data => {
                     if (data.total_jobs === 0) {
-                        content.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No completed jobs found for reliability analysis.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                        content.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No completed jobs found for reliability analysis.</p><div style="margin-top: 15px;"><button type="button" aria-label="Go Back" onclick="this.closest(\'.modal\').style.display=\'none\'" style="background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Go Back<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                         return;
                     }
 
