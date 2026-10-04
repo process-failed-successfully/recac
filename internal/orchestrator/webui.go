@@ -447,6 +447,12 @@ const DashboardHTML = `
         </div>
     </div>
     <script>
+        const renderLoading = (text) => {
+            return '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;">' +
+                   '<span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span>' +
+                   '<span style="font-size: 1.1em;">' + text + '</span></div>';
+        };
+
         const formatDuration = (d) => {
             if (!d) return "0s";
             return d.replace(/h|m|s/g, match => match + " ").trim();
@@ -1271,7 +1277,7 @@ const DashboardHTML = `
             setTimeout(() => document.getElementById('explain-content').focus(), 10);
             document.getElementById('explain-title').innerText = 'Explanation for ' + id;
             const content = document.getElementById('explain-content');
-            content.innerHTML = '<i>Asking AI to analyze the failure...</i>';
+            content.innerHTML = renderLoading('Asking AI to analyze the failure...');
 
             try {
                 const response = await fetch('/jobs/' + encodeURIComponent(id) + '/explain');
@@ -1300,7 +1306,7 @@ const DashboardHTML = `
             const graphDiv = document.getElementById('graphDiv');
             modal.style.display = 'block';
             setTimeout(() => graphDiv.focus(), 10);
-            graphDiv.innerHTML = 'Loading graph...';
+            graphDiv.innerHTML = renderLoading('Loading graph...');
 
             try {
                 const res = await fetch('/jobs/export/graph?format=mermaid');
@@ -1332,7 +1338,7 @@ const DashboardHTML = `
             const timelineDiv = document.getElementById('timelineDiv');
             modal.style.display = 'block';
             setTimeout(() => timelineDiv.focus(), 10);
-            timelineDiv.innerHTML = 'Loading timeline...';
+            timelineDiv.innerHTML = renderLoading('Loading timeline...');
 
             try {
                 const res = await fetch('/jobs/export/timeline');
@@ -1422,7 +1428,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('analyze-failures-content');
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
-            contentDiv.innerHTML = 'Loading analysis...';
+            contentDiv.innerHTML = renderLoading('Loading analysis...');
 
             try {
                 const res = await fetch('/jobs?state=all&status=Failed');
@@ -1497,7 +1503,7 @@ const DashboardHTML = `
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
             titleElement.innerText = 'Changelog Report';
-            contentDiv.innerHTML = 'Generating AI changelog report...';
+            contentDiv.innerHTML = renderLoading('Generating AI changelog report...');
 
             try {
                 const res = await fetch('/changelog/generate');
@@ -1532,7 +1538,7 @@ const DashboardHTML = `
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
             titleElement.innerText = 'Postmortem Report';
-            contentDiv.innerHTML = 'Generating AI postmortem report...';
+            contentDiv.innerHTML = renderLoading('Generating AI postmortem report...');
 
             try {
                 const res = await fetch('/postmortem/generate');
@@ -1568,7 +1574,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('analyze-durations-content');
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
-            contentDiv.innerHTML = 'Loading analysis...';
+            contentDiv.innerHTML = renderLoading('Loading analysis...');
 
             try {
                 const res = await fetch('/jobs/analyze/durations?limit=10');
@@ -1629,7 +1635,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('analyze-costs-content');
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
-            contentDiv.innerHTML = 'Loading analysis...';
+            contentDiv.innerHTML = renderLoading('Loading analysis...');
 
             try {
                 const res = await fetch('/jobs/analyze/costs?limit=10');
@@ -1696,7 +1702,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('analyze-anomalies-content');
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
-            contentDiv.innerHTML = 'Loading analysis...';
+            contentDiv.innerHTML = renderLoading('Loading analysis...');
 
             try {
                 const res = await fetch('/jobs/analyze/anomalies');
@@ -1756,7 +1762,7 @@ const DashboardHTML = `
             const contentDiv = document.getElementById('analyze-agents-content');
             modal.style.display = 'block';
             setTimeout(() => contentDiv.focus(), 10);
-            contentDiv.innerHTML = 'Loading analysis...';
+            contentDiv.innerHTML = renderLoading('Loading analysis...');
 
             try {
                 const res = await fetch('/jobs/analyze/agents?limit=10');
@@ -1806,7 +1812,7 @@ const DashboardHTML = `
             modal.style.display = 'block';
             const content = document.getElementById('reliability-content');
             setTimeout(() => content.focus(), 10);
-            content.innerHTML = 'Loading analysis...';
+            content.innerHTML = renderLoading('Loading analysis...');
 
             fetch('/jobs/analyze/reliability?limit=10')
                 .then(res => res.json())
@@ -1888,7 +1894,7 @@ const DashboardHTML = `
             const originalHTML = btn.innerHTML;
 
             resultsDiv.style.display = 'block';
-            resultsDiv.innerHTML = 'Searching...';
+            resultsDiv.innerHTML = renderLoading('Searching...');
 
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Searching...';
