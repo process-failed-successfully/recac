@@ -17,6 +17,7 @@ import (
 	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 
 	"github.com/spf13/viper"
 )
@@ -418,9 +419,11 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	// Pre-flight check
 	if !cfg.AllowDirty {
 		cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+		cmd.Env = utils.GetSafeEnv()
 		cmd.Dir = projectPath
 		if err := cmd.Run(); err == nil {
 			cmd := exec.Command("git", "status", "--porcelain")
+			cmd.Env = utils.GetSafeEnv()
 			cmd.Dir = projectPath
 			output, _ := cmd.Output()
 			if len(output) > 0 {
