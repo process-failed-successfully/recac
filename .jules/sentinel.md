@@ -36,3 +36,7 @@
 **Vulnerability:** Orchestrator environment variables (e.g., secrets, database URLs) were being unintentionally propagated to the `init.sh` workspace setup script during local agent execution in `internal/runner/helpers.go` because `cmd.Env` was left unset, defaulting to `os.Environ()`.
 **Learning:** Asynchronous initialization scripts (like `init.sh`) run within the context of the workspace and can contain untrusted code. Inheriting the full orchestrator environment exposes sensitive credentials to these scripts.
 **Prevention:** Always explicitly define `cmd.Env` using a secure whitelist (e.g., `getSafeEnv()`) when spawning background tasks or initialization scripts in the workspace, even if they aren't the primary LLM-generated execution blocks.
+## 2026-10-25 - Prevent environment variable leakage in workflow checks
+**Vulnerability:** Pre-flight git commands in `internal/workflow/workflow.go` (e.g., `git rev-parse`, `git status`) were executed via `exec.Command` without an explicit `cmd.Env` configuration.
+**Learning:** When `cmd.Env` is omitted, the subprocess inherits `os.Environ()` by default. This leaks sensitive orchestrator credentials (e.g., database URLs, webhook secrets) to external processes and any hooks they might trigger, increasing the risk of exposure.
+**Prevention:** Always explicitly define `cmd.Env` with a sanitized allowlist (e.g., `utils.GetSafeEnv()`) when executing system subprocesses.
