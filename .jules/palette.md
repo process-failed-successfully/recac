@@ -136,3 +136,11 @@
 ## 2024-05-23 - Clean up redundant context in aria-labels
 **Learning:** Found that some buttons generated dynamically in empty states had aria-labels like "Submit a new job from empty state", which awkwardly exposed UI-state implementation details to screen-reader users, violating WCAG principles of providing clean context.
 **Action:** Always ensure aria-labels are user-centric and describe the action without leaking internal component state. Keep it concise, e.g., "Submit a new job".
+
+## 2026-10-27 - [Animated Loading States in Modals]
+**Learning:** Found that long-running async operations inside modals (like generating AI reports or complex analysis) were displaying static plain-text strings (e.g., "Loading analysis..."). This provides poor visual feedback and makes the app feel unresponsive.
+**Action:** When acting as the 'Palette' persona to improve interaction UX, identify static plain-text loading states and upgrade them to animated spinner components with structured layouts (e.g., using a `renderLoading` helper) to provide better active visual feedback during asynchronous operations.
+
+## 2026-10-27 - [Contextual ARIA Labels on Buttons]
+**Learning:** Attempting to strictly enforce WCAG 2.5.3 (Label in Name) by removing "redundant" `aria-label` attributes from buttons can sometimes introduce accessibility regressions if the `aria-label` provides more descriptive context for screen reader users than the visible text alone (e.g., keeping `aria-label="Dry Run Pipeline"` on a button with visible text 'Dry Run').
+**Action:** Do not arbitrarily remove existing `aria-label` attributes from buttons just to match visible text if the `aria-label` provides genuinely more descriptive and helpful context for assistive technologies.
