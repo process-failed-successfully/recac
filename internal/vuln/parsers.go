@@ -34,30 +34,60 @@ func (p *GoModParser) Parse(path string) ([]Package, error) {
 
 		if strings.HasPrefix(line, "require ") {
 			// Single line require: require example.com/pkg v1.0.0
-			parts := strings.Fields(line)
-			if len(parts) >= 3 {
+			name, version := parseRequireLine(line, true)
+			if name != "" && version != "" {
 				pkgs = append(pkgs, Package{
-					Name:      parts[1],
-					Version:   parts[2],
+					Name:      name,
+					Version:   version,
 					Ecosystem: "Go",
 				})
 			}
 		} else if inRequire {
 			// Block require: example.com/pkg v1.0.0
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
+			name, version := parseRequireLine(line, false)
+			if name != "" && version != "" {
 				// Ignore // indirect comments?
 				// Often vulnerabilities in indirect deps are relevant too.
 				// Let's include them.
 				pkgs = append(pkgs, Package{
-					Name:      parts[0],
-					Version:   parts[1],
+					Name:      name,
+					Version:   version,
 					Ecosystem: "Go",
 				})
 			}
 		}
 	}
 	return pkgs, scanner.Err()
+}
+
+// ⚡ Bolt: Helper to parse go.mod require lines without strings.Fields allocation
+func parseRequireLine(line string, skipRequire bool) (string, string) {
+	if skipRequire {
+		if !strings.HasPrefix(line, "require ") {
+			return "", ""
+		}
+		line = line[len("require "):]
+	}
+
+	// trim leading whitespace unconditionally
+	for len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+		line = line[1:]
+	}
+
+	idx := strings.IndexAny(line, " \t")
+	if idx != -1 {
+		name := line[:idx]
+		rem := line[idx+1:]
+		for len(rem) > 0 && (rem[0] == ' ' || rem[0] == '\t') {
+			rem = rem[1:]
+		}
+		idx2 := strings.IndexAny(rem, " \t")
+		if idx2 != -1 {
+			return name, rem[:idx2]
+		}
+		return name, rem
+	}
+	return "", ""
 }
 
 // PackageJsonParser parses package.json files.

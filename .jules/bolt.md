@@ -173,3 +173,7 @@
 ## 2026-10-02 - Avoid strings.Fields and Join for whitespace normalization
 **Learning:** Using `strings.Join(strings.Fields(str), " ")` to collapse multiple consecutive whitespaces into a single space creates severe memory allocation overhead on hot paths, as it dynamically allocates a string slice and a new string for every parsed word.
 **Action:** Replace `strings.Join(strings.Fields(s), " ")` with a custom helper function (`utils.NormalizeWhitespace(s)`) that utilizes a pre-allocated `strings.Builder` and direct byte iteration to skip slice allocations completely.
+
+## 2026-10-06 - Avoid strings.Fields in block-based line parsing
+**Learning:** `strings.Fields` in hot paths (like parsing lines of `go.mod` dependencies inside `internal/vuln/parsers.go`) allocates a new slice of strings for every line. If we attempt to use `strings.IndexAny` as a zero-allocation alternative for lines inside an indented block, we must explicitly loop to trim leading spaces and tabs first to avoid incorrect zero-index evaluation.
+**Action:** When replacing `strings.Fields` with `strings.IndexAny` for extracting fields from lines inside a block structure (which uses leading indentation), always explicitly trim leading whitespace (e.g., using a fast byte loop) before checking for the first delimiter.
