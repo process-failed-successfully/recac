@@ -172,7 +172,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeTimeline()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Execution Timeline</h2>
                 <div id="timelineDiv" tabindex="0" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
-                    Loading timeline...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading timeline...</span></div>
                 </div>
             </div>
         </div>
@@ -276,7 +276,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeExplainModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="explain-title">Job Explanation</h2>
                 <div id="explain-content" tabindex="0" aria-live="polite" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
-                    Loading explanation...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading explanation...</span></div>
                 </div>
             </div>
         </div>
@@ -286,7 +286,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeReportModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="report-title" style="margin-bottom: 0;">Report</h2>
                 <div id="report-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-family: monospace;">
-                    Loading report...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading report...</span></div>
                 </div>
             </div>
         </div>
@@ -296,7 +296,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeFailuresModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Failures</h2>
                 <div id="analyze-failures-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                    Loading analysis...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
                 </div>
             </div>
         </div>
@@ -306,7 +306,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeDurationsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Durations</h2>
                 <div id="analyze-durations-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                    Loading analysis...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
                 </div>
             </div>
         </div>
@@ -316,7 +316,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeAnomaliesModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Anomalies</h2>
                 <div id="analyze-anomalies-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                    Loading analysis...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
                 </div>
             </div>
         </div>
@@ -326,7 +326,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeCostsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Costs</h2>
                 <div id="analyze-costs-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                    Loading analysis...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
                 </div>
             </div>
         </div>
@@ -336,7 +336,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeAgentsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Agents</h2>
                 <div id="analyze-agents-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                    Loading analysis...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
                 </div>
             </div>
         </div>
@@ -346,7 +346,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeReliabilityModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Pipeline Reliability Report</h2>
                 <div id="reliability-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                    Loading analysis...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
                 </div>
             </div>
         </div>
@@ -393,7 +393,7 @@ const DashboardHTML = `
                 <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeGraph()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Dependency Graph</h2>
                 <div id="graphDiv" tabindex="0" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
-                    Loading graph...
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading graph...</span></div>
                 </div>
             </div>
         </div>
