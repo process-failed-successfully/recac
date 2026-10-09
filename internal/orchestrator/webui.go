@@ -128,21 +128,21 @@ const DashboardHTML = `
                 <!-- Buttons will be injected here if supported -->
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                <button type="button" onclick="generateChangelog(this)" aria-label="Generate Changelog" style="background-color: #17a2b8">Generate Changelog</button>
-                <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545">Generate Postmortem</button>
-                <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545">Analyze Failures</button>
-                <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1">Analyze Durations</button>
-                <button type="button" onclick="openAnalyzeCostsModal()" aria-label="Analyze Costs" style="background-color: #28a745">Analyze Costs</button>
-                <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c">Analyze Anomalies</button>
-                <button type="button" onclick="openAnalyzeAgentsModal()" aria-label="Analyze Agents" style="background-color: #17a2b8">Analyze Agents</button>
-                <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff">Analyze Reliability</button>
-                <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d">Search Logs</button>
-                <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1">View Graph</button>
-                <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14">View Timeline</button>
-                <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d">Export Trace</button>
-                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d">Export Pipeline</button>
-                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8">+ Submit Pipeline</button>
-                <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'; setTimeout(() => document.getElementById('job-summary').focus(), 10);" aria-keyshortcuts="s" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button>
+                <button type="button" onclick="generateChangelog(this)" aria-label="Generate Changelog" style="background-color: #17a2b8; color: #212529;">Generate Changelog</button>
+                <button type="button" onclick="generatePostmortem(this)" aria-label="Generate Postmortem" style="background-color: #dc3545; color: #ffffff;">Generate Postmortem</button>
+                <button type="button" onclick="openAnalyzeFailuresModal()" aria-label="Analyze Failures" style="background-color: #dc3545; color: #ffffff;">Analyze Failures</button>
+                <button type="button" onclick="openAnalyzeDurationsModal()" aria-label="Analyze Durations" style="background-color: #6f42c1; color: #ffffff;">Analyze Durations</button>
+                <button type="button" onclick="openAnalyzeCostsModal()" aria-label="Analyze Costs" style="background-color: #28a745; color: #212529;">Analyze Costs</button>
+                <button type="button" onclick="openAnalyzeAnomaliesModal()" aria-label="Analyze Anomalies" style="background-color: #e83e8c; color: #212529;">Analyze Anomalies</button>
+                <button type="button" onclick="openAnalyzeAgentsModal()" aria-label="Analyze Agents" style="background-color: #17a2b8; color: #212529;">Analyze Agents</button>
+                <button type="button" onclick="openReliabilityModal()" aria-label="Analyze Reliability" style="background-color: #007bff; color: #ffffff;">Analyze Reliability</button>
+                <button type="button" onclick="openSearchLogsModal()" aria-label="Search Logs" style="background-color: #6c757d; color: #ffffff;">Search Logs</button>
+                <button type="button" aria-label="View Graph" onclick="viewGraph()" style="background-color: #6f42c1; color: #ffffff;">View Graph</button>
+                <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; color: #212529;">View Timeline</button>
+                <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d; color: #ffffff;">Export Trace</button>
+                <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d; color: #ffffff;">Export Pipeline</button>
+                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8; color: #212529;">+ Submit Pipeline</button>
+                <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'; setTimeout(() => document.getElementById('job-summary').focus(), 10);" aria-keyshortcuts="s" style="background-color: #28a745; color: #212529;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button>
             </div>
         </div>
 
@@ -228,7 +228,7 @@ const DashboardHTML = `
                         <label for="job-desc">Description (Optional)</label>
                         <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
                     </div>
-                    <button type="submit" aria-label="Submit Ad-hoc Job" id="btn-submit-adhoc" style="background-color: #28a745; width: 100%;">Submit Job</button>
+                    <button type="submit" aria-label="Submit Ad-hoc Job" id="btn-submit-adhoc" style="background-color: #28a745; color: #212529; width: 100%;">Submit Job</button>
                 </form>
             </div>
         </div>
@@ -243,7 +243,7 @@ const DashboardHTML = `
                         <label for="edit-deps-input">Job IDs (comma-separated)</label>
                         <textarea id="edit-deps-input" placeholder="JOB-1, JOB-2" style="width: 100%; height: 60px; margin-bottom: 10px;"></textarea>
                     </div>
-                    <button type="submit" aria-label="Save Dependencies" id="btn-submit-deps" style="background-color: #007bff; width: 100%;">Save Dependencies</button>
+                    <button type="submit" aria-label="Save Dependencies" id="btn-submit-deps" style="background-color: #007bff; color: #ffffff; width: 100%;">Save Dependencies</button>
                 </form>
             </div>
         </div>
@@ -257,8 +257,8 @@ const DashboardHTML = `
                     <div id="env-vars-container" tabindex="0" style="max-height: 400px; overflow-y: auto; margin-bottom: 15px;">
                         <!-- Env fields will be injected here -->
                     </div>
-                    <button type="button" aria-label="Add new environment variable" onclick="addEnvField('', '')" style="background-color: #6c757d; margin-bottom: 15px;">+ Add Variable</button>
-                    <button type="submit" aria-label="Save Environment Variables" id="btn-submit-env" style="background-color: #28a745; width: 100%;">Save Environment Variables</button>
+                    <button type="button" aria-label="Add new environment variable" onclick="addEnvField('', '')" style="background-color: #6c757d; color: #ffffff; margin-bottom: 15px;">+ Add Variable</button>
+                    <button type="submit" aria-label="Save Environment Variables" id="btn-submit-env" style="background-color: #28a745; color: #212529; width: 100%;">Save Environment Variables</button>
                 </form>
             </div>
         </div>
@@ -573,12 +573,12 @@ const DashboardHTML = `
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
-                document.getElementById('connection-status').style.color = '#198754';
+                document.getElementById('connection-status').style.color = '#4ade80';
                 document.title = data.active_spawns > 0 ? '(' + data.active_spawns + ') Dashboard' : 'Orchestrator Dashboard';
             } catch (err) {
                 console.error('Error fetching status:', err);
                 document.getElementById('connection-status').innerText = 'Disconnected';
-                document.getElementById('connection-status').style.color = '#d32f2f';
+                document.getElementById('connection-status').style.color = '#f87171';
                 document.title = '(Error) Dashboard';
             }
         }
@@ -1092,7 +1092,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit Job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit Job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
                     return;
                 }
 
@@ -1130,7 +1130,7 @@ const DashboardHTML = `
                         }
                     } else if (lowerStatus === 'failed') {
                         actionButtons += '<button type="button" aria-label="Retry job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px;" onclick="doJobAction(this, \'retry\', \'' + escapeHTML(j.id) + '\')">Retry</button>';
-                        actionButtons += '<button type="button" aria-label="Heal job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="doJobAction(this, \'heal\', \'' + escapeHTML(j.id) + '\')">Heal</button>';
+                        actionButtons += '<button type="button" aria-label="Heal job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745; color: #212529;" onclick="doJobAction(this, \'heal\', \'' + escapeHTML(j.id) + '\')">Heal</button>';
                     }
 
                     if (lowerStatus === 'running' || lowerStatus === 'spawning' || lowerStatus === 'active' || lowerStatus === 'pending') {
@@ -1142,16 +1142,16 @@ const DashboardHTML = `
                     }
 
                     if (lowerStatus === 'failed' || lowerStatus === 'error') {
-                        actionButtons += '<button type="button" aria-label="Explain job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="explainJob(\'' + escapeHTML(j.id) + '\')">Explain</button>';
+                        actionButtons += '<button type="button" aria-label="Explain job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8; color: #212529;" onclick="explainJob(\'' + escapeHTML(j.id) + '\')">Explain</button>';
                     }
 
-                    actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #6c757d;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
+                    actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #6c757d; color: #ffffff;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
                     if (lowerStatus === 'pending') {
                         actionButtons += '<button type="button" aria-label="Set dependencies for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
                     }
-                    actionButtons += '<button type="button" aria-label="Edit Env Vars for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745;" onclick="editEnvVars(\'' + safeJobJson + '\')">Env Vars</button>';
-                    actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
+                    actionButtons += '<button type="button" aria-label="Edit Env Vars for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745; color: #212529;" onclick="editEnvVars(\'' + safeJobJson + '\')">Env Vars</button>';
+                    actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8; color: #212529;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
 
                     let row = '<tr>' +
                         '<th scope="row" style="background-color: inherit; font-weight: normal;"><button type="button" aria-label="Copy job ID ' + safeId + '" title="Click to copy ID" style="background: none; border: none; padding: 0; color: #007bff; font-weight: bold; font-family: inherit; font-size: inherit; cursor: pointer; text-decoration: underline;" onclick="copyJobId(this, \'' + safeId + '\')">' + safeId + '</button></th>' +
@@ -1333,7 +1333,7 @@ const DashboardHTML = `
                 }
                 const graphText = await res.text();
                 if (!graphText.trim()) {
-                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
+                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
                     return;
                 }
 
@@ -1365,7 +1365,7 @@ const DashboardHTML = `
                 }
                 const timelineText = await res.text();
                 if (!timelineText.trim() || timelineText.trim() === "gantt\n    title Job Execution Timeline") {
-                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
+                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
                     return;
                 }
 

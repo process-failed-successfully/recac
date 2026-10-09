@@ -144,3 +144,7 @@
 ## 2026-10-27 - [Contextual ARIA Labels on Buttons]
 **Learning:** Attempting to strictly enforce WCAG 2.5.3 (Label in Name) by removing "redundant" `aria-label` attributes from buttons can sometimes introduce accessibility regressions if the `aria-label` provides more descriptive context for screen reader users than the visible text alone (e.g., keeping `aria-label="Dry Run Pipeline"` on a button with visible text 'Dry Run').
 **Action:** Do not arbitrarily remove existing `aria-label` attributes from buttons just to match visible text if the `aria-label` provides genuinely more descriptive and helpful context for assistive technologies.
+
+## 2026-10-27 - [Color Contrast for Colored Buttons and Status Text]
+**Learning:** Found that white text (`#ffffff`) placed on certain standard Bootstrap-style accent colors (like Teal `#17a2b8`, Orange `#fd7e14`, Green `#28a745`, and Pink `#e83e8c`) fails WCAG AA (4.5:1) contrast requirements, hovering around 2.5-3.8. Additionally, standard semantic colors (like `#198754` green or `#d32f2f` red) fail contrast checks when used as text against dark backgrounds (like `#333333`).
+**Action:** When styling colored UI buttons with these specific backgrounds, apply a dark text color (e.g., `color: #212529;`) instead of default white to ensure accessible legibility. When displaying colored status text against dark headers, explicitly use lighter, accessible variants (e.g., `#4ade80` for green, `#f87171` for red) rather than standard dark semantic colors.
