@@ -177,3 +177,7 @@
 ## 2026-10-06 - Avoid strings.Fields in block-based line parsing
 **Learning:** `strings.Fields` in hot paths (like parsing lines of `go.mod` dependencies inside `internal/vuln/parsers.go`) allocates a new slice of strings for every line. If we attempt to use `strings.IndexAny` as a zero-allocation alternative for lines inside an indented block, we must explicitly loop to trim leading spaces and tabs first to avoid incorrect zero-index evaluation.
 **Action:** When replacing `strings.Fields` with `strings.IndexAny` for extracting fields from lines inside a block structure (which uses leading indentation), always explicitly trim leading whitespace (e.g., using a fast byte loop) before checking for the first delimiter.
+
+## 2026-10-10 - Avoid strings.Split in file line parsing
+**Learning:** Using `strings.Split(string(data), "\n")` to parse lines from a file creates a large, unnecessary string slice allocation which causes overhead and GC pressure.
+**Action:** Replace `strings.Split` with a zero-allocation string iteration using `strings.IndexByte(strData, '\n')` to extract each line directly as a substring.
