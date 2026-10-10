@@ -327,11 +327,22 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 	}
 
 	// Parse temp files (one per line)
-	lines := strings.Split(string(data), "\n")
+	// ⚡ Bolt: Avoid strings.Split intermediate allocations by extracting substrings
+	strData := string(data)
 	cleaned := 0
 	errors := 0
 
-	for _, line := range lines {
+	for len(strData) > 0 {
+		var line string
+		idx := strings.IndexByte(strData, '\n')
+		if idx == -1 {
+			line = strData
+			strData = ""
+		} else {
+			line = strData[:idx]
+			strData = strData[idx+1:]
+		}
+
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue // Skip empty lines and comments
