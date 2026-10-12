@@ -532,7 +532,7 @@ const DashboardHTML = `
                 icon = '⏹️';
             }
 
-            const isSpinning = lowerStatus === 'running' || lowerStatus === 'active' || lowerStatus === 'spawning';
+            const isSpinning = lowerStatus === 'running' || lowerStatus === 'active' || lowerStatus === 'spawning' || lowerStatus === 'in_progress';
             const iconHtml = icon ? '<span aria-hidden="true"' + (isSpinning ? ' class="spin-icon"' : '') + '>' + icon + '</span>' : '';
             const srText = '<span class="sr-only">Status: </span>';
             const statusClass = 'status-' + safeStatus.replace(/\s+/g, '-');
