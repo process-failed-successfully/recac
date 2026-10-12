@@ -43,7 +43,7 @@ test-e2e: image ## Run E2E tests via Docker
 	$(DOCKER_CMD) go test -v -tags=e2e ./tests/e2e/...
 
 test-cluster: ## Run full cluster E2E test suite (Build, Deploy, Test, Cleanup)
-	go run e2e/runner/main.go $(ARGS)
+	go run cmd/e2e/main.go $(ARGS)
 
 
 
@@ -94,7 +94,7 @@ smoke-k8s: ## Run full E2E smoke test in local Kubernetes (k3d)
 ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	if [ -z "$$OPENROUTER_API_KEY" ]; then echo "Error: OPENROUTER_API_KEY is not set"; exit 1; fi; \
-	go run e2e/runner/main.go \
+	go run cmd/e2e/main.go \
 		-scenario prime-python \
 		-provider openrouter \
 		-model "openai/gpt-4o-mini" \
@@ -111,7 +111,7 @@ MODEL ?= "openai/gpt-4o-mini"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	go run e2e/runner/main.go -local -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL)
+	go run cmd/e2e/main.go -local -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL)
 
 e2e-redis: ## Run Redis challenge scenario locally
 	@$(MAKE) e2e-local SCENARIO=redis-challenge
@@ -127,7 +127,7 @@ e2e-sql: ## Run SQL Parser scenario locally
 
 e2e-k8s: ## Run a specific scenario in k8s (SCENARIO=x PROVIDER=y MODEL=z ARCHITECT=true)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	MAX_ITERATIONS=1000 RECAC_ARCHITECT_MODE=$(ARCHITECT) go run e2e/runner/main.go -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL) $(ARGS)
+	MAX_ITERATIONS=1000 RECAC_ARCHITECT_MODE=$(ARCHITECT) go run cmd/e2e/main.go -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL) $(ARGS)
 
 e2e-k8s-redis: ## Run Redis challenge scenario in k8s
 	@$(MAKE) e2e-k8s SCENARIO=redis-challenge
