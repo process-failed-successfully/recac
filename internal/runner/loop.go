@@ -190,6 +190,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 								// Recovery Step 3: Hard Reset to origin/current_feature_branch
 								// This is safer than just 'reset --hard' without target
 								cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+								cmd.Env = utils.GetSafeEnv()
 								cmd.Dir = s.Workspace
 								if out, err := cmd.Output(); err == nil {
 									currBranch := strings.TrimSpace(string(out))
@@ -222,6 +223,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 					// and let the agent start clean on next iteration.
 					if s.JiraTicketID != "" {
 						cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+						cmd.Env = utils.GetSafeEnv()
 						cmd.Dir = s.Workspace
 						if out, err := cmd.Output(); err == nil {
 							featureBranch := strings.TrimSpace(string(out))
@@ -283,6 +285,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// Add all files safely
 				addCmd := exec.Command("git", "add", ".")
+				addCmd.Env = utils.GetSafeEnv()
 				addCmd.Dir = s.Workspace
 				if out, err := addCmd.CombinedOutput(); err != nil {
 					fmt.Printf("Warning: Failed to auto-commit work (git add): %v\nOutput: %s\n", err, out)
@@ -290,6 +293,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 					// Commit safely without shell injection
 					commitMsg := fmt.Sprintf("feat: implemented features for %s", s.Project)
 					commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+					commitCmd.Env = utils.GetSafeEnv()
 					commitCmd.Dir = s.Workspace
 
 					if out, err := commitCmd.CombinedOutput(); err != nil {
@@ -310,6 +314,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// 1. Get current branch name
 				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+				cmd.Env = utils.GetSafeEnv()
 				cmd.Dir = s.Workspace
 				out, err := cmd.Output()
 				if err != nil {
@@ -346,6 +351,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 								// 6. Capture Commit SHA for links
 								commitSHA := ""
 								shaCmd := exec.Command("git", "rev-parse", "HEAD")
+								shaCmd.Env = utils.GetSafeEnv()
 								shaCmd.Dir = s.Workspace
 								if shaOut, err := shaCmd.Output(); err == nil {
 									commitSHA = strings.TrimSpace(string(shaOut))
@@ -366,6 +372,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			} else {
 				// No auto-merge or no base branch. Just push the feature branch and complete.
 				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+				cmd.Env = utils.GetSafeEnv()
 				cmd.Dir = s.Workspace
 				if out, err := cmd.Output(); err == nil {
 					featureBranch := strings.TrimSpace(string(out))

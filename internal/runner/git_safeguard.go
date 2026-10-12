@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"recac/internal/utils"
 )
 
 // EnsureStateIgnored safeguard to ensure agent state files are not tracked by git.
@@ -89,6 +91,7 @@ func ensureInGitignore(gitignorePath string, files []string) error {
 func untrackFiles(repoPath string, files []string) error {
 	// Check if files are tracked
 	cmd := exec.Command("git", append([]string{"ls-files"}, files...)...)
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -100,6 +103,7 @@ func untrackFiles(repoPath string, files []string) error {
 		if len(trackedFiles) > 0 {
 			// Untrack them
 			rmCmd := exec.Command("git", append([]string{"rm", "--cached", "-f"}, trackedFiles...)...)
+			rmCmd.Env = utils.GetSafeEnv()
 			rmCmd.Dir = repoPath
 			if err := rmCmd.Run(); err != nil {
 				return fmt.Errorf("failed to untrack files %v: %w", trackedFiles, err)

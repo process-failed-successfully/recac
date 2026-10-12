@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 )
 
 type Orchestrator struct {
@@ -361,6 +362,7 @@ func (o *Orchestrator) ensureGitRepo() error {
 
 	// git init
 	cmd := exec.Command("git", "init")
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = o.Workspace
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git init failed: %s: %w", out, err)
@@ -368,6 +370,7 @@ func (o *Orchestrator) ensureGitRepo() error {
 
 	// git add .
 	cmd = exec.Command("git", "add", ".")
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = o.Workspace
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git add failed: %s: %w", out, err)
@@ -375,6 +378,7 @@ func (o *Orchestrator) ensureGitRepo() error {
 
 	// git commit
 	cmd = exec.Command("git", "commit", "-m", "Initial commit (Orchestrator)")
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = o.Workspace
 	if out, err := cmd.CombinedOutput(); err != nil {
 		// Ignore commit error if there was nothing to commit (e.g. empty workspace)
