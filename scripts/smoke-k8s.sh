@@ -68,7 +68,7 @@ helm upgrade --install recac ./deploy/helm/recac \
 echo "Running E2E Runner for verification..."
 # We use -skip-build because we already built and pushed
 # We use -skip-cleanup because we want to see the results
-go run e2e/runner/main.go \
+go run cmd/e2e/main.go \
     -scenario prime-python \
     -repo "$DEPLOY_REPO" \
     -skip-build \

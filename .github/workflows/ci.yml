@@ -307,7 +307,7 @@ jobs:
           RETRIES=3
           for i in $(seq 0 $RETRIES); do
             echo "Attempt $((i+1)) of $((RETRIES+1))"
-            if go run e2e/runner/main.go \
+            if go run cmd/e2e/main.go \
               -scenario prime-python \
               -provider mock \
               -model "mock" \
