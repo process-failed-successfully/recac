@@ -60,7 +60,7 @@ const DashboardHTML = `
         .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
         .spin-icon { display: inline-block; animation: spin 1s linear infinite; }
         @media (prefers-reduced-motion: reduce) {
-            .spin-icon { animation: none !important; }
+            .spin-icon, .spinner { animation: none !important; }
         }
         [tabindex="0"]:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
         .shortcut-hint {
@@ -228,7 +228,7 @@ const DashboardHTML = `
                         <label for="job-desc">Description (Optional)</label>
                         <textarea id="job-desc" placeholder="Detailed description of the task..."></textarea>
                     </div>
-                    <button type="submit" aria-label="Submit Ad-hoc Job" id="btn-submit-adhoc" style="background-color: #28a745; color: #212529; width: 100%;">Submit Job</button>
+                    <button type="submit" aria-label="Submit Job (Ad-hoc)" id="btn-submit-adhoc" style="background-color: #28a745; color: #212529; width: 100%;">Submit Job</button>
                 </form>
             </div>
         </div>
@@ -257,7 +257,7 @@ const DashboardHTML = `
                     <div id="env-vars-container" tabindex="0" style="max-height: 400px; overflow-y: auto; margin-bottom: 15px;">
                         <!-- Env fields will be injected here -->
                     </div>
-                    <button type="button" aria-label="Add new environment variable" onclick="addEnvField('', '')" style="background-color: #6c757d; color: #ffffff; margin-bottom: 15px;">+ Add Variable</button>
+                    <button type="button" aria-label="+ Add Variable (environment)" onclick="addEnvField('', '')" style="background-color: #6c757d; color: #ffffff; margin-bottom: 15px;">+ Add Variable</button>
                     <button type="submit" aria-label="Save Environment Variables" id="btn-submit-env" style="background-color: #28a745; color: #212529; width: 100%;">Save Environment Variables</button>
                 </form>
             </div>
@@ -566,10 +566,10 @@ const DashboardHTML = `
                     actionsHTML += '<button type="button" aria-label="Drain agents" class="danger" onclick="postAction(this, \'/drain\')">Drain</button>';
                 }
 
-                actionsHTML += '<button type="button" aria-label="Force manual poll" onclick="postAction(this, \'/poll\')">Force Poll</button>';
-                actionsHTML += '<button type="button" aria-label="Clear all pending jobs" class="danger" onclick="deleteAction(this, \'/pending\')">Clear Pending</button>';
-                actionsHTML += '<button type="button" aria-label="Clear all history jobs" class="danger" onclick="deleteAction(this, \'/history\')">Clear History</button>';
-                actionsHTML += '<button type="button" aria-label="Retry all failed jobs" onclick="retryFailedJobs(this)" style="background-color: #ffc107; color: #212529;">Retry Failed</button>';
+                actionsHTML += '<button type="button" aria-label="Force Poll (manual)" onclick="postAction(this, \'/poll\')">Force Poll</button>';
+                actionsHTML += '<button type="button" aria-label="Clear Pending jobs" class="danger" onclick="deleteAction(this, \'/pending\')">Clear Pending</button>';
+                actionsHTML += '<button type="button" aria-label="Clear History of jobs" class="danger" onclick="deleteAction(this, \'/history\')">Clear History</button>';
+                actionsHTML += '<button type="button" aria-label="Retry Failed jobs" onclick="retryFailedJobs(this)" style="background-color: #ffc107; color: #212529;">Retry Failed</button>';
 
                 document.getElementById('global-actions').innerHTML = actionsHTML;
                 document.getElementById('connection-status').innerText = 'Connected';
@@ -1148,7 +1148,7 @@ const DashboardHTML = `
                     actionButtons += '<button type="button" aria-label="View logs for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #6c757d; color: #ffffff;" onclick="viewLogs(\'' + escapeHTML(j.id) + '\')">Logs</button>';
                     const safeJobJson = encodeURIComponent(JSON.stringify(j)).replace(/'/g, "%27");
                     if (lowerStatus === 'pending') {
-                        actionButtons += '<button type="button" aria-label="Set dependencies for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
+                        actionButtons += '<button type="button" aria-label="Set Deps (dependencies) for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #ffc107; color: #212529;" onclick="editDependencies(\'' + safeJobJson + '\')">Set Deps</button>';
                     }
                     actionButtons += '<button type="button" aria-label="Edit Env Vars for job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #28a745; color: #212529;" onclick="editEnvVars(\'' + safeJobJson + '\')">Env Vars</button>';
                     actionButtons += '<button type="button" aria-label="Clone job ' + escapeHTML(j.id) + '" style="padding:4px 8px; font-size:12px; background-color: #17a2b8; color: #212529;" onclick="cloneJob(\'' + safeJobJson + '\')">Clone</button>';
