@@ -81,6 +81,8 @@ const DashboardHTML = `
             .actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
         }
 
+        .skip-to-content { position: absolute; top: -40px; left: 0; background: #007bff; color: white; padding: 8px; z-index: 1000; transition: top 0.2s; text-decoration: none; }
+        .skip-to-content:focus { top: 0; }
         .sr-only {
             position: absolute;
             width: 1px;
@@ -110,6 +112,7 @@ const DashboardHTML = `
     </style>
 </head>
 <body>
+    <a href="#jobs-container" class="skip-to-content">Skip to jobs list</a>
     <noscript>
         <style>
             .container, #connection-status { display: none !important; }
