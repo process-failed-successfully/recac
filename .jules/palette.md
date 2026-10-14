@@ -152,3 +152,6 @@
 ## 2026-10-28 - [WCAG 2.5.3 Label in Name for Contextual ARIA]
 **Learning:** Found that when trying to provide extra context to screen readers via `aria-label` (e.g., `aria-label="Set dependencies for job..."` on a button visually labeled `Set Deps`), it unintentionally violated WCAG 2.5.3 (Label in Name). The visible text was not a contiguous part of the accessible name, which breaks voice control navigation (e.g., a user saying "Click Set Deps" would fail).
 **Action:** When enhancing buttons with `aria-label` for assistive tech, always ensure the exact visible text is contiguously included within the `aria-label` string (e.g., `aria-label="Set Deps (dependencies) for job..."`) to support both screen readers and voice navigation software seamlessly.
+## 2026-10-28 - [Skip-To-Content Links for Keyboard Navigation]
+**Learning:** Found that keyboard users lack a way to bypass complex, repetitive filtering and layout controls at the top of the dashboard to quickly access the main dynamic data component (e.g., `#jobs-container`).
+**Action:** When designing dashboards or pages with extensive header filtering/controls, always add a visually hidden `skip-to-content` link (`a.skip-to-content:focus { top: 0; }`) directly inside the `<body>` that targets the main content wrapper. This satisfies WCAG 2.4.1 Bypass Blocks.
