@@ -155,3 +155,7 @@
 ## 2026-10-28 - [Skip-To-Content Links for Keyboard Navigation]
 **Learning:** Found that keyboard users lack a way to bypass complex, repetitive filtering and layout controls at the top of the dashboard to quickly access the main dynamic data component (e.g., `#jobs-container`).
 **Action:** When designing dashboards or pages with extensive header filtering/controls, always add a visually hidden `skip-to-content` link (`a.skip-to-content:focus { top: 0; }`) directly inside the `<body>` that targets the main content wrapper. This satisfies WCAG 2.4.1 Bypass Blocks.
+
+## 2024-05-23 - CSS Specificity of skip-link hidden states
+**Learning:** Found that when implementing a visually hidden `skip-to-content` link that becomes visible on focus (`:focus`), using inline styles (e.g., `style="top: -40px"`) or setting `top: -40px` directly in the base class overrides the `:focus` pseudo-class (e.g., `top: 0`) due to CSS specificity, preventing the link from appearing when focused.
+**Action:** When designing `skip-to-content` links, define both the hidden and focused states within the CSS class block using pseudo-classes (e.g., `:not(:focus-visible) { top: -40px; }` and `:focus-visible { top: 0; }`) to allow the focused state to take precedence properly.

@@ -81,7 +81,8 @@ const DashboardHTML = `
             .actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
         }
 
-        .skip-to-content { position: absolute; top: -40px; left: 0; background: #007bff; color: white; padding: 8px; z-index: 1000; transition: top 0.2s; text-decoration: none; }
+        .skip-to-content { position: absolute; left: 0; background: #007bff; color: white; padding: 8px; z-index: 1000; transition: top 0.2s; text-decoration: none; }
+        .skip-to-content:not(:focus) { top: -40px; }
         .skip-to-content:focus { top: 0; }
         .sr-only {
             position: absolute;
@@ -144,8 +145,8 @@ const DashboardHTML = `
                 <button type="button" aria-label="View Timeline" onclick="viewTimeline()" style="background-color: #fd7e14; color: #212529;">View Timeline</button>
                 <button type="button" aria-label="Export Trace" onclick="exportTrace(this)" style="background-color: #6c757d; color: #ffffff;">Export Trace</button>
                 <button type="button" aria-label="Export Pipeline" onclick="exportPipeline(this)" style="background-color: #6c757d; color: #ffffff;">Export Pipeline</button>
-                <button type="button" aria-label="Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8; color: #212529;">+ Submit Pipeline</button>
-                <button type="button" aria-label="Submit Job" onclick="document.getElementById('submitModal').style.display='block'; setTimeout(() => document.getElementById('job-summary').focus(), 10);" aria-keyshortcuts="s" style="background-color: #28a745; color: #212529;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button>
+                <button type="button" aria-label="+ Submit Pipeline" onclick="document.getElementById('submitPipelineModal').style.display='block'; setTimeout(() => document.getElementById('pipeline-yaml').focus(), 10);" style="background-color: #17a2b8; color: #212529;">+ Submit Pipeline</button>
+                <button type="button" aria-label="+ Submit Job" onclick="document.getElementById('submitModal').style.display='block'; setTimeout(() => document.getElementById('job-summary').focus(), 10);" aria-keyshortcuts="s" style="background-color: #28a745; color: #212529;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button>
             </div>
         </div>
 
@@ -1095,7 +1096,7 @@ const DashboardHTML = `
                 tbody.innerHTML = '';
 
                 if (jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="Submit Job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2em; color: #555;">No jobs found.<br><br><button type="button" aria-label="+ Submit Job" onclick="document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></td></tr>';
                     return;
                 }
 
@@ -1336,7 +1337,7 @@ const DashboardHTML = `
                 }
                 const graphText = await res.text();
                 if (!graphText.trim()) {
-                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
+                    graphDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="+ Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
                     return;
                 }
 
@@ -1368,7 +1369,7 @@ const DashboardHTML = `
                 }
                 const timelineText = await res.text();
                 if (!timelineText.trim() || timelineText.trim() === "gantt\n    title Job Execution Timeline") {
-                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
+                    timelineDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No jobs to display.</p><div style="margin-top: 15px;"><button type="button" aria-label="+ Submit Job" onclick="this.closest(\'.modal\').style.display=\'none\'; document.getElementById(\'submitModal\').style.display=\'block\'; setTimeout(() => document.getElementById(\'job-summary\').focus(), 10);" style="background-color: #28a745; color: #212529; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">+ Submit Job<kbd aria-hidden="true" class="shortcut-hint">S</kbd></button></div></div>';
                     return;
                 }
 

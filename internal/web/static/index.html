@@ -8,7 +8,6 @@
     <style>
         .skip-link {
             position: absolute;
-            top: -40px;
             left: 0;
             background: #0056b3;
             color: white;
@@ -16,6 +15,9 @@
             z-index: 100;
             text-decoration: none;
             transition: top 0.2s;
+        }
+        .skip-link:not(:focus-visible) {
+            top: -40px;
         }
         .skip-link:focus-visible {
             top: 0;
