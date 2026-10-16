@@ -159,3 +159,7 @@
 ## 2024-05-23 - CSS Specificity of skip-link hidden states
 **Learning:** Found that when implementing a visually hidden `skip-to-content` link that becomes visible on focus (`:focus`), using inline styles (e.g., `style="top: -40px"`) or setting `top: -40px` directly in the base class overrides the `:focus` pseudo-class (e.g., `top: 0`) due to CSS specificity, preventing the link from appearing when focused.
 **Action:** When designing `skip-to-content` links, define both the hidden and focused states within the CSS class block using pseudo-classes (e.g., `:not(:focus-visible) { top: -40px; }` and `:focus-visible { top: 0; }`) to allow the focused state to take precedence properly.
+
+## 2024-05-18 - Avoid redundant aria-labels
+**Learning:** Adding aria-labels that differ from the visible text can override the visible name, violating WCAG 2.5.3 (Label in Name) and breaking voice navigation. For instance, aria-label="Close modal" on a button with visible text "Close" should be fixed to "Close" to match the visible text, or removed if not providing additional context.
+**Action:** When adding aria-labels, ensure they exactly match or include the visible text. If the visible text is sufficient and clear, an aria-label might be unnecessary unless it provides essential additional context for screen reader users.
