@@ -152,7 +152,7 @@ const DashboardHTML = `
 
         <div id="submitPipelineModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="document.getElementById('submitPipelineModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="document.getElementById('submitPipelineModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Submit Pipeline (YAML)</h2>
                 <form onsubmit="submitPipeline(); return false;">
                     <div class="form-group">
@@ -173,7 +173,7 @@ const DashboardHTML = `
 
         <div id="timelineModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeTimeline()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeTimeline()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Execution Timeline</h2>
                 <div id="timelineDiv" tabindex="0" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading timeline...</span></div>
@@ -183,7 +183,7 @@ const DashboardHTML = `
 
         <div id="submitModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="document.getElementById('submitModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="document.getElementById('submitModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Submit Ad-hoc Job</h2>
                 <form onsubmit="submitAdHocJob(); return false;">
                     <div class="form-group">
@@ -239,7 +239,7 @@ const DashboardHTML = `
 
         <div id="editDepsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="document.getElementById('editDepsModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="document.getElementById('editDepsModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Edit Dependencies for <span id="edit-deps-job-id-display"></span></h2>
                 <form onsubmit="submitEditDeps(); return false;">
                     <input type="hidden" id="edit-deps-job-id">
@@ -254,7 +254,7 @@ const DashboardHTML = `
 
         <div id="envModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="document.getElementById('envModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="document.getElementById('envModal').style.display='none'"><span aria-hidden="true">&times;</span></button>
                 <h2>Environment Variables for <span id="env-job-id-display"></span></h2>
                 <form id="env-form" onsubmit="submitEnvVars(); return false;">
                     <input type="hidden" id="env-job-id">
@@ -269,7 +269,7 @@ const DashboardHTML = `
 
         <div id="logsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeLogs()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeLogs()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="logs-title">Job Logs</h2>
                 <pre id="logs-output" tabindex="0" aria-live="polite"></pre>
             </div>
@@ -277,7 +277,7 @@ const DashboardHTML = `
 
         <div id="explainModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeExplainModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeExplainModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="explain-title">Job Explanation</h2>
                 <div id="explain-content" tabindex="0" aria-live="polite" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd; max-height: 60vh; overflow-y: auto;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading explanation...</span></div>
@@ -287,7 +287,7 @@ const DashboardHTML = `
 
         <div id="reportModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeReportModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeReportModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 id="report-title" style="margin-bottom: 0;">Report</h2>
                 <div id="report-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-family: monospace;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading report...</span></div>
@@ -297,7 +297,7 @@ const DashboardHTML = `
 
         <div id="analyzeFailuresModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeFailuresModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeAnalyzeFailuresModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Failures</h2>
                 <div id="analyze-failures-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
@@ -307,7 +307,7 @@ const DashboardHTML = `
 
         <div id="analyzeDurationsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeDurationsModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeAnalyzeDurationsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Durations</h2>
                 <div id="analyze-durations-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
@@ -317,7 +317,7 @@ const DashboardHTML = `
 
         <div id="analyzeAnomaliesModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeAnomaliesModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeAnalyzeAnomaliesModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Anomalies</h2>
                 <div id="analyze-anomalies-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
@@ -327,7 +327,7 @@ const DashboardHTML = `
 
         <div id="analyzeCostsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeCostsModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeAnalyzeCostsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Costs</h2>
                 <div id="analyze-costs-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
@@ -337,7 +337,7 @@ const DashboardHTML = `
 
         <div id="analyzeAgentsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeAnalyzeAgentsModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeAnalyzeAgentsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Analyze Agents</h2>
                 <div id="analyze-agents-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
@@ -347,7 +347,7 @@ const DashboardHTML = `
 
         <div id="reliabilityModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeReliabilityModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeReliabilityModal()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Pipeline Reliability Report</h2>
                 <div id="reliability-content" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading analysis...</span></div>
@@ -357,7 +357,7 @@ const DashboardHTML = `
 
         <div id="searchLogsModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeSearchLogsModal()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeSearchLogsModal()"><span aria-hidden="true">&times;</span></button>
                 <h2>Search Logs</h2>
                 <form onsubmit="performSearchLogs(); return false;">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end;">
@@ -383,7 +383,7 @@ const DashboardHTML = `
                             <label for="search-logs-context" style="font-weight: normal; font-size: 0.9em; margin-bottom: 4px; display: block;">Context Lines</label>
                             <input type="number" id="search-logs-context" placeholder="Lines" min="0" value="0">
                         </div>
-                        <button type="submit" aria-label="Execute Search" id="btn-search-logs" style="background-color: #007bff; min-width: 100px; height: 35px; margin-bottom: 1px;">Search</button>
+                        <button type="submit" aria-label="Search" id="btn-search-logs" style="background-color: #007bff; min-width: 100px; height: 35px; margin-bottom: 1px;">Search</button>
                     </div>
                 </form>
                 <div id="search-logs-results" tabindex="0" aria-live="polite" style="max-height: 500px; overflow-y: auto; background: #222; color: #ddd; padding: 15px; border-radius: 4px; font-family: monospace; display: none;">
@@ -394,7 +394,7 @@ const DashboardHTML = `
 
         <div id="graphModal" class="modal" role="dialog" aria-modal="true">
             <div class="modal-content modal-large" style="width: 95%; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
-                <button type="button" class="close" aria-label="Close modal" title="Close (Esc)" onclick="closeGraph()"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" aria-label="Close" title="Close (Esc)" onclick="closeGraph()"><span aria-hidden="true">&times;</span></button>
                 <h2 style="margin-bottom: 0;">Dependency Graph</h2>
                 <div id="graphDiv" tabindex="0" aria-live="polite" style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3em; gap: 15px; color: #666;"><span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span><span style="font-size: 1.1em;">Loading graph...</span></div>
@@ -1311,7 +1311,7 @@ const DashboardHTML = `
                 if (data.explanation && data.explanation.trim() !== '') {
                     content.innerText = data.explanation;
                 } else {
-                    content.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No explanation provided.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close modal" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    content.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No explanation provided.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                 }
             } catch (err) {
                 content.innerText = 'Error: ' + err.message;
@@ -1536,7 +1536,7 @@ const DashboardHTML = `
                 if (data.changelog && data.changelog.trim() !== '') {
                     contentDiv.innerText = data.changelog;
                 } else {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No changelog generated.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close modal" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No changelog generated.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                 }
             } catch (err) {
                 console.error(err);
@@ -1571,7 +1571,7 @@ const DashboardHTML = `
                 if (data.postmortem && data.postmortem.trim() !== '') {
                     contentDiv.innerText = data.postmortem;
                 } else {
-                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No postmortem generated.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close modal" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    contentDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No postmortem generated.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                 }
             } catch (err) {
                 console.error(err);
@@ -1867,7 +1867,7 @@ const DashboardHTML = `
                         });
                         html += '</table>';
                     } else {
-                        html += '<div style="text-align: center; padding: 2em; color: #555;"><p>No flaky jobs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close modal" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                        html += '<div style="text-align: center; padding: 2em; color: #555;"><p>No flaky jobs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     }
 
                     html += '<h3 style="margin-top: 20px;">Top Failing Jobs (Failed completely)</h3>';
@@ -1882,7 +1882,7 @@ const DashboardHTML = `
                         });
                         html += '</table>';
                     } else {
-                        html += '<div style="text-align: center; padding: 2em; color: #555;"><p>No failing jobs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close modal" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                        html += '<div style="text-align: center; padding: 2em; color: #555;"><p>No failing jobs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     }
 
                     content.innerHTML = html;
@@ -1937,7 +1937,7 @@ const DashboardHTML = `
                 const results = await res.json();
 
                 if (!results || results.length === 0) {
-                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No matching logs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close modal" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 2em; color: #555;"><p>No matching logs found.</p><div style="margin-top: 15px;"><button type="button" aria-label="Close" onclick="this.closest(\'.modal\').style.display=\'none\'" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">Close<kbd aria-hidden="true" class="shortcut-hint">Esc</kbd></button></div></div>';
                     return;
                 }
 
