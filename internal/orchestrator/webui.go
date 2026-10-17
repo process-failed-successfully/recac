@@ -446,11 +446,11 @@ const DashboardHTML = `
                 <table id="jobs-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Summary</th>
-                            <th>Status</th>
-                            <th>Start Time</th>
-                            <th>Duration / Actions</th>
+                            <th scope="col">ID</th>
+                            <th scope="col">Summary</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Start Time</th>
+                            <th scope="col">Duration / Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1489,7 +1489,7 @@ const DashboardHTML = `
 
                 let html = '<p><strong>Total Failed Jobs:</strong> ' + jobs.length + '</p>';
                 html += '<table style="width: 100%; border-collapse: collapse;">';
-                html += '<thead><tr><th style="width: 10%;">Count</th><th style="width: 50%;">Error Signature (Summary)</th><th style="width: 40%;">Job IDs</th></tr></thead><tbody>';
+                html += '<thead><tr><th scope="col" style="width: 10%;">Count</th><th scope="col" style="width: 50%;">Error Signature (Summary)</th><th scope="col" style="width: 40%;">Job IDs</th></tr></thead><tbody>';
 
                 groups.forEach(g => {
                     let displayIDs = g.jobIDs.join(', ');
@@ -1499,7 +1499,7 @@ const DashboardHTML = `
 
                     html += '<tr>';
                     html += '<td style="vertical-align: top;">' + g.count + '</td>';
-                    html += '<td style="vertical-align: top;">' + escapeHTML(g.summary) + '</td>';
+                    html += '<th scope="row" style="vertical-align: top; background-color: inherit; font-weight: normal;">' + escapeHTML(g.summary) + '</th>';
                     html += '<td style="vertical-align: top;"><span title="' + escapeHTML(g.jobIDs.join(', ')) + '" style="cursor: help; text-decoration: underline dotted; text-underline-offset: 2px;">' + escapeHTML(displayIDs) + '</span></td>';
                     html += '</tr>';
                 });
@@ -1621,7 +1621,7 @@ const DashboardHTML = `
 
                 if (data.tag_stats && data.tag_stats.length > 0) {
                     html += '<h3 style="margin-top: 20px;">Average Duration by Tag</h3>';
-                    html += '<table><thead><tr><th>Tag</th><th>Count</th><th>Mean Duration (s)</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th scope="col">Tag</th><th scope="col">Count</th><th scope="col">Mean Duration (s)</th></tr></thead><tbody>';
                     data.tag_stats.forEach(ts => {
                         html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(ts.tag) + '</th><td>' + ts.count + '</td><td>' + (ts.mean_duration_ms / 1000).toFixed(2) + '</td></tr>';
                     });
@@ -1630,7 +1630,7 @@ const DashboardHTML = `
 
                 if (data.top_slowest && data.top_slowest.length > 0) {
                     html += '<h3 style="margin-top: 20px;">Top ' + data.top_slowest.length + ' Slowest Jobs</h3>';
-                    html += '<table><thead><tr><th>ID</th><th>Summary</th><th>Status</th><th>Duration (s)</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th scope="col">ID</th><th scope="col">Summary</th><th scope="col">Status</th><th scope="col">Duration (s)</th></tr></thead><tbody>';
                     data.top_slowest.forEach(job => {
                         const start = new Date(job.start_time).getTime();
                         const end = new Date(job.end_time).getTime();
@@ -1680,7 +1680,7 @@ const DashboardHTML = `
 
                 if (data.model_stats && data.model_stats.length > 0) {
                     html += '<h3 style="margin-top: 20px;">Cost by Model</h3>';
-                    html += '<table><thead><tr><th>Model</th><th>Count</th><th>Cost ($)</th><th>Tokens (Prompt)</th><th>Tokens (Completion)</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th scope="col">Model</th><th scope="col">Count</th><th scope="col">Cost ($)</th><th scope="col">Tokens (Prompt)</th><th scope="col">Tokens (Completion)</th></tr></thead><tbody>';
                     data.model_stats.forEach(ms => {
                         html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(ms.model) + '</th><td>' + ms.jobs_count + '</td><td>' + ms.cost.toFixed(4) + '</td><td>' + ms.tokens_prompt + '</td><td>' + ms.tokens_completion + '</td></tr>';
                     });
@@ -1689,7 +1689,7 @@ const DashboardHTML = `
 
                 if (data.tag_stats && data.tag_stats.length > 0) {
                     html += '<h3 style="margin-top: 20px;">Cost by Tag</h3>';
-                    html += '<table><thead><tr><th>Tag</th><th>Count</th><th>Cost ($)</th><th>Tokens (Prompt)</th><th>Tokens (Completion)</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th scope="col">Tag</th><th scope="col">Count</th><th scope="col">Cost ($)</th><th scope="col">Tokens (Prompt)</th><th scope="col">Tokens (Completion)</th></tr></thead><tbody>';
                     data.tag_stats.forEach(ts => {
                         html += '<tr><th scope="row" style="background-color: inherit; font-weight: normal;">' + escapeHTML(ts.tag) + '</th><td>' + ts.jobs_count + '</td><td>' + ts.cost.toFixed(4) + '</td><td>' + ts.tokens_prompt + '</td><td>' + ts.tokens_completion + '</td></tr>';
                     });
@@ -1698,7 +1698,7 @@ const DashboardHTML = `
 
                 if (data.top_expensive_jobs && data.top_expensive_jobs.length > 0) {
                     html += '<h3 style="margin-top: 20px;">Top ' + data.top_expensive_jobs.length + ' Expensive Jobs</h3>';
-                    html += '<table><thead><tr><th>ID</th><th>Summary</th><th>Model</th><th>Cost ($)</th></tr></thead><tbody>';
+                    html += '<table><thead><tr><th scope="col">ID</th><th scope="col">Summary</th><th scope="col">Model</th><th scope="col">Cost ($)</th></tr></thead><tbody>';
                     data.top_expensive_jobs.forEach(job => {
                         const cost = job.metrics && job.metrics.cost_usd ? job.metrics.cost_usd.toFixed(4) : "0.0000";
                         const model = job.agent_model || "unknown";
@@ -1742,7 +1742,7 @@ const DashboardHTML = `
 
                 let html = '<p><strong>Top Anomalies:</strong> ' + anomalies.length + '</p>';
                 html += '<table style="width: 100%; border-collapse: collapse;">';
-                html += '<thead><tr><th>Job ID</th><th>Model</th><th>Status</th><th>Duration</th><th>Cost</th><th>Dur Dev</th><th>Cost Dev</th></tr></thead><tbody>';
+                html += '<thead><tr><th scope="col">Job ID</th><th scope="col">Model</th><th scope="col">Status</th><th scope="col">Duration</th><th scope="col">Cost</th><th scope="col">Dur Dev</th><th scope="col">Cost Dev</th></tr></thead><tbody>';
 
                 anomalies.forEach(a => {
                     let durDevStr = a.duration_dev ? a.duration_dev.toFixed(2) + 'σ' : '-';
@@ -1799,7 +1799,7 @@ const DashboardHTML = `
 
                 let html = '<p><strong>Top Agents:</strong> ' + data.agents.length + '</p>';
                 html += '<table style="width: 100%; border-collapse: collapse;">';
-                html += '<thead><tr><th>Provider</th><th>Model</th><th>Total Jobs</th><th>Success %</th><th>Avg Duration</th><th>Avg Cost</th><th>Total Cost</th></tr></thead><tbody>';
+                html += '<thead><tr><th scope="col">Provider</th><th scope="col">Model</th><th scope="col">Total Jobs</th><th scope="col">Success %</th><th scope="col">Avg Duration</th><th scope="col">Avg Cost</th><th scope="col">Total Cost</th></tr></thead><tbody>';
 
                 data.agents.forEach(a => {
                     let successPct = (a.success_rate * 100).toFixed(1) + '%';
@@ -1856,7 +1856,7 @@ const DashboardHTML = `
                     html += '<h3>Top Flaky Jobs (Succeeded eventually with retries)</h3>';
                     if (data.top_flaky_jobs && data.top_flaky_jobs.length > 0) {
                         html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-                        html += '<tr><th style="border: 1px solid #ccc; padding: 8px;">Summary</th><th style="border: 1px solid #ccc; padding: 8px;">Occurrences</th><th style="border: 1px solid #ccc; padding: 8px;">Total Retries</th><th style="border: 1px solid #ccc; padding: 8px;">Avg Retries</th></tr>';
+                        html += '<tr><th scope="col" style="border: 1px solid #ccc; padding: 8px;">Summary</th><th scope="col" style="border: 1px solid #ccc; padding: 8px;">Occurrences</th><th scope="col" style="border: 1px solid #ccc; padding: 8px;">Total Retries</th><th scope="col" style="border: 1px solid #ccc; padding: 8px;">Avg Retries</th></tr>';
                         data.top_flaky_jobs.forEach(stat => {
                             html += '<tr>' +
                                 '<th scope="row" style="background-color: inherit; font-weight: normal; border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</th>' +
@@ -1873,7 +1873,7 @@ const DashboardHTML = `
                     html += '<h3 style="margin-top: 20px;">Top Failing Jobs (Failed completely)</h3>';
                     if (data.top_failing_jobs && data.top_failing_jobs.length > 0) {
                         html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-                        html += '<tr><th style="border: 1px solid #ccc; padding: 8px;">Summary</th><th style="border: 1px solid #ccc; padding: 8px;">Occurrences</th></tr>';
+                        html += '<tr><th scope="col" style="border: 1px solid #ccc; padding: 8px;">Summary</th><th scope="col" style="border: 1px solid #ccc; padding: 8px;">Occurrences</th></tr>';
                         data.top_failing_jobs.forEach(stat => {
                             html += '<tr>' +
                                 '<th scope="row" style="background-color: inherit; font-weight: normal; border: 1px solid #ccc; padding: 8px;">' + escapeHTML(stat.summary) + '</th>' +

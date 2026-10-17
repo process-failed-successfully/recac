@@ -163,3 +163,6 @@
 ## 2024-05-18 - Avoid redundant aria-labels
 **Learning:** Adding aria-labels that differ from the visible text can override the visible name, violating WCAG 2.5.3 (Label in Name) and breaking voice navigation. For instance, aria-label="Close modal" on a button with visible text "Close" should be fixed to "Close" to match the visible text, or removed if not providing additional context.
 **Action:** When adding aria-labels, ensure they exactly match or include the visible text. If the visible text is sufficient and clear, an aria-label might be unnecessary unless it provides essential additional context for screen reader users.
+## 2026-10-17 - Add table cell scopes for screen readers
+**Learning:** Screen readers often struggle to interpret complex dynamic tables if column and row headers aren't explicitly scoped. `<td>` elements in primary identifier columns do not provide adequate horizontal context when navigating row data.
+**Action:** Always add `scope="col"` to `<th>` tags in the `<thead>`, and use `<th scope="row">` instead of `<td>` for the primary identifier column in the table `<tbody>`. Maintain visual parity by applying `background-color: inherit; font-weight: normal;` to the `<th scope="row">` tags if they are meant to look like standard data cells.
