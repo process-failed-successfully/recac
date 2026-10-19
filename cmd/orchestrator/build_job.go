@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"recac/internal/utils"
 )
 
 func buildJobInteractive(host string, wait bool) {
@@ -39,26 +40,10 @@ func buildJobInteractive(host string, wait bool) {
 	}
 
 	dependsOnStr := prompt("Enter Dependencies (comma-separated job IDs, optional): ", false)
-	var dependsOn []string
-	if dependsOnStr != "" {
-		for _, dep := range strings.Split(dependsOnStr, ",") {
-			depTrim := strings.TrimSpace(dep)
-			if depTrim != "" {
-				dependsOn = append(dependsOn, depTrim)
-			}
-		}
-	}
+	dependsOn := utils.ParseCommaSeparated(dependsOnStr)
 
 	tagsStr := prompt("Enter Tags (comma-separated, optional): ", false)
-	var tags []string
-	if tagsStr != "" {
-		for _, tag := range strings.Split(tagsStr, ",") {
-			tagTrim := strings.TrimSpace(tag)
-			if tagTrim != "" {
-				tags = append(tags, tagTrim)
-			}
-		}
-	}
+	tags := utils.ParseCommaSeparated(tagsStr)
 
 	concurrencyGroup := prompt("Enter Concurrency Group (optional): ", false)
 

@@ -11,20 +11,21 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"recac/internal/orchestrator"
+	"recac/internal/utils"
 )
 
 // compareJobs fetches two jobs from the orchestrator and renders a side-by-side comparison table.
 func compareJobs(host, jobsStr string) {
 	// Parse jobsStr
-	parts := strings.Split(jobsStr, ",")
+	parts := utils.ParseCommaSeparated(jobsStr)
 	if len(parts) != 2 {
 		fmt.Fprintf(stdout, "Error: --compare-jobs expects exactly two job IDs separated by a comma (e.g., job1,job2)\n")
 		exitFunc(1)
 		return
 	}
 
-	id1 := strings.TrimSpace(parts[0])
-	id2 := strings.TrimSpace(parts[1])
+	id1 := parts[0]
+	id2 := parts[1]
 
 	if id1 == "" || id2 == "" {
 		fmt.Fprintf(stdout, "Error: Job IDs cannot be empty\n")
