@@ -23,9 +23,9 @@ import (
 	"recac/internal/notify"
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
-	"recac/internal/utils"
 	"recac/internal/telemetry"
 	"recac/internal/tui"
+	"recac/internal/utils"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/joho/godotenv"

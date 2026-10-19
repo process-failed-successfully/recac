@@ -9,19 +9,19 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"recac/internal/orchestrator"
-	"recac/internal/utils"
 )
 
 func comparePipelines(pipelineFilesStr string) {
-	parts := utils.ParseCommaSeparated(pipelineFilesStr)
+	// Use strings.Split to preserve exactly two parts even if empty.
+	parts := strings.Split(pipelineFilesStr, ",")
 	if len(parts) != 2 {
 		fmt.Fprintf(stdout, "Error: --compare-pipelines expects exactly two pipeline YAML files separated by a comma (e.g., p1.yaml,p2.yaml)\n")
 		exitFunc(1)
 		return
 	}
 
-	file1 := parts[0]
-	file2 := parts[1]
+	file1 := strings.TrimSpace(parts[0])
+	file2 := strings.TrimSpace(parts[1])
 
 	if file1 == "" || file2 == "" {
 		fmt.Fprintf(stdout, "Error: Pipeline file paths cannot be empty\n")
