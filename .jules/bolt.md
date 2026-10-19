@@ -181,3 +181,6 @@
 ## 2026-10-10 - Avoid strings.Split in file line parsing
 **Learning:** Using `strings.Split(string(data), "\n")` to parse lines from a file creates a large, unnecessary string slice allocation which causes overhead and GC pressure.
 **Action:** Replace `strings.Split` with a zero-allocation string iteration using `strings.IndexByte(strData, '\n')` to extract each line directly as a substring.
+## 2023-10-24 - [Avoid slice allocations when parsing comma-separated strings]
+**Learning:** When parsing comma-separated strings (like tags, dependencies, list of items) in performance-sensitive areas, avoid using `strings.Split()`. `strings.Split()` inherently allocates a new slice of strings. If the comma-separated strings might contain empty items or whitespace, an extra pass is often used to sanitize the results. The codebase provides `utils.ParseCommaSeparated(s)` which parses comma-separated strings, trimming spaces and ignoring empty elements without allocating intermediate slices like `strings.Split()` does.
+**Action:** Use `utils.ParseCommaSeparated(s)` instead of `strings.Split()` and manual trimming/filtering whenever parsing comma-separated strings.

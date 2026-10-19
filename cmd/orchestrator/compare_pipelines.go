@@ -12,6 +12,7 @@ import (
 )
 
 func comparePipelines(pipelineFilesStr string) {
+	// Use strings.Split to preserve exactly two parts even if empty.
 	parts := strings.Split(pipelineFilesStr, ",")
 	if len(parts) != 2 {
 		fmt.Fprintf(stdout, "Error: --compare-pipelines expects exactly two pipeline YAML files separated by a comma (e.g., p1.yaml,p2.yaml)\n")

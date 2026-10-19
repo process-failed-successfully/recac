@@ -15,7 +15,7 @@ import (
 
 // compareJobs fetches two jobs from the orchestrator and renders a side-by-side comparison table.
 func compareJobs(host, jobsStr string) {
-	// Parse jobsStr
+	// Parse jobsStr. Use strings.Split to preserve exactly two parts even if empty.
 	parts := strings.Split(jobsStr, ",")
 	if len(parts) != 2 {
 		fmt.Fprintf(stdout, "Error: --compare-jobs expects exactly two job IDs separated by a comma (e.g., job1,job2)\n")

@@ -1061,13 +1061,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	if waitJobsStr := viper.GetString("orchestrator.wait_jobs"); waitJobsStr != "" {
 		host := viper.GetString("orchestrator.host")
-		var jobIDs []string
-		for _, id := range strings.Split(waitJobsStr, ",") {
-			trimmed := strings.TrimSpace(id)
-			if trimmed != "" {
-				jobIDs = append(jobIDs, trimmed)
-			}
-		}
+		jobIDs := utils.ParseCommaSeparated(waitJobsStr)
 
 		if len(jobIDs) > 0 {
 			if err := waitForJobs(host, jobIDs, stdout); err != nil {
@@ -2750,11 +2744,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			for _, item := range matrixInline {
 				// ⚡ Bolt: Avoid strings.SplitN allocation by using IndexByte and string slicing
 				if idx := strings.IndexByte(item, '='); idx != -1 {
-					vals := strings.Split(item[idx+1:], ",")
-					for i := range vals {
-						vals[i] = strings.TrimSpace(vals[i])
-					}
-					matrixMap[strings.TrimSpace(item[:idx])] = vals
+					matrixMap[strings.TrimSpace(item[:idx])] = utils.ParseCommaSeparated(item[idx+1:])
 				} else {
 					logger.Warn("Invalid inline matrix format", "input", item)
 				}
