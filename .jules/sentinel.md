@@ -40,3 +40,7 @@
 **Vulnerability:** Pre-flight git commands in `internal/workflow/workflow.go` (e.g., `git rev-parse`, `git status`) were executed via `exec.Command` without an explicit `cmd.Env` configuration.
 **Learning:** When `cmd.Env` is omitted, the subprocess inherits `os.Environ()` by default. This leaks sensitive orchestrator credentials (e.g., database URLs, webhook secrets) to external processes and any hooks they might trigger, increasing the risk of exposure.
 **Prevention:** Always explicitly define `cmd.Env` with a sanitized allowlist (e.g., `utils.GetSafeEnv()`) when executing system subprocesses.
+## 2026-10-31 - Prevent environment variable leakage to editor subprocesses
+**Vulnerability:** The submission flow in `cmd/orchestrator/submission.go` spawned an interactive editor (e.g., `vim`, `nano`) via `exec.Command` without an explicit `cmd.Env` configuration, defaulting to `os.Environ()`.
+**Learning:** While inheriting `os.Environ()` is generally expected for local tools, it is safer to use a standardized safe environment allowlist to prevent accidental leakage of sensitive orchestrator environment variables (like API keys) to the editor or any of its spawned plugins.
+**Prevention:** Always explicitly define `cmd.Env` using `utils.GetSafeEnv()` for system commands executed via `exec.Command`, even for interactive tools like user editors, to adhere to defense-in-depth principles.
