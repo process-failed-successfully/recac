@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"recac/internal/orchestrator"
+	"recac/internal/utils"
 
 	"github.com/google/uuid"
 	"github.com/kballard/go-shellquote"
@@ -311,6 +312,7 @@ func submitPipelineInteractiveJob(host, filePath string, wait bool, dryRun bool,
 	}
 	args = append(args, tmpFile.Name())
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
@@ -2232,6 +2234,7 @@ func editJobInteractive(host, jobID string, requirePending bool) (*orchestrator.
 	}
 	args = append(args, tmpFile.Name())
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
