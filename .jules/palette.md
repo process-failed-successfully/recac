@@ -166,3 +166,7 @@
 ## 2026-10-17 - Add table cell scopes for screen readers
 **Learning:** Screen readers often struggle to interpret complex dynamic tables if column and row headers aren't explicitly scoped. `<td>` elements in primary identifier columns do not provide adequate horizontal context when navigating row data.
 **Action:** Always add `scope="col"` to `<th>` tags in the `<thead>`, and use `<th scope="row">` instead of `<td>` for the primary identifier column in the table `<tbody>`. Maintain visual parity by applying `background-color: inherit; font-weight: normal;` to the `<th scope="row">` tags if they are meant to look like standard data cells.
+
+## 2026-10-29 - [Visual Prominence of Loading States]
+**Learning:** Found that inline loading states (e.g., `<span class="spinner"></span>Loading...`) lacked the visual prominence and layout consistency of surrounding empty/error states when displayed in prominent areas like empty tables or graph containers.
+**Action:** When creating structured loading state components within `.empty-message` containers, apply the `state-icon` class to the `.spinner` element and wrap the loading text in `<strong>` tags to match the visual prominence and alignment of existing empty and error states.

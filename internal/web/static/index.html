@@ -176,7 +176,7 @@
         <section class="section" aria-labelledby="graph-heading">
             <h2 id="graph-heading">Task Dependency Graph</h2>
             <div id="graph" class="mermaid" tabindex="0" role="region" aria-label="Task Dependency Graph">
-                <div class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading graph...</div>
+                <div class="empty-message"><span class="spinner state-icon" aria-hidden="true"></span><strong>Loading graph...</strong></div>
             </div>
         </section>
 
@@ -193,7 +193,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>
+                        <tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner state-icon" aria-hidden="true"></span><strong>Loading features...</strong></div></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -228,13 +228,13 @@
 
                 // If it's already empty or has an error, show the spinner immediately
                 if (graphEl.querySelector('.empty-message') || graphEl.querySelector('.error-message') || graphEl.children.length === 0) {
-                    graphEl.innerHTML = '<div class="empty-message"><span class="spinner" aria-hidden="true"></span>Loading graph...</div>';
+                    graphEl.innerHTML = '<div class="empty-message"><span class="spinner state-icon" aria-hidden="true"></span><strong>Loading graph...</strong></div>';
                 } else {
                     graphEl.classList.add('is-updating');
                 }
 
                 if (tbody.querySelector('.empty-message') || tbody.querySelector('.error-message') || tbody.children.length === 0) {
-                    tbody.innerHTML = '<tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner" aria-hidden="true"></span>Loading features...</div></td></tr>';
+                    tbody.innerHTML = '<tr class="message-row"><td colspan="4" class="table-message-cell"><div class="empty-message table-message-block"><span class="spinner state-icon" aria-hidden="true"></span><strong>Loading features...</strong></div></td></tr>';
                 } else {
                     tbody.classList.add('is-updating');
                 }
