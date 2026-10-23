@@ -170,3 +170,6 @@
 ## 2026-10-29 - [Visual Prominence of Loading States]
 **Learning:** Found that inline loading states (e.g., `<span class="spinner"></span>Loading...`) lacked the visual prominence and layout consistency of surrounding empty/error states when displayed in prominent areas like empty tables or graph containers.
 **Action:** When creating structured loading state components within `.empty-message` containers, apply the `state-icon` class to the `.spinner` element and wrap the loading text in `<strong>` tags to match the visual prominence and alignment of existing empty and error states.
+## 2024-11-20 - Upgrading static text loading states to styled layout
+**Learning:** Found multiple loading placeholders that were plain inline text blocks which look unstructured and can cause layout shifts. Found the correct styled component with `.empty-message` containing a spinner and bold text for consistent active states across dynamic injection contexts (modals, empty tables).
+**Action:** Upgraded `renderLoading` function and all associated hardcoded plain-text innerHTML loading injections in `webui.go` and `index.html` to consistently use the structured `.empty-message` component.
