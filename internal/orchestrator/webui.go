@@ -406,18 +406,18 @@ const DashboardHTML = `
             <div class="card" id="status-card">
                 <h2>Status</h2>
                 <div id="status-content" aria-live="polite">
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2em; gap: 10px; color: #666;">
-                        <span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 24px; height: 24px; border-width: 2px;"></span>
-                        <span>Loading status...</span>
+                    <div class="empty-message">
+                        <span class="spinner state-icon" aria-hidden="true"></span>
+                        <strong>Loading status...</strong>
                     </div>
                 </div>
             </div>
             <div class="card" id="analytics-card">
                 <h2>Analytics</h2>
                 <div id="analytics-content" aria-live="polite">
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2em; gap: 10px; color: #666;">
-                        <span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 24px; height: 24px; border-width: 2px;"></span>
-                        <span>Loading analytics...</span>
+                    <div class="empty-message">
+                        <span class="spinner state-icon" aria-hidden="true"></span>
+                        <strong>Loading analytics...</strong>
                     </div>
                 </div>
             </div>
@@ -456,9 +456,9 @@ const DashboardHTML = `
                     <tbody>
                         <tr>
                             <td colspan="5" style="text-align: center; padding: 3em;">
-                                <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 10px; color: #666;">
-                                    <span class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #007bff; width: 30px; height: 30px; border-width: 3px;"></span>
-                                    <span>Loading jobs...</span>
+                                <div class="empty-message">
+                                    <span class="spinner state-icon" aria-hidden="true"></span>
+                                    <strong>Loading jobs...</strong>
                                 </div>
                             </td>
                         </tr>

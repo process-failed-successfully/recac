@@ -173,3 +173,6 @@
 ## 2024-11-20 - Upgrading static text loading states to styled layout
 **Learning:** Found multiple loading placeholders that were plain inline text blocks which look unstructured and can cause layout shifts. Found the correct styled component with `.empty-message` containing a spinner and bold text for consistent active states across dynamic injection contexts (modals, empty tables).
 **Action:** Upgraded `renderLoading` function and all associated hardcoded plain-text innerHTML loading injections in `webui.go` and `index.html` to consistently use the structured `.empty-message` component.
+## 2023-10-25 - Structure plain text loading states
+**Learning:** Some async plain-text loading states in the orchestrator web UI (`Loading status...`, `Loading analytics...`, `Loading jobs...`) lacked visual structure and active feedback, using inline styles instead of the established `empty-message` structure.
+**Action:** Always wrap plain-text loading states in a structural `<div class="empty-message">` and use `<span class="spinner state-icon"></span>` along with `<strong>` for the label to maintain visual consistency with error and empty states across the application.
