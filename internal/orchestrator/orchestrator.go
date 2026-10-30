@@ -11,12 +11,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"recac/internal/utils"
 	"time"
 )
 
@@ -4097,22 +4097,23 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 		return nil
 	}
 
-	if item.Hold {
+	// Helper function for creating jobs and cancelling concurrent jobs
+	handlePendingState := func(status, eventName, logMsg string, approved bool) error {
 		job := JobInfo{
 			ID:         item.ID,
 			Summary:    item.Summary,
 			StartTime:  time.Now(),
-			Status:     "Pending",
+			Status:     status,
 			WorkItem:   item,
 			RetryCount: retryCount,
-			Approved:   bypassApproval,
+			Approved:   approved,
 		}
 		o.pendingJobs[item.ID] = job
 		o.mu.Unlock()
 
 		if len(jobsToCancel) > 0 {
 			if logger != nil {
-				logger.Info("Canceling existing jobs in concurrency group for held job", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
+				logger.Info("Canceling existing jobs in concurrency group for "+strings.ToLower(logMsg), "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
 			}
 			for _, cancelID := range jobsToCancel {
 				if err := o.CancelJob(ctx, cancelID); err != nil {
@@ -4123,11 +4124,15 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 			}
 		}
 
-		o.BroadcastEvent("job_held", job)
+		o.BroadcastEvent(eventName, job)
 		if logger != nil {
-			logger.Info("Job held upon submission", "id", item.ID)
+			logger.Info(logMsg, "id", item.ID)
 		}
 		return nil
+	}
+
+	if item.Hold {
+		return handlePendingState("Pending", "job_held", "Job held upon submission", bypassApproval)
 	}
 
 	requireApproval := o.RequireApproval
@@ -4136,36 +4141,7 @@ func (o *Orchestrator) processWorkItemInternal(ctx context.Context, item WorkIte
 	}
 
 	if requireApproval && !bypassApproval {
-		job := JobInfo{
-			ID:         item.ID,
-			Summary:    item.Summary,
-			StartTime:  time.Now(),
-			Status:     "Pending Approval",
-			WorkItem:   item,
-			RetryCount: retryCount,
-			Approved:   false,
-		}
-		o.pendingJobs[item.ID] = job
-		o.mu.Unlock()
-
-		if len(jobsToCancel) > 0 {
-			if logger != nil {
-				logger.Info("Canceling existing jobs in concurrency group for pending approval job", "group", item.ConcurrencyGroup, "jobs", jobsToCancel)
-			}
-			for _, cancelID := range jobsToCancel {
-				if err := o.CancelJob(ctx, cancelID); err != nil {
-					if logger != nil {
-						logger.Warn("Failed to cancel job in concurrency group", "jobID", cancelID, "error", err)
-					}
-				}
-			}
-		}
-
-		o.BroadcastEvent("job_pending_approval", job)
-		if logger != nil {
-			logger.Info("Job pending approval", "id", item.ID)
-		}
-		return nil
+		return handlePendingState("Pending Approval", "job_pending_approval", "Job pending approval", false)
 	}
 
 	var depOutputs map[string]string
