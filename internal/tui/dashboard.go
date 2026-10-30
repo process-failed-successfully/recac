@@ -3540,9 +3540,9 @@ func purgeJobCmd(host, id string) tea.Cmd {
 	}
 }
 
-func holdJobCmd(host, id string) tea.Cmd {
+func doActionCmd(host, id, action, message string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/hold", nil)
+		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/"+action, nil)
 		if err != nil {
 			return actionMsg{Err: err}
 		}
@@ -3555,84 +3555,28 @@ func holdJobCmd(host, id string) tea.Cmd {
 		if resp.StatusCode != http.StatusOK {
 			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
 		}
-		return actionMsg{Message: "Held"}
+		return actionMsg{Message: message}
 	}
+}
+
+func holdJobCmd(host, id string) tea.Cmd {
+	return doActionCmd(host, id, "hold", "Held")
 }
 
 func unholdJobCmd(host, id string) tea.Cmd {
-	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/unhold", nil)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
-		}
-		return actionMsg{Message: "Unheld"}
-	}
+	return doActionCmd(host, id, "unhold", "Unheld")
 }
 
 func forceCompleteJobCmd(host, id string) tea.Cmd {
-	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/force-complete", nil)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
-		}
-		return actionMsg{Message: "Force Completed"}
-	}
+	return doActionCmd(host, id, "force-complete", "Force Completed")
 }
 
 func skipJobCmd(host, id string) tea.Cmd {
-	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/skip", nil)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
-		}
-		return actionMsg{Message: "Skipped"}
-	}
+	return doActionCmd(host, id, "skip", "Skipped")
 }
 
 func skipJobDownstreamCmd(host, id string) tea.Cmd {
-	return func() tea.Msg {
-		req, err := http.NewRequest(http.MethodPost, host+"/jobs/"+id+"/skip?downstream=true", nil)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return actionMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
-		}
-		return actionMsg{Message: "Skipped (Downstream)"}
-	}
+	return doActionCmd(host, id, "skip?downstream=true", "Skipped (Downstream)")
 }
 
 func cancelJob(host, id string) tea.Cmd {
@@ -5173,128 +5117,71 @@ func cleanAllCmd(host string) tea.Cmd {
 	}
 }
 
-func fetchAnalyzeDurationsCmd(host string) tea.Cmd {
+func fetchAnalyzeCmd[T any](host, path string, wrapper func(error, *T) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/durations", host))
+		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/%s", host, path))
 		if err != nil {
-			return analyzeDurationsMsg{Err: err}
+			return wrapper(err, nil)
 		}
 
 		q := u.Query()
-		q.Set("limit", "10") // Default limit to match CLI/WebUI
+		q.Set("limit", "10")
 		u.RawQuery = q.Encode()
 
 		resp, err := http.Get(u.String())
 		if err != nil {
-			return analyzeDurationsMsg{Err: err}
+			return wrapper(err, nil)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			return analyzeDurationsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+			return wrapper(fmt.Errorf("status %d: %s", resp.StatusCode, string(body)), nil)
 		}
 
-		var stats DurationStats
+		var stats T
 		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+			return wrapper(err, nil)
+		}
+
+		return wrapper(nil, &stats)
+	}
+}
+
+func fetchAnalyzeDurationsCmd(host string) tea.Cmd {
+	return fetchAnalyzeCmd(host, "durations", func(err error, stats *DurationStats) tea.Msg {
+		if err != nil {
 			return analyzeDurationsMsg{Err: err}
 		}
-
-		return analyzeDurationsMsg{Stats: stats}
-	}
+		return analyzeDurationsMsg{Stats: *stats}
+	})
 }
 
 func fetchAnalyzeReliabilityCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/reliability", host))
+	return fetchAnalyzeCmd(host, "reliability", func(err error, stats *ReliabilityStats) tea.Msg {
 		if err != nil {
 			return analyzeReliabilityMsg{Err: err}
 		}
-
-		q := u.Query()
-		q.Set("limit", "10") // Default limit
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeReliabilityMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeReliabilityMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats ReliabilityStats
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeReliabilityMsg{Err: err}
-		}
-
-		return analyzeReliabilityMsg{Stats: stats}
-	}
+		return analyzeReliabilityMsg{Stats: *stats}
+	})
 }
 
 func fetchAnalyzeCostsCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/costs", host))
+	return fetchAnalyzeCmd(host, "costs", func(err error, stats *CostStatsResponse) tea.Msg {
 		if err != nil {
 			return analyzeCostsMsg{Err: err}
 		}
-
-		q := u.Query()
-		q.Set("limit", "10")
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeCostsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeCostsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats CostStatsResponse
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeCostsMsg{Err: err}
-		}
-
-		return analyzeCostsMsg{Stats: stats}
-	}
+		return analyzeCostsMsg{Stats: *stats}
+	})
 }
 
 func fetchAnalyzeAgentsCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/agents", host))
+	return fetchAnalyzeCmd(host, "agents", func(err error, stats *AgentStatsResponse) tea.Msg {
 		if err != nil {
 			return analyzeAgentsMsg{Err: err}
 		}
-
-		q := u.Query()
-		q.Set("limit", "10")
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeAgentsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeAgentsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats AgentStatsResponse
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeAgentsMsg{Err: err}
-		}
-
-		return analyzeAgentsMsg{Stats: stats}
-	}
+		return analyzeAgentsMsg{Stats: *stats}
+	})
 }
 
 func fetchSimulateCmd(host string) tea.Cmd {
