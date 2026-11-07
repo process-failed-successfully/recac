@@ -4455,48 +4455,41 @@ func renderTags(tags []TagInfo) string {
 	return sb.String()
 }
 
-func fetchBlockersCmd(host, id string) tea.Cmd {
+func fetchCmd[T any](url string, msgConstructor func(T, error) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := http.Get(host + "/jobs/" + id + "/blockers")
+		resp, err := http.Get(url)
 		if err != nil {
-			return blockersMsg{Err: err}
+			var zero T
+			return msgConstructor(zero, err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			return blockersMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+			var zero T
+			return msgConstructor(zero, fmt.Errorf("status %d: %s", resp.StatusCode, string(body)))
 		}
 
-		var jobs []orchestrator.JobInfo
-		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
-			return blockersMsg{Err: err}
+		var result T
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			var zero T
+			return msgConstructor(zero, err)
 		}
 
-		return blockersMsg{Jobs: jobs, JobID: id}
+		return msgConstructor(result, nil)
 	}
 }
 
+func fetchBlockersCmd(host, id string) tea.Cmd {
+	return fetchCmd[[]orchestrator.JobInfo](host+"/jobs/"+id+"/blockers", func(jobs []orchestrator.JobInfo, err error) tea.Msg {
+		return blockersMsg{Jobs: jobs, JobID: id, Err: err}
+	})
+}
+
 func fetchSummaryCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/jobs/summary", host))
-		if err != nil {
-			return summaryMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return summaryMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var summary map[string]int
-		if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
-			return summaryMsg{Err: err}
-		}
-
-		return summaryMsg{Summary: summary}
-	}
+	return fetchCmd[map[string]int](fmt.Sprintf("%s/jobs/summary", host), func(summary map[string]int, err error) tea.Msg {
+		return summaryMsg{Summary: summary, Err: err}
+	})
 }
 
 func renderSummary(summary map[string]int) string {
@@ -4561,111 +4554,48 @@ func renderSummary(summary map[string]int) string {
 }
 
 func fetchTagsCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/tags", host))
-		if err != nil {
-			return tagsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return tagsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var tags []TagInfo
-		if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-			return tagsMsg{Err: err}
-		}
-
-		return tagsMsg{Tags: tags}
-	}
+	return fetchCmd[[]TagInfo](fmt.Sprintf("%s/tags", host), func(tags []TagInfo, err error) tea.Msg {
+		return tagsMsg{Tags: tags, Err: err}
+	})
 }
 
 func fetchDependentsCmd(host, id string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := http.Get(host + "/jobs/" + id + "/dependents")
-		if err != nil {
-			return dependentsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return dependentsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var jobs []orchestrator.JobInfo
-		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
-			return dependentsMsg{Err: err}
-		}
-
-		return dependentsMsg{Jobs: jobs, JobID: id}
-	}
+	return fetchCmd[[]orchestrator.JobInfo](host+"/jobs/"+id+"/dependents", func(jobs []orchestrator.JobInfo, err error) tea.Msg {
+		return dependentsMsg{Jobs: jobs, JobID: id, Err: err}
+	})
 }
 
 func fetchAnalyzeFailuresCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
-		if err != nil {
-			return analyzeFailuresMsg{Err: err}
-		}
-
-		q := u.Query()
-		q.Set("state", "all")
-		q.Set("status", "Failed")
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeFailuresMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeFailuresMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var jobs []orchestrator.JobInfo
-		if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
-			return analyzeFailuresMsg{Err: err}
-		}
-
-		return analyzeFailuresMsg{FailedJobs: jobs}
+	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+	if err != nil {
+		return func() tea.Msg { return analyzeFailuresMsg{Err: err} }
 	}
+	q := u.Query()
+	q.Set("state", "all")
+	q.Set("status", "Failed")
+	u.RawQuery = q.Encode()
+
+	return fetchCmd[[]orchestrator.JobInfo](u.String(), func(jobs []orchestrator.JobInfo, err error) tea.Msg {
+		return analyzeFailuresMsg{FailedJobs: jobs, Err: err}
+	})
 }
 
 func fetchCriticalPathCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
-		if err != nil {
-			return criticalPathMsg{Err: err}
-		}
-
-		q := u.Query()
-		q.Set("state", "all")
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return criticalPathMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return criticalPathMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var allJobs []orchestrator.JobInfo
-		if err := json.NewDecoder(resp.Body).Decode(&allJobs); err != nil {
-			return criticalPathMsg{Err: err}
-		}
-
-		path, totalDur := orchestrator.CalculateCriticalPath(allJobs)
-		return criticalPathMsg{Path: path, TotalDuration: totalDur}
+	u, err := url.Parse(fmt.Sprintf("%s/jobs", host))
+	if err != nil {
+		return func() tea.Msg { return criticalPathMsg{Err: err} }
 	}
+	q := u.Query()
+	q.Set("state", "all")
+	u.RawQuery = q.Encode()
+
+	return fetchCmd[[]orchestrator.JobInfo](u.String(), func(allJobs []orchestrator.JobInfo, err error) tea.Msg {
+		if err != nil {
+			return criticalPathMsg{Err: err}
+		}
+		path, totalDur := orchestrator.CalculateCriticalPath(allJobs)
+		return criticalPathMsg{Path: path, TotalDuration: totalDur, Err: err}
+	})
 }
 
 func renderCriticalPath(path []orchestrator.JobInfo, totalDur time.Duration) string {
@@ -4799,25 +4729,9 @@ func renderAnalyzeFailures(jobs []orchestrator.JobInfo) string {
 }
 
 func fetchAnalytics(host string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := http.Get(host + "/analytics")
-		if err != nil {
-			return analyticsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyticsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var analytics orchestrator.Analytics
-		if err := json.NewDecoder(resp.Body).Decode(&analytics); err != nil {
-			return analyticsMsg{Err: err}
-		}
-
-		return analyticsMsg{Analytics: analytics}
-	}
+	return fetchCmd[orchestrator.Analytics](host+"/analytics", func(analytics orchestrator.Analytics, err error) tea.Msg {
+		return analyticsMsg{Analytics: analytics, Err: err}
+	})
 }
 
 func renderAnalytics(a orchestrator.Analytics) string {
@@ -5174,148 +5088,68 @@ func cleanAllCmd(host string) tea.Cmd {
 }
 
 func fetchAnalyzeDurationsCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/durations", host))
-		if err != nil {
-			return analyzeDurationsMsg{Err: err}
-		}
-
-		q := u.Query()
-		q.Set("limit", "10") // Default limit to match CLI/WebUI
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeDurationsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeDurationsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats DurationStats
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeDurationsMsg{Err: err}
-		}
-
-		return analyzeDurationsMsg{Stats: stats}
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/durations", host))
+	if err != nil {
+		return func() tea.Msg { return analyzeDurationsMsg{Err: err} }
 	}
+	q := u.Query()
+	q.Set("limit", "10") // Default limit to match CLI/WebUI
+	u.RawQuery = q.Encode()
+
+	return fetchCmd[DurationStats](u.String(), func(stats DurationStats, err error) tea.Msg {
+		return analyzeDurationsMsg{Stats: stats, Err: err}
+	})
 }
 
 func fetchAnalyzeReliabilityCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/reliability", host))
-		if err != nil {
-			return analyzeReliabilityMsg{Err: err}
-		}
-
-		q := u.Query()
-		q.Set("limit", "10") // Default limit
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeReliabilityMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeReliabilityMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats ReliabilityStats
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeReliabilityMsg{Err: err}
-		}
-
-		return analyzeReliabilityMsg{Stats: stats}
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/reliability", host))
+	if err != nil {
+		return func() tea.Msg { return analyzeReliabilityMsg{Err: err} }
 	}
+	q := u.Query()
+	q.Set("limit", "10") // Default limit
+	u.RawQuery = q.Encode()
+
+	return fetchCmd[ReliabilityStats](u.String(), func(stats ReliabilityStats, err error) tea.Msg {
+		return analyzeReliabilityMsg{Stats: stats, Err: err}
+	})
 }
 
 func fetchAnalyzeCostsCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/costs", host))
-		if err != nil {
-			return analyzeCostsMsg{Err: err}
-		}
-
-		q := u.Query()
-		q.Set("limit", "10")
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeCostsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeCostsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats CostStatsResponse
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeCostsMsg{Err: err}
-		}
-
-		return analyzeCostsMsg{Stats: stats}
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/costs", host))
+	if err != nil {
+		return func() tea.Msg { return analyzeCostsMsg{Err: err} }
 	}
+	q := u.Query()
+	q.Set("limit", "10")
+	u.RawQuery = q.Encode()
+
+	return fetchCmd[CostStatsResponse](u.String(), func(stats CostStatsResponse, err error) tea.Msg {
+		return analyzeCostsMsg{Stats: stats, Err: err}
+	})
 }
 
 func fetchAnalyzeAgentsCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/agents", host))
-		if err != nil {
-			return analyzeAgentsMsg{Err: err}
-		}
-
-		q := u.Query()
-		q.Set("limit", "10")
-		u.RawQuery = q.Encode()
-
-		resp, err := http.Get(u.String())
-		if err != nil {
-			return analyzeAgentsMsg{Err: err}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return analyzeAgentsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
-		}
-
-		var stats AgentStatsResponse
-		if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-			return analyzeAgentsMsg{Err: err}
-		}
-
-		return analyzeAgentsMsg{Stats: stats}
+	u, err := url.Parse(fmt.Sprintf("%s/jobs/analyze/agents", host))
+	if err != nil {
+		return func() tea.Msg { return analyzeAgentsMsg{Err: err} }
 	}
+	q := u.Query()
+	q.Set("limit", "10")
+	u.RawQuery = q.Encode()
+
+	return fetchCmd[AgentStatsResponse](u.String(), func(stats AgentStatsResponse, err error) tea.Msg {
+		return analyzeAgentsMsg{Stats: stats, Err: err}
+	})
 }
 
 func fetchSimulateCmd(host string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := http.Get(fmt.Sprintf("%s/simulate", host))
-		if err != nil {
-			return simulateMsg{Err: err}
+	return fetchCmd[orchestrator.SimulationReport](fmt.Sprintf("%s/simulate", host), func(report orchestrator.SimulationReport, err error) tea.Msg {
+		if err != nil && strings.HasPrefix(err.Error(), "status ") {
+			err = fmt.Errorf("HTTP %s", strings.TrimPrefix(err.Error(), "status "))
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return simulateMsg{Err: fmt.Errorf("HTTP %d", resp.StatusCode)}
-		}
-
-		var report orchestrator.SimulationReport
-		if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-			return simulateMsg{Err: err}
-		}
-
-		return simulateMsg{Report: report}
-	}
+		return simulateMsg{Report: report, Err: err}
+	})
 }
 
 func renderAnalyzeDurations(stats DurationStats) string {
