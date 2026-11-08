@@ -44,3 +44,7 @@
 **Vulnerability:** The submission flow in `cmd/orchestrator/submission.go` spawned an interactive editor (e.g., `vim`, `nano`) via `exec.Command` without an explicit `cmd.Env` configuration, defaulting to `os.Environ()`.
 **Learning:** While inheriting `os.Environ()` is generally expected for local tools, it is safer to use a standardized safe environment allowlist to prevent accidental leakage of sensitive orchestrator environment variables (like API keys) to the editor or any of its spawned plugins.
 **Prevention:** Always explicitly define `cmd.Env` using `utils.GetSafeEnv()` for system commands executed via `exec.Command`, even for interactive tools like user editors, to adhere to defense-in-depth principles.
+## 2026-11-08 - Prevent environment variable leakage to agent process
+**Vulnerability:** Orchestrator leaked all host environment variables (including webhooks and internal secrets) to the untrusted agent process via `os.Environ()` in `ProcessSpawner`.
+**Learning:** When spawning subprocesses, explicitly pass only a sanitized whitelist of base environment variables instead of inheriting everything, as the agent process executes untrusted code.
+**Prevention:** Use a whitelist-based approach for base environment variables (`PATH`, `HOME`, `USER`) instead of appending `os.Environ()` to prevent accidental secret leakage.

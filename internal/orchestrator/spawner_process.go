@@ -9,13 +9,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"recac/internal/git"
 	"recac/internal/runner"
+	"recac/internal/utils"
 )
 
 // ProcessSpawner implements the Spawner interface by running the agent as a local child process.
@@ -94,35 +94,10 @@ func (s *ProcessSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// 3. Prepare Environment
 	envMap := collectAgentEnvVars(item, s.AgentProvider, s.AgentModel)
 	envMap["RECAC_HOST_WORKSPACE_PATH"] = tempDir
-	var env []string
-	// Only inherit a safe whitelist of environment variables to prevent leaking orchestrator secrets
-	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
-	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
 
-	for _, e := range os.Environ() {
-		idx := strings.IndexByte(e, '=')
-		if idx != -1 {
-			key := e[:idx]
-			allow := false
-			for _, a := range allowedExact {
-				if key == a {
-					allow = true
-					break
-				}
-			}
-			if !allow {
-				for _, p := range allowedPrefixes {
-					if strings.HasPrefix(key, p) {
-						allow = true
-						break
-					}
-				}
-			}
-			if allow {
-				env = append(env, e)
-			}
-		}
-	}
+	// Only inherit a safe whitelist of environment variables to prevent leaking orchestrator secrets
+	env := utils.GetSafeEnv()
+
 	for k, v := range envMap {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}

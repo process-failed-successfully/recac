@@ -210,35 +210,8 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 
-		// Build a safe environment whitelist
-		allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
-		allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
-		var safeEnv []string
-
-		for _, e := range os.Environ() {
-			idx := strings.IndexByte(e, '=')
-			if idx != -1 {
-				key := e[:idx]
-				allow := false
-				for _, a := range allowedExact {
-					if key == a {
-						allow = true
-						break
-					}
-				}
-				if !allow {
-					for _, p := range allowedPrefixes {
-						if strings.HasPrefix(key, p) {
-							allow = true
-							break
-						}
-					}
-				}
-				if allow {
-					safeEnv = append(safeEnv, e)
-				}
-			}
-		}
+		// Build a safe environment whitelist using centralized logic
+		safeEnv := utils.GetSafeEnv()
 
 		// Propagate Safe Environment + Inject Project ID
 		cmd.Env = append(safeEnv, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
