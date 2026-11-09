@@ -176,3 +176,6 @@
 ## 2023-10-25 - Structure plain text loading states
 **Learning:** Some async plain-text loading states in the orchestrator web UI (`Loading status...`, `Loading analytics...`, `Loading jobs...`) lacked visual structure and active feedback, using inline styles instead of the established `empty-message` structure.
 **Action:** Always wrap plain-text loading states in a structural `<div class="empty-message">` and use `<span class="spinner state-icon"></span>` along with `<strong>` for the label to maintain visual consistency with error and empty states across the application.
+## 2026-11-09 - Redundant ARIA Labels
+**Learning:** Adding an `aria-label` that differs only slightly from or repeats the visible text on a button (e.g., `aria-label="Refresh Dashboard"` on a button displaying "Refresh") overrides the visible name for screen readers. This violates WCAG 2.5.3 (Label in Name) and can break voice navigation since the spoken text won't match the expected programmatic name.
+**Action:** Only use `aria-label` when the visible text is absent (like icon-only buttons) or provides insufficient context on its own. For buttons with clear text, let the text serve as the accessible name.

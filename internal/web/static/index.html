@@ -158,7 +158,7 @@
             <h1>Recac Project Dashboard</h1>
             <div class="header-actions">
                 <time id="last-updated" class="last-updated" aria-live="polite"></time>
-                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" aria-label="Refresh Dashboard" title="Refresh Dashboard (Shortcut: 'r')" aria-keyshortcuts="r" aria-controls="graph features-table">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
+                <button id="refresh-btn" type="button" class="action-btn" onclick="loadData()" title="Refresh Dashboard (Shortcut: 'r')" aria-keyshortcuts="r" aria-controls="graph features-table">Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd></button>
             </div>
         </header>
 
@@ -219,7 +219,7 @@
                 refreshBtn.setAttribute('aria-disabled', 'true');
                 refreshBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Refreshing...';
                 refreshBtn.setAttribute('aria-busy', 'true');
-                refreshBtn.setAttribute('aria-label', 'Refreshing Dashboard');
+                refreshBtn.removeAttribute('aria-label');
                 refreshBtn.title = 'Refreshing Dashboard';
             }
             try {
@@ -289,7 +289,7 @@
                     refreshBtn.removeAttribute('aria-disabled');
                     refreshBtn.innerHTML = 'Refresh<kbd aria-hidden="true" class="shortcut-hint">R</kbd>';
                     refreshBtn.removeAttribute('aria-busy');
-                    refreshBtn.setAttribute('aria-label', 'Refresh Dashboard');
+                    refreshBtn.removeAttribute('aria-label');
                     refreshBtn.title = 'Refresh Dashboard (Shortcut: \'r\')';
                 }
             }
