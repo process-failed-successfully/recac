@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -53,12 +54,12 @@ func (mw *maskingWriter) Write(p []byte) (n int, err error) {
 func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string) error {
 	var outBuf, errBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	if dir != "" {
 		cmd.Dir = dir
 	}
 	// Enforce no prompting
-	cmd.Env = append(getSafeEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+	cmd.Env = append(utils.GetSafeEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
 	cmd.Stdout = &maskingWriter{w: io.MultiWriter(os.Stdout, &outBuf)}
 	cmd.Stderr = &maskingWriter{w: io.MultiWriter(os.Stderr, &errBuf)}
 
@@ -82,7 +83,7 @@ func (c *Client) CheckoutNewBranch(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", "checkout", "-B", branchName)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -136,7 +137,7 @@ func (c *Client) CreatePR(dir, title, body, base string) (string, error) {
 	}
 
 	cmd := exec.Command("gh", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 
 	// Capture stdout to get the URL
@@ -161,7 +162,7 @@ func (c *Client) CreatePR(dir, title, body, base string) (string, error) {
 func (c *Client) Commit(dir, message string) error {
 	// git add .
 	addCmd := exec.Command("git", "add", ".")
-	addCmd.Env = getSafeEnv()
+	addCmd.Env = utils.GetSafeEnv()
 	addCmd.Dir = dir
 	addCmd.Stdout = os.Stdout
 	addCmd.Stderr = os.Stderr
@@ -171,7 +172,7 @@ func (c *Client) Commit(dir, message string) error {
 
 	// git commit -m "message"
 	commitCmd := exec.Command("git", "commit", "-m", message)
-	commitCmd.Env = getSafeEnv()
+	commitCmd.Env = utils.GetSafeEnv()
 	commitCmd.Dir = dir
 	commitCmd.Stdout = os.Stdout
 	commitCmd.Stderr = os.Stderr
@@ -184,7 +185,7 @@ func (c *Client) Commit(dir, message string) error {
 // SetRemoteURL updates the remote URL (e.g. to include auth token).
 func (c *Client) SetRemoteURL(dir, name, url string) error {
 	cmd := exec.Command("git", "remote", "set-url", name, url)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -196,7 +197,7 @@ func (c *Client) Checkout(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", "checkout", branchName)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -213,7 +214,7 @@ func (c *Client) Pull(dir, remote, branchName string) error {
 // Merge merges the specified branch into the current branch.
 func (c *Client) Merge(dir, branchName string) error {
 	cmd := exec.Command("git", "merge", branchName)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -231,7 +232,7 @@ func (c *Client) Fetch(dir, remote, branchName string) error {
 func (c *Client) RemoteBranchExists(dir, remote, branch string) (bool, error) {
 	// git ls-remote --heads remote branch
 	cmd := exec.Command("git", "ls-remote", "--heads", remote, branch)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -247,7 +248,7 @@ func (c *Client) RemoteBranchExists(dir, remote, branch string) (bool, error) {
 func (c *Client) LocalBranchExists(dir, branch string) (bool, error) {
 	// git show-ref --verify refs/heads/branch
 	cmd := exec.Command("git", "show-ref", "--verify", "refs/heads/"+branch)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		return false, nil
@@ -261,7 +262,7 @@ func (c *Client) RepoExists(dir string) bool {
 		return false
 	}
 	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	return cmd.Run() == nil
 }
@@ -269,7 +270,7 @@ func (c *Client) RepoExists(dir string) bool {
 // CurrentBranch returns the name of the current branch.
 func (c *Client) CurrentBranch(dir string) (string, error) {
 	cmd := exec.Command("git", "branch", "--show-current")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -284,12 +285,12 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 func (c *Client) Run(directory string, args ...string) (string, error) {
 	var outBuf, errBuf bytes.Buffer
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	if directory != "" {
 		cmd.Dir = directory
 	}
 	// Enforce no prompting
-	cmd.Env = append(getSafeEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+	cmd.Env = append(utils.GetSafeEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
 	cmd.Stdout = &maskingWriter{w: &outBuf} // Only capture for return, no tee to stdout/stderr unless debug
 	cmd.Stderr = &maskingWriter{w: &errBuf}
 
@@ -302,7 +303,7 @@ func (c *Client) Run(directory string, args ...string) (string, error) {
 // CurrentCommitSHA returns the SHA of the current commit (HEAD).
 func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -316,7 +317,7 @@ func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 // Stash stashes local changes, including untracked files.
 func (c *Client) Stash(dir string) error {
 	cmd := exec.Command("git", "stash", "--include-untracked")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -326,7 +327,7 @@ func (c *Client) Stash(dir string) error {
 // StashPop pops the latest stash.
 func (c *Client) StashPop(dir string) error {
 	cmd := exec.Command("git", "stash", "pop")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -340,7 +341,7 @@ func (c *Client) StashPush(dir, message string) error {
 		args = append(args, "-m", message)
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -350,7 +351,7 @@ func (c *Client) StashPush(dir, message string) error {
 // StashList lists all stashes.
 func (c *Client) StashList(dir string) ([]string, error) {
 	cmd := exec.Command("git", "stash", "list")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -372,7 +373,7 @@ func (c *Client) StashShow(dir, id string) (string, error) {
 		args = append(args, id)
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -390,7 +391,7 @@ func (c *Client) StashApply(dir, id string) error {
 		args = append(args, id)
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -404,7 +405,7 @@ func (c *Client) StashDrop(dir, id string) error {
 		args = append(args, id)
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -414,7 +415,7 @@ func (c *Client) StashDrop(dir, id string) error {
 // StashClear clears all stashes.
 func (c *Client) StashClear(dir string) error {
 	cmd := exec.Command("git", "stash", "clear")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -461,7 +462,7 @@ func (c *Client) ResetHard(dir, remote, branch string) error {
 // ResetSoft resets the current branch to the specified target, keeping local changes staged.
 func (c *Client) ResetSoft(dir, target string) error {
 	cmd := exec.Command("git", "reset", "--soft", target)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -475,7 +476,7 @@ func (c *Client) ResetSoft(dir, target string) error {
 // MergeBase finds the best common ancestor between two refs.
 func (c *Client) MergeBase(dir, ref1, ref2 string) (string, error) {
 	cmd := exec.Command("git", "merge-base", ref1, ref2)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -501,7 +502,7 @@ func (c *Client) Clean(dir string) error {
 	os.RemoveAll(filepath.Join(dir, "go/pkg/mod"))
 
 	cmd := exec.Command("git", "clean", "-fdx")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -511,7 +512,7 @@ func (c *Client) Clean(dir string) error {
 // AbortMerge aborts an in-progress merge.
 func (c *Client) AbortMerge(dir string) error {
 	cmd := exec.Command("git", "merge", "--abort")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -521,7 +522,7 @@ func (c *Client) AbortMerge(dir string) error {
 // DeleteLocalBranch deletes a local branch.
 func (c *Client) DeleteLocalBranch(dir, branch string) error {
 	cmd := exec.Command("git", "branch", "-D", branch)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -536,7 +537,7 @@ func (c *Client) DeleteRemoteBranch(dir, remote, branch string) error {
 // Diff returns the diff between two commits.
 func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
 	cmd := exec.Command("git", "diff", startCommit, endCommit)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -550,7 +551,7 @@ func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
 // DiffStaged returns the diff of staged changes.
 func (c *Client) DiffStaged(dir string) (string, error) {
 	cmd := exec.Command("git", "diff", "--staged")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -564,7 +565,7 @@ func (c *Client) DiffStaged(dir string) (string, error) {
 // DiffStat returns the stat summary of a diff between two commits.
 func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
 	cmd := exec.Command("git", "diff", "--stat", startCommit, endCommit)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -586,7 +587,7 @@ func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
 func (c *Client) Log(dir string, args ...string) ([]string, error) {
 	cmdArgs := append([]string{"log"}, args...)
 	cmd := exec.Command("git", cmdArgs...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -606,7 +607,7 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 // BisectStart starts a git bisect session with bad and good commits.
 func (c *Client) BisectStart(dir, bad, good string) error {
 	cmd := exec.Command("git", "bisect", "start", bad, good)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -620,7 +621,7 @@ func (c *Client) BisectGood(dir, rev string) error {
 		args = append(args, rev)
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -634,7 +635,7 @@ func (c *Client) BisectBad(dir, rev string) error {
 		args = append(args, rev)
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -644,7 +645,7 @@ func (c *Client) BisectBad(dir, rev string) error {
 // BisectReset resets the bisect session.
 func (c *Client) BisectReset(dir string) error {
 	cmd := exec.Command("git", "bisect", "reset")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -654,7 +655,7 @@ func (c *Client) BisectReset(dir string) error {
 // BisectLog returns the log of the current bisect session.
 func (c *Client) BisectLog(dir string) ([]string, error) {
 	cmd := exec.Command("git", "bisect", "log")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -669,7 +670,7 @@ func (c *Client) BisectLog(dir string) ([]string, error) {
 func (c *Client) Tag(dir, version string) error {
 	// git tag -a v1.0.0 -m "Release v1.0.0"
 	cmd := exec.Command("git", "tag", "-a", version, "-m", fmt.Sprintf("Release %s", version))
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -680,7 +681,7 @@ func (c *Client) Tag(dir, version string) error {
 func (c *Client) DeleteTag(dir, version string) error {
 	// git tag -d v1.0.0
 	cmd := exec.Command("git", "tag", "-d", version)
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -697,7 +698,7 @@ func (c *Client) PushTags(dir string) error {
 func (c *Client) LatestTag(dir string) (string, error) {
 	// git describe --tags --abbrev=0
 	cmd := exec.Command("git", "describe", "--tags", "--abbrev=0")
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -707,40 +708,4 @@ func (c *Client) LatestTag(dir string) (string, error) {
 		return "", nil
 	}
 	return strings.TrimSpace(out.String()), nil
-}
-
-// getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
-func getSafeEnv() []string {
-	var env []string
-	allowedPrefixes := []string{
-		"GIT_", "SSH_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
-		"GNUPGHOME", "GPG_TTY", "XDG_", "LC_", "LANG",
-	}
-	allowedExact := []string{"PATH", "HOME", "USER", "TERM", "TMPDIR", "GH_TOKEN"}
-
-	for _, e := range os.Environ() {
-		idx := strings.IndexByte(e, '=')
-		if idx != -1 {
-			key := e[:idx]
-			allow := false
-			for _, a := range allowedExact {
-				if key == a {
-					allow = true
-					break
-				}
-			}
-			if !allow {
-				for _, p := range allowedPrefixes {
-					if strings.HasPrefix(key, p) {
-						allow = true
-						break
-					}
-				}
-			}
-			if allow {
-				env = append(env, e)
-			}
-		}
-	}
-	return env
 }

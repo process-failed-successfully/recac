@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 	"strings"
 	"time"
 )
@@ -69,7 +70,7 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 
 	// Filter environment variables similar to Python implementation if needed,
 	// but for now we'll pass all and ensuring NO_OPEN_BROWSER=1
-	env := getSafeEnv()
+	env := utils.GetSafeEnv()
 	env = append(env, "NO_OPEN_BROWSER=1")
 	cmd.Env = env
 
@@ -105,39 +106,6 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 }
 
 // SendStream fallback for Cursor CLI (calls Send and emits once)
-
-// getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
-func getSafeEnv() []string {
-	var env []string
-	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
-	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
-
-	for _, e := range os.Environ() {
-		idx := strings.IndexByte(e, '=')
-		if idx != -1 {
-			key := e[:idx]
-			allow := false
-			for _, a := range allowedExact {
-				if key == a {
-					allow = true
-					break
-				}
-			}
-			if !allow {
-				for _, p := range allowedPrefixes {
-					if strings.HasPrefix(key, p) {
-						allow = true
-						break
-					}
-				}
-			}
-			if allow {
-				env = append(env, e)
-			}
-		}
-	}
-	return env
-}
 
 func (c *CursorCLIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	resp, err := c.Send(ctx, prompt)

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"recac/internal/git"
+	"recac/internal/utils"
 	"strings"
 	"syscall"
 	"time"
@@ -180,7 +181,7 @@ func (sm *SessionManager) StartSession(name, goal string, command []string, work
 	cmd.Stdout = logFd
 	cmd.Stderr = logFd
 	cmd.Dir = workspace
-	cmd.Env = getSafeEnv() // Preserve environment
+	cmd.Env = utils.GetSafeEnv() // Preserve environment
 
 	// Start process in new session (detached from terminal)
 	// Note: Setsid may not work in all environments (e.g., Docker containers without proper capabilities)
@@ -655,39 +656,6 @@ func (sm *SessionManager) GetSessionLogContent(name string, lines int) (string, 
 var ErrSessionRunning = fmt.Errorf("session is running")
 
 // RemoveSession deletes a session's state and log files from disk.
-
-// getSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
-func getSafeEnv() []string {
-	var env []string
-	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
-	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
-
-	for _, e := range os.Environ() {
-		idx := strings.IndexByte(e, '=')
-		if idx != -1 {
-			key := e[:idx]
-			allow := false
-			for _, a := range allowedExact {
-				if key == a {
-					allow = true
-					break
-				}
-			}
-			if !allow {
-				for _, p := range allowedPrefixes {
-					if strings.HasPrefix(key, p) {
-						allow = true
-						break
-					}
-				}
-			}
-			if allow {
-				env = append(env, e)
-			}
-		}
-	}
-	return env
-}
 
 func (sm *SessionManager) RemoveSession(name string, force bool) error {
 	session, err := sm.LoadSession(name)
