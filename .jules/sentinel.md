@@ -48,3 +48,8 @@
 **Vulnerability:** Orchestrator leaked all host environment variables (including webhooks and internal secrets) to the untrusted agent process via `os.Environ()` in `ProcessSpawner`.
 **Learning:** When spawning subprocesses, explicitly pass only a sanitized whitelist of base environment variables instead of inheriting everything, as the agent process executes untrusted code.
 **Prevention:** Use a whitelist-based approach for base environment variables (`PATH`, `HOME`, `USER`) instead of appending `os.Environ()` to prevent accidental secret leakage.
+
+## 2026-11-11 - Centralize Environment Variable Sanitization
+**Vulnerability:** Subprocesses (`exec.Command`) were spawned with partially duplicated and inconsistent `getSafeEnv()` functions acting as allowlists for environment variables. Some implementations missed essential variables for their specific execution contexts (e.g., git client needing `GH_TOKEN`), while others might have inadvertently leaked variables if an incomplete version was copied.
+**Learning:** Security controls like environment variable sanitization must be centralized to avoid drift and ensure a uniform, consistent security posture across the entire application, especially in a distributed agent framework where arbitrary processes are spawned.
+**Prevention:** Implement a single, robust `utils.GetSafeEnv()` function that aggregates all necessary safe variables across contexts, and mandate its use for all subprocess environment configurations.

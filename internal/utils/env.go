@@ -8,8 +8,9 @@ import (
 // GetSafeEnv returns a whitelist of environment variables safe to pass to subprocesses.
 func GetSafeEnv() []string {
 	var env []string
-	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM"}
-	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_"}
+	// Combined allowed variables from git client, runner, and agent CLIs
+	allowedExact := []string{"PATH", "HOME", "USER", "LANG", "TERM", "TMPDIR", "GH_TOKEN"}
+	allowedPrefixes := []string{"GO", "NODE_", "PYTHON", "DOCKER_", "XDG_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_", "SSH_", "GNUPGHOME", "GPG_TTY", "LC_"}
 
 	for _, e := range os.Environ() {
 		idx := strings.IndexByte(e, '=')

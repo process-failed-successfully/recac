@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 	"strings"
 	"time"
 )
@@ -54,7 +55,7 @@ func (c *OpenCodeCLIClient) Send(ctx context.Context, prompt string) (string, er
 	if c.workDir != "" {
 		cmd.Dir = c.workDir
 	}
-	cmd.Env = getSafeEnv()
+	cmd.Env = utils.GetSafeEnv()
 
 	// Mask prompt in logs if too long
 	logArgs := args
@@ -87,7 +88,6 @@ func (c *OpenCodeCLIClient) Send(ctx context.Context, prompt string) (string, er
 }
 
 // SendStream fallback for OpenCode CLI (calls Send and emits once)
-
 
 func (c *OpenCodeCLIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	resp, err := c.Send(ctx, prompt)
